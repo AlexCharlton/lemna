@@ -2,6 +2,7 @@
 name = "lemna"
 version = "0.1.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
+description = "A Reactive UI framework for Rust"
 edition = "2018"
 repository = "https://github.com/AlexCharlton/lemna"
 license = "MIT"
@@ -22,7 +23,7 @@ open_iconic = []
 
 
 [dependencies]
-lemna-macros = { path = "./macros" }
+lemna-macros = { path = "./macros", version="0.1" }
 wgpu = "0.6"
 # wgpu = { path = "../wgpu-rs" }
 ahash = "0.3.2"
