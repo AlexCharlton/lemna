@@ -1,0 +1,1228 @@
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use crate::base_types::*;
+use crate::component::*;
+use crate::event::{self, Event};
+use crate::font_cache::FontCache;
+use crate::layout::*;
+use crate::render::Renderer;
+
+static NODE_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);
+
+fn new_node_id() -> u64 {
+    NODE_ID_ATOMIC.fetch_add(1, Ordering::SeqCst)
+}
+
+#[macro_export]
+macro_rules! node {
+    ($component:expr, $layout:expr, $key:expr) => {
+        $crate::Node::new(Box::new($component), $key, $layout)
+    };
+    ($component:expr, $layout:expr) => {
+        node!($component, $layout, 0)
+    };
+    ($component:expr) => {
+        node!($component, $crate::layout::Layout::default())
+    };
+}
+
+pub struct Node<R>
+where
+    R: Renderer + fmt::Debug,
+{
+    pub id: u64,
+    pub component: Box<dyn Component<R>>,
+    pub render_cache: Option<Vec<R::Renderable>>,
+    pub(crate) children: Vec<Node<R>>,
+    pub layout: Layout,
+    pub layout_result: LayoutResult,
+    pub aabb: AABB,
+    pub inclusive_aabb: AABB,
+    /// TODO: Marking a node dirty should propagate to all its parents.
+    ///   Clean nodes can be fully recycled instead of performing a `view`
+    pub dirty: bool,
+    /// If the node is scrollable, how big are its children?
+    pub inner_scale: Option<Scale>,
+    pub props_hash: u64,
+    pub render_hash: u64,
+    pub key: u64,
+}
+
+impl<R: Renderer> fmt::Debug for Node<R>
+where
+    <R as Renderer>::Renderable: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Node")
+            .field("id", &self.id)
+            .field("component", &self.component)
+            .field("render_cache", &self.render_cache)
+            // .field("layout", &self.layout) // This is often TMI
+            .field("aabb", &self.aabb)
+            .field("inclusive_aabb", &self.inclusive_aabb)
+            .field("props_hash", &self.props_hash)
+            .field("render_hash", &self.render_hash)
+            .field("key", &self.key)
+            .field("children", &self.children)
+            .finish()
+    }
+}
+
+fn expand_aabb(a: &mut AABB, b: AABB) {
+    if a.pos.x > b.pos.x {
+        a.pos.x = b.pos.x;
+    }
+    if a.bottom_right.x < b.bottom_right.x {
+        a.bottom_right.x = b.bottom_right.x;
+    }
+    if a.pos.y > b.pos.y {
+        a.pos.y = b.pos.y;
+    }
+    if a.bottom_right.y < b.bottom_right.y {
+        a.bottom_right.y = b.bottom_right.y;
+    }
+}
+
+impl<R: fmt::Debug + Renderer> Node<R> {
+    pub fn new(component: Box<dyn Component<R>>, key: u64, layout: Layout) -> Self {
+        Self {
+            id: 0,
+            component,
+            layout,
+            key,
+            aabb: Default::default(),
+            inclusive_aabb: Default::default(),
+            dirty: false,
+            inner_scale: None,
+            layout_result: Default::default(),
+            children: vec![],
+            render_cache: None,
+            props_hash: u64::max_value(),
+            render_hash: u64::max_value(),
+        }
+    }
+
+    pub fn push(mut self, node: Self) -> Self {
+        self.children.push(node);
+        self
+    }
+
+    pub fn view(&mut self, mut prev: Option<&mut Self>) {
+        // TODO: skip non-visible nodes
+        // Set up state and props
+        let mut hasher = ComponentHasher::new_with_keys(0, 0);
+        if let Some(prev) = &mut prev {
+            self.id = prev.id;
+            if let Some(state) = prev.component.take_state() {
+                self.component.replace_state(state);
+            }
+
+            self.component.props_hash(&mut hasher);
+            self.props_hash = hasher.finish();
+
+            if self.props_hash != prev.props_hash {
+                self.component.new_props();
+            } // Maybe TODO: If nodes were clonable, it could make sense to clone them here rather than create them with `view`
+        } else {
+            self.id = new_node_id();
+            self.component.init();
+            self.component.props_hash(&mut hasher);
+            self.props_hash = hasher.finish();
+        }
+
+        // Create children
+        if self.children.is_empty() {
+            if let Some(child) = self.component.view() {
+                self.children.push(child)
+            }
+        }
+
+        // View children
+        if let Some(prev) = prev.as_mut() {
+            let prev_children = &mut prev.children;
+            for child in self.children.iter_mut() {
+                child.view(prev_children.iter_mut().find(|x| x.key == child.key))
+            }
+        } else {
+            for child in self.children.iter_mut() {
+                child.view(None)
+            }
+        }
+    }
+
+    fn set_aabb(
+        &mut self,
+        parent_pos: Pos,
+        parent_aabb: AABB,
+        mut parent_scroll_pos: ScrollPosition,
+        parent_full_control: bool,
+        frame: AABB,
+        scale_factor: f32,
+    ) {
+        let full_control = self.component.full_control();
+
+        if !parent_full_control {
+            self.aabb = self.layout_result.into();
+            self.aabb *= scale_factor;
+            self.aabb = self.aabb.round();
+            self.inner_scale.as_mut().map(|s| {
+                s.width = (s.width * scale_factor).round();
+                s.height = (s.height * scale_factor).round();
+            });
+        }
+        self.aabb.pos += parent_pos;
+        self.aabb.bottom_right += parent_pos.into();
+        self.aabb.pos.z =
+            self.layout.z_index.unwrap_or(parent_pos.z + 1.0) + self.layout.z_index_increment;
+
+        if full_control {
+            let children: Vec<(&mut AABB, Option<Scale>, Option<Point>)> = self
+                .children
+                .iter_mut()
+                .map(|c| {
+                    c.aabb = c.layout_result.into();
+                    c.aabb *= scale_factor;
+                    c.aabb = c.aabb.round();
+                    c.inner_scale.as_mut().map(|s| {
+                        s.width = (s.width * scale_factor).round();
+                        s.height = (s.height * scale_factor).round();
+                    });
+
+                    (&mut c.aabb, c.inner_scale, c.component.focus())
+                })
+                .collect();
+            self.component
+                .set_aabb(&mut self.aabb, parent_aabb, children, frame, scale_factor);
+        }
+
+        self.inclusive_aabb = self.aabb;
+        if let Some(scale) = self.inner_scale {
+            self.inclusive_aabb.set_scale_mut(scale.width, scale.height);
+        }
+
+        let mut child_base_pos = self.aabb.pos;
+
+        if let Some(mut x) = self.scroll_x() {
+            let width = self.aabb.width();
+            let inner_width = self.inner_scale.unwrap().width;
+            if x + width > inner_width {
+                x = inner_width - width;
+            }
+
+            parent_scroll_pos.x = Some(x);
+            child_base_pos.x -= x;
+        }
+
+        if let Some(mut y) = self.scroll_y() {
+            let height = self.aabb.height();
+            let inner_height = self.inner_scale.unwrap().height;
+            if y + height > inner_height {
+                y = inner_height - height;
+            }
+
+            parent_scroll_pos.y = Some(y);
+            child_base_pos.y -= y;
+        }
+
+        let scrollable = self.scrollable();
+        for child in self.children.iter_mut() {
+            let mut scroll_offset: Size = parent_scroll_pos.into();
+            if !child.layout.position.top.resolved() && !child.layout.position.bottom.resolved() {
+                scroll_offset.height = Dimension::Px(0.0);
+            }
+            if !child.layout.position.left.resolved() && !child.layout.position.right.resolved() {
+                scroll_offset.width = Dimension::Px(0.0);
+            }
+
+            let mut child_base_pos = child_base_pos;
+            child_base_pos.x += f32::from(scroll_offset.width);
+            child_base_pos.y += f32::from(scroll_offset.height);
+
+            child.set_aabb(
+                child_base_pos,
+                self.aabb,
+                parent_scroll_pos,
+                full_control,
+                if scrollable { self.aabb } else { frame },
+                scale_factor,
+            );
+            if !scrollable {
+                expand_aabb(&mut self.inclusive_aabb, child.inclusive_aabb);
+            }
+        }
+    }
+
+    pub fn layout(&mut self, _prev: &Self, font_cache: &FontCache, scale_factor: f32) {
+        self.calculate_layout(font_cache);
+        self.set_aabb(
+            Pos::default(),
+            self.aabb,
+            ScrollPosition::default(),
+            false,
+            (AABB::from(self.layout_result) * scale_factor).round(),
+            scale_factor,
+        );
+    }
+
+    /// Return whether to redraw the screen
+    pub fn render(
+        &mut self,
+        renderer: &mut R,
+        prev: Option<&mut Self>,
+        font_cache: &FontCache,
+        scale_factor: f32,
+    ) -> bool {
+        // TODO: skip non-visible nodes
+        let mut hasher = ComponentHasher::new_with_keys(0, 0);
+        if let Some(prev) = prev {
+            let mut ret = false;
+            self.component.render_hash(&mut hasher);
+            self.aabb.size().hash(&mut hasher);
+            self.inner_scale.hash(&mut hasher);
+            self.render_hash = hasher.finish();
+
+            if self.render_hash != prev.render_hash {
+                let context = RenderContext {
+                    aabb: &self.aabb,
+                    inner_scale: self.inner_scale,
+                    renderer,
+                    prev_state: prev.render_cache.take(),
+                    font_cache,
+                    scale_factor,
+                };
+                self.render_cache = self.component.render(context);
+                ret = true;
+            } else {
+                self.render_cache = prev.render_cache.take();
+            }
+
+            let prev_children = &mut prev.children;
+            for child in self.children.iter_mut() {
+                ret |= child.render(
+                    renderer,
+                    prev_children.iter_mut().find(|x| x.key == child.key),
+                    font_cache,
+                    scale_factor,
+                )
+            }
+
+            ret
+        } else {
+            let context = RenderContext {
+                aabb: &self.aabb,
+                inner_scale: self.inner_scale,
+                renderer,
+                prev_state: None,
+                font_cache,
+                scale_factor,
+            };
+            self.render_cache = self.component.render(context);
+            self.component.render_hash(&mut hasher);
+            self.render_hash = hasher.finish();
+
+            for child in self.children.iter_mut() {
+                child.render(renderer, None, font_cache, scale_factor);
+            }
+
+            true
+        }
+    }
+
+    pub fn scroll_x(&self) -> Option<f32> {
+        self.component.scroll_position().and_then(|p| p.x)
+    }
+
+    pub fn scroll_y(&self) -> Option<f32> {
+        self.component.scroll_position().and_then(|p| p.y)
+    }
+
+    pub fn scrollable(&self) -> bool {
+        self.scroll_x().is_some() || self.scroll_y().is_some()
+    }
+
+    pub fn iter_renderables(&self) -> NodeRenderableIterator<'_, R> {
+        NodeRenderableIterator {
+            queue: vec![self],
+            current_frame: vec![],
+            frame_queue: vec![],
+            i: 0,
+        }
+    }
+
+    // Events
+
+    /// Used to handle input specific event handlers that rely on the event knowing what is under the mouse (e.g. `mouse_motion`)
+    /// First find the (ordered by z-index) nodes under the mouse (highest z-index last),
+    /// then pass the list to `_handle_event_under_mouse`, which will only handle the last
+    /// event on the list. It recursively moves through the nodes that may be under the mouse
+    /// and pops off the `nodes_under` list when it handles that node. We repeat until there
+    /// is nothing left in `nodes_under`. If an event handler has caused the event to stop bubbling,
+    /// we can stop early.
+    fn handle_event_under_mouse<E>(
+        &mut self,
+        event: &mut Event<E>,
+        handler: fn(&mut Self, &mut Event<E>) -> Vec<Message>,
+    ) {
+        let mut nodes_under = self.nodes_under(event);
+        while nodes_under.len() != 0 && event.bubbles {
+            self._handle_event_under_mouse(event, handler, &mut nodes_under);
+        }
+    }
+
+    fn _handle_event_under_mouse<E>(
+        &mut self,
+        event: &mut Event<E>,
+        handler: fn(&mut Self, &mut Event<E>) -> Vec<Message>,
+        node_order: &mut Vec<(u64, f32)>,
+    ) -> Vec<Message> {
+        let mut m: Vec<Message> = vec![];
+        event.over_child_n = None;
+        event.over_subchild_n = None;
+        for (n, child) in self.children.iter_mut().enumerate() {
+            if child
+                .component
+                .is_mouse_maybe_over(event.mouse_position, child.inclusive_aabb)
+            {
+                for message in child
+                    ._handle_event_under_mouse(event, handler, node_order)
+                    .drain(..)
+                {
+                    m.append(&mut self.component.update(message));
+                }
+                if child
+                    .component
+                    .is_mouse_over(event.mouse_position, child.aabb)
+                {
+                    event.over_subchild_n = event.over_child_n;
+                    event.over_child_n = Some(n);
+                }
+            }
+        }
+
+        if event.bubbles
+            && Some(self.id) == node_order.last().map(|x| x.0)
+            && self
+                .component
+                .is_mouse_over(event.mouse_position, self.aabb)
+        {
+            node_order.pop();
+            event.current_node_id = Some(self.id);
+            event.current_aabb = Some(self.aabb);
+            event.current_inner_scale = self.inner_scale;
+            m.append(&mut handler(self, event));
+        } else if Some(self.id) == node_order.last().map(|x| x.0) {
+            node_order.pop();
+        }
+
+        m
+    }
+
+    fn nodes_under<E>(&self, event: &Event<E>) -> Vec<(u64, f32)> {
+        let mut collector: Vec<(u64, f32)> = vec![];
+
+        self._nodes_under(event, &mut collector);
+        // Maybe TODO: Discard siblings?
+        collector.sort_by(|(m, _), (n, _)| m.partial_cmp(&n).unwrap());
+        collector
+    }
+
+    fn _nodes_under<E>(&self, event: &Event<E>, collector: &mut Vec<(u64, f32)>) {
+        if self
+            .component
+            .is_mouse_over(event.mouse_position, self.aabb)
+        {
+            collector.push((self.id, self.aabb.pos.z))
+        }
+
+        let is_mouse_over = self.component.is_mouse_over(
+            event.mouse_position,
+            self.component.frame_bounds(self.aabb, self.inner_scale),
+        );
+
+        for child in self.children.iter() {
+            if self.scrollable() && !is_mouse_over {
+                continue;
+            }
+            if child
+                .component
+                .is_mouse_maybe_over(event.mouse_position, child.inclusive_aabb)
+            {
+                child._nodes_under(event, collector);
+            }
+        }
+    }
+
+    pub fn get_target(&mut self, target: u64) -> Option<&mut Self> {
+        let mut stack: Vec<&mut Self> = vec![];
+        let mut current = self;
+        loop {
+            if current.id == target {
+                return Some(current);
+            }
+            if !current.children.is_empty() {
+                stack.append(&mut current.children.iter_mut().collect());
+            }
+            if stack.is_empty() {
+                return None;
+            } else {
+                current = stack.pop().unwrap();
+            }
+        }
+    }
+
+    pub fn get_target_from_stack(&mut self, target: &Vec<usize>) -> &mut Self {
+        let mut current = self;
+        for t in target.iter() {
+            current = &mut current.children[*t];
+        }
+        current
+    }
+
+    pub fn get_target_stack(&self, target: u64) -> Option<Vec<usize>> {
+        struct Frame<'a, T: Renderer> {
+            node: &'a Node<T>,
+            child: usize,
+        }
+
+        let mut stack: Vec<Frame<R>> = vec![];
+        let mut current = Frame {
+            node: self,
+            child: 0,
+        };
+        loop {
+            if current.node.id == target {
+                // Unwind
+                return Some(stack.iter().map(|f| f.child - 1).collect());
+            }
+            if current.child < current.node.children.len() {
+                stack.push(Frame {
+                    node: current.node,
+                    child: current.child + 1,
+                });
+                current = Frame {
+                    node: &current.node.children[current.child],
+                    child: 0,
+                };
+            } else if stack.is_empty() {
+                return None;
+            } else {
+                current = stack.pop().unwrap();
+            }
+        }
+    }
+
+    fn handle_targeted_event<E>(
+        &mut self,
+        event: &mut Event<E>,
+        handler: fn(&mut Self, &mut Event<E>) -> Vec<Message>,
+    ) {
+        if event.target.is_none() {
+            return;
+        }
+        if let Some(mut stack) = self.get_target_stack(event.target.unwrap()) {
+            let node = self.get_target_from_stack(&stack);
+            event.current_node_id = Some(node.id);
+            event.current_aabb = Some(node.aabb);
+            event.current_inner_scale = node.inner_scale;
+            let mut messages = handler(node, event);
+            if stack.is_empty() {
+                return;
+            }
+            stack.pop();
+
+            loop {
+                let node = self.get_target_from_stack(&stack);
+                let mut next_messages: Vec<Message> = vec![];
+                for message in messages.drain(..) {
+                    next_messages.append(&mut node.component.update(message))
+                }
+                if next_messages.is_empty() || stack.is_empty() {
+                    return;
+                }
+                messages = next_messages;
+                stack.pop();
+            }
+        }
+    }
+
+    pub fn send_messages(&mut self, mut target_stack: Vec<usize>, mut messages: Vec<Message>) {
+        loop {
+            let node = self.get_target_from_stack(&target_stack);
+            let mut next_messages: Vec<Message> = vec![];
+            for message in messages.drain(..) {
+                next_messages.append(&mut node.component.update(message))
+            }
+            if next_messages.is_empty() || target_stack.is_empty() {
+                return;
+            }
+            messages = next_messages;
+            target_stack.pop();
+        }
+    }
+
+    pub fn mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
+        self.handle_event_under_mouse(event, |node, e| {
+            e.target = Some(node.id);
+            node.component.on_mouse_motion(e)
+        });
+    }
+
+    pub fn scroll(&mut self, event: &mut Event<event::Scroll>) {
+        self.handle_event_under_mouse(event, |node, e| node.component.on_scroll(e));
+    }
+
+    pub fn mouse_down(&mut self, event: &mut Event<event::MouseDown>) {
+        self.handle_event_under_mouse(event, |node, e| node.component.on_mouse_down(e));
+    }
+
+    pub fn mouse_up(&mut self, event: &mut Event<event::MouseUp>) {
+        self.handle_event_under_mouse(event, |node, e| node.component.on_mouse_up(e));
+    }
+
+    pub fn mouse_enter(&mut self, event: &mut Event<event::MouseEnter>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_mouse_enter(e));
+    }
+
+    pub fn mouse_leave(&mut self, event: &mut Event<event::MouseLeave>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_mouse_leave(e));
+    }
+
+    pub fn click(&mut self, event: &mut Event<event::Click>) {
+        self.handle_event_under_mouse(event, |node, e| node.component.on_click(e));
+    }
+
+    pub fn focus(&mut self, event: &mut Event<event::Focus>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_focus(e));
+    }
+
+    pub fn blur(&mut self, event: &mut Event<event::Blur>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_blur(e));
+    }
+
+    pub fn key_down(&mut self, event: &mut Event<event::KeyDown>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_key_down(e));
+    }
+
+    pub fn key_up(&mut self, event: &mut Event<event::KeyUp>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_key_up(e));
+    }
+
+    pub fn key_press(&mut self, event: &mut Event<event::KeyPress>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_key_press(e));
+    }
+
+    pub fn text_entry(&mut self, event: &mut Event<event::TextEntry>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_text_entry(e));
+    }
+
+    pub fn drag(&mut self, event: &mut Event<event::Drag>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_drag(e));
+    }
+
+    pub fn drag_start(&mut self, event: &mut Event<event::DragStart>) {
+        self.handle_event_under_mouse(event, |node, e| {
+            e.target = Some(node.id);
+            node.component.on_drag_start(e)
+        });
+    }
+
+    pub fn drag_end(&mut self, event: &mut Event<event::DragEnd>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_drag_end(e));
+    }
+
+    pub fn menu_select(&mut self, event: &mut Event<event::MenuSelect>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_menu_select(e));
+    }
+
+    pub fn tick(&mut self, event: &mut Event<event::Tick>) -> Vec<Message> {
+        let mut m: Vec<Message> = vec![];
+
+        for child in self.children.iter_mut() {
+            for message in child.tick(event).drain(..) {
+                m.append(&mut self.component.update(message));
+            }
+        }
+
+        event.current_node_id = Some(self.id);
+        event.current_aabb = Some(self.aabb);
+        event.current_inner_scale = self.inner_scale;
+        m.append(&mut self.component.on_tick(event));
+
+        m
+    }
+}
+
+pub type ScrollFrame = AABB;
+
+pub struct NodeRenderableIterator<'a, R: Renderer> {
+    queue: Vec<&'a Node<R>>,
+    current_frame: Vec<ScrollFrame>,
+    frame_queue: Vec<(&'a Node<R>, Vec<ScrollFrame>)>,
+    i: usize,
+}
+
+impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
+    type Item = (&'a R::Renderable, &'a AABB, Vec<ScrollFrame>);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while !self.queue.is_empty() {
+            let n = self.queue.pop().unwrap();
+            if let Some(c) = &n.render_cache {
+                let i = self.i;
+
+                if i == c.len() {
+                    self.i = 0;
+                    if n.scrollable() {
+                        let mut f = self.current_frame.clone();
+                        f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
+                        self.frame_queue.push((&n, f));
+                    } else {
+                        self.queue
+                            .extend(n.children.iter().collect::<Vec<&Node<R>>>());
+                    }
+                } else {
+                    self.i += 1;
+                    self.queue.push(n);
+                    return Some((&c[i], &n.aabb, self.current_frame.clone()));
+                }
+            } else {
+                if n.scrollable() {
+                    let mut f = self.current_frame.clone();
+                    f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
+                    self.frame_queue.push((&n, f));
+                } else {
+                    self.queue
+                        .extend(n.children.iter().collect::<Vec<&Node<R>>>());
+                }
+            }
+
+            if self.queue.is_empty() && !self.frame_queue.is_empty() {
+                let (n, f) = self.frame_queue.pop().unwrap();
+                self.current_frame = f;
+                self.queue
+                    .extend(n.children.iter().collect::<Vec<&Node<R>>>());
+            }
+        }
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::window::Window;
+    use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+
+    pub struct TestWindow {}
+    impl Window for TestWindow {
+        fn client_size(&self) -> PixelSize {
+            PixelSize {
+                width: 100,
+                height: 100,
+            }
+        }
+
+        fn display_size(&self) -> PixelSize {
+            PixelSize {
+                width: 100,
+                height: 100,
+            }
+        }
+
+        fn scale_factor(&self) -> f32 {
+            1.0
+        }
+    }
+    unsafe impl HasRawWindowHandle for TestWindow {
+        fn raw_window_handle(&self) -> RawWindowHandle {
+            panic!("Can't get windows handle in a test")
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct TestRenderer {}
+    // Renderable that just holds a counter
+    #[derive(Debug, PartialEq)]
+    pub struct IncRenderable {
+        pub repr: String,
+        pub i: usize,
+    }
+    impl Renderer for TestRenderer {
+        type Renderable = IncRenderable;
+        fn new<W: Window>(_window: &W) -> Self {
+            Self {}
+        }
+    }
+
+    type Node = super::Node<TestRenderer>;
+
+    mod container {
+        use super::*;
+        #[derive(Debug)]
+        pub struct Container {}
+
+        impl Component<TestRenderer> for Container {}
+    }
+
+    mod test_button {
+        use super::*;
+        #[derive(Debug)]
+        pub struct TestButton<M> {
+            label: String,
+            on_click: Option<M>,
+        }
+
+        impl<M> TestButton<M> {
+            pub fn new(label: &str) -> Self {
+                Self {
+                    on_click: None,
+                    label: label.to_string(),
+                }
+            }
+            pub fn on_click(mut self, msg: M) -> Self {
+                self.on_click = Some(msg);
+                self
+            }
+        }
+
+        impl<M: 'static + fmt::Debug + Clone> Component<TestRenderer> for TestButton<M> {
+            fn on_click(&mut self, _event: &mut Event<event::Click>) -> Vec<Message> {
+                println!("ON CLICK {}", &self.label);
+                let mut m: Vec<Message> = vec![];
+                if let Some(msg) = &self.on_click {
+                    m.push(Box::new(msg.clone()))
+                }
+                m
+            }
+
+            fn render<'a>(
+                &mut self,
+                context: RenderContext<'a, TestRenderer>,
+            ) -> Option<Vec<IncRenderable>> {
+                Some(vec![IncRenderable {
+                    repr: self.label.clone(),
+                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                }])
+            }
+        }
+    }
+
+    pub fn container(key: u64) -> Node {
+        Node::new(Box::new(container::Container {}), key, Layout::default())
+    }
+
+    mod widget {
+        use super::*;
+        #[derive(Debug)]
+        pub struct Widget {
+            pub prop: usize,
+            pub state: Option<WidgetState>,
+        }
+        #[derive(Debug)]
+        pub struct WidgetState {
+            pub bar: usize,
+        }
+        #[derive(Debug, Clone)]
+        pub enum Msg {
+            APressed,
+            BPressed,
+        }
+        impl Widget {
+            pub fn new(prop: usize) -> Self {
+                Self { prop, state: None }
+            }
+        }
+
+        impl Component<TestRenderer> for Widget {
+            fn view(&self) -> Option<Node> {
+                Some(
+                    container(0)
+                        .push(Node::new(
+                            Box::new(
+                                test_button::TestButton::new("Button A").on_click(Msg::APressed),
+                            ),
+                            0,
+                            Layout::default(),
+                        ))
+                        .push(Node::new(
+                            Box::new(
+                                test_button::TestButton::new("Button B").on_click(Msg::BPressed),
+                            ),
+                            1,
+                            Layout::default(),
+                        )),
+                )
+            }
+
+            fn update(&mut self, message: Message) -> Vec<Message> {
+                let msg = match message.downcast_ref::<Msg>().unwrap() {
+                    Msg::APressed => test_app::AppMessage::IncFoo(2),
+                    Msg::BPressed => test_app::AppMessage::DecFoo(1),
+                };
+                vec![Box::new(msg)]
+            }
+
+            fn replace_state(&mut self, other_state: State) {
+                let s = other_state.downcast::<WidgetState>().unwrap();
+                self.state = Some(*s);
+            }
+
+            fn take_state(&mut self) -> Option<State> {
+                if let Some(s) = self.state.take() {
+                    Some(Box::new(s))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    mod test_app {
+        use super::*;
+
+        #[derive(Debug)]
+        pub struct TestApp {
+            pub state: Option<AppState>,
+        }
+
+        #[derive(Debug)]
+        pub struct AppState {
+            pub foo: usize,
+        }
+
+        #[derive(Debug)]
+        pub enum AppMessage {
+            IncFoo(usize),
+            DecFoo(usize),
+        }
+
+        impl TestApp {
+            fn state_mut(&mut self) -> &mut AppState {
+                self.state.as_mut().unwrap()
+            }
+        }
+
+        impl Component<TestRenderer> for TestApp {
+            fn init(&mut self) {
+                self.state = Some(test_app::AppState { foo: 1 });
+            }
+
+            fn view(&self) -> Option<Node> {
+                let foo = self.state.as_ref().unwrap().foo;
+                Some(container(0).push(Node::new(
+                    Box::new(widget::Widget::new(foo)),
+                    0,
+                    Layout::default(),
+                )))
+            }
+
+            fn update(&mut self, message: Message) -> Vec<Message> {
+                match message.downcast_ref::<AppMessage>().unwrap() {
+                    AppMessage::IncFoo(x) => self.state_mut().foo += x,
+                    AppMessage::DecFoo(x) => self.state_mut().foo -= x,
+                };
+                vec![]
+            }
+
+            fn replace_state(&mut self, other_state: State) {
+                let s = other_state.downcast::<AppState>().unwrap();
+                self.state = Some(*s);
+            }
+
+            fn take_state(&mut self) -> Option<State> {
+                if let Some(s) = self.state.take() {
+                    Some(Box::new(s))
+                } else {
+                    None
+                }
+            }
+
+            fn render<'a>(
+                &mut self,
+                context: RenderContext<'a, TestRenderer>,
+            ) -> Option<Vec<IncRenderable>> {
+                Some(vec![IncRenderable {
+                    repr: format!("{}", self.state.as_ref().map(|s| s.foo).unwrap()),
+                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                }])
+            }
+
+            fn render_hash(&self, hasher: &mut ComponentHasher) {
+                self.state.as_ref().map(|s| s.foo.hash(hasher));
+            }
+        }
+
+        impl App<TestRenderer> for TestApp {
+            fn new() -> Self {
+                Self { state: None }
+            }
+        }
+    }
+
+    #[test]
+    fn test_caching() {
+        let mut renderer = TestRenderer {};
+        let mut n = Node::new(Box::new(test_app::TestApp::new()), 0, Layout::default());
+        let font_cache = FontCache::default();
+        n.view(None);
+        //n.layout();
+        n.render(&mut renderer, None, &font_cache, 1.0);
+        //println!("{:#?}", n);
+        assert_eq!(
+            n.render_cache,
+            Some(vec![IncRenderable {
+                repr: "1".to_string(),
+                i: 1
+            }])
+        );
+        assert_eq!(
+            n.children[0].children[0].children[0].children[0].render_cache,
+            Some(vec![IncRenderable {
+                repr: "Button A".to_string(),
+                i: 1
+            }])
+        );
+
+        assert_eq!(n.iter_renderables().count(), 3);
+
+        let mut event = Event::new(
+            event::Click(crate::input::MouseButton::Left),
+            &crate::event::EventCache::new(1.0),
+        );
+        n.click(&mut event);
+
+        let mut new_n = Node::new(Box::new(test_app::TestApp::new()), 0, Layout::default());
+        new_n.view(Some(&mut n));
+        assert_eq!(n.id, new_n.id);
+        assert_eq!(n.children[0].id, new_n.children[0].id);
+
+        //new_n.layout();
+        new_n.render(&mut renderer, Some(&mut n), &font_cache, 1.0);
+        //println!("{:#?}", new_n);
+        assert_eq!(
+            new_n.render_cache,
+            Some(vec![IncRenderable {
+                repr: "2".to_string(),
+                i: 2
+            }])
+        );
+        // Button did not need to be re-rendered
+        assert_eq!(
+            new_n.children[0].children[0].children[0].children[0].render_cache,
+            Some(vec![IncRenderable {
+                repr: "Button A".to_string(),
+                i: 1
+            }])
+        );
+    }
+
+    mod test_scroll_app {
+        use super::*;
+
+        #[derive(Debug)]
+        pub struct Div {
+            name: String,
+            scrollable: bool,
+        }
+
+        impl Component<TestRenderer> for Div {
+            fn render<'a>(
+                &mut self,
+                context: RenderContext<'a, TestRenderer>,
+            ) -> Option<Vec<IncRenderable>> {
+                Some(vec![IncRenderable {
+                    repr: format!("Div {}", &self.name),
+                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                }])
+            }
+
+            fn scroll_position(&self) -> Option<ScrollPosition> {
+                if self.scrollable {
+                    Some(ScrollPosition {
+                        x: Some(0.0),
+                        y: Some(50.0),
+                    })
+                } else {
+                    None
+                }
+            }
+        }
+
+        #[derive(Debug)]
+        pub struct TestApp {}
+
+        impl Component<TestRenderer> for TestApp {
+            fn view(&self) -> Option<Node> {
+                Some(
+                    Node::new(
+                        Box::new(Div {
+                            name: "Top".to_string(),
+                            scrollable: false,
+                        }),
+                        0,
+                        Layout::default(),
+                    )
+                    .push(
+                        Node::new(
+                            Box::new(Div {
+                                name: "Scroll".to_string(),
+                                scrollable: true,
+                            }),
+                            0,
+                            Layout {
+                                size: Size {
+                                    width: Dimension::Px(100.0),
+                                    height: Dimension::Px(100.0),
+                                },
+                                direction: Direction::Row,
+                                ..Default::default()
+                            },
+                        )
+                        .push(
+                            Node::new(
+                                Box::new(Div {
+                                    name: "Column A".to_string(),
+                                    scrollable: false,
+                                }),
+                                0,
+                                Layout {
+                                    size: Size {
+                                        width: Dimension::Px(100.0),
+                                        height: Dimension::Auto,
+                                    },
+                                    direction: Direction::Column,
+                                    ..Default::default()
+                                },
+                            )
+                            .push(Node::new(
+                                Box::new(Div {
+                                    name: "A1".to_string(),
+                                    scrollable: false,
+                                }),
+                                0,
+                                Layout {
+                                    size: Size {
+                                        width: Dimension::Auto,
+                                        height: Dimension::Px(75.0),
+                                    },
+                                    ..Default::default()
+                                },
+                            ))
+                            .push(Node::new(
+                                Box::new(Div {
+                                    name: "A2".to_string(),
+                                    scrollable: false,
+                                }),
+                                1,
+                                Layout {
+                                    size: Size {
+                                        width: Dimension::Auto,
+                                        height: Dimension::Px(75.0),
+                                    },
+                                    ..Default::default()
+                                },
+                            )),
+                        )
+                        .push(
+                            Node::new(
+                                Box::new(Div {
+                                    name: "Column B".to_string(),
+                                    scrollable: false,
+                                }),
+                                0,
+                                Layout {
+                                    size: Size {
+                                        width: Dimension::Px(100.0),
+                                        height: Dimension::Auto,
+                                    },
+                                    direction: Direction::Column,
+                                    ..Default::default()
+                                },
+                            )
+                            .push(Node::new(
+                                Box::new(Div {
+                                    name: "B1".to_string(),
+                                    scrollable: false,
+                                }),
+                                0,
+                                Layout {
+                                    size: Size {
+                                        width: Dimension::Auto,
+                                        height: Dimension::Px(75.0),
+                                    },
+                                    ..Default::default()
+                                },
+                            ))
+                            .push(Node::new(
+                                Box::new(Div {
+                                    name: "B2".to_string(),
+                                    scrollable: false,
+                                }),
+                                1,
+                                Layout {
+                                    size: Size {
+                                        width: Dimension::Auto,
+                                        height: Dimension::Px(75.0),
+                                    },
+                                    ..Default::default()
+                                },
+                            )),
+                        ),
+                    ),
+                )
+            }
+
+            fn render<'a>(
+                &mut self,
+                context: RenderContext<'a, TestRenderer>,
+            ) -> Option<Vec<IncRenderable>> {
+                Some(vec![IncRenderable {
+                    repr: "ScrollApp".to_string(),
+                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                }])
+            }
+        }
+
+        impl App<TestRenderer> for TestApp {
+            fn new() -> Self {
+                Self {}
+            }
+        }
+    }
+
+    #[test]
+    fn test_scroll() {
+        let mut renderer = TestRenderer {};
+        let font_cache = FontCache::default();
+        let m = Node::new(
+            Box::new(test_scroll_app::TestApp::new()),
+            0,
+            Layout::default(),
+        );
+        let mut n = Node::new(
+            Box::new(test_scroll_app::TestApp::new()),
+            0,
+            lay!(size: size!(300.0)),
+        );
+        n.view(None);
+        n.layout(&m, &font_cache, 1.0);
+
+        // Expect the inner_scale to be a real size
+        let scroll_node = &mut n.children[0].children[0];
+        assert_eq!(scroll_node.aabb.size(), [100.0, 100.0].into());
+        assert_eq!(scroll_node.inner_scale.unwrap(), [200.0, 150.0].into());
+
+        // Expect renderables to be laid out in the right order, with the correct Frames
+        n.render(&mut renderer, None, &font_cache, 1.0);
+        let renderables = n.iter_renderables().collect::<Vec<_>>();
+        assert_eq!(renderables.len(), 9);
+        // First three (App, Top Div, Scroll Div) do not have Frames
+        assert_eq!(renderables[0].2.len(), 0);
+        assert_eq!(renderables[2].2.len(), 0);
+        // The rest have Frames
+        assert_eq!(renderables[3].2.len(), 1);
+        assert_eq!(renderables[8].2.len(), 1);
+    }
+}
