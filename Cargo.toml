@@ -1,6 +1,6 @@
 [package]
 name = "lemna"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "A Reactive UI framework for Rust"
 edition = "2018"

@@ -15,7 +15,7 @@ pub trait Scalable {
     }
 }
 
-fn clamp(x: f32, min: f32, max: f32) -> f32 {
+pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
     if min > max {
         panic!("`min` should not be greater than `max`");
     } else {
