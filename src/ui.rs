@@ -31,7 +31,7 @@ pub struct UI<W: Window, R: Renderer, A> {
 }
 
 thread_local!(
-    pub static IMMEDIATE_FOCUS: UnsafeCell<Option<u64>> = {
+    static IMMEDIATE_FOCUS: UnsafeCell<Option<u64>> = {
         UnsafeCell::new(None)
     }
 );
@@ -49,7 +49,7 @@ pub fn focus_immediately<T>(event: &Event<T>) {
 }
 
 thread_local!(
-    pub static CURRENT_WINDOW: UnsafeCell<Option<Rc<dyn Window>>> = {
+    static CURRENT_WINDOW: UnsafeCell<Option<Rc<dyn Window>>> = {
         UnsafeCell::new(None)
     }
 );

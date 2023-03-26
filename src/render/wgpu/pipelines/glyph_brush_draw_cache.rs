@@ -31,7 +31,7 @@
 //! # Ok(()) }
 //! ```
 
-//! This is a reimplementation based on the discussion here: https://github.com/alexheretic/glyph-brush/pull/120
+//! This is a reimplementation based on the discussion here: <https://github.com/alexheretic/glyph-brush/pull/120>
 //! Without these changes, it's just too slow!
 
 use ab_glyph::*;
