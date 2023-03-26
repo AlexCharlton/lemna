@@ -6,6 +6,7 @@ edition = "2018"
 repository = "https://github.com/AlexCharlton/lemna"
 license = "MIT"
 keywords = ["ui"]
+resolver="2"
 
 [workspace]
 members = ["macros"]
@@ -38,7 +39,7 @@ simplelog = "0.7"
 log = "0.4"
 
 # Features
-winit = {version = "0.22", optional = true }
+winit = {version = "0.26", optional = true }
 wx-rs = { version = "0.1", optional = true }
 superluminal-perf = { version = "0.1", optional = true }
 

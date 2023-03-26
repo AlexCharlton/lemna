@@ -207,6 +207,7 @@ fn main() {
         event_loop::{ControlFlow, EventLoop},
         window::WindowBuilder,
     };
+    println!("hello");
 
     type HelloUI = UI<winit::window::Window, Renderer, HelloApp>;
 
@@ -262,7 +263,7 @@ fn main() {
                             y: y * -10.0,
                         },
                         winit::event::MouseScrollDelta::PixelDelta(
-                            winit::dpi::LogicalPosition { x, y },
+                            winit::dpi::PhysicalPosition { x, y },
                         ) => Motion::Scroll {
                             x: -x as f32,
                             y: -y as f32,
@@ -277,4 +278,6 @@ fn main() {
 
         inst_end();
     });
+
+    println!("bye");
 }
