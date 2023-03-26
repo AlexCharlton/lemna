@@ -1,9 +1,9 @@
 use bytemuck::{cast_slice, Pod, Zeroable};
-use glyph_brush_draw_cache::{CachedBy, DrawCache};
 use log::info;
 use wgpu;
 
 use super::buffer_cache::{BufferCache, BufferCacheId};
+use super::glyph_brush_draw_cache::{CachedBy, DrawCache};
 use super::shared::{create_pipeline, next_power_of_2, VBDesc};
 use crate::base_types::{Color, Point, Pos, AABB};
 use crate::font_cache::{FontCache, SectionGlyph};

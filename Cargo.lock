@@ -1013,19 +1013,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
-name = "glyph_brush_draw_cache"
-version = "0.1.1"
-source = "git+https://github.com/AlexCharlton/glyph-brush#5e387f8135a1bff6774831570804771877b827a9"
-dependencies = [
- "ab_glyph",
- "crossbeam-channel 0.4.4",
- "crossbeam-deque 0.7.4",
- "linked-hash-map",
- "rayon",
- "rustc-hash",
-]
-
-[[package]]
 name = "glyph_brush_layout"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1272,17 +1259,22 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 name = "lemna"
 version = "0.1.0"
 dependencies = [
+ "ab_glyph",
  "ahash",
  "bytemuck",
  "cgmath",
+ "crossbeam-channel 0.4.4",
+ "crossbeam-deque 0.7.4",
  "futures",
  "glob",
- "glyph_brush_draw_cache",
  "glyph_brush_layout",
  "lemna-macros",
+ "linked-hash-map",
  "log",
  "lyon",
  "raw-window-handle 0.3.4",
+ "rayon",
+ "rustc-hash",
  "serde",
  "shaderc",
  "simplelog",

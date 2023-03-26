@@ -29,14 +29,20 @@ ahash = "0.3.2"
 bytemuck = { version = "1.4", features = ["derive"] }
 cgmath = "0.17.0"
 futures = "0.3.4"
-# glyph_brush_draw_cache = { path = "../glyph-brush/draw-cache" }
-glyph_brush_draw_cache = { git = "https://github.com/AlexCharlton/glyph-brush" }
 glyph_brush_layout = "0.2"
 lyon = "0.15.6"
 raw-window-handle = "0.3.3"
 serde = { version = "1.0", features = ["derive"] }
 simplelog = "0.7"
 log = "0.4"
+
+# For glyph_brush_draw_cache
+ab_glyph = "0.2.2"
+linked-hash-map = "0.5"
+rustc-hash = "1"
+crossbeam-deque = "0.7"
+crossbeam-channel = "0.4.2"
+rayon = "1.3"
 
 # Features
 winit = {version = "0.26", optional = true }

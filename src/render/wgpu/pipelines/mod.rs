@@ -1,4 +1,5 @@
 mod buffer_cache;
+mod glyph_brush_draw_cache;
 mod shared;
 
 pub mod rect;
