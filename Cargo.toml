@@ -5,6 +5,7 @@ authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "A Reactive UI framework for Rust"
 edition = "2018"
 repository = "https://github.com/AlexCharlton/lemna"
+documentation = "https://docs.rs/lemna"
 license = "MIT"
 keywords = ["ui"]
 resolver="2"

@@ -1,5 +1,8 @@
 # lemna
 
+[![Crates.io](https://img.shields.io/crates/v/lemna)](https://crates.io/crates/lemna)
+[![Docs.rs](https://docs.rs/lemna/badge.svg)](https://docs.rs/lemna)
+
 *This is an alpha quality release. Don't expect much!*
 
 A Reactive UI framework for Rust
