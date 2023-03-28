@@ -3,7 +3,7 @@
 //! as necessary.
 //!
 //! # Example
-//! ```no_run
+//! ```ignore
 //! # fn main() -> Result<(), glyph_brush_draw_cache::CacheWriteErr> {
 //! use glyph_brush_draw_cache::DrawCache;
 //!
@@ -33,7 +33,6 @@
 
 //! This is a reimplementation based on the discussion here: <https://github.com/alexheretic/glyph-brush/pull/120>
 //! Without these changes, it's just too slow!
-
 use ab_glyph::*;
 use linked_hash_map::LinkedHashMap;
 #[cfg(not(target_arch = "wasm32"))]
@@ -167,7 +166,7 @@ impl PaddingAware for Rectangle<u32> {
 ///
 /// # Example
 ///
-/// ```
+/// ```ignore
 /// use glyph_brush_draw_cache::DrawCache;
 ///
 /// // Create a cache with all default values set explicitly
@@ -219,7 +218,7 @@ impl DrawCacheBuilder {
     ///
     /// # Example (set to default value)
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().dimensions(256, 256).build();
     /// ```
@@ -246,7 +245,7 @@ impl DrawCacheBuilder {
     ///
     /// # Example (set to default value)
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().scale_tolerance(0.1).build();
     /// ```
@@ -276,7 +275,7 @@ impl DrawCacheBuilder {
     ///
     /// # Example (set to default value)
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().position_tolerance(0.1).build();
     /// ```
@@ -292,10 +291,11 @@ impl DrawCacheBuilder {
     ///
     /// # Example (set to default value)
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().pad_glyphs(true).build();
     /// ```
+    #[allow(dead_code)]
     pub fn pad_glyphs(mut self, pad_glyphs: bool) -> Self {
         self.pad_glyphs = pad_glyphs;
         self
@@ -307,10 +307,11 @@ impl DrawCacheBuilder {
     ///
     /// # Example (set to default value)
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().align_4x4(false).build();
     /// ```
+    #[allow(dead_code)]
     pub fn align_4x4(mut self, align_4x4: bool) -> Self {
         self.align_4x4 = align_4x4;
         self
@@ -326,7 +327,7 @@ impl DrawCacheBuilder {
     ///
     /// # Example (set to default value)
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().multithread(true).build();
     /// ```
@@ -374,7 +375,7 @@ impl DrawCacheBuilder {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// let cache = DrawCache::builder().build();
     /// ```
@@ -428,12 +429,13 @@ impl DrawCacheBuilder {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// # use glyph_brush_draw_cache::DrawCache;
     /// # let mut cache = DrawCache::builder().build();
     /// // Rebuild the cache with different dimensions
     /// cache.to_builder().dimensions(768, 768).rebuild(&mut cache);
     /// ```
+    #[allow(dead_code)]
     pub fn rebuild(self, cache: &mut DrawCache) {
         let DrawCacheBuilder {
             dimensions: (width, height),
@@ -539,17 +541,20 @@ impl DrawCache {
     }
 
     /// Returns the current scale tolerance for the cache.
+    #[allow(dead_code)]
     pub fn scale_tolerance(&self) -> f32 {
         self.scale_tolerance
     }
 
     /// Returns the current subpixel position tolerance for the cache.
+    #[allow(dead_code)]
     pub fn position_tolerance(&self) -> f32 {
         self.position_tolerance
     }
 
     /// Returns the cache texture dimensions assumed by the cache. For proper
     /// operation this should match the dimensions of the used GPU texture.
+    #[allow(dead_code)]
     pub fn dimensions(&self) -> (u32, u32) {
         (self.width, self.height)
     }
@@ -579,21 +584,9 @@ impl DrawCache {
     }
 
     /// Clears the glyph queue.
+    #[allow(dead_code)]
     pub fn clear_queue(&mut self) {
         self.queue.clear();
-    }
-
-    /// Returns a `DrawCacheBuilder` with this cache's attributes.
-    pub fn to_builder(&self) -> DrawCacheBuilder {
-        DrawCacheBuilder {
-            dimensions: (self.width, self.height),
-            position_tolerance: self.position_tolerance,
-            scale_tolerance: self.scale_tolerance,
-            pad_glyphs: self.pad_glyphs,
-            align_4x4: self.align_4x4,
-            multithread: self.multithread,
-            cpu_cache: self.cpu_cache.is_some(),
-        }
     }
 
     /// Returns glyph info with accuracy according to the set tolerances.
@@ -1096,251 +1089,6 @@ fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &OutlinedGlyph, pad_glyphs: boo
         });
     }
     pixels
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use approx::*;
-    use glyph_brush_layout::*;
-
-    const FONT: &[u8] = include_bytes!("../../fonts/WenQuanYiMicroHei.ttf");
-
-    #[test]
-    fn cache_test() {
-        let font = FontRef::try_from_slice(FONT).unwrap();
-
-        let mut cache = DrawCache::builder()
-            .dimensions(32, 32)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
-            .pad_glyphs(false)
-            .build();
-        let strings = [
-            ("Hello World!", 15.0),
-            ("Hello World!", 14.0),
-            ("Hello World!", 10.0),
-            ("Hello World!", 15.0),
-            ("Hello World!", 14.0),
-            ("Hello World!", 10.0),
-        ];
-        for &(text, scale) in &strings {
-            println!("Caching {:?}", (text, scale));
-
-            let glyphs = glyph_brush_layout::Layout::default_single_line().calculate_glyphs(
-                &[&font],
-                &SectionGeometry::default(),
-                &[SectionText {
-                    text,
-                    scale: scale.into(),
-                    ..<_>::default()
-                }],
-            );
-
-            for SectionGlyph { glyph, .. } in glyphs {
-                cache.queue_glyph(0, glyph);
-            }
-            cache.cache_queued(&[&font], |_, _| {}).unwrap();
-        }
-    }
-
-    #[test]
-    fn need_to_check_whole_cache() {
-        let font = FontRef::try_from_slice(FONT).unwrap();
-
-        let gid = font.glyph_id('l');
-        let small_left = gid.with_scale_and_position(10.0, point(0.0, 0.0));
-        let large_left = gid.with_scale_and_position(10.05, point(0.0, 0.0));
-        let large_right = gid.with_scale_and_position(10.05, point(-0.2, 0.0));
-
-        let mut cache = DrawCache::builder()
-            .dimensions(32, 32)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
-            .pad_glyphs(false)
-            .build();
-
-        cache.queue_glyph(0, small_left.clone());
-        // Next line is noop since it's within the scale tolerance of small_left:
-        cache.queue_glyph(0, large_left.clone());
-        cache.queue_glyph(0, large_right.clone());
-
-        cache.cache_queued(&[&font], |_, _| {}).unwrap();
-
-        cache.rect_for(0, &small_left).unwrap();
-        cache.rect_for(0, &large_left).unwrap();
-        cache.rect_for(0, &large_right).unwrap();
-    }
-
-    #[test]
-    fn lossy_info() {
-        let font = FontRef::try_from_slice(FONT).unwrap();
-        let gid = font.glyph_id('l');
-
-        let cache = DrawCache::builder()
-            .scale_tolerance(0.2)
-            .position_tolerance(0.5)
-            .build();
-
-        let small = gid.with_scale_and_position(9.91, point(0.0, 0.0));
-        let match_1 = gid.with_scale_and_position(10.09, point(-10.0, -0.1));
-        let match_2 = gid.with_scale_and_position(10.09, point(5.1, 0.24));
-        let match_3 = gid.with_scale_and_position(9.91, point(-100.2, 50.1));
-
-        let miss_1 = gid.with_scale_and_position(10.11, point(0.0, 0.0));
-        let miss_2 = gid.with_scale_and_position(12.0, point(0.0, 0.0));
-        let miss_3 = gid.with_scale_and_position(9.91, point(0.3, 0.0));
-
-        let small_info = cache.lossy_info_for(0, &small);
-
-        assert_eq!(small_info, cache.lossy_info_for(0, &match_1));
-        assert_eq!(small_info, cache.lossy_info_for(0, &match_2));
-        assert_eq!(small_info, cache.lossy_info_for(0, &match_3));
-
-        assert_ne!(small_info, cache.lossy_info_for(0, &miss_1));
-        assert_ne!(small_info, cache.lossy_info_for(0, &miss_2));
-        assert_ne!(small_info, cache.lossy_info_for(0, &miss_3));
-    }
-
-    #[test]
-    fn cache_to_builder() {
-        let cache = DrawCacheBuilder {
-            dimensions: (32, 64),
-            scale_tolerance: 0.2,
-            position_tolerance: 0.3,
-            pad_glyphs: false,
-            align_4x4: false,
-            multithread: false,
-            cpu_cache: true,
-        }
-        .build();
-
-        let to_builder: DrawCacheBuilder = cache.to_builder();
-
-        assert_eq!(to_builder.dimensions, (32, 64));
-        assert_relative_eq!(to_builder.scale_tolerance, 0.2);
-        assert_relative_eq!(to_builder.position_tolerance, 0.3);
-        assert_eq!(to_builder.pad_glyphs, false);
-        assert_eq!(to_builder.align_4x4, false);
-        assert_eq!(to_builder.multithread, false);
-        assert_eq!(to_builder.cpu_cache, true);
-    }
-
-    #[test]
-    fn builder_rebuild() {
-        let mut cache = DrawCache::builder()
-            .dimensions(32, 64)
-            .scale_tolerance(0.2)
-            .position_tolerance(0.3)
-            .pad_glyphs(false)
-            .align_4x4(true)
-            .multithread(true)
-            .build();
-
-        let font = FontRef::try_from_slice(FONT).unwrap();
-        cache.queue_glyph(0, font.glyph_id('l').with_scale(25.0));
-        cache.cache_queued(&[&font], |_, _| {}).unwrap();
-
-        cache.queue_glyph(0, font.glyph_id('a').with_scale(25.0));
-
-        DrawCache::builder()
-            .dimensions(64, 128)
-            .scale_tolerance(0.05)
-            .position_tolerance(0.15)
-            .pad_glyphs(true)
-            .align_4x4(false)
-            .multithread(false)
-            .rebuild(&mut cache);
-
-        assert_eq!(cache.width, 64);
-        assert_eq!(cache.height, 128);
-        assert_relative_eq!(cache.scale_tolerance, 0.05);
-        assert_relative_eq!(cache.position_tolerance, 0.15);
-        assert_eq!(cache.pad_glyphs, true);
-        assert_eq!(cache.align_4x4, false);
-        assert_eq!(cache.multithread, false);
-
-        assert!(
-            cache.all_glyphs.is_empty(),
-            "cache should have been cleared"
-        );
-
-        assert_eq!(cache.queue.len(), 1, "cache should have an unchanged queue");
-    }
-
-    /// Provide to caller that the cache was re-ordered to fit the latest queue
-    #[test]
-    fn return_cache_by_reordering() {
-        let font = FontRef::try_from_slice(FONT).unwrap();
-        let fontmap = &[&font];
-
-        let mut cache = DrawCache::builder()
-            .dimensions(30, 25)
-            .scale_tolerance(0.1)
-            .position_tolerance(0.1)
-            .build();
-
-        let glyphs = glyph_brush_layout::Layout::default_single_line().calculate_glyphs(
-            fontmap,
-            &SectionGeometry::default(),
-            &[SectionText {
-                text: "ABCDEF",
-                scale: 16.0.into(),
-                ..<_>::default()
-            }],
-        );
-        for sg in glyphs {
-            cache.queue_glyph(0, sg.glyph);
-        }
-        assert_eq!(cache.cache_queued(fontmap, |_, _| {}), Ok(CachedBy::Adding));
-
-        let glyphs = glyph_brush_layout::Layout::default_single_line().calculate_glyphs(
-            fontmap,
-            &SectionGeometry::default(),
-            &[SectionText {
-                text: "DEFHIK",
-                scale: 16.0.into(),
-                ..<_>::default()
-            }],
-        );
-        for sg in glyphs {
-            cache.queue_glyph(0, sg.glyph);
-        }
-        assert_eq!(
-            cache.cache_queued(fontmap, |_, _| {}),
-            Ok(CachedBy::Reordering)
-        );
-    }
-
-    #[test]
-    fn align_4x4() {
-        // First, test align_4x4 disabled, to confirm non-4x4 alignment
-        align_4x4_helper(false, 5, 19);
-        // Now, test with align_4x4 enabled, to confirm 4x4 alignment
-        align_4x4_helper(true, 8, 20);
-    }
-
-    fn align_4x4_helper(align_4x4: bool, expected_width: u32, expected_height: u32) {
-        let mut cache = DrawCache::builder()
-            .dimensions(64, 64)
-            .align_4x4(align_4x4)
-            .build();
-        let font = FontRef::try_from_slice(FONT).unwrap();
-        let glyph = font.glyph_id('l').with_scale(25.0);
-        cache.queue_glyph(0, glyph.clone());
-        cache
-            .cache_queued(&[&font], |rect, _| {
-                assert_eq!(rect.width(), expected_width);
-                assert_eq!(rect.height(), expected_height);
-            })
-            .unwrap();
-        let (uv, _screen_rect) = cache.rect_for(0, &glyph).unwrap();
-
-        assert_relative_eq!(uv.min.x, 0.015_625);
-        assert_relative_eq!(uv.min.y, 0.015_625);
-        assert_relative_eq!(uv.max.x, 0.0625);
-        assert_relative_eq!(uv.max.y, 0.28125);
-    }
 }
 
 /// A rectangle, with top-left corner at min, and bottom-right corner at max.

@@ -20,6 +20,7 @@ pub struct HelloAppState {
 #[derive(Debug)]
 pub struct HelloApp {}
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum HelloEvent {
     Button {
