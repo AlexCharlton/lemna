@@ -1,5 +1,4 @@
 use crate::base_types::*;
-use raw_window_handle::HasRawWindowHandle;
 
 impl crate::window::Window for winit::window::Window {
     // TODO: This isn't good

@@ -19,6 +19,7 @@ default = ["msaa_shapes", "backend_wx_rs", "open_iconic"]
 instrumented = ["superluminal-perf"]
 backend_winit = ["winit"]
 backend_wx_rs = ["wx-rs"]
+backend_baseview = ["baseview"]
 msaa_shapes = []
 open_iconic = []
 
@@ -33,7 +34,7 @@ cgmath = "0.17.0"
 futures = "0.3.4"
 glyph_brush_layout = "0.2"
 lyon = "0.15.6"
-raw-window-handle = "0.3.3"
+raw-window-handle = "0.4.2"
 serde = { version = "1.0", features = ["derive"] }
 simplelog = "0.7"
 log = "0.4"
@@ -49,6 +50,7 @@ rayon = "1.3"
 # Features
 winit = {version = "0.26", optional = true }
 wx-rs = { version = "0.1", optional = true }
+baseview = { git = "https://github.com/RustAudio/baseview.git", optional = true }
 superluminal-perf = { version = "0.1", optional = true }
 
 [dev-dependencies]
