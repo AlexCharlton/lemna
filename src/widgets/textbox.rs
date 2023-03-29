@@ -528,6 +528,7 @@ impl Component<WGPURenderer> for TextBoxText {
         vec![]
     }
 
+    #[cfg(feature = "backend_wx_rs")]
     fn on_menu_select(&mut self, event: &mut event::Event<event::MenuSelect>) -> Vec<Message> {
         if let Some(action) = self
             .state_ref()
