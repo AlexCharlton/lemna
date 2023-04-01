@@ -137,11 +137,11 @@ impl super::Renderer for WGPURenderer {
 
     fn render(&mut self, node: &Node<Self>, client_size: PixelSize, font_cache: &FontCache) {
         inst("WGPURenderer::render#get_current_texture");
-        let output = self
-            .context
-            .surface
-            .get_current_texture()
-            .expect("Cannot get current texture");
+        let output = match self.context.surface.get_current_texture() {
+            Ok(o) => o,
+            Err(wgpu::SurfaceError::Timeout) => return,
+            Err(e) => panic!("Failed to get current texture: {}", e),
+        };
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
