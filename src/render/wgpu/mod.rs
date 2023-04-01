@@ -140,7 +140,6 @@ impl super::Renderer for WGPURenderer {
         let output = match self.context.surface.get_current_texture() {
             Ok(o) => o,
             Err(wgpu::SurfaceError::Timeout) => {
-                dbg!("get_current_texture timeout");
                 return;
             }
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
@@ -151,7 +150,6 @@ impl super::Renderer for WGPURenderer {
         };
         if self.was_resized {
             self.update_ubo(client_size);
-            dbg!("Presenting output");
             output.present();
             self.was_resized = false;
             self.render(node, client_size, font_cache);
@@ -442,7 +440,6 @@ impl super::Renderer for WGPURenderer {
 
         inst("WGPURenderer::render#submit_command_buffers");
         self.context.queue.submit(command_buffers.into_iter());
-        dbg!("Presenting output");
         output.present();
         inst_end();
     }

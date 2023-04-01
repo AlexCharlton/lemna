@@ -460,7 +460,7 @@ impl TextPipeline {
                     .cache_queued(&font_cache.fonts, |region, data| {
                         queue.write_texture(
                             wgpu::ImageCopyTexture {
-                                aspect: wgpu::TextureAspect::StencilOnly, // TODO YES?
+                                aspect: wgpu::TextureAspect::All,
                                 texture,
                                 mip_level: 0,
                                 origin: wgpu::Origin3d {
@@ -473,7 +473,7 @@ impl TextPipeline {
                             wgpu::ImageDataLayout {
                                 offset: 0,
                                 bytes_per_row: NonZeroU32::new(region.width()),
-                                rows_per_image: NonZeroU32::new(region.height()), // TODO YES?
+                                rows_per_image: NonZeroU32::new(region.height()),
                             },
                             wgpu::Extent3d {
                                 width: region.width(),
@@ -521,7 +521,7 @@ impl TextPipeline {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::R8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST, // TODO I Think this is right?
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
             label: Some("text_texture"),
         });
@@ -571,14 +571,14 @@ impl TextPipeline {
                             ty: wgpu::BindingType::Texture {
                                 multisampled: false,
                                 view_dimension: wgpu::TextureViewDimension::D2,
-                                sample_type: wgpu::TextureSampleType::Uint,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
                             },
                             count: None,
                         },
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
                             visibility: wgpu::ShaderStages::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), // TODO Am I right?
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                             count: None,
                         },
                     ],
