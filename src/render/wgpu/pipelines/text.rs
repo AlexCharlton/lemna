@@ -1,5 +1,6 @@
 use bytemuck::{cast_slice, Pod, Zeroable};
 use log::info;
+use std::num::NonZeroU32;
 use wgpu;
 
 use super::buffer_cache::{BufferCache, BufferCacheId};
@@ -22,18 +23,18 @@ pub struct Vertex {
 }
 
 impl VBDesc for Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferDescriptor<'a> {
-        wgpu::VertexBufferDescriptor {
-            stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float2,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
                 },
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float2,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
                     offset: 4 * 2,
                     shader_location: 1,
                 },
@@ -59,23 +60,23 @@ impl Default for Instance {
 }
 
 impl VBDesc for Instance {
-    fn desc<'a>() -> wgpu::VertexBufferDescriptor<'a> {
-        wgpu::VertexBufferDescriptor {
-            stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Instance,
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float3,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x3,
                     offset: 0,
                     shader_location: 2,
                 },
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float4,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x4,
                     offset: 4 * 3,
                     shader_location: 3,
                 },
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32,
                     offset: 4 * 7,
                     shader_location: 4,
                 },
@@ -295,6 +296,7 @@ impl TextPipeline {
                 self.buffer_cache
                     .index_buffer
                     .slice(((index_chunk.start * std::mem::size_of::<u16>()) as u64)..),
+                wgpu::IndexFormat::Uint16,
             );
             pass.draw_indexed(0..index_chunk.n as u32, 0, 0..1);
         }
@@ -314,7 +316,7 @@ impl TextPipeline {
             self.instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
                 size: (std::mem::size_of::<Instance>() * self.num_instances) as u64,
-                usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
         }
@@ -391,7 +393,7 @@ impl TextPipeline {
         //     &wgpu::util::BufferInitDescriptor {
         //         label: None,
         //         contents: cast_slice(&vertex_data),
-        //         usage: wgpu::BufferUsage::VERTEX,
+        //         usage: wgpu::BufferUsages::VERTEX,
         //     },
         // ));
 
@@ -399,7 +401,7 @@ impl TextPipeline {
         //     &wgpu::util::BufferInitDescriptor {
         //         label: None,
         //         contents: cast_slice(&index_data),
-        //         usage: wgpu::BufferUsage::INDEX,
+        //         usage: wgpu::BufferUsages::INDEX,
         //     },
         // ));
 
@@ -416,7 +418,7 @@ impl TextPipeline {
         //     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         //         label: None,
         //         contents: cast_slice(&self.instance_data),
-        //         usage: wgpu::BufferUsage::VERTEX,
+        //         usage: wgpu::BufferUsages::VERTEX,
         //     }),
         // );
 
@@ -457,7 +459,8 @@ impl TextPipeline {
                     .glyph_cache
                     .cache_queued(&font_cache.fonts, |region, data| {
                         queue.write_texture(
-                            wgpu::TextureCopyView {
+                            wgpu::ImageCopyTexture {
+                                aspect: wgpu::TextureAspect::StencilOnly, // TODO YES?
                                 texture,
                                 mip_level: 0,
                                 origin: wgpu::Origin3d {
@@ -467,15 +470,15 @@ impl TextPipeline {
                                 },
                             },
                             data,
-                            wgpu::TextureDataLayout {
+                            wgpu::ImageDataLayout {
                                 offset: 0,
-                                bytes_per_row: region.width(),
-                                rows_per_image: 0,
+                                bytes_per_row: NonZeroU32::new(region.width()),
+                                rows_per_image: NonZeroU32::new(region.height()), // TODO YES?
                             },
                             wgpu::Extent3d {
                                 width: region.width(),
                                 height: region.height(),
-                                depth: 1,
+                                depth_or_array_layers: 1,
                             },
                         );
                     })
@@ -512,13 +515,14 @@ impl TextPipeline {
             size: wgpu::Extent3d {
                 width,
                 height,
-                depth: 1,
+                depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::R8Unorm,
-            usage: wgpu::TextureUsage::SAMPLED | wgpu::TextureUsage::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST, // TODO I Think this is right?
+            view_formats: &[],
             label: Some("text_texture"),
         });
 
@@ -528,7 +532,7 @@ impl TextPipeline {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
-            lod_min_clamp: -100.0,
+            lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             label: Some("text_sampler"),
             ..Default::default()
@@ -563,18 +567,18 @@ impl TextPipeline {
                     entries: &[
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
-                            visibility: wgpu::ShaderStage::FRAGMENT,
-                            ty: wgpu::BindingType::SampledTexture {
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
                                 multisampled: false,
-                                dimension: wgpu::TextureViewDimension::D2,
-                                component_type: wgpu::TextureComponentType::Uint,
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                sample_type: wgpu::TextureSampleType::Uint,
                             },
                             count: None,
                         },
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
-                            visibility: wgpu::ShaderStage::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler { comparison: false },
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), // TODO Am I right?
                             count: None,
                         },
                     ],
@@ -600,9 +604,15 @@ impl TextPipeline {
         let instance_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: (std::mem::size_of::<Instance>() * num_instances) as u64,
-            usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let vs_module = context
+            .device
+            .create_shader_module(wgpu::include_spirv!("shaders/text.vert.spv"));
+        let fs_module = context
+            .device
+            .create_shader_module(wgpu::include_spirv!("shaders/text.frag.spv"));
 
         Self {
             buffer_cache: BufferCache::new(&context.device),
@@ -616,28 +626,28 @@ impl TextPipeline {
             pipeline: create_pipeline(
                 context,
                 layout,
-                wgpu::include_spirv!("shaders/text.vert.spv"),
-                wgpu::include_spirv!("shaders/text.frag.spv"),
+                &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexStateDescriptor {
-                    index_format: wgpu::IndexFormat::Uint16,
-                    vertex_buffers: &[Vertex::desc(), Instance::desc()],
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: "main",
+                    buffers: &[Vertex::desc(), Instance::desc()],
                 },
                 false,
-                wgpu::ColorWrite::ALL,
+                wgpu::ColorWrites::ALL,
             ),
             msaa_pipeline: create_pipeline(
                 context,
                 layout,
-                wgpu::include_spirv!("shaders/text.vert.spv"),
-                wgpu::include_spirv!("shaders/text.frag.spv"),
+                &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexStateDescriptor {
-                    index_format: wgpu::IndexFormat::Uint16,
-                    vertex_buffers: &[Vertex::desc(), Instance::desc()],
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: "main",
+                    buffers: &[Vertex::desc(), Instance::desc()],
                 },
                 true,
-                wgpu::ColorWrite::empty(),
+                wgpu::ColorWrites::empty(),
             ),
         }
     }

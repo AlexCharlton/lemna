@@ -1,4 +1,4 @@
-use raw_window_handle::HasRawWindowHandle;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use wgpu;
 
 pub struct WGPUContext {
@@ -9,32 +9,23 @@ pub struct WGPUContext {
     pub msaa_framebuffer: wgpu::TextureView,
     pub sample_count: u32,
     pub surface: wgpu::Surface,
-    pub swap_chain: wgpu::SwapChain,
-    pub swap_chain_desc: wgpu::SwapChainDescriptor,
+    pub surface_config: wgpu::SurfaceConfiguration,
     pub queue: wgpu::Queue,
 }
 
 impl WGPUContext {
     pub fn resize(&mut self, width: u32, height: u32) {
-        self.swap_chain_desc.width = width;
-        self.swap_chain_desc.height = height;
-        self.swap_chain = self
-            .device
-            .create_swap_chain(&self.surface, &self.swap_chain_desc);
+        self.surface_config.width = width;
+        self.surface_config.height = height;
+        self.surface.configure(&self.device, &self.surface_config);
         self.depthbuffer = depthbuffer(&self.device, width, height, 1);
-        self.framebuffer = framebuffer(
-            &self.device,
-            width,
-            height,
-            self.swap_chain_desc.format,
-            1
-        );
+        self.framebuffer = framebuffer(&self.device, width, height, self.surface_config.format, 1);
         self.msaa_depthbuffer = depthbuffer(&self.device, width, height, self.sample_count);
-        self.msaa_framebuffer= framebuffer(
+        self.msaa_framebuffer = framebuffer(
             &self.device,
             width,
             height,
-            self.swap_chain_desc.format,
+            self.surface_config.format,
             self.sample_count,
         );
     }
@@ -52,15 +43,17 @@ fn framebuffer(
             size: wgpu::Extent3d {
                 width,
                 height,
-                depth: 1,
+                depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT | wgpu::TextureUsage::SAMPLED,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
             label: Some("Frame buffer"),
-        }).create_view(&wgpu::TextureViewDescriptor::default())
+        })
+        .create_view(&wgpu::TextureViewDescriptor::default())
 }
 
 fn depthbuffer(
@@ -74,38 +67,47 @@ fn depthbuffer(
             size: wgpu::Extent3d {
                 width,
                 height,
-                depth: 1,
+                depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Depth24PlusStencil8,
-            usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
             label: Some("Depth buffer"),
         })
         .create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-pub async fn get_wgpu_context<W: HasRawWindowHandle>(
+pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
     window: &W,
     width: u32,
     height: u32,
 ) -> WGPUContext {
-    let backend = if cfg!(windows) {
+    let backends = if cfg!(windows) {
         // Vulkan now works better for me than DX12 ¯\_(ツ)_/¯
-        wgpu::BackendBit::VULKAN
+        wgpu::Backends::VULKAN
         // wgpu::BackendBit::DX12
     } else {
-        wgpu::BackendBit::PRIMARY
+        wgpu::Backends::PRIMARY
     };
-    let instance = wgpu::Instance::new(backend);
-    let surface = unsafe { instance.create_surface(window) };
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends,
+        dx12_shader_compiler: Default::default(),
+    });
+    let surface = unsafe {
+        instance
+            .create_surface(window)
+            .expect("Failed to get a surface")
+    };
     // Maybe TODO: Figure out how to set this dynamically?
     let sample_count = 4; // Max supported on OSX
     let adapter = instance
         .request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::Default,
+            power_preference: wgpu::PowerPreference::default(),
             compatible_surface: Some(&surface),
+            force_fallback_adapter: false,
         })
         .await
         .unwrap();
@@ -115,37 +117,47 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle>(
             &wgpu::DeviceDescriptor {
                 features: adapter.features(),
                 limits: wgpu::Limits::default(),
-                shader_validation: true,
+                label: None,
             },
             None,
         )
         .await
         .unwrap();
 
-    let swap_chain_desc = wgpu::SwapChainDescriptor {
-        usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT, // We are drawing to the window
-        format: wgpu::TextureFormat::Bgra8UnormSrgb, // https://github.com/gfx-rs/wgpu-rs/issues/123
+    let surface_caps = surface.get_capabilities(&adapter);
+    let format = surface_caps
+        .formats
+        .iter()
+        .copied()
+        .filter(|f| f.describe().srgb)
+        .next()
+        .unwrap_or(surface_caps.formats[0]);
+
+    let surface_config = wgpu::SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT, // We are drawing to the window
+        format,
         width,
         height,
-        present_mode: wgpu::PresentMode::Immediate, // Should this be Mailbox? This appears to lower the average render time by 2ms and I see no tearing, so I'll leave it for now
+        present_mode: surface_caps.present_modes[0],
+        alpha_mode: surface_caps.alpha_modes[0],
+        view_formats: vec![],
     };
+    surface.configure(&device, &surface_config);
 
-    let swap_chain = device.create_swap_chain(&surface, &swap_chain_desc);
     let depthbuff = depthbuffer(&device, width, height, 1);
-    let framebuff = framebuffer(&device, width, height, swap_chain_desc.format, 1);
+    let framebuff = framebuffer(&device, width, height, surface_config.format, 1);
     let msaa_depthbuffer = depthbuffer(&device, width, height, sample_count);
-    let msaa_framebuffer = framebuffer(&device, width, height, swap_chain_desc.format, sample_count);
+    let msaa_framebuffer = framebuffer(&device, width, height, surface_config.format, sample_count);
 
     WGPUContext {
         surface,
+        surface_config,
         depthbuffer: depthbuff,
         framebuffer: framebuff,
         msaa_framebuffer,
         msaa_depthbuffer,
         device,
         queue,
-        swap_chain,
-        swap_chain_desc,
         sample_count,
     }
 }

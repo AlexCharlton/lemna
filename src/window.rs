@@ -1,5 +1,5 @@
 use crate::base_types::*;
-use raw_window_handle::HasRawWindowHandle;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 #[derive(Debug)]
 pub enum Data {
@@ -13,7 +13,7 @@ impl From<&str> for Data {
     }
 }
 
-pub trait Window: HasRawWindowHandle {
+pub trait Window: HasRawWindowHandle + HasRawDisplayHandle {
     fn client_size(&self) -> PixelSize;
     fn display_size(&self) -> PixelSize;
     fn scale_factor(&self) -> f32;

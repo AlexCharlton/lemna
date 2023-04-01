@@ -95,9 +95,10 @@ impl super::Renderer for WGPURenderer {
                 .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                     entries: &[wgpu::BindGroupLayoutEntry {
                         binding: 0,
-                        visibility: wgpu::ShaderStage::VERTEX,
-                        ty: wgpu::BindingType::UniformBuffer {
-                            dynamic: false,
+                        visibility: wgpu::ShaderStages::VERTEX,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
                             min_binding_size: None,
                         },
                         count: None,
@@ -107,7 +108,7 @@ impl super::Renderer for WGPURenderer {
 
         let globals_ubo = device.create_buffer(&wgpu::BufferDescriptor {
             size: std::mem::size_of::<Globals>() as u64,
-            usage: wgpu::BufferUsage::UNIFORM | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
             label: Some("globals_globals_ubo"),
         });
@@ -116,7 +117,7 @@ impl super::Renderer for WGPURenderer {
             layout: &uniform_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer(globals_ubo.slice(..)),
+                resource: globals_ubo.as_entire_binding(),
             }],
             label: Some("globals_uniform_bind_group"),
         });
@@ -135,12 +136,15 @@ impl super::Renderer for WGPURenderer {
     }
 
     fn render(&mut self, node: &Node<Self>, client_size: PixelSize, font_cache: &FontCache) {
-        inst("WGPURenderer::render#get_next_frame");
-        let frame = self
+        inst("WGPURenderer::render#get_current_texture");
+        let output = self
             .context
-            .swap_chain
-            .get_current_frame()
-            .expect("Timeout when acquiring next swap chain frame");
+            .surface
+            .get_current_texture()
+            .expect("Cannot get current texture");
+        let view = output
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
         inst_end();
 
         self.text_pipeline.unmark_buffer_cache();
@@ -245,31 +249,30 @@ impl super::Renderer for WGPURenderer {
             {
                 // Non-MSAA pass
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: &frame.output.view,
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: load_op,
                             store: true,
                         },
-                    }],
-                    depth_stencil_attachment: Some(
-                        wgpu::RenderPassDepthStencilAttachmentDescriptor {
-                            attachment: &self.context.depthbuffer,
-                            depth_ops: Some(wgpu::Operations {
-                                load: if load_op == wgpu::LoadOp::Load {
-                                    wgpu::LoadOp::Load
-                                } else {
-                                    wgpu::LoadOp::Clear(0.0)
-                                },
-                                store: true,
-                            }),
-                            stencil_ops: Some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(0),
-                                store: true,
-                            }),
-                        },
-                    ),
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.context.depthbuffer,
+                        depth_ops: Some(wgpu::Operations {
+                            load: if load_op == wgpu::LoadOp::Load {
+                                wgpu::LoadOp::Load
+                            } else {
+                                wgpu::LoadOp::Clear(0.0)
+                            },
+                            store: true,
+                        }),
+                        stencil_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(0),
+                            store: true,
+                        }),
+                    }),
+                    label: Some("non-MSAA render pass"),
                 });
                 pass.set_bind_group(0, &self.uniform_bind_group, &[]);
 
@@ -314,8 +317,8 @@ impl super::Renderer for WGPURenderer {
 
             if cfg!(feature = "msaa_shapes") {
                 let mut msaa_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: &self.context.msaa_framebuffer,
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &self.context.msaa_framebuffer,
                         resolve_target: Some(&self.context.framebuffer),
                         ops: wgpu::Operations {
                             load: if load_op == wgpu::LoadOp::Load {
@@ -325,24 +328,23 @@ impl super::Renderer for WGPURenderer {
                             },
                             store: true,
                         },
-                    }],
-                    depth_stencil_attachment: Some(
-                        wgpu::RenderPassDepthStencilAttachmentDescriptor {
-                            attachment: &self.context.msaa_depthbuffer,
-                            depth_ops: Some(wgpu::Operations {
-                                load: if load_op == wgpu::LoadOp::Load {
-                                    wgpu::LoadOp::Load
-                                } else {
-                                    wgpu::LoadOp::Clear(0.0)
-                                },
-                                store: true,
-                            }),
-                            stencil_ops: Some(wgpu::Operations {
-                                load: wgpu::LoadOp::Clear(0),
-                                store: true,
-                            }),
-                        },
-                    ),
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.context.msaa_depthbuffer,
+                        depth_ops: Some(wgpu::Operations {
+                            load: if load_op == wgpu::LoadOp::Load {
+                                wgpu::LoadOp::Load
+                            } else {
+                                wgpu::LoadOp::Clear(0.0)
+                            },
+                            store: true,
+                        }),
+                        stencil_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(0),
+                            store: true,
+                        }),
+                    }),
+                    label: Some("MSAA shapes render pass"),
                 });
 
                 msaa_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
@@ -406,15 +408,16 @@ impl super::Renderer for WGPURenderer {
                 });
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.output.view,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
                         store: true,
                     },
-                }],
+                })],
                 depth_stencil_attachment: None,
+                label: Some("MSAA render pass"),
             });
 
             self.msaa_pipeline.render(
@@ -467,7 +470,7 @@ impl WGPURenderer {
                         -MAX_DEPTH,
                     ),
                     }]),
-                    usage: wgpu::BufferUsage::COPY_SRC,
+                    usage: wgpu::BufferUsages::COPY_SRC,
                 });
         encoder.copy_buffer_to_buffer(
             &globals_staging_buffer,

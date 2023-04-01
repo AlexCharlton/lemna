@@ -13,18 +13,18 @@ pub struct Vertex {
 }
 
 impl VBDesc for Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferDescriptor<'a> {
-        wgpu::VertexBufferDescriptor {
-            stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float2,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
                 },
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float2,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
                     offset: 4 * 2,
                     shader_location: 1,
                 },
@@ -54,7 +54,7 @@ impl MSAAPipeline {
                 mag_filter: wgpu::FilterMode::Linear,
                 min_filter: wgpu::FilterMode::Linear,
                 mipmap_filter: wgpu::FilterMode::Linear,
-                lod_min_clamp: -100.0,
+                lod_min_clamp: 0.0,
                 lod_max_clamp: 100.0,
                 label: Some("msaa_sampler"),
                 ..Default::default()
@@ -78,7 +78,7 @@ impl MSAAPipeline {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, self.bind_group.as_ref().unwrap(), &[]);
         pass.set_vertex_buffer(0, self.vertex_buff.slice(..));
-        pass.set_index_buffer(self.index_buff.slice(..));
+        pass.set_index_buffer(self.index_buff.slice(..), wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..6, 0, 0..1);
     }
 
@@ -107,14 +107,14 @@ impl MSAAPipeline {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: cast_slice(&vertex_data),
-                usage: wgpu::BufferUsage::VERTEX,
+                usage: wgpu::BufferUsages::VERTEX,
             });
         let index_buff = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: cast_slice(&index_data),
-                usage: wgpu::BufferUsage::INDEX,
+                usage: wgpu::BufferUsages::INDEX,
             });
 
         let texture_bind_group_layout =
@@ -124,18 +124,18 @@ impl MSAAPipeline {
                     entries: &[
                         wgpu::BindGroupLayoutEntry {
                             binding: 0,
-                            visibility: wgpu::ShaderStage::FRAGMENT,
-                            ty: wgpu::BindingType::SampledTexture {
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Texture {
                                 multisampled: false,
-                                dimension: wgpu::TextureViewDimension::D2,
-                                component_type: wgpu::TextureComponentType::Uint,
+                                view_dimension: wgpu::TextureViewDimension::D2,
+                                sample_type: wgpu::TextureSampleType::Float { filterable: true },
                             },
                             count: None,
                         },
                         wgpu::BindGroupLayoutEntry {
                             binding: 1,
-                            visibility: wgpu::ShaderStage::FRAGMENT,
-                            ty: wgpu::BindingType::Sampler { comparison: false },
+                            visibility: wgpu::ShaderStages::FRAGMENT,
+                            ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering), // TODO Am I right?
                             count: None,
                         },
                     ],
@@ -150,6 +150,13 @@ impl MSAAPipeline {
                 push_constant_ranges: &[],
             });
 
+        let vs_module = context
+            .device
+            .create_shader_module(wgpu::include_spirv!("shaders/msaa.vert.spv"));
+        let fs_module = context
+            .device
+            .create_shader_module(wgpu::include_spirv!("shaders/msaa.frag.spv"));
+
         Self {
             vertex_buff,
             index_buff,
@@ -158,15 +165,15 @@ impl MSAAPipeline {
             pipeline: create_pipeline_depth_stencil(
                 context,
                 layout,
-                wgpu::include_spirv!("shaders/msaa.vert.spv"),
-                wgpu::include_spirv!("shaders/msaa.frag.spv"),
+                &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexStateDescriptor {
-                    index_format: wgpu::IndexFormat::Uint16,
-                    vertex_buffers: &[Vertex::desc()],
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: "main",
+                    buffers: &[Vertex::desc()],
                 },
                 false,
-                wgpu::ColorWrite::ALL,
+                wgpu::ColorWrites::ALL,
                 None,
             ),
         }

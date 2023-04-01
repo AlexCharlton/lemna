@@ -40,13 +40,13 @@ impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: (std::mem::size_of::<T>() * initial_buffer_size) as u64,
-            usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: (std::mem::size_of::<I>() * initial_buffer_size) as u64,
-            usage: wgpu::BufferUsage::INDEX | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         Self {
@@ -72,7 +72,7 @@ impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
             self.vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
                 size: (std::mem::size_of::<T>() * self.vertex_buffer_len) as u64,
-                usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
         }
@@ -85,7 +85,7 @@ impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
             self.index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
                 size: (std::mem::size_of::<I>() * self.index_buffer_len) as u64,
-                usage: wgpu::BufferUsage::INDEX | wgpu::BufferUsage::COPY_DST,
+                usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
         }

@@ -13,12 +13,12 @@ pub struct Vertex {
 }
 
 impl VBDesc for Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferDescriptor<'a> {
-        wgpu::VertexBufferDescriptor {
-            stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Vertex,
-            attributes: &[wgpu::VertexAttributeDescriptor {
-                format: wgpu::VertexFormat::Float2,
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
                 offset: 0,
                 shader_location: 0,
             }],
@@ -43,18 +43,18 @@ impl From<AABB> for Instance {
 }
 
 impl VBDesc for Instance {
-    fn desc<'a>() -> wgpu::VertexBufferDescriptor<'a> {
-        wgpu::VertexBufferDescriptor {
-            stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::InputStepMode::Instance,
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float3,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x3,
                     offset: 0,
                     shader_location: 1,
                 },
-                wgpu::VertexAttributeDescriptor {
-                    format: wgpu::VertexFormat::Float2,
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Float32x2,
                     offset: 4 * 3,
                     shader_location: 2,
                 },
@@ -88,7 +88,7 @@ impl StencilPipeline {
             self.instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
                 label: None,
                 size: (std::mem::size_of::<Instance>() * self.num_instances) as u64,
-                usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
             });
         }
@@ -120,7 +120,7 @@ impl StencilPipeline {
             self.instance_buffer
                 .slice(((instance_offset * std::mem::size_of::<Instance>()) as u64)..),
         );
-        pass.set_index_buffer(self.index_buff.slice(..));
+        pass.set_index_buffer(self.index_buff.slice(..), wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..6 as u32, 0, 0..(aabbs.len() as u32));
     }
 
@@ -148,20 +148,20 @@ impl StencilPipeline {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: cast_slice(&vertex_data),
-                usage: wgpu::BufferUsage::VERTEX,
+                usage: wgpu::BufferUsages::VERTEX,
             });
         let index_buff = context
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: None,
                 contents: cast_slice(&index_data),
-                usage: wgpu::BufferUsage::INDEX,
+                usage: wgpu::BufferUsages::INDEX,
             });
         let num_instances = 32; // Initial allocation
         let instance_buffer = context.device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             size: (std::mem::size_of::<Instance>() * num_instances) as u64,
-            usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
@@ -173,18 +173,18 @@ impl StencilPipeline {
                 push_constant_ranges: &[],
             });
 
-        let depth_stencil_state_descriptor = wgpu::DepthStencilStateDescriptor {
+        let depth_stencil_state_descriptor = wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
             depth_write_enabled: false,
             depth_compare: wgpu::CompareFunction::Always,
-            stencil: wgpu::StencilStateDescriptor {
-                front: wgpu::StencilStateFaceDescriptor {
+            stencil: wgpu::StencilState {
+                front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Always,
                     fail_op: wgpu::StencilOperation::Keep,
                     depth_fail_op: wgpu::StencilOperation::Keep,
                     pass_op: wgpu::StencilOperation::IncrementClamp,
                 },
-                back: wgpu::StencilStateFaceDescriptor {
+                back: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Always,
                     fail_op: wgpu::StencilOperation::Keep,
                     depth_fail_op: wgpu::StencilOperation::Keep,
@@ -193,7 +193,14 @@ impl StencilPipeline {
                 read_mask: 0xff,
                 write_mask: 0xff,
             },
+            bias: wgpu::DepthBiasState::default(),
         };
+        let vs_module = context
+            .device
+            .create_shader_module(wgpu::include_spirv!("shaders/stencil.vert.spv"));
+        let fs_module = context
+            .device
+            .create_shader_module(wgpu::include_spirv!("shaders/stencil.frag.spv"));
 
         Self {
             vertex_buff,
@@ -204,29 +211,29 @@ impl StencilPipeline {
             pipeline: create_pipeline_depth_stencil(
                 context,
                 layout,
-                wgpu::include_spirv!("shaders/stencil.vert.spv"),
-                wgpu::include_spirv!("shaders/stencil.frag.spv"),
+                &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexStateDescriptor {
-                    index_format: wgpu::IndexFormat::Uint16,
-                    vertex_buffers: &[Vertex::desc(), Instance::desc()],
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: "main",
+                    buffers: &[Vertex::desc(), Instance::desc()],
                 },
                 false,
-                wgpu::ColorWrite::ALL,
+                wgpu::ColorWrites::ALL,
                 Some(depth_stencil_state_descriptor.clone()),
             ),
             msaa_pipeline: create_pipeline_depth_stencil(
                 context,
                 layout,
-                wgpu::include_spirv!("shaders/stencil.vert.spv"),
-                wgpu::include_spirv!("shaders/stencil.frag.spv"),
+                &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexStateDescriptor {
-                    index_format: wgpu::IndexFormat::Uint16,
-                    vertex_buffers: &[Vertex::desc(), Instance::desc()],
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: "main",
+                    buffers: &[Vertex::desc(), Instance::desc()],
                 },
                 true,
-                wgpu::ColorWrite::ALL,
+                wgpu::ColorWrites::ALL,
                 Some(depth_stencil_state_descriptor),
             ),
         }
