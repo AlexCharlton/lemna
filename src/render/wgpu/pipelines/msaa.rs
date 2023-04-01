@@ -42,44 +42,43 @@ pub struct MSAAPipeline {
 }
 
 impl MSAAPipeline {
-    pub fn render<'a: 'b, 'b>(
-        &'a mut self,
-        pass: &'b mut wgpu::RenderPass<'a>,
-        device: &'b wgpu::Device,
-        texture_view: &wgpu::TextureView,
-        was_resized: bool,
-    ) {
-        if was_resized {
-            let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-                mag_filter: wgpu::FilterMode::Linear,
-                min_filter: wgpu::FilterMode::Linear,
-                mipmap_filter: wgpu::FilterMode::Linear,
-                lod_min_clamp: 0.0,
-                lod_max_clamp: 100.0,
-                label: Some("msaa_sampler"),
-                ..Default::default()
-            });
-
-            self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                layout: &self.texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&texture_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&sampler),
-                    },
-                ],
-                label: Some("msaa_bind_group"),
-            }));
-        }
+    pub fn render<'a: 'b, 'b>(&'a mut self, pass: &'b mut wgpu::RenderPass<'a>) {
         pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(0, self.bind_group.as_ref().unwrap(), &[]);
         pass.set_vertex_buffer(0, self.vertex_buff.slice(..));
         pass.set_index_buffer(self.index_buff.slice(..), wgpu::IndexFormat::Uint16);
         pass.draw_indexed(0..6, 0, 0..1);
+    }
+
+    pub fn resize<'a: 'b, 'b>(
+        &'a mut self,
+        device: &'b wgpu::Device,
+        texture_view: &wgpu::TextureView,
+    ) {
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 100.0,
+            label: Some("msaa_sampler"),
+            ..Default::default()
+        });
+
+        self.bind_group = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &self.texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&sampler),
+                },
+            ],
+            label: Some("msaa_bind_group"),
+        }));
     }
 
     pub fn new(context: &context::WGPUContext) -> Self {
@@ -157,7 +156,7 @@ impl MSAAPipeline {
             .device
             .create_shader_module(wgpu::include_spirv!("shaders/msaa.frag.spv"));
 
-        Self {
+        let mut r = Self {
             vertex_buff,
             index_buff,
             texture_bind_group_layout,
@@ -176,6 +175,8 @@ impl MSAAPipeline {
                 wgpu::ColorWrites::ALL,
                 None,
             ),
-        }
+        };
+        r.resize(&context.device, &context.framebuffer);
+        r
     }
 }

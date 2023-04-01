@@ -139,9 +139,25 @@ impl super::Renderer for WGPURenderer {
         inst("WGPURenderer::render#get_current_texture");
         let output = match self.context.surface.get_current_texture() {
             Ok(o) => o,
-            Err(wgpu::SurfaceError::Timeout) => return,
+            Err(wgpu::SurfaceError::Timeout) => {
+                dbg!("get_current_texture timeout");
+                return;
+            }
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                self.resize(self.context.size());
+                return;
+            }
             Err(e) => panic!("Failed to get current texture: {}", e),
         };
+        if self.was_resized {
+            self.update_ubo(client_size);
+            dbg!("Presenting output");
+            output.present();
+            self.was_resized = false;
+            self.render(node, client_size, font_cache);
+            return;
+        }
+
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -149,9 +165,6 @@ impl super::Renderer for WGPURenderer {
 
         self.text_pipeline.unmark_buffer_cache();
         self.shape_pipeline.unmark_buffer_cache();
-        if self.was_resized {
-            self.update_ubo(client_size);
-        }
 
         inst("WGPURenderer::render#collect_frames");
         let mut frames = vec![FrameRenderables::default()];
@@ -400,45 +413,46 @@ impl super::Renderer for WGPURenderer {
         }
 
         // Draw the results of the MSAA'd framebuffer
-        let mut encoder =
-            self.context
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("update encoder"),
+        if cfg!(feature = "msaa_shapes") {
+            let mut encoder =
+                self.context
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("update encoder"),
+                    });
+            {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    label: Some("MSAA render pass"),
                 });
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                label: Some("MSAA render pass"),
-            });
 
-            self.msaa_pipeline.render(
-                &mut pass,
-                &self.context.device,
-                &self.context.framebuffer,
-                self.was_resized,
-            );
+                self.msaa_pipeline.render(&mut pass);
+            }
+            command_buffers.push(encoder.finish());
         }
-        command_buffers.push(encoder.finish());
-        self.was_resized = false;
         inst_end();
 
         inst("WGPURenderer::render#submit_command_buffers");
         self.context.queue.submit(command_buffers.into_iter());
+        dbg!("Presenting output");
+        output.present();
         inst_end();
     }
 
     fn resize(&mut self, size: PixelSize) {
         inst("WGPURenderer::resize_context");
         self.context.resize(size.width, size.height);
+        self.msaa_pipeline
+            .resize(&self.context.device, &self.context.framebuffer);
+
         self.was_resized = true;
         inst_end();
     }

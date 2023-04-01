@@ -1,6 +1,8 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use wgpu;
 
+use crate::PixelSize;
+
 pub struct WGPUContext {
     pub device: wgpu::Device,
     pub depthbuffer: wgpu::TextureView,
@@ -28,6 +30,13 @@ impl WGPUContext {
             self.surface_config.format,
             self.sample_count,
         );
+    }
+
+    pub fn size(&self) -> PixelSize {
+        PixelSize {
+            width: self.surface_config.width,
+            height: self.surface_config.height,
+        }
     }
 }
 
@@ -86,9 +95,8 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
     height: u32,
 ) -> WGPUContext {
     let backends = if cfg!(windows) {
-        // Vulkan now works better for me than DX12 ¯\_(ツ)_/¯
-        wgpu::Backends::VULKAN
-        // wgpu::BackendBit::DX12
+        //wgpu::Backends::VULKAN
+        wgpu::Backends::DX12
     } else {
         wgpu::Backends::PRIMARY
     };
