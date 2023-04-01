@@ -713,7 +713,9 @@ impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
 mod tests {
     use super::*;
     use crate::window::Window;
-    use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+    use raw_window_handle::{
+        HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+    };
 
     pub struct TestWindow {}
     impl Window for TestWindow {
@@ -737,6 +739,12 @@ mod tests {
     }
     unsafe impl HasRawWindowHandle for TestWindow {
         fn raw_window_handle(&self) -> RawWindowHandle {
+            panic!("Can't get windows handle in a test")
+        }
+    }
+
+    unsafe impl HasRawDisplayHandle for TestWindow {
+        fn raw_display_handle(&self) -> RawDisplayHandle {
             panic!("Can't get windows handle in a test")
         }
     }
