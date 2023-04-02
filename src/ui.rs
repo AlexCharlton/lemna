@@ -1,4 +1,5 @@
 use std::cell::UnsafeCell;
+use std::cell::{RefCell, RefMut};
 use std::marker::PhantomData;
 use std::rc::Rc;
 
@@ -19,11 +20,11 @@ const DRAG_THRESHOLD: f32 = 5.0; // px
 
 pub struct UI<W: Window, R: Renderer, A> {
     pub renderer: Option<R>,
-    window: Rc<W>,
+    pub(crate) window: Rc<RefCell<W>>,
     node: Option<Node<R>>,
     phantom_app: PhantomData<A>,
     scale_factor: f32,
-    display_size: PixelSize,
+    physical_size: PixelSize,
     client_size: PixelSize,
     event_cache: EventCache,
     font_cache: FontCache,
@@ -49,15 +50,15 @@ pub fn focus_immediately<T>(event: &Event<T>) {
 }
 
 thread_local!(
-    static CURRENT_WINDOW: UnsafeCell<Option<Rc<dyn Window>>> = {
+    static CURRENT_WINDOW: UnsafeCell<Option<Rc<RefCell<dyn Window>>>> = {
         UnsafeCell::new(None)
     }
 );
 
-pub fn current_window() -> Option<Rc<dyn Window>> {
+pub fn current_window<'a>() -> Option<RefMut<'a, dyn Window>> {
     CURRENT_WINDOW.with(|r| unsafe {
         if let Some(w) = r.get().as_ref().unwrap() {
-            Some(w.clone())
+            Some(w.borrow_mut())
         } else {
             None
         }
@@ -69,7 +70,7 @@ pub fn current_window() -> Option<Rc<dyn Window>> {
 //     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
 // }
 
-pub fn set_current_window(window: Rc<dyn Window>) {
+pub fn set_current_window(window: Rc<RefCell<dyn Window>>) {
     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
 }
 
@@ -84,18 +85,19 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
 
     pub fn new(window: W) -> Self {
         let scale_factor = window.scale_factor();
-        let display_size = window.display_size();
+        dbg!(scale_factor);
+        let physical_size = window.physical_size();
         let client_size = window.client_size();
         info!(
-            "New window with display size {:?} client size {:?} and scale factor {:?}",
-            display_size, client_size, scale_factor
+            "New window with physical size {:?} client size {:?} and scale factor {:?}",
+            physical_size, client_size, scale_factor
         );
         inst("UI::new");
         let mut component = A::new();
         component.init();
 
         let renderer = Some(R::new(&window));
-        let window = Rc::new(window);
+        let window = Rc::new(RefCell::new(window));
         set_current_window(window.clone());
         let event_cache = EventCache::new(scale_factor);
 
@@ -105,7 +107,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
             node: Some(Node::new(Box::new(component), 0, Layout::default())),
             phantom_app: PhantomData,
             scale_factor,
-            display_size,
+            physical_size,
             client_size,
             event_cache,
             font_cache: FontCache {
@@ -132,8 +134,8 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
             0,
             lay!(
                 size: size!(
-                    self.display_size.width as f32,
-                    self.display_size.height as f32
+                    self.client_size.width as f32,
+                    self.client_size.height as f32
                 )
             ),
         );
@@ -157,7 +159,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
 
         if do_render {
             self.node = Some(new);
-            self.window.redraw();
+            self.window.borrow().redraw();
         } else {
             self.node = Some(new);
         }
@@ -172,7 +174,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         inst("UI::render");
         self.renderer.as_mut().unwrap().render(
             self.node.as_ref().unwrap(),
-            self.client_size,
+            self.physical_size,
             &self.font_cache,
         );
         // println!("rendered");
@@ -222,11 +224,11 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                 self.renderer
                     .as_mut()
                     .unwrap()
-                    .resize(self.window.client_size());
-                self.display_size = self.window.display_size();
-                self.client_size = self.window.client_size();
+                    .resize(self.window.borrow().client_size());
+                self.physical_size = self.window.borrow().physical_size();
+                self.client_size = self.window.borrow().client_size();
                 self.dirty = true;
-                self.window.redraw(); // Always redraw after resizing
+                self.window.borrow().redraw(); // Always redraw after resizing
             }
             Input::Motion(Motion::Mouse { x, y }) => {
                 let pos = Point::new(*x, *y);
@@ -469,7 +471,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         inst_end();
     }
 
-    pub fn add_font(&mut self, name: &str, bytes: &'static [u8]) {
+    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
         self.font_cache.add_font(name, bytes);
     }
 }

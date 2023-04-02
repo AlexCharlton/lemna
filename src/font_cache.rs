@@ -48,10 +48,10 @@ impl FontCache {
         }
     }
 
-    pub fn add_font(&mut self, name: &str, bytes: &'static [u8]) {
+    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
         let i = self.fonts.len();
         self.fonts.push(FontRef::try_from_slice(bytes).unwrap());
-        self.font_names.insert(name.to_string(), i);
+        self.font_names.insert(name, i);
     }
 
     pub fn layout_text(

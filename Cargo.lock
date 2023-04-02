@@ -170,14 +170,14 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 [[package]]
 name = "baseview"
 version = "0.1.0"
-source = "git+https://github.com/RustAudio/baseview.git#c129b12ead4f5ac02126f559ceb8ce43cc982200"
+source = "git+https://github.com/AlexCharlton/baseview.git#8ba63dfaa57c276dd7edabe4bc68c3ff3533aafe"
 dependencies = [
  "cocoa",
  "core-foundation",
  "keyboard-types",
  "nix 0.22.3",
  "objc",
- "raw-window-handle 0.4.3",
+ "raw-window-handle",
  "uuid",
  "winapi",
  "x11",
@@ -588,12 +588,6 @@ name = "crunchy"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
-
-[[package]]
-name = "cty"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
 name = "cxx"
@@ -1301,7 +1295,7 @@ dependencies = [
  "linked-hash-map",
  "log",
  "lyon",
- "raw-window-handle 0.5.1",
+ "raw-window-handle",
  "rayon",
  "rustc-hash",
  "serde",
@@ -1582,7 +1576,7 @@ dependencies = [
  "jni-sys",
  "ndk-sys",
  "num_enum",
- "raw-window-handle 0.5.1",
+ "raw-window-handle",
  "thiserror",
 ]
 
@@ -2047,15 +2041,6 @@ name = "range-alloc"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8a99fddc9f0ba0a85884b8d14e3592853e787d581ca1816c91349b10e4eeab"
-
-[[package]]
-name = "raw-window-handle"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b800beb9b6e7d2df1fe337c9e3d04e3af22a124460fb4c30fcc22c9117cefb41"
-dependencies = [
- "cty",
-]
 
 [[package]]
 name = "raw-window-handle"
@@ -2990,7 +2975,7 @@ dependencies = [
  "naga",
  "parking_lot",
  "profiling",
- "raw-window-handle 0.5.1",
+ "raw-window-handle",
  "smallvec",
  "static_assertions",
  "wasm-bindgen",
@@ -3016,7 +3001,7 @@ dependencies = [
  "naga",
  "parking_lot",
  "profiling",
- "raw-window-handle 0.5.1",
+ "raw-window-handle",
  "smallvec",
  "thiserror",
  "web-sys",
@@ -3056,7 +3041,7 @@ dependencies = [
  "parking_lot",
  "profiling",
  "range-alloc",
- "raw-window-handle 0.5.1",
+ "raw-window-handle",
  "renderdoc-sys",
  "smallvec",
  "thiserror",
@@ -3234,7 +3219,7 @@ dependencies = [
  "once_cell",
  "orbclient",
  "percent-encoding",
- "raw-window-handle 0.5.1",
+ "raw-window-handle",
  "redox_syscall 0.3.5",
  "sctk-adwaita",
  "smithay-client-toolkit",
@@ -3274,7 +3259,7 @@ dependencies = [
  "bzip2",
  "cc",
  "embed-resource",
- "raw-window-handle 0.5.1",
+ "raw-window-handle",
  "reqwest",
  "tar",
 ]

@@ -85,7 +85,7 @@ impl super::Renderer for WGPURenderer {
     type Renderable = WGPURenderable;
 
     fn new<W: Window>(window: &W) -> Self {
-        let size = window.client_size();
+        let size = window.physical_size();
         let context = block_on(context::get_wgpu_context(window, size.width, size.height));
         let device = &context.device;
 
@@ -135,7 +135,7 @@ impl super::Renderer for WGPURenderer {
         }
     }
 
-    fn render(&mut self, node: &Node<Self>, client_size: PixelSize, font_cache: &FontCache) {
+    fn render(&mut self, node: &Node<Self>, physical_size: PixelSize, font_cache: &FontCache) {
         inst("WGPURenderer::render#get_current_texture");
         let output = match self.context.surface.get_current_texture() {
             Ok(o) => o,
@@ -149,10 +149,10 @@ impl super::Renderer for WGPURenderer {
             Err(e) => panic!("Failed to get current texture: {}", e),
         };
         if self.was_resized {
-            self.update_ubo(client_size);
+            self.update_ubo(physical_size);
             output.present();
             self.was_resized = false;
-            self.render(node, client_size, font_cache);
+            self.render(node, physical_size, font_cache);
             return;
         }
 
@@ -456,7 +456,7 @@ impl super::Renderer for WGPURenderer {
 }
 
 impl WGPURenderer {
-    fn update_ubo(&mut self, client_size: PixelSize) {
+    fn update_ubo(&mut self, physical_size: PixelSize) {
         let mut encoder =
             self.context
                 .device
@@ -474,8 +474,8 @@ impl WGPURenderer {
                 // Depth goes from 0 (far) to MAX_DEPTH (near)
                     * cgmath::ortho(
                         0.0,
-                        client_size.width as f32,
-                        client_size.height as f32,
+                        physical_size.width as f32,
+                        physical_size.height as f32,
                         0.0,
                         0.0,
                         -MAX_DEPTH,

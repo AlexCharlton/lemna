@@ -1,8 +1,13 @@
+use std::any::Any;
+use std::cell::{RefCell, RefMut};
+
 use crate::base_types::*;
 use crate::component::App;
 use crate::render::Renderer;
 use crate::UI;
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use raw_window_handle::{
+    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
 
 struct BaseViewUI<R: Renderer, A: 'static + App<R>>
 where
@@ -14,21 +19,18 @@ where
 pub struct Window {
     handle: RawWindowHandle,
     size: (u32, u32),
+    scale_policy: baseview::WindowScalePolicy,
     scale_factor: f32,
 }
 
 impl Window {
-    fn new(handle: RawWindowHandle) -> Self {
-        Self {
-            handle,
-            scale_factor: 1.0, //TODO
-            size: (200, 200),  //TODO
-        }
-    }
-
     pub fn open_parented<P, R, A>(
         parent: &P,
-        settings: baseview::WindowOpenOptions,
+        title: String,
+        width: u32,
+        height: u32,
+        scale_policy: baseview::WindowScalePolicy,
+        mut fonts: Vec<(String, &'static [u8])>,
     ) -> baseview::WindowHandle
     where
         P: HasRawWindowHandle,
@@ -36,15 +38,64 @@ impl Window {
         <R as Renderer>::Renderable: std::fmt::Debug,
         A: 'static + App<R>,
     {
-        println!("AAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH");
         baseview::Window::open_parented(
             parent,
-            settings,
+            baseview::WindowOpenOptions {
+                title,
+                size: baseview::Size::new(width.into(), height.into()),
+                scale: scale_policy,
+            },
             move |window: &mut baseview::Window<'_>| -> BaseViewUI<R, A> {
-                println!("AAAAAAAAAAAAAAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHBBBBBBBBBBBBBBBAAAAAAAAAAAAAA");
-                BaseViewUI {
-                    ui: UI::new(Self::new(window.raw_window_handle())),
+                let scale_factor = match scale_policy {
+                    baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
+                    baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
+                } as f32;
+                let mut ui = UI::new(Self {
+                    handle: window.raw_window_handle(),
+                    size: (width, height),
+                    scale_factor,
+                    scale_policy,
+                });
+                for (name, data) in fonts.drain(..) {
+                    ui.add_font(name, data);
                 }
+                BaseViewUI { ui }
+            },
+        )
+    }
+
+    pub fn open_blocking<R, A>(
+        title: String,
+        width: u32,
+        height: u32,
+        scale_policy: baseview::WindowScalePolicy,
+        mut fonts: Vec<(String, &'static [u8])>,
+    ) where
+        R: Renderer + 'static,
+        <R as Renderer>::Renderable: std::fmt::Debug,
+        A: 'static + App<R>,
+    {
+        baseview::Window::open_blocking(
+            baseview::WindowOpenOptions {
+                title,
+                size: baseview::Size::new(width.into(), height.into()),
+                scale: scale_policy,
+            },
+            move |window: &mut baseview::Window<'_>| -> BaseViewUI<R, A> {
+                let scale_factor = match scale_policy {
+                    baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
+                    baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
+                } as f32;
+                let mut ui = UI::new(Self {
+                    handle: window.raw_window_handle(),
+                    size: (width, height),
+                    scale_factor,
+                    scale_policy,
+                });
+                for (name, data) in fonts.drain(..) {
+                    ui.add_font(name, data);
+                }
+                BaseViewUI { ui }
             },
         )
     }
@@ -56,23 +107,72 @@ unsafe impl HasRawWindowHandle for Window {
     }
 }
 
+unsafe impl HasRawDisplayHandle for Window {
+    #[cfg(windows)]
+    fn raw_display_handle(&self) -> RawDisplayHandle {
+        let handle = raw_window_handle::WindowsDisplayHandle::empty();
+        RawDisplayHandle::Windows(handle)
+    }
+
+    #[cfg(target_os = "macos")]
+    fn raw_display_handle(&self) -> RawDisplayHandle {
+        let handle = raw_window_handle::AppKitDisplayHandle::empty();
+        RawDisplayHandle::AppKit(handle)
+    }
+
+    #[cfg(not(any(windows, target_os = "macos")))]
+    fn raw_display_handle(&self) -> RawDisplayHandle {
+        panic!("Not supported")
+    }
+}
+
+use crate::input::{Button, Input, Key, Motion, MouseButton};
 impl<R: Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A>
 where
     <R as Renderer>::Renderable: std::fmt::Debug,
 {
     fn on_frame(&mut self, _window: &mut baseview::Window) {
-        println!("HAVE A FRAME");
         if self.ui.draw() {
             println!("DO A DRAW");
             self.ui.render()
         }
     }
+
     fn on_event(
         &mut self,
         _window: &mut baseview::Window,
-        _event: baseview::Event,
+        event: baseview::Event,
     ) -> baseview::EventStatus {
-        baseview::EventStatus::Ignored
+        dbg!("Got event {:?}", &event);
+        match &event {
+            baseview::Event::Window(event) => match event {
+                baseview::WindowEvent::Resized(window_info) => {
+                    if let Some(mut win) = crate::current_window() {
+                        RefMut::map(win, |win| {
+                            if let Some(win) = (win as &mut dyn Any).downcast_mut::<Window>() {
+                                win.scale_factor = match win.scale_policy {
+                                    baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
+                                    baseview::WindowScalePolicy::SystemScaleFactor => {
+                                        window_info.scale()
+                                    }
+                                } as f32;
+                                win.size = (
+                                    window_info.logical_size().width as u32,
+                                    window_info.logical_size().height as u32,
+                                );
+                            }
+                            win
+                        });
+                    }
+
+                    self.ui.handle_input(&Input::Resize);
+                }
+                baseview::WindowEvent::WillClose => (),
+                _ => (),
+            },
+            _ => (), // TODO
+        }
+        baseview::EventStatus::Captured
     }
 }
 
@@ -84,10 +184,10 @@ impl crate::window::Window for Window {
         }
     }
 
-    fn display_size(&self) -> PixelSize {
+    fn physical_size(&self) -> PixelSize {
         PixelSize {
-            width: self.size.0,
-            height: self.size.1,
+            width: ((self.size.0 as f32) * self.scale_factor) as u32,
+            height: ((self.size.1 as f32) * self.scale_factor) as u32,
         }
     }
 

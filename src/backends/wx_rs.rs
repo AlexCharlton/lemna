@@ -10,7 +10,7 @@ impl crate::window::Window for Window {
         unsafe { mem::transmute(get_client_size()) }
     }
 
-    fn display_size(&self) -> PixelSize {
+    fn physical_size(&self) -> PixelSize {
         unsafe { mem::transmute(get_display_size()) }
     }
 

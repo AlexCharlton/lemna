@@ -13,7 +13,7 @@ keywords = ["ui"]
 members = ["macros"]
 
 [features]
-default = ["msaa_shapes", "backend_wx_rs", "open_iconic"]
+default = ["msaa_shapes", "backend_baseview", "open_iconic"]
 
 instrumented = ["superluminal-perf"]
 backend_winit = ["winit"]
@@ -49,7 +49,8 @@ rayon = "1.3"
 # Features
 winit = {version = "0.28", optional = true }
 wx-rs = { version = "0.1", path = "../wx-rs", optional = true }
-baseview = { git = "https://github.com/RustAudio/baseview.git", optional = true }
+baseview = { git = "https://github.com/AlexCharlton/baseview.git", optional = true }
+# baseview = { path = "../external/baseview/", optional = true }
 superluminal-perf = { version = "0.1", optional = true }
 
 [dev-dependencies]

@@ -1,5 +1,6 @@
 use crate::base_types::*;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use std::any::Any;
 
 #[derive(Debug)]
 pub enum Data {
@@ -13,9 +14,9 @@ impl From<&str> for Data {
     }
 }
 
-pub trait Window: HasRawWindowHandle + HasRawDisplayHandle {
+pub trait Window: HasRawWindowHandle + HasRawDisplayHandle + Any {
     fn client_size(&self) -> PixelSize;
-    fn display_size(&self) -> PixelSize;
+    fn physical_size(&self) -> PixelSize;
     fn scale_factor(&self) -> f32;
     fn redraw(&self) {}
     fn set_cursor(&self, _cursor_type: &str) {}

@@ -726,7 +726,7 @@ mod tests {
             }
         }
 
-        fn display_size(&self) -> PixelSize {
+        fn physical_size(&self) -> PixelSize {
             PixelSize {
                 width: 100,
                 height: 100,

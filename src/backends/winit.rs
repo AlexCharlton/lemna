@@ -11,7 +11,7 @@ impl crate::window::Window for winit::window::Window {
         }
     }
 
-    fn display_size(&self) -> PixelSize {
+    fn physical_size(&self) -> PixelSize {
         let size = self.inner_size();
         return self.client_size(); // This should transform to device size
     }
