@@ -1,0 +1,23 @@
+[package]
+name = "lemna-baseview"
+version = "0.2.0"
+authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
+description = "Baseview windowing backend support for lemna"
+edition = "2021"
+repository = "https://github.com/AlexCharlton/lemna"
+documentation = "https://docs.rs/lemna"
+license = "MIT"
+
+[dependencies]
+lemna = { path = "../../", version = "0.2" }
+raw-window-handle = { workspace = true }
+
+[dependencies.baseview]
+git = "https://github.com/AlexCharlton/baseview.git"
+# path = "../../../external/baseview"
+
+[dev-dependencies]
+lemna-macros = { workspace = true }
+lyon = { workspace = true }
+simplelog = { workspace = true }
+ttf-noto-sans = { workspace = true }

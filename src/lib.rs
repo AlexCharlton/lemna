@@ -1,5 +1,3 @@
-#![feature(trait_upcasting)]
-
 pub mod instrumenting;
 
 #[macro_use]
@@ -19,8 +17,6 @@ pub use event::*;
 
 pub mod window;
 pub use window::*;
-
-pub mod backends;
 
 #[macro_use]
 pub mod node;

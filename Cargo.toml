@@ -1,42 +1,41 @@
 [package]
 name = "lemna"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "A Reactive UI framework for Rust"
 edition = "2021"
 repository = "https://github.com/AlexCharlton/lemna"
 documentation = "https://docs.rs/lemna"
 license = "MIT"
-keywords = ["ui"]
+keywords = ["ui", "gui"]
 
 [workspace]
-members = ["macros"]
+members = ["macros", "backends/baseview", "backends/winit", "backends/wx-rs"]
 
 [features]
-default = ["msaa_shapes", "backend_baseview", "open_iconic"]
+default = ["msaa_shapes", "open_iconic"]
 
 instrumented = ["superluminal-perf"]
-backend_winit = ["winit"]
-backend_wx_rs = ["wx-rs"]
-backend_baseview = ["baseview"]
 msaa_shapes = []
 open_iconic = []
 
+[dependencies.wgpu]
+version = "0.15"
+# path = "../external/wgpu-rs"
+features = ["spirv"]
 
 [dependencies]
-lemna-macros = { path = "./macros", version="0.1" }
-wgpu = { version = "0.15", features = ["spirv"] }
-# wgpu = { path = "../external/wgpu-rs" }
+lemna-macros = { workspace = true }
 ahash = "0.3.2"
 bytemuck = { version = "1.4", features = ["derive"] }
 cgmath = "0.17.0"
 futures = "0.3.4"
 glyph_brush_layout = "0.2"
-lyon = "0.15.6"
-raw-window-handle = "0.5"
-serde = { version = "1.0", features = ["derive"] }
-simplelog = "0.7"
 log = "0.4"
+lyon = { workspace = true }
+raw-window-handle = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+simplelog = { workspace = true }
 
 # For glyph_brush_draw_cache
 ab_glyph = "0.2.2"
@@ -47,13 +46,13 @@ crossbeam-channel = "0.4.2"
 rayon = "1.3"
 
 # Features
-winit = {version = "0.28", optional = true }
-wx-rs = { version = "0.1", path = "../wx-rs", optional = true }
-baseview = { git = "https://github.com/AlexCharlton/baseview.git", optional = true }
-# baseview = { path = "../external/baseview/", optional = true }
 superluminal-perf = { version = "0.1", optional = true }
 
-[dev-dependencies]
+[workspace.dependencies]
+raw-window-handle = "0.5"
+lemna-macros = { path = "./macros", version="0.1" }
+simplelog = "0.7"
+lyon = "0.15.6"
 ttf-noto-sans = "0.1"
 
 [build-dependencies]

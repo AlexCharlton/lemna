@@ -1,0 +1,19 @@
+[package]
+name = "lemna-winit"
+version = "0.2.0"
+authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
+description = "winit windowing backend support for lemna"
+edition = "2021"
+repository = "https://github.com/AlexCharlton/lemna"
+documentation = "https://docs.rs/lemna"
+license = "MIT"
+
+[dependencies]
+lemna = { path = "../../", version = "0.2" }
+raw-window-handle = { workspace = true }
+winit = { version = "0.28" }
+
+[dev-dependencies]
+ttf-noto-sans = "0.1"
+lemna-macros = { workspace = true }
+simplelog = { workspace = true }

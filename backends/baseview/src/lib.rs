@@ -1,10 +1,11 @@
-use std::any::Any;
-use std::cell::{RefCell, RefMut};
+#![feature(trait_upcasting)]
 
-use crate::base_types::*;
-use crate::component::App;
-use crate::render::Renderer;
-use crate::UI;
+use std::any::Any;
+use std::cell::RefMut;
+
+use lemna::component::App;
+use lemna::render::Renderer;
+use lemna::{PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -126,7 +127,7 @@ unsafe impl HasRawDisplayHandle for Window {
     }
 }
 
-use crate::input::{Button, Input, Key, Motion, MouseButton};
+use lemna::input::{Button, Input, Key, Motion, MouseButton};
 impl<R: Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A>
 where
     <R as Renderer>::Renderable: std::fmt::Debug,
@@ -147,7 +148,7 @@ where
         match &event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
-                    if let Some(mut win) = crate::current_window() {
+                    if let Some(win) = lemna::current_window() {
                         RefMut::map(win, |win| {
                             if let Some(win) = (win as &mut dyn Any).downcast_mut::<Window>() {
                                 win.scale_factor = match win.scale_policy {
@@ -176,7 +177,7 @@ where
     }
 }
 
-impl crate::window::Window for Window {
+impl lemna::window::Window for Window {
     fn client_size(&self) -> PixelSize {
         PixelSize {
             width: self.size.0,
