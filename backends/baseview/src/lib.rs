@@ -10,6 +10,8 @@ use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
 
+pub extern crate baseview;
+
 struct BaseViewUI<R: Renderer, A: 'static + App<R>>
 where
     <R as Renderer>::Renderable: std::fmt::Debug,

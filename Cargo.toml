@@ -10,7 +10,7 @@ license = "MIT"
 keywords = ["ui", "gui"]
 
 [workspace]
-members = ["macros", "backends/baseview", "backends/winit", "backends/wx-rs"]
+members = ["macros", "backends/baseview", "backends/winit", "backends/wx-rs", "nih-plug"]
 
 [features]
 default = ["msaa_shapes", "open_iconic"]

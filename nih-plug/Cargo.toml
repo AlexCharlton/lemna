@@ -1,0 +1,12 @@
+[package]
+name = "lemna-nih-plug"
+version = "0.2.0"
+edition = "2021"
+repository = "https://github.com/AlexCharlton/midi-m8"
+license = "MIT"
+
+
+[dependencies]
+lemna-baseview = { version = "0.2.0", path = "../backends/baseview" }
+lemna = { version = "0.2.0", path = ".." }
+nih_plug = { path = "../../external/nih-plug" }
