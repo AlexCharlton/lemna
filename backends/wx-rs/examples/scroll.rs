@@ -1,9 +1,5 @@
-use std::cell::UnsafeCell;
-
+use lemna::{self, *};
 use simplelog::*;
-
-use lemna::{self, layout::*, widgets::*, UI, *};
-use wx_rs;
 
 type Renderer = lemna::render::wgpu::WGPURenderer;
 type Node = lemna::Node<Renderer>;
@@ -205,34 +201,6 @@ impl lemna::App<Renderer> for HelloApp {
     }
 }
 
-type HelloUI = UI<wx_rs::Window, Renderer, HelloApp>;
-
-thread_local!(
-    pub static UI: UnsafeCell<HelloUI> = {
-        UnsafeCell::new(UI::new(wx_rs::Window::new()))
-    }
-);
-
-pub fn ui() -> &'static mut HelloUI {
-    UI.with(|r| unsafe { r.get().as_mut().unwrap() })
-}
-
-extern "C" fn render() {
-    if ui().draw() {
-        ui().render();
-    }
-}
-
-use std::os::raw::c_void;
-extern "C" fn handle_event(event: *const c_void) {
-    for input in lemna_wx_rs::event_to_input(event).iter() {
-        ui().handle_input(input);
-        if input != &lemna::input::Input::Timer {
-            wx_rs::set_status_text(&format!("Got input: {:?}", input));
-        }
-    }
-}
-
 fn main() {
     let _ = WriteLogger::init(
         LevelFilter::Info,
@@ -240,9 +208,10 @@ fn main() {
         std::fs::File::create("example.log").unwrap(),
     );
 
-    wx_rs::init_app("Hello!", 800, 600);
-    ui().add_font("noto sans regular", ttf_noto_sans::REGULAR);
-    wx_rs::set_render(render);
-    wx_rs::bind_canvas_events(handle_event);
-    wx_rs::run_app();
+    lemna_wx_rs::Window::<Renderer, HelloApp>::open_blocking(
+        "Hello scroll!",
+        800,
+        600,
+        vec![("noto sans regular".to_string(), ttf_noto_sans::REGULAR)],
+    );
 }

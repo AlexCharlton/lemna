@@ -1,9 +1,7 @@
-use std::cell::UnsafeCell;
-
-use lemna::{self, open_iconic::Icon, widgets, UI, *};
+use lemna::{self, open_iconic::Icon, widgets, *};
 use lemna_macros::{state_component, state_component_impl};
 use ttf_noto_sans;
-use wx_rs::{self, Menu, MenuBar, MenuEntry};
+use wx_rs::{Menu, MenuBar, MenuEntry};
 
 type Renderer = lemna::render::wgpu::WGPURenderer;
 type Renderable = lemna::render::wgpu::WGPURenderable;
@@ -357,43 +355,16 @@ impl Component<Renderer> for EventReactor {
 }
 
 // App setup
-type HelloUI = UI<wx_rs::Window, Renderer, HelloApp>;
-
-thread_local!(
-    pub static UI: UnsafeCell<HelloUI> = {
-        UnsafeCell::new(UI::new(wx_rs::Window::new()))
-    }
-);
-
-pub fn ui() -> &'static mut HelloUI {
-    UI.with(|r| unsafe { r.get().as_mut().unwrap() })
-}
-
-extern "C" fn render() {
-    if ui().draw() {
-        ui().render();
-    }
-}
-
-extern "C" fn handle_event(event: *const std::os::raw::c_void) {
-    for input in lemna_wx_rs::event_to_input(event).iter() {
-        ui().handle_input(input);
-        if input != &lemna::input::Input::Timer {
-            wx_rs::set_status_text(&format!("Got input: {:?}", input));
-        }
-    }
-}
-
 fn main() {
     println!("hello");
-    wx_rs::init_app("Hello!", 800, 600);
-    ui().add_font("noto sans regular", ttf_noto_sans::REGULAR);
-    ui().add_font("open iconic", open_iconic::ICONS);
-
-    wx_rs::set_render(render);
-    wx_rs::bind_canvas_events(handle_event);
-    wx_rs::create_status_bar();
-    wx_rs::run_app();
-
+    lemna_wx_rs::Window::<Renderer, HelloApp>::open_blocking(
+        "Hello events!",
+        800,
+        600,
+        vec![
+            ("noto sans regular".to_string(), ttf_noto_sans::REGULAR),
+            ("open iconic".to_string(), open_iconic::ICONS),
+        ],
+    );
     println!("bye");
 }

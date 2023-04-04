@@ -13,10 +13,11 @@ lemna = { path = "../../", version = "0.2" }
 raw-window-handle = { workspace = true }
 
 [dependencies.wx-rs]
-version = "0.1"
-# path = "../../../wx-rs"
+version = "0.2"
+path = "../../../wx-rs"
 
 [dev-dependencies]
-ttf-noto-sans = "0.1"
 lemna-macros = { workspace = true }
+lyon = { workspace = true }
 simplelog = { workspace = true }
+ttf-noto-sans = "0.1"

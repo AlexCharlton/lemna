@@ -34,12 +34,22 @@ What's missing:
 
 
 ## Running
+Select your preferred windowing backend:
 ```
-cargo run --example hello
+cargo run -p lemna-baseview --example hello
 ```
 
-See `./examples` for other examples. Note that most of them use the wx-rs windowing backend, which presently has compilation limitations.
+```
+cargo run -p lemna-wx-rs --example hello
+```
+
+```
+cargo run -p lemna-winit --example scroll
+```
+
+See `./backends/**/**examples` for other examples. Note that wx-rs presently has compilation limitations on most platforms.
 
 
 ## TODO
-- Update wgpu
+- Fix fonts (and more?) after resizing
+- Why is resizing so slow?
