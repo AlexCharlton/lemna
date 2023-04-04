@@ -1,11 +1,11 @@
 use std::mem;
 use std::os::raw::c_void;
 
-use crate::input::{Button, Input, Key, Motion, MouseButton};
-use crate::PixelSize;
+use lemna::input::{Button, Input, Key, Motion, MouseButton};
+use lemna::PixelSize;
 use wx_rs::*;
 
-impl crate::window::Window for Window {
+impl lemna::window::Window for Window {
     fn client_size(&self) -> PixelSize {
         unsafe { mem::transmute(get_client_size()) }
     }
@@ -18,11 +18,11 @@ impl crate::window::Window for Window {
         get_scale_factor()
     }
 
-    fn put_on_clipboard(&self, data: &crate::window::Data) {
+    fn put_on_clipboard(&self, data: &lemna::window::Data) {
         unsafe { put_on_clipboard(mem::transmute(data)) }
     }
 
-    fn get_from_clipboard(&self) -> Option<crate::window::Data> {
+    fn get_from_clipboard(&self) -> Option<lemna::window::Data> {
         unsafe { mem::transmute(get_from_clipboard()) }
     }
 

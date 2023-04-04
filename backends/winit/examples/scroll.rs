@@ -1,13 +1,4 @@
-//  cargo run --example hello_winit --features backend_winit
-
-#[allow(unused_imports)]
-use lemna::{
-    self,
-    input::{Button, Input, Motion, MouseButton},
-    layout::*,
-    widgets::*,
-    UI, *,
-};
+use lemna::*;
 
 type Renderer = lemna::render::wgpu::WGPURenderer;
 type Node = lemna::Node<Renderer>;
@@ -32,6 +23,8 @@ impl lemna::Component<Renderer> for HelloApp {
                             padding: rect!(10.0),
                             margin: rect!(10.0),
                             direction: Direction::Column,
+                            axis_alignment: Alignment::Stretch,
+                            cross_alignment: Alignment::Stretch,
                         ),
                         0
                     )
@@ -52,6 +45,8 @@ impl lemna::Component<Renderer> for HelloApp {
                                 size: size!(70.0, 200.0),
                                 margin: rect!(5.0),
                                 direction: Direction::Column,
+                                axis_alignment: Alignment::Stretch,
+                                cross_alignment: Alignment::Stretch,
                             ),
                             1
                         )

@@ -1,6 +1,6 @@
-use lemna::base_types::*;
+use lemna::*;
 
-impl crate::window::Window for winit::window::Window {
+impl lemna::window::Window for winit::window::Window {
     // TODO: This isn't good
 
     fn client_size(&self) -> PixelSize {

@@ -1,13 +1,9 @@
-//  cargo run --example hello_winit --features backend_winit
+use std::cell::UnsafeCell;
 
-#[allow(unused_imports)]
-use lemna::{
-    self,
-    input::{Button, Input, Motion, MouseButton},
-    layout::*,
-    widgets::*,
-    UI, *,
-};
+use simplelog::*;
+
+use lemna::{self, layout::*, widgets::*, UI, *};
+use wx_rs;
 
 type Renderer = lemna::render::wgpu::WGPURenderer;
 type Node = lemna::Node<Renderer>;
@@ -28,10 +24,12 @@ impl lemna::Component<Renderer> for HelloApp {
                                 ..Default::default()
                             }),
                         lay!(
-                            size: size!(100.0, 300.0),
+                            size: size!(100.0, 200.0),
                             padding: rect!(10.0),
                             margin: rect!(10.0),
                             direction: Direction::Column,
+                            axis_alignment: Alignment::Stretch,
+                            cross_alignment: Alignment::Stretch,
                         ),
                         0
                     )
@@ -52,6 +50,8 @@ impl lemna::Component<Renderer> for HelloApp {
                                 size: size!(70.0, 200.0),
                                 margin: rect!(5.0),
                                 direction: Direction::Column,
+                                axis_alignment: Alignment::Stretch,
+                                cross_alignment: Alignment::Stretch,
                             ),
                             1
                         )
@@ -123,7 +123,12 @@ impl lemna::Component<Renderer> for HelloApp {
                     .push(
                         node!(
                             Div::new(),
-                            lay!(direction: Direction::Column, size: size!(100.0, Auto)),
+                            lay!(
+                                direction: Direction::Column,
+                                size: size!(100.0, Auto),
+                                axis_alignment: Alignment::Stretch,
+                                cross_alignment: Alignment::Stretch,
+                            ),
                             0
                         )
                         .push(node!(
@@ -155,7 +160,12 @@ impl lemna::Component<Renderer> for HelloApp {
                     .push(
                         node!(
                             Div::new(),
-                            lay!(direction: Direction::Column, size: size!(100.0, Auto)),
+                            lay!(
+                                direction: Direction::Column,
+                                size: size!(100.0, Auto),
+                                axis_alignment: Alignment::Stretch,
+                                cross_alignment: Alignment::Stretch,
+                            ),
                             1
                         )
                         .push(node!(
@@ -195,89 +205,44 @@ impl lemna::App<Renderer> for HelloApp {
     }
 }
 
-#[cfg(not(feature = "backend_winit"))]
-fn main() {}
+type HelloUI = UI<wx_rs::Window, Renderer, HelloApp>;
 
-#[cfg(feature = "backend_winit")]
+thread_local!(
+    pub static UI: UnsafeCell<HelloUI> = {
+        UnsafeCell::new(UI::new(wx_rs::Window::new()))
+    }
+);
+
+pub fn ui() -> &'static mut HelloUI {
+    UI.with(|r| unsafe { r.get().as_mut().unwrap() })
+}
+
+extern "C" fn render() {
+    if ui().draw() {
+        ui().render();
+    }
+}
+
+use std::os::raw::c_void;
+extern "C" fn handle_event(event: *const c_void) {
+    for input in lemna_wx_rs::event_to_input(event).iter() {
+        ui().handle_input(input);
+        if input != &lemna::input::Input::Timer {
+            wx_rs::set_status_text(&format!("Got input: {:?}", input));
+        }
+    }
+}
+
 fn main() {
-    use lemna::instrumenting::*;
-    use simplelog::*;
-    use winit::{
-        event::{Event, WindowEvent},
-        event_loop::{ControlFlow, EventLoop},
-        window::WindowBuilder,
-    };
-    println!("hello");
-
-    type HelloUI = UI<winit::window::Window, Renderer, HelloApp>;
-
     let _ = WriteLogger::init(
         LevelFilter::Info,
         ConfigBuilder::new().build(),
         std::fs::File::create("example.log").unwrap(),
     );
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title("Hello!")
-        .build(&event_loop)
-        .unwrap();
-    let mut ui: HelloUI = UI::new(window);
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-        inst(&format!("event_handler <{:?}>", &event));
-
-        match event {
-            Event::MainEventsCleared => {
-                ui.draw();
-            }
-            Event::RedrawRequested(_) => ui.render(),
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::CursorMoved { position, .. } => {
-                    // println!("{:?}", position);
-                    ui.handle_input(&Input::Motion(Motion::Mouse {
-                        x: position.x as f32,
-                        y: position.y as f32,
-                    }));
-                }
-                WindowEvent::MouseInput {
-                    button,
-                    state: winit::event::ElementState::Pressed,
-                    ..
-                } => {
-                    ui.handle_input(&Input::Press(Button::Mouse(MouseButton::Left)));
-                }
-                WindowEvent::MouseInput {
-                    button,
-                    state: winit::event::ElementState::Released,
-                    ..
-                } => {
-                    ui.handle_input(&Input::Press(Button::Mouse(MouseButton::Left)));
-                }
-                WindowEvent::MouseWheel { delta, .. } => {
-                    // println!("scroll delta{:?}", delta);
-                    let scroll = match delta {
-                        winit::event::MouseScrollDelta::LineDelta(x, y) => Motion::Scroll {
-                            x: x * -10.0,
-                            y: y * -10.0,
-                        },
-                        winit::event::MouseScrollDelta::PixelDelta(
-                            winit::dpi::PhysicalPosition { x, y },
-                        ) => Motion::Scroll {
-                            x: -x as f32,
-                            y: -y as f32,
-                        },
-                    };
-                    ui.handle_input(&Input::Motion(scroll));
-                }
-                _ => (),
-            },
-            _ => (),
-        };
-
-        inst_end();
-    });
-
-    println!("bye");
+    wx_rs::init_app("Hello!", 800, 600);
+    ui().add_font("noto sans regular", ttf_noto_sans::REGULAR);
+    wx_rs::set_render(render);
+    wx_rs::bind_canvas_events(handle_event);
+    wx_rs::run_app();
 }

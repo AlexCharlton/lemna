@@ -47,7 +47,7 @@ extern "C" fn render() {
 
 use std::os::raw::c_void;
 extern "C" fn handle_event(event: *const c_void) {
-    for input in lemna::backends::wx_rs::event_to_input(event).iter() {
+    for input in lemna_wx_rs::event_to_input(event).iter() {
         ui().handle_input(input);
         if input != &lemna::input::Input::Timer {
             wx_rs::set_status_text(&format!("Got input: {:?}", input));
