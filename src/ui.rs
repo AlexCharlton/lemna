@@ -85,7 +85,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
 
     pub fn new(window: W) -> Self {
         let scale_factor = window.scale_factor();
-        dbg!(scale_factor);
+        // dbg!(scale_factor);
         let physical_size = window.physical_size();
         let client_size = window.client_size();
         info!(

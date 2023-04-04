@@ -190,89 +190,16 @@ impl lemna::App<Renderer> for HelloApp {
     }
 }
 
-#[cfg(not(feature = "backend_winit"))]
-fn main() {}
-
-#[cfg(feature = "backend_winit")]
 fn main() {
-    use lemna::instrumenting::*;
     use simplelog::*;
-    use winit::{
-        event::{Event, WindowEvent},
-        event_loop::{ControlFlow, EventLoop},
-        window::WindowBuilder,
-    };
     println!("hello");
-
-    type HelloUI = UI<winit::window::Window, Renderer, HelloApp>;
 
     let _ = WriteLogger::init(
         LevelFilter::Info,
         ConfigBuilder::new().build(),
         std::fs::File::create("example.log").unwrap(),
     );
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title("Hello!")
-        .build(&event_loop)
-        .unwrap();
-    let mut ui: HelloUI = UI::new(window);
-
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-        inst(&format!("event_handler <{:?}>", &event));
-
-        match event {
-            Event::MainEventsCleared => {
-                ui.draw();
-            }
-            Event::RedrawRequested(_) => ui.render(),
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::CursorMoved { position, .. } => {
-                    // println!("{:?}", position);
-                    ui.handle_input(&Input::Motion(Motion::Mouse {
-                        x: position.x as f32,
-                        y: position.y as f32,
-                    }));
-                }
-                WindowEvent::MouseInput {
-                    button,
-                    state: winit::event::ElementState::Pressed,
-                    ..
-                } => {
-                    ui.handle_input(&Input::Press(Button::Mouse(MouseButton::Left)));
-                }
-                WindowEvent::MouseInput {
-                    button,
-                    state: winit::event::ElementState::Released,
-                    ..
-                } => {
-                    ui.handle_input(&Input::Press(Button::Mouse(MouseButton::Left)));
-                }
-                WindowEvent::MouseWheel { delta, .. } => {
-                    // println!("scroll delta{:?}", delta);
-                    let scroll = match delta {
-                        winit::event::MouseScrollDelta::LineDelta(x, y) => Motion::Scroll {
-                            x: x * -10.0,
-                            y: y * -10.0,
-                        },
-                        winit::event::MouseScrollDelta::PixelDelta(
-                            winit::dpi::PhysicalPosition { x, y },
-                        ) => Motion::Scroll {
-                            x: -x as f32,
-                            y: -y as f32,
-                        },
-                    };
-                    ui.handle_input(&Input::Motion(scroll));
-                }
-                _ => (),
-            },
-            _ => (),
-        };
-
-        inst_end();
-    });
+    lemna_winit::Window::open_blocking::<Renderer, HelloApp>("Hello scroll!", 800, 600, vec![]);
 
     println!("bye");
 }
