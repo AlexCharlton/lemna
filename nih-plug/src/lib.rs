@@ -58,13 +58,13 @@ where
     fn size(&self) -> (u32, u32) {
         self.size
     }
-    fn set_scale_factor(&self, factor: f32) -> bool {
+    fn set_scale_factor(&self, _factor: f32) -> bool {
         true
     }
-    fn param_value_changed(&self, id: &str, normalized_value: f32) {
+    fn param_value_changed(&self, _id: &str, _normalized_value: f32) {
         ()
     }
-    fn param_modulation_changed(&self, id: &str, modulation_offset: f32) {
+    fn param_modulation_changed(&self, _id: &str, _modulation_offset: f32) {
         ()
     }
     fn param_values_changed(&self) {

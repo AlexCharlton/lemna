@@ -49,17 +49,17 @@ impl lemna::App<Renderer> for HelloApp {
 }
 
 #[derive(Default)]
-pub struct M8Plug {
-    params: Arc<M8Params>,
+pub struct HelloPlugin {
+    params: Arc<HelloParams>,
 }
 
 #[derive(Params, Default)]
-struct M8Params {}
+struct HelloParams {}
 
-impl Plugin for M8Plug {
-    const NAME: &'static str = "MidiM8";
+impl Plugin for HelloPlugin {
+    const NAME: &'static str = "Hello Lemna";
     const VENDOR: &'static str = "ANC";
-    const URL: &'static str = "https://github.com/AlexCharlton/midi-m8";
+    const URL: &'static str = "https://github.com/AlexCharlton/lemna";
     const EMAIL: &'static str = "alex.n.charlton@gmail.com";
     const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -83,22 +83,22 @@ impl Plugin for M8Plug {
     }
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        lemna_nih_plug::create_lemna_editor::<Renderer, HelloApp>("Midi M8", 400, 300, vec![])
+        lemna_nih_plug::create_lemna_editor::<Renderer, HelloApp>("Hello Lemna", 400, 300, vec![])
     }
 }
 
-impl ClapPlugin for M8Plug {
-    const CLAP_ID: &'static str = "anc.midi-m8";
-    const CLAP_DESCRIPTION: Option<&'static str> = Some("Dirtywave M8 song files to Midi tracks");
+impl ClapPlugin for HelloPlugin {
+    const CLAP_ID: &'static str = "anc.lemna.examples.hello";
+    const CLAP_DESCRIPTION: Option<&'static str> = Some("Example plugin for Lemna");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
     const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Utility];
 }
 
-impl Vst3Plugin for M8Plug {
-    const VST3_CLASS_ID: [u8; 16] = *b"ANC-Midi-M8-Plug";
+impl Vst3Plugin for HelloPlugin {
+    const VST3_CLASS_ID: [u8; 16] = *b"ANC-Hello-Lemna-";
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Tools];
 }
 
-nih_export_clap!(M8Plug);
-nih_export_vst3!(M8Plug);
+nih_export_clap!(HelloPlugin);
+nih_export_vst3!(HelloPlugin);
