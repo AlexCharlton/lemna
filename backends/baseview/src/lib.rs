@@ -157,6 +157,7 @@ where
         event: baseview::Event,
     ) -> baseview::EventStatus {
         dbg!("Got event {:?}", &event);
+        let mut handle_input = |x| self.ui.handle_input(x);
         match &event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
@@ -178,12 +179,34 @@ where
                         });
                     }
 
-                    self.ui.handle_input(&Input::Resize);
+                    handle_input(&Input::Resize);
                 }
                 baseview::WindowEvent::WillClose => (),
-                _ => (),
+                baseview::WindowEvent::Focused => handle_input(&Input::Focus(true)),
+                baseview::WindowEvent::Unfocused => handle_input(&Input::Focus(false)),
             },
-            _ => (), // TODO
+            baseview::Event::Mouse(event) => match event {
+                baseview::MouseEvent::CursorMoved {
+                    position,
+                    modifiers,
+                } => {
+                    // TODO
+                }
+                baseview::MouseEvent::ButtonPressed { button, modifiers } => {
+                    // TODO
+                }
+                baseview::MouseEvent::ButtonReleased { button, modifiers } => {
+                    // TODO
+                }
+                baseview::MouseEvent::WheelScrolled { delta, modifiers } => {
+                    // TODO
+                }
+                baseview::MouseEvent::CursorEntered => handle_input(&Input::MouseEnterWindow),
+                baseview::MouseEvent::CursorLeft => handle_input(&Input::MouseLeaveWindow),
+            },
+            baseview::Event::Keyboard(event) => {
+                // TODO
+            }
         }
         baseview::EventStatus::Captured
     }
