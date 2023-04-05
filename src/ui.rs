@@ -227,6 +227,9 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                     .resize(self.window.borrow().client_size());
                 self.physical_size = self.window.borrow().physical_size();
                 self.client_size = self.window.borrow().client_size();
+                self.scale_factor = self.window.borrow().scale_factor();
+                self.event_cache.scale_factor = self.scale_factor;
+                self.font_cache.scale_factor = self.scale_factor;
                 self.dirty = true;
                 self.window.borrow().redraw(); // Always redraw after resizing
             }

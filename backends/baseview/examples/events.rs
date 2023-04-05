@@ -316,7 +316,7 @@ fn main() {
         "Hello events".to_string(),
         800,
         600,
-        baseview::WindowScalePolicy::ScaleFactor(1.5),
+        baseview::WindowScalePolicy::SystemScaleFactor,
         vec![
             ("noto sans regular".to_string(), ttf_noto_sans::REGULAR),
             ("open iconic".to_string(), open_iconic::ICONS),

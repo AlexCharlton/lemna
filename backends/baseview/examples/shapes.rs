@@ -95,7 +95,7 @@ fn main() {
         "Hello shapes".to_string(),
         400,
         300,
-        baseview::WindowScalePolicy::ScaleFactor(1.5),
+        baseview::WindowScalePolicy::SystemScaleFactor,
         vec![],
     );
 

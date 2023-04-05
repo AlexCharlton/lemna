@@ -31,7 +31,7 @@ fn main() {
         "Hello text".to_string(),
         400,
         300,
-        baseview::WindowScalePolicy::ScaleFactor(1.5),
+        baseview::WindowScalePolicy::SystemScaleFactor,
         vec![("noto sans regular".to_string(), ttf_noto_sans::REGULAR)],
     );
     println!("bye");
