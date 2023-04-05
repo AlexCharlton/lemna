@@ -224,7 +224,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                 self.renderer
                     .as_mut()
                     .unwrap()
-                    .resize(self.window.borrow().client_size());
+                    .resize(self.window.borrow().physical_size());
                 self.physical_size = self.window.borrow().physical_size();
                 self.client_size = self.window.borrow().client_size();
                 self.scale_factor = self.window.borrow().scale_factor();
