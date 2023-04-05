@@ -14,7 +14,7 @@ raw-window-handle = { workspace = true }
 
 [dependencies.wx-rs]
 version = "0.2"
-path = "../../../wx-rs"
+#path = "../../../wx-rs"
 
 [dev-dependencies]
 lemna-macros = { workspace = true }

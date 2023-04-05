@@ -63,7 +63,10 @@ impl Window {
                     ui.add_font(name, data);
                 }
                 // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
-                window.resize(baseview::Size::new(1.0, 1.0));
+                #[cfg(windows)]
+                {
+                    window.resize(baseview::Size::new(1.0, 1.0));
+                }
                 BaseViewUI { ui }
             },
         )
@@ -101,7 +104,10 @@ impl Window {
                     ui.add_font(name, data);
                 }
                 // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
-                window.resize(baseview::Size::new(1.0, 1.0));
+                #[cfg(windows)]
+                {
+                    window.resize(baseview::Size::new(1.0, 1.0));
+                }
                 BaseViewUI { ui }
             },
         )
