@@ -5,8 +5,12 @@ edition = "2021"
 repository = "https://github.com/AlexCharlton/midi-m8"
 license = "MIT"
 
+[features]
+standalone = ["nih_plug/standalone"]
 
 [dependencies]
 lemna-baseview = { version = "0.2.0", path = "../backends/baseview" }
 lemna = { version = "0.2.0", path = ".." }
-nih_plug = { path = "../../external/nih-plug" }
+[dependencies.nih_plug]
+# path = "../../external/nih-plug"
+git = "https://github.com/AlexCharlton/nih-plug.git"

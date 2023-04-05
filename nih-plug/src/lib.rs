@@ -2,6 +2,8 @@ use lemna_baseview::{self, baseview};
 use nih_plug::prelude::*;
 use std::{marker::PhantomData, sync::Arc};
 
+pub extern crate nih_plug;
+
 pub fn create_lemna_editor<R, A>(
     title: &str,
     width: u32,
