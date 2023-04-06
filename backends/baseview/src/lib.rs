@@ -146,7 +146,6 @@ where
         _window: &mut baseview::Window,
         event: baseview::Event,
     ) -> baseview::EventStatus {
-        dbg!("Got event {:?}", &event);
         let mut handle_input = |x| self.ui.handle_input(x);
         match &event {
             baseview::Event::Window(event) => match event {
@@ -178,17 +177,33 @@ where
             baseview::Event::Mouse(event) => match event {
                 baseview::MouseEvent::CursorMoved {
                     position,
-                    modifiers,
+                    modifiers: _,
                 } => {
-                    // TODO
+                    handle_input(&Input::Motion(Motion::Mouse {
+                        x: position.x as f32,
+                        y: position.y as f32,
+                    }));
                 }
-                baseview::MouseEvent::ButtonPressed { button, modifiers } => {
-                    // TODO
+                baseview::MouseEvent::ButtonPressed {
+                    button,
+                    modifiers: _,
+                } => {
+                    if let Some(button) = translate_mouse_button(button) {
+                        handle_input(&Input::Press(button));
+                    }
                 }
-                baseview::MouseEvent::ButtonReleased { button, modifiers } => {
-                    // TODO
+                baseview::MouseEvent::ButtonReleased {
+                    button,
+                    modifiers: _,
+                } => {
+                    if let Some(button) = translate_mouse_button(button) {
+                        handle_input(&Input::Release(button));
+                    }
                 }
-                baseview::MouseEvent::WheelScrolled { delta, modifiers } => {
+                baseview::MouseEvent::WheelScrolled {
+                    delta,
+                    modifiers: _,
+                } => {
                     // TODO
                 }
                 baseview::MouseEvent::CursorEntered => handle_input(&Input::MouseEnterWindow),
@@ -202,8 +217,19 @@ where
     }
 }
 
+pub fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> {
+    match button {
+        baseview::MouseButton::Left => Some(Button::Mouse(MouseButton::Left)),
+        baseview::MouseButton::Right => Some(Button::Mouse(MouseButton::Right)),
+        baseview::MouseButton::Middle => Some(Button::Mouse(MouseButton::Middle)),
+        baseview::MouseButton::Forward => Some(Button::Mouse(MouseButton::Aux1)),
+        baseview::MouseButton::Back => Some(Button::Mouse(MouseButton::Aux2)),
+        _ => None,
+    }
+}
+
 impl lemna::window::Window for Window {
-    fn client_size(&self) -> PixelSize {
+    fn logical_size(&self) -> PixelSize {
         PixelSize {
             width: self.size.0,
             height: self.size.1,

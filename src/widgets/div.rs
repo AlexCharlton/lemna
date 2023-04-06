@@ -123,7 +123,7 @@ impl Component<WGPURenderer> for Div {
         if let Some(scroll) = &self.scroll {
             let mut scroll_position = self.state_ref().scroll_position;
             let mut scrolled = false;
-            let size = event.current_aabb().size();
+            let size = event.current_physical_aabb().size();
             let inner_scale = event.current_inner_scale.unwrap();
 
             if scroll.scroll_y {
@@ -180,12 +180,12 @@ impl Component<WGPURenderer> for Div {
             let over_y_bar = self
                 .state_ref()
                 .y_scroll_bar
-                .map(|b| b.is_under(event.relative_position()))
+                .map(|b| b.is_under(event.relative_physical_position()))
                 .unwrap_or(false);
             let over_x_bar = self
                 .state_ref()
                 .x_scroll_bar
-                .map(|b| b.is_under(event.relative_position()))
+                .map(|b| b.is_under(event.relative_physical_position()))
                 .unwrap_or(false);
 
             if self.state_ref().over_y_bar != over_y_bar
@@ -237,12 +237,12 @@ impl Component<WGPURenderer> for Div {
     fn on_drag(&mut self, event: &mut event::Event<event::Drag>) -> Vec<Message> {
         if self.scroll.is_some() {
             let start_position = self.state_ref().drag_start_position;
-            let size = event.current_aabb().size();
+            let size = event.current_physical_aabb().size();
             let inner_scale = event.current_inner_scale.unwrap();
             let mut scroll_position = self.state_ref().scroll_position;
 
             if self.state_ref().y_bar_pressed {
-                let drag = event.delta().y;
+                let drag = event.physical_delta().y;
                 let delta_position = drag * (inner_scale.height / size.height);
                 let max_position = inner_scale.height - size.height;
                 scroll_position.y = (start_position.y + delta_position)
@@ -252,7 +252,7 @@ impl Component<WGPURenderer> for Div {
             }
 
             if self.state_ref().x_bar_pressed {
-                let drag = event.delta().x;
+                let drag = event.physical_delta().x;
                 let delta_position = drag * (inner_scale.width / size.width);
                 let max_position = inner_scale.width - size.width;
                 scroll_position.x = (start_position.x + delta_position)

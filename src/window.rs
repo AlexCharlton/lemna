@@ -15,7 +15,7 @@ impl From<&str> for Data {
 }
 
 pub trait Window: HasRawWindowHandle + HasRawDisplayHandle + Any {
-    fn client_size(&self) -> PixelSize;
+    fn logical_size(&self) -> PixelSize;
     fn physical_size(&self) -> PixelSize;
     fn scale_factor(&self) -> f32;
     fn redraw(&self) {}

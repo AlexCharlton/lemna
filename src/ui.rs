@@ -25,7 +25,7 @@ pub struct UI<W: Window, R: Renderer, A> {
     phantom_app: PhantomData<A>,
     scale_factor: f32,
     physical_size: PixelSize,
-    client_size: PixelSize,
+    logical_size: PixelSize,
     event_cache: EventCache,
     font_cache: FontCache,
     dirty: bool,
@@ -87,10 +87,10 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         let scale_factor = window.scale_factor();
         // dbg!(scale_factor);
         let physical_size = window.physical_size();
-        let client_size = window.client_size();
+        let logical_size = window.logical_size();
         info!(
             "New window with physical size {:?} client size {:?} and scale factor {:?}",
-            physical_size, client_size, scale_factor
+            physical_size, logical_size, scale_factor
         );
         inst("UI::new");
         let mut component = A::new();
@@ -108,7 +108,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
             phantom_app: PhantomData,
             scale_factor,
             physical_size,
-            client_size,
+            logical_size,
             event_cache,
             font_cache: FontCache {
                 scale_factor,
@@ -134,8 +134,8 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
             0,
             lay!(
                 size: size!(
-                    self.client_size.width as f32,
-                    self.client_size.height as f32
+                    self.logical_size.width as f32,
+                    self.logical_size.height as f32
                 )
             ),
         );
@@ -226,7 +226,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                     .unwrap()
                     .resize(self.window.borrow().physical_size());
                 self.physical_size = self.window.borrow().physical_size();
-                self.client_size = self.window.borrow().client_size();
+                self.logical_size = self.window.borrow().logical_size();
                 self.scale_factor = self.window.borrow().scale_factor();
                 self.event_cache.scale_factor = self.scale_factor;
                 self.font_cache.scale_factor = self.scale_factor;
@@ -234,7 +234,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                 self.window.borrow().redraw(); // Always redraw after resizing
             }
             Input::Motion(Motion::Mouse { x, y }) => {
-                let pos = Point::new(*x, *y);
+                let pos = Point::new(*x, *y) * self.scale_factor;
 
                 if let Some(button) = self.event_cache.mouse_button_held() {
                     if self.event_cache.drag_started.is_none() {
@@ -294,7 +294,13 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                 }
             }
             Input::Motion(Motion::Scroll { x, y }) => {
-                let mut event = Event::new(event::Scroll { x: *x, y: *y }, &self.event_cache);
+                let mut event = Event::new(
+                    event::Scroll {
+                        x: *x * self.scale_factor,
+                        y: *y * self.scale_factor,
+                    },
+                    &self.event_cache,
+                );
                 self.node_mut().scroll(&mut event);
                 self.handle_dirty_event(&event);
                 // TODO change target?

@@ -99,7 +99,7 @@ impl Window {
 impl lemna::window::Window for Window {
     // TODO: This isn't good
 
-    fn client_size(&self) -> PixelSize {
+    fn logical_size(&self) -> PixelSize {
         let size = self.winit_window.inner_size();
         PixelSize {
             width: size.width as u32,

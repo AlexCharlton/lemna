@@ -6,7 +6,7 @@ pub struct Event<T> {
     pub input: T,
     pub(crate) bubbles: bool,
     pub(crate) dirty: bool,
-    pub mouse_position: Point,
+    pub(crate) mouse_position: Point,
     pub modifiers_held: ModifiersHeld,
     pub(crate) current_node_id: Option<u64>,
     pub(crate) current_aabb: Option<AABB>,
@@ -148,11 +148,11 @@ impl<T> Event<T> {
         self.dirty = true;
     }
 
-    pub fn current_aabb(&self) -> AABB {
+    pub fn current_physical_aabb(&self) -> AABB {
         self.current_aabb.unwrap()
     }
 
-    pub fn current_aabb_unscaled(&self) -> AABB {
+    pub fn current_logical_aabb(&self) -> AABB {
         self.current_aabb.unwrap().unscale(self.scale_factor)
     }
 
@@ -160,12 +160,20 @@ impl<T> Event<T> {
         self.current_inner_scale
     }
 
-    pub fn relative_position(&self) -> Point {
+    pub fn physical_mouse_position(&self) -> Point {
+        self.mouse_position
+    }
+
+    pub fn logical_mouse_position(&self) -> Point {
+        self.mouse_position.unscale(self.scale_factor)
+    }
+
+    pub fn relative_physical_position(&self) -> Point {
         let pos = self.current_aabb.unwrap().pos;
         self.mouse_position - Point { x: pos.x, y: pos.y }
     }
 
-    pub fn relative_position_unscaled(&self) -> Point {
+    pub fn relative_logical_position(&self) -> Point {
         let pos = self.current_aabb.unwrap().pos;
         (self.mouse_position - Point { x: pos.x, y: pos.y }).unscale(self.scale_factor)
     }
@@ -182,38 +190,38 @@ impl<T: Scalable + Copy> Event<T> {
 }
 
 impl Event<Drag> {
-    pub fn delta(&self) -> Point {
+    pub fn physical_delta(&self) -> Point {
         self.mouse_position - self.input.start_pos
     }
 
-    pub fn delta_unscaled(&self) -> Point {
-        self.delta().unscale(self.scale_factor)
+    pub fn logical_delta(&self) -> Point {
+        self.physical_delta().unscale(self.scale_factor)
     }
 
-    pub fn bounded_delta(&self) -> Point {
-        self.mouse_position.clamp(self.current_aabb()) - self.input.start_pos
+    pub fn bounded_physical_delta(&self) -> Point {
+        self.mouse_position.clamp(self.current_physical_aabb()) - self.input.start_pos
     }
 
-    pub fn bounded_delta_unscaled(&self) -> Point {
-        self.bounded_delta().unscale(self.scale_factor)
+    pub fn bounded_logical_delta(&self) -> Point {
+        self.bounded_physical_delta().unscale(self.scale_factor)
     }
 }
 
 impl Event<DragEnd> {
-    pub fn delta(&self) -> Point {
+    pub fn physical_delta(&self) -> Point {
         self.mouse_position - self.input.start_pos
     }
 
-    pub fn delta_unscaled(&self) -> Point {
-        self.delta().unscale(self.scale_factor)
+    pub fn logical_delta(&self) -> Point {
+        self.physical_delta().unscale(self.scale_factor)
     }
 
-    pub fn bounded_delta(&self) -> Point {
-        self.mouse_position.clamp(self.current_aabb()) - self.input.start_pos
+    pub fn bounded_physical_delta(&self) -> Point {
+        self.mouse_position.clamp(self.current_physical_aabb()) - self.input.start_pos
     }
 
-    pub fn bounded_delta_unscaled(&self) -> Point {
-        self.bounded_delta().unscale(self.scale_factor)
+    pub fn bounded_logical_delta(&self) -> Point {
+        self.bounded_physical_delta().unscale(self.scale_factor)
     }
 }
 

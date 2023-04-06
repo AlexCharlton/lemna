@@ -497,7 +497,7 @@ impl Component<WGPURenderer> for TextBoxText {
         match event.input.0 {
             crate::input::MouseButton::Left => {
                 self.activate();
-                let new_pos = self.position(event.relative_position().x);
+                let new_pos = self.position(event.relative_physical_position().x);
                 if new_pos != self.state_ref().cursor_pos {
                     self.state_mut().cursor_pos = new_pos;
                     event.dirty();
@@ -705,7 +705,7 @@ impl Component<WGPURenderer> for TextBoxText {
 
     fn on_drag_start(&mut self, event: &mut event::Event<event::DragStart>) -> Vec<Message> {
         self.activate();
-        self.state_mut().selection_from = Some(self.position(event.relative_position().x));
+        self.state_mut().selection_from = Some(self.position(event.relative_physical_position().x));
         event.focus();
         event.stop_bubbling();
         event.dirty();
@@ -720,7 +720,7 @@ impl Component<WGPURenderer> for TextBoxText {
     }
 
     fn on_drag(&mut self, event: &mut event::Event<event::Drag>) -> Vec<Message> {
-        let new_pos = self.position(event.relative_position().x);
+        let new_pos = self.position(event.relative_physical_position().x);
         if new_pos != self.state_ref().cursor_pos {
             self.state_mut().cursor_pos = new_pos;
             event.dirty();

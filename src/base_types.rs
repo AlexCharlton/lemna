@@ -5,8 +5,10 @@ use std::mem;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
 
 pub trait Scalable {
+    // Logical to physical coordinates
     fn scale(self, _scale_factor: f32) -> Self;
 
+    // Physical to logical coordinates
     fn unscale(self, scale_factor: f32) -> Self
     where
         Self: Sized,

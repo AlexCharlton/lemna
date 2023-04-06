@@ -171,7 +171,7 @@ impl Component<WGPURenderer> for Button {
                 .map(|s| s.elapsed().as_millis() > ToolTip::DELAY)
                 .unwrap_or(false)
         {
-            self.state_mut().tool_tip_open = Some(event.relative_position_unscaled());
+            self.state_mut().tool_tip_open = Some(event.relative_logical_position());
             event.dirty();
         }
         vec![]

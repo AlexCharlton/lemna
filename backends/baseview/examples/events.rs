@@ -241,12 +241,12 @@ impl Component<Renderer> for Sorter {
     }
 
     fn on_drag(&mut self, event: &mut Event<event::Drag>) -> Vec<Message> {
-        println!("Dragging {:?}", event.relative_position());
+        println!("Dragging {:?}", event.relative_logical_position());
         vec![]
     }
 
     fn on_drag_end(&mut self, event: &mut Event<event::DragEnd>) -> Vec<Message> {
-        println!("Drag stop at {:?}", event.relative_position());
+        println!("Drag stop at {:?}", event.relative_logical_position());
         vec![]
     }
 
@@ -271,7 +271,11 @@ impl Component<Renderer> for EventReactor {
     }
 
     fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) -> Vec<Message> {
-        println!("Hovering over {} ({:?})", &self.name, event.mouse_position);
+        println!(
+            "Hovering over {} ({:?})",
+            &self.name,
+            event.logical_mouse_position()
+        );
         event.stop_bubbling();
         vec![]
     }

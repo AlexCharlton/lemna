@@ -77,7 +77,7 @@ where
     R: 'static,
     A: 'static,
 {
-    fn client_size(&self) -> PixelSize {
+    fn logical_size(&self) -> PixelSize {
         unsafe { mem::transmute(wx_rs::get_client_size()) }
     }
 
