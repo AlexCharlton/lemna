@@ -136,7 +136,6 @@ where
 {
     fn on_frame(&mut self, _window: &mut baseview::Window) {
         if self.ui.draw() {
-            println!("DO A DRAW");
             self.ui.render()
         }
     }
@@ -204,7 +203,19 @@ where
                     delta,
                     modifiers: _,
                 } => {
-                    // TODO
+                    let (mut x, y) = match delta {
+                        baseview::ScrollDelta::Lines { x, y } => {
+                            let points_per_scroll_line = 10.0;
+                            (*x * points_per_scroll_line, -*y * points_per_scroll_line)
+                        }
+                        baseview::ScrollDelta::Pixels { x, y } => (*x, -*y),
+                    };
+                    if cfg!(target_os = "macos") {
+                        // This is still buggy in winit despite
+                        // https://github.com/rust-windowing/winit/issues/1695 being closed
+                        x *= -1.0;
+                    }
+                    handle_input(&Input::Motion(Motion::Scroll { x, y }));
                 }
                 baseview::MouseEvent::CursorEntered => handle_input(&Input::MouseEnterWindow),
                 baseview::MouseEvent::CursorLeft => handle_input(&Input::MouseLeaveWindow),
