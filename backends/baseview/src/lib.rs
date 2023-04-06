@@ -21,6 +21,7 @@ where
 
 pub struct Window {
     handle: RawWindowHandle,
+    display_handle: RawDisplayHandle,
     size: (u32, u32),
     scale_policy: baseview::WindowScalePolicy,
     scale_factor: f32,
@@ -55,6 +56,7 @@ impl Window {
                 } as f32;
                 let mut ui = UI::new(Self {
                     handle: window.raw_window_handle(),
+                    display_handle: window.raw_display_handle(),
                     size: (width, height),
                     scale_factor,
                     scale_policy,
@@ -96,6 +98,7 @@ impl Window {
                 } as f32;
                 let mut ui = UI::new(Self {
                     handle: window.raw_window_handle(),
+                    display_handle: window.raw_display_handle(),
                     size: (width, height),
                     scale_factor,
                     scale_policy,
@@ -121,21 +124,8 @@ unsafe impl HasRawWindowHandle for Window {
 }
 
 unsafe impl HasRawDisplayHandle for Window {
-    #[cfg(windows)]
     fn raw_display_handle(&self) -> RawDisplayHandle {
-        let handle = raw_window_handle::WindowsDisplayHandle::empty();
-        RawDisplayHandle::Windows(handle)
-    }
-
-    #[cfg(target_os = "macos")]
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        let handle = raw_window_handle::AppKitDisplayHandle::empty();
-        RawDisplayHandle::AppKit(handle)
-    }
-
-    #[cfg(not(any(windows, target_os = "macos")))]
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        panic!("Not supported")
+        self.display_handle
     }
 }
 

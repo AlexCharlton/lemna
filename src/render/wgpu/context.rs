@@ -118,7 +118,7 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
             force_fallback_adapter: false,
         })
         .await
-        .unwrap();
+        .expect("Failed to get an adapter");
 
     let (device, queue) = adapter
         .request_device(
@@ -130,7 +130,7 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
             None,
         )
         .await
-        .unwrap();
+        .expect("Failed to get a device");
 
     let surface_caps = surface.get_capabilities(&adapter);
     let format = surface_caps
