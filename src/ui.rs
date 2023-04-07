@@ -388,11 +388,14 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                 self.handle_dirty_event(&event);
             }
             Input::Text(s) => {
-                let mut event = Event::new(event::TextEntry(s.clone()), &self.event_cache);
-                event.target = event.focus;
-                self.node_mut().text_entry(&mut event);
-                self.handle_focus_or_blur(&event);
-                self.handle_dirty_event(&event);
+                let mods = self.event_cache.modifiers_held;
+                if !mods.alt && !mods.ctrl && !mods.meta {
+                    let mut event = Event::new(event::TextEntry(s.clone()), &self.event_cache);
+                    event.target = event.focus;
+                    self.node_mut().text_entry(&mut event);
+                    self.handle_focus_or_blur(&event);
+                    self.handle_dirty_event(&event);
+                }
             }
             Input::Focus(false) => {
                 self.event_cache.clear();
