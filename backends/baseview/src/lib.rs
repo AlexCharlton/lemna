@@ -211,8 +211,7 @@ where
                         baseview::ScrollDelta::Pixels { x, y } => (*x, -*y),
                     };
                     if cfg!(target_os = "macos") {
-                        // This is still buggy in winit despite
-                        // https://github.com/rust-windowing/winit/issues/1695 being closed
+                        // TODO Is this necessary?
                         x *= -1.0;
                     }
                     handle_input(&Input::Motion(Motion::Scroll { x, y }));
@@ -221,11 +220,129 @@ where
                 baseview::MouseEvent::CursorLeft => handle_input(&Input::MouseLeaveWindow),
             },
             baseview::Event::Keyboard(event) => {
-                // TODO
+                let key = translate_key(event.code);
+                if event.state == keyboard_types::KeyState::Down {
+                    handle_input(&Input::Press(key));
+                    if let keyboard_types::Key::Character(s) = &event.key {
+                        self.ui.handle_input(&Input::Text(s.to_string()));
+                    }
+                } else {
+                    handle_input(&Input::Release(key));
+                }
             }
         }
         baseview::EventStatus::Captured
     }
+}
+
+use keyboard_types::Code;
+pub fn translate_key(key: Code) -> Button {
+    Button::Keyboard(match key {
+        Code::Backspace => Key::Backspace,
+        Code::Tab => Key::Tab,
+        Code::Enter => Key::Return,
+        Code::Escape => Key::Escape,
+        Code::Space => Key::Space,
+        Code::Period => Key::Exclaim,
+        Code::Backquote => Key::Backquote,
+
+        Code::Quote => Key::Quote,
+        Code::Comma => Key::Comma,
+        Code::Minus => Key::Minus,
+        Code::Slash => Key::Slash,
+        Code::Digit0 => Key::D0,
+        Code::Digit1 => Key::D1,
+        Code::Digit2 => Key::D2,
+        Code::Digit3 => Key::D3,
+        Code::Digit4 => Key::D4,
+        Code::Digit5 => Key::D5,
+        Code::Digit6 => Key::D6,
+        Code::Digit7 => Key::D7,
+        Code::Digit8 => Key::D8,
+        Code::Digit9 => Key::D9,
+        Code::Semicolon => Key::Semicolon,
+        Code::Equal => Key::Equals,
+        Code::KeyA => Key::A,
+        Code::KeyB => Key::B,
+        Code::KeyC => Key::C,
+        Code::KeyD => Key::D,
+        Code::KeyE => Key::E,
+        Code::KeyF => Key::F,
+        Code::KeyG => Key::G,
+        Code::KeyH => Key::H,
+        Code::KeyI => Key::I,
+        Code::KeyJ => Key::J,
+        Code::KeyK => Key::K,
+        Code::KeyL => Key::L,
+        Code::KeyM => Key::M,
+        Code::KeyN => Key::N,
+        Code::KeyO => Key::O,
+        Code::KeyP => Key::P,
+        Code::KeyQ => Key::Q,
+        Code::KeyR => Key::R,
+        Code::KeyS => Key::S,
+        Code::KeyT => Key::T,
+        Code::KeyU => Key::U,
+        Code::KeyV => Key::V,
+        Code::KeyW => Key::W,
+        Code::KeyX => Key::X,
+        Code::KeyY => Key::Y,
+        Code::KeyZ => Key::Z,
+        Code::BracketLeft => Key::LeftBracket,
+        Code::Backslash => Key::Backslash,
+        Code::BracketRight => Key::RightBracket,
+
+        Code::ShiftLeft => Key::LShift,
+        Code::AltLeft => Key::LAlt,
+        Code::ControlLeft => Key::LCtrl,
+        Code::ShiftRight => Key::RShift,
+        Code::AltRight => Key::RAlt,
+        Code::ControlRight => Key::RCtrl,
+
+        Code::End => Key::End,
+        Code::Home => Key::Home,
+        Code::ArrowLeft => Key::Left,
+        Code::ArrowUp => Key::Up,
+        Code::ArrowRight => Key::Right,
+        Code::ArrowDown => Key::Down,
+        Code::Insert => Key::Insert,
+
+        Code::Numpad0 => Key::NumPad0,
+        Code::Numpad1 => Key::NumPad1,
+        Code::Numpad2 => Key::NumPad2,
+        Code::Numpad3 => Key::NumPad3,
+        Code::Numpad4 => Key::NumPad4,
+        Code::Numpad5 => Key::NumPad5,
+        Code::Numpad6 => Key::NumPad6,
+        Code::Numpad7 => Key::NumPad7,
+        Code::Numpad8 => Key::NumPad8,
+        Code::Numpad9 => Key::NumPad9,
+
+        Code::F1 => Key::F1,
+        Code::F2 => Key::F2,
+        Code::F3 => Key::F3,
+        Code::F4 => Key::F4,
+        Code::F5 => Key::F5,
+        Code::F6 => Key::F6,
+        Code::F7 => Key::F7,
+        Code::F8 => Key::F8,
+        Code::F9 => Key::F9,
+        Code::F10 => Key::F10,
+        Code::F11 => Key::F11,
+        Code::F12 => Key::F12,
+
+        Code::PageUp => Key::PageUp,
+        Code::PageDown => Key::PageDown,
+
+        Code::NumpadEnter => Key::NumPadEnter,
+        Code::NumpadMultiply => Key::NumPadMultiply,
+        Code::NumpadAdd => Key::NumPadPlus,
+        Code::NumpadSubtract => Key::NumPadMinus,
+        Code::NumpadDecimal => Key::NumPadPeriod,
+        Code::NumpadDivide => Key::NumPadDivide,
+
+        _ => Key::Unknown,
+    })
 }
 
 pub fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> {

@@ -267,7 +267,7 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 [[package]]
 name = "baseview"
 version = "0.1.0"
-source = "git+https://github.com/AlexCharlton/baseview.git#8ba63dfaa57c276dd7edabe4bc68c3ff3533aafe"
+source = "git+https://github.com/AlexCharlton/baseview.git#c25a1826302438013008c4beece5fc683036b0a8"
 dependencies = [
  "cocoa",
  "core-foundation",
@@ -1686,6 +1686,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b7668b7cff6a51fe61cdde64cd27c8a220786f399501b57ebe36f7d8112fd68"
 dependencies = [
  "bitflags",
+ "serde",
+ "unicode-segmentation",
 ]
 
 [[package]]
@@ -1743,6 +1745,7 @@ name = "lemna-baseview"
 version = "0.2.0"
 dependencies = [
  "baseview",
+ "keyboard-types",
  "lemna",
  "lemna-macros",
  "lyon",
@@ -3521,6 +3524,12 @@ checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
 dependencies = [
  "tinyvec",
 ]
+
+[[package]]
+name = "unicode-segmentation"
+version = "1.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dd624098567895118886609431a7c3b8f516e41d30e0643f03d94592a147e36"
 
 [[package]]
 name = "unicode-width"
