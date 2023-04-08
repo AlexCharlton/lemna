@@ -50,10 +50,7 @@ where
     pub key: u64,
 }
 
-impl<R: Renderer> fmt::Debug for Node<R>
-where
-    <R as Renderer>::Renderable: std::fmt::Debug,
-{
+impl<R: Renderer> fmt::Debug for Node<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Node")
             .field("id", &self.id)

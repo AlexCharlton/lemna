@@ -12,7 +12,6 @@ pub fn create_lemna_editor<R, A>(
 ) -> Option<Box<dyn Editor>>
 where
     R: lemna::render::Renderer + 'static + Send,
-    <R as lemna::render::Renderer>::Renderable: std::fmt::Debug,
     A: 'static + lemna::App<R> + Send,
 {
     Some(Box::new(LemnaEditor::<R, A> {
@@ -36,7 +35,6 @@ struct LemnaEditor<R, A> {
 impl<R, A> Editor for LemnaEditor<R, A>
 where
     R: lemna::render::Renderer + 'static + Send,
-    <R as lemna::render::Renderer>::Renderable: std::fmt::Debug,
     A: 'static + lemna::App<R> + Send,
 {
     fn spawn(

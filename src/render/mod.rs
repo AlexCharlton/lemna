@@ -8,7 +8,7 @@ use crate::window::Window;
 pub mod wgpu;
 
 pub trait Renderer: fmt::Debug + std::marker::Sized {
-    type Renderable;
+    type Renderable: fmt::Debug;
 
     fn new<W: Window>(window: &W) -> Self;
     fn render(&mut self, _node: &Node<Self>, _client_size: PixelSize, _font_cache: &FontCache) {}

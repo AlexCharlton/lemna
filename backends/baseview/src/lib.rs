@@ -12,10 +12,7 @@ use raw_window_handle::{
 
 pub extern crate baseview;
 
-struct BaseViewUI<R: Renderer, A: 'static + App<R>>
-where
-    <R as Renderer>::Renderable: std::fmt::Debug,
-{
+struct BaseViewUI<R: Renderer, A: 'static + App<R>> {
     ui: UI<Window, R, A>,
 }
 
@@ -39,7 +36,6 @@ impl Window {
     where
         P: HasRawWindowHandle,
         R: Renderer + 'static,
-        <R as Renderer>::Renderable: std::fmt::Debug,
         A: 'static + App<R>,
     {
         baseview::Window::open_parented(
@@ -82,7 +78,6 @@ impl Window {
         mut fonts: Vec<(String, &'static [u8])>,
     ) where
         R: Renderer + 'static,
-        <R as Renderer>::Renderable: std::fmt::Debug,
         A: 'static + App<R>,
     {
         baseview::Window::open_blocking(
@@ -130,10 +125,7 @@ unsafe impl HasRawDisplayHandle for Window {
 }
 
 use lemna::input::{Button, Input, Key, Motion, MouseButton};
-impl<R: Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A>
-where
-    <R as Renderer>::Renderable: std::fmt::Debug,
-{
+impl<R: Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A> {
     fn on_frame(&mut self, _window: &mut baseview::Window) {
         if self.ui.draw() {
             self.ui.render()

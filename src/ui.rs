@@ -120,10 +120,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         n
     }
 
-    pub fn draw(&mut self) -> bool
-    where
-        <R as Renderer>::Renderable: std::fmt::Debug,
-    {
+    pub fn draw(&mut self) -> bool {
         if !self.dirty {
             return false;
         }
@@ -209,10 +206,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         }
     }
 
-    pub fn handle_input(&mut self, input: &Input)
-    where
-        <R as Renderer>::Renderable: std::fmt::Debug,
-    {
+    pub fn handle_input(&mut self, input: &Input) {
         inst("UI::handle_input");
         if self.node.is_none() || self.renderer.is_none() {
             // If there is no node, the event has happened after exiting
