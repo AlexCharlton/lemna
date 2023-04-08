@@ -734,6 +734,7 @@ impl Component<WGPURenderer> for TextBoxText {
         (self.style.padding as u32).hash(hasher);
         self.style.font.hash(hasher);
         self.state_ref().focused.hash(hasher);
+        self.state_ref().selection_from.hash(hasher);
         self.state_ref().text.hash(hasher);
         self.state_ref().cursor_pos.hash(hasher);
         self.state_ref().cursor_visible.hash(hasher);
