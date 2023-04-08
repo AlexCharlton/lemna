@@ -118,7 +118,12 @@ impl lemna::Component<Renderer> for HelloApp {
                     .push(
                         node!(
                             Div::new(),
-                            lay!(direction: Direction::Column, size: size!(100.0, Auto)),
+                            lay!(
+                                direction: Direction::Column,
+                                size: size!(100.0, Auto),
+                                axis_alignment: Alignment::Stretch,
+                                cross_alignment: Alignment::Stretch,
+                            ),
                             0
                         )
                         .push(node!(
@@ -150,7 +155,12 @@ impl lemna::Component<Renderer> for HelloApp {
                     .push(
                         node!(
                             Div::new(),
-                            lay!(direction: Direction::Column, size: size!(100.0, Auto)),
+                            lay!(
+                                direction: Direction::Column,
+                                size: size!(100.0, Auto),
+                                axis_alignment: Alignment::Stretch,
+                                cross_alignment: Alignment::Stretch,
+                            ),
                             1
                         )
                         .push(node!(

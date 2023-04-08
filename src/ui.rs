@@ -154,11 +154,9 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         );
         inst_end();
 
+        self.node = Some(new);
         if do_render {
-            self.node = Some(new);
             self.window.borrow().redraw();
-        } else {
-            self.node = Some(new);
         }
 
         self.dirty = false;
