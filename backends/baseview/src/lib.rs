@@ -1,8 +1,3 @@
-#![feature(trait_upcasting)]
-
-use std::any::Any;
-use std::cell::RefMut;
-
 use lemna::component::App;
 use lemna::render::Renderer;
 use lemna::{PixelSize, UI};
@@ -137,40 +132,31 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
         _window: &mut baseview::Window,
         event: baseview::Event,
     ) -> baseview::EventStatus {
-        let mut handle_input = |x| self.ui.handle_input(x);
         match &event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
-                    if let Some(win) = lemna::current_window() {
-                        RefMut::map(win, |win| {
-                            if let Some(win) = (win as &mut dyn Any).downcast_mut::<Window>() {
-                                win.scale_factor = match win.scale_policy {
-                                    baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
-                                    baseview::WindowScalePolicy::SystemScaleFactor => {
-                                        window_info.scale()
-                                    }
-                                } as f32;
-                                win.size = (
-                                    window_info.logical_size().width as u32,
-                                    window_info.logical_size().height as u32,
-                                );
-                            }
-                            win
-                        });
-                    }
-
-                    handle_input(&Input::Resize);
+                    let win = &self.ui.window;
+                    let scale_policy = win.borrow().scale_policy;
+                    win.borrow_mut().scale_factor = match scale_policy {
+                        baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
+                        baseview::WindowScalePolicy::SystemScaleFactor => window_info.scale(),
+                    } as f32;
+                    win.borrow_mut().size = (
+                        window_info.logical_size().width as u32,
+                        window_info.logical_size().height as u32,
+                    );
+                    self.ui.handle_input(&Input::Resize);
                 }
                 baseview::WindowEvent::WillClose => (),
-                baseview::WindowEvent::Focused => handle_input(&Input::Focus(true)),
-                baseview::WindowEvent::Unfocused => handle_input(&Input::Focus(false)),
+                baseview::WindowEvent::Focused => self.ui.handle_input(&Input::Focus(true)),
+                baseview::WindowEvent::Unfocused => self.ui.handle_input(&Input::Focus(false)),
             },
             baseview::Event::Mouse(event) => match event {
                 baseview::MouseEvent::CursorMoved {
                     position,
                     modifiers: _,
                 } => {
-                    handle_input(&Input::Motion(Motion::Mouse {
+                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
                         x: position.x as f32,
                         y: position.y as f32,
                     }));
@@ -180,7 +166,7 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                     modifiers: _,
                 } => {
                     if let Some(button) = translate_mouse_button(button) {
-                        handle_input(&Input::Press(button));
+                        self.ui.handle_input(&Input::Press(button));
                     }
                 }
                 baseview::MouseEvent::ButtonReleased {
@@ -188,7 +174,7 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                     modifiers: _,
                 } => {
                     if let Some(button) = translate_mouse_button(button) {
-                        handle_input(&Input::Release(button));
+                        self.ui.handle_input(&Input::Release(button));
                     }
                 }
                 baseview::MouseEvent::WheelScrolled {
@@ -206,20 +192,23 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                         // TODO Is this necessary?
                         x *= -1.0;
                     }
-                    handle_input(&Input::Motion(Motion::Scroll { x, y }));
+                    self.ui
+                        .handle_input(&Input::Motion(Motion::Scroll { x, y }));
                 }
-                baseview::MouseEvent::CursorEntered => handle_input(&Input::MouseEnterWindow),
-                baseview::MouseEvent::CursorLeft => handle_input(&Input::MouseLeaveWindow),
+                baseview::MouseEvent::CursorEntered => {
+                    self.ui.handle_input(&Input::MouseEnterWindow)
+                }
+                baseview::MouseEvent::CursorLeft => self.ui.handle_input(&Input::MouseLeaveWindow),
             },
             baseview::Event::Keyboard(event) => {
                 let key = translate_key(event.code);
                 if event.state == keyboard_types::KeyState::Down {
-                    handle_input(&Input::Press(key));
+                    self.ui.handle_input(&Input::Press(key));
                     if let keyboard_types::Key::Character(s) = &event.key {
                         self.ui.handle_input(&Input::Text(s.to_string()));
                     }
                 } else {
-                    handle_input(&Input::Release(key));
+                    self.ui.handle_input(&Input::Release(key));
                 }
             }
         }

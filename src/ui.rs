@@ -27,7 +27,7 @@ pub struct UI<W: Window, R: Renderer, A: App<R>> {
     _render_thread: JoinHandle<()>,
     render_channel: Sender<()>,
     //draw_channel: Sender<DrawMsg>,
-    pub(crate) window: Rc<RefCell<W>>,
+    pub window: Rc<RefCell<W>>,
     // pub(crate) window: Arc<RwLock<W>>, TODO
     node: Arc<RwLock<Node<R>>>,
     phantom_app: PhantomData<A>,
