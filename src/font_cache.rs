@@ -8,7 +8,6 @@ pub type HorizontalAlign = glyph_brush_layout::HorizontalAlign;
 pub struct FontCache {
     pub(crate) fonts: Fonts,
     pub(crate) font_names: HashMap<String, usize>,
-    pub(crate) scale_factor: f32,
 }
 
 impl Default for FontCache {
@@ -16,7 +15,6 @@ impl Default for FontCache {
         Self {
             fonts: Default::default(),
             font_names: Default::default(),
-            scale_factor: 1.0,
         }
     }
 }

@@ -753,10 +753,10 @@ impl Component<WGPURenderer> for TextBoxText {
         _max_width: Option<f32>,
         _max_height: Option<f32>,
         font_cache: &FontCache,
+        scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
         if self.state_ref().dirty {
-            let font_size_px =
-                self.style.font_size * super::Text::SIZE_SCALE * font_cache.scale_factor;
+            let font_size_px = self.style.font_size * super::Text::SIZE_SCALE * scale_factor;
             let font_ref = font_cache.font_or_default(self.style.font.as_ref().map(|f| f.as_str()));
             let font = &font_cache.fonts[font_ref.0];
 
@@ -779,7 +779,7 @@ impl Component<WGPURenderer> for TextBoxText {
                 .collect();
             self.state_mut().glyph_widths = glyph_widths;
             self.state_mut().padding_offset_px =
-                ((self.style.padding + self.style.border_width) * font_cache.scale_factor).round();
+                ((self.style.padding + self.style.border_width) * scale_factor).round();
 
             self.state_mut().dirty = false;
         }
@@ -791,7 +791,7 @@ impl Component<WGPURenderer> for TextBoxText {
             .map_or(0.0, |g| g.glyph.position.x + g.glyph.scale.x)
             + self.state_ref().padding_offset_px * 2.0;
         (
-            Some(width / font_cache.scale_factor),
+            Some(width / scale_factor),
             Some(
                 self.style.font_size * super::Text::SIZE_SCALE
                     + self.style.padding * 2.0

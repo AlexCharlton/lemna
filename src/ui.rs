@@ -138,10 +138,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             0,
             Layout::default(),
         )));
-        let font_cache = Arc::new(RwLock::new(FontCache {
-            scale_factor: window.scale_factor(),
-            ..Default::default()
-        }));
+        let font_cache = Arc::new(RwLock::new(FontCache::default()));
         let renderer = Arc::new(RwLock::new(R::new(&window)));
         let frame_dirty = Arc::new(RwLock::new(true));
         let node_dirty = Arc::new(RwLock::new(true));
@@ -273,7 +270,6 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                 *self.logical_size.write().unwrap() = self.window.borrow().logical_size();
                 *self.scale_factor.write().unwrap() = scale_factor;
                 self.event_cache.scale_factor = scale_factor;
-                self.font_cache.write().unwrap().scale_factor = scale_factor;
                 *self.node_dirty.write().unwrap() = true;
                 self.window.borrow().redraw(); // Always redraw after resizing
             }

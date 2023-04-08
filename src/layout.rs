@@ -573,6 +573,7 @@ impl<R: super::render::Renderer> super::node::Node<R> {
         &mut self,
         inner_size: Size,
         font_cache: &crate::font_cache::FontCache,
+        scale_factor: f32,
         final_pass: bool,
     ) {
         let dir = self.layout.direction;
@@ -632,6 +633,7 @@ impl<R: super::render::Renderer> super::node::Node<R> {
                         .maybe_px()
                         .or(self.layout.max_size.height.maybe_px()),
                     font_cache,
+                    scale_factor,
                 );
                 if let Some(w) = w {
                     child.layout_result.size.width = Dimension::Px(w);
@@ -682,7 +684,7 @@ impl<R: super::render::Renderer> super::node::Node<R> {
                     .minus_rect(&child.layout.margin.maybe_resolve(&inner_size));
             }
 
-            child.resolve_layout(inner_size, font_cache, final_pass);
+            child.resolve_layout(inner_size, font_cache, scale_factor, final_pass);
         }
     }
 
@@ -956,6 +958,7 @@ impl<R: super::render::Renderer> super::node::Node<R> {
         &mut self,
         bounds_size: Size,
         font_cache: &crate::font_cache::FontCache,
+        scale_factor: f32,
         final_pass: bool,
     ) {
         let size = self.layout.size.most_specific(&self.layout_result.size);
@@ -982,7 +985,7 @@ impl<R: super::render::Renderer> super::node::Node<R> {
             );
         }
 
-        self.resolve_child_sizes(inner_size, font_cache, final_pass);
+        self.resolve_child_sizes(inner_size, font_cache, scale_factor, final_pass);
         let children_size = self.set_children_position(size);
         self.resolve_size(size, children_size);
         self.set_inner_scale(children_size);
@@ -1001,16 +1004,20 @@ impl<R: super::render::Renderer> super::node::Node<R> {
         }
     }
 
-    pub(crate) fn calculate_layout(&mut self, font_cache: &crate::font_cache::FontCache) {
+    pub(crate) fn calculate_layout(
+        &mut self,
+        font_cache: &crate::font_cache::FontCache,
+        scale_factor: f32,
+    ) {
         self.layout_result.position = Rect {
             top: Dimension::Px(0.0),
             left: Dimension::Px(0.0),
             bottom: Dimension::Auto,
             right: Dimension::Auto,
         };
-        self.resolve_layout(self.layout.size, font_cache, false);
+        self.resolve_layout(self.layout.size, font_cache, scale_factor, false);
         // Layout is resolved twice, the second time to resolve percentages that couldn't have been known without better knowledge of the children
-        self.resolve_layout(self.layout.size, font_cache, true);
+        self.resolve_layout(self.layout.size, font_cache, scale_factor, true);
     }
 }
 

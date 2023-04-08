@@ -252,7 +252,7 @@ impl<R: fmt::Debug + Renderer> Node<R> {
     }
 
     pub fn layout(&mut self, _prev: &Self, font_cache: &FontCache, scale_factor: f32) {
-        self.calculate_layout(font_cache);
+        self.calculate_layout(font_cache, scale_factor);
         self.set_aabb(
             Pos::default(),
             self.aabb,
