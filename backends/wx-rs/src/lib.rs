@@ -16,6 +16,8 @@ pub struct Window<R, A> {
     phantom_renderer: PhantomData<R>,
     phantom_app: PhantomData<A>,
 }
+unsafe impl<R, A> Send for Window<R, A> {}
+unsafe impl<R, A> Sync for Window<R, A> {}
 
 thread_local!(
     pub static UI: UnsafeCell<Box<dyn Any>> = UnsafeCell::new(Box::new(1))
@@ -59,9 +61,8 @@ where
 
     extern "C" fn render() {
         let ui = ui().downcast_mut::<UI<Window<R, A>, R, A>>().unwrap();
-        if ui.draw() {
-            ui.render();
-        }
+        ui.draw();
+        ui.render();
     }
 
     extern "C" fn handle_event(event: *const c_void) {
@@ -167,9 +168,10 @@ pub fn event_to_input(event: *const c_void) -> Vec<Input> {
         ],
         EventType::MouseMotion => {
             let position = wx_rs::get_mouse_position(event);
+            let scale_factor = wx_rs::get_scale_factor();
             vec![Input::Motion(Motion::Mouse {
-                x: position.x as f32,
-                y: position.y as f32,
+                x: position.x as f32 / scale_factor,
+                y: position.y as f32 / scale_factor,
             })]
         }
         EventType::MouseWheel => {

@@ -19,14 +19,21 @@ use crate::window::Window;
 
 const DRAG_THRESHOLD: f32 = 5.0; // px
 
+/// `UI` is the main struct that holds the `Window`, `Renderer` and `Node`s of an `App`.
+/// It handles events and drawing/rendering.
+/// Drawing (laying out `Nodes` and assembling their `Renderable`s) and rendering
+/// (painting the `Renderables` onto the `Window`'s frame) are performed in separate threads
+/// from the handling of events/render requests. This prevents hanging when handling events
+/// which could otherwise happen if rendering takes a while. Even though the wgpu rendering pipeline
+/// itself is quite efficient, delays have been observed when fetching
+/// the next frame in the swapchain after resizing on certain platforms.
 pub struct UI<W: Window, R: Renderer, A: App<R>> {
-    // pub renderer: Option<R>,
     pub renderer: Arc<RwLock<R>>,
+    pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
     _draw_thread: JoinHandle<()>,
     render_channel: Sender<()>,
     draw_channel: Sender<()>,
-    pub window: Arc<RwLock<W>>,
     node: Arc<RwLock<Node<R>>>,
     phantom_app: PhantomData<A>,
     scale_factor: Arc<RwLock<f32>>,
@@ -35,7 +42,6 @@ pub struct UI<W: Window, R: Renderer, A: App<R>> {
     event_cache: EventCache,
     font_cache: Arc<RwLock<FontCache>>,
     node_dirty: Arc<RwLock<bool>>,
-    // frame_dirty: Arc<RwLock<bool>>,
 }
 
 thread_local!(
@@ -252,7 +258,6 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             logical_size,
             event_cache,
             font_cache,
-            // frame_dirty,
             node_dirty,
         };
         inst_end();

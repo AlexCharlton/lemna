@@ -85,7 +85,12 @@ impl super::Renderer for WGPURenderer {
 
     fn new<W: Window>(window: &W) -> Self {
         let size = window.physical_size();
-        let context = block_on(context::get_wgpu_context(window, size.width, size.height));
+        let context = block_on(context::get_wgpu_context(
+            window,
+            // This ensures that the first render will always resize, which resolves issues on some backends
+            size.width - 1,
+            size.height - 1,
+        ));
         let device = &context.device;
 
         let uniform_bind_group_layout =
