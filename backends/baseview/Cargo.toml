@@ -8,6 +8,9 @@ repository = "https://github.com/AlexCharlton/lemna"
 documentation = "https://docs.rs/lemna"
 license = "MIT"
 
+[features]
+instrumented = ["lemna/instrumented"]
+
 [dependencies]
 keyboard-types = "0.6"
 lemna = { path = "../../", version = "0.2" }

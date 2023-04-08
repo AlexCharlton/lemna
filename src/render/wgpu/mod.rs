@@ -140,15 +140,19 @@ impl super::Renderer for WGPURenderer {
         let output = match self.context.surface.get_current_texture() {
             Ok(o) => o,
             Err(wgpu::SurfaceError::Timeout) => {
+                evt("SurfaceError::Timeout");
                 return;
             }
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                evt("SurfaceError::Lost or Outdated");
                 self.resize(self.context.size());
                 return;
             }
             Err(e) => panic!("Failed to get current texture: {}", e),
         };
+        inst_end();
         if self.was_resized {
+            evt("WGPURenderer::was_resized");
             self.update_ubo(physical_size);
             output.present();
             self.was_resized = false;
@@ -159,7 +163,6 @@ impl super::Renderer for WGPURenderer {
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
-        inst_end();
 
         self.text_pipeline.unmark_buffer_cache();
         self.shape_pipeline.unmark_buffer_cache();
