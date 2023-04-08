@@ -25,17 +25,18 @@ pub struct UI<W: Window, R: Renderer, A: App<R>> {
     // pub renderer: Option<R>,
     pub renderer: Arc<RwLock<R>>,
     _render_thread: JoinHandle<()>,
-    render_channel: Sender<PixelSize>,
+    render_channel: Sender<()>,
+    //draw_channel: Sender<DrawMsg>,
     pub(crate) window: Rc<RefCell<W>>,
     // pub(crate) window: Arc<RwLock<W>>, TODO
     node: Arc<RwLock<Node<R>>>,
     phantom_app: PhantomData<A>,
-    scale_factor: f32,
-    physical_size: PixelSize,
-    logical_size: PixelSize,
+    scale_factor: Arc<RwLock<f32>>,
+    physical_size: Arc<RwLock<PixelSize>>,
+    logical_size: Arc<RwLock<PixelSize>>,
     event_cache: EventCache,
     font_cache: Arc<RwLock<FontCache>>,
-    node_dirty: bool,
+    node_dirty: Arc<RwLock<bool>>,
     frame_dirty: Arc<RwLock<bool>>,
 }
 
@@ -92,22 +93,23 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
     }
 
     fn render_thread(
-        receiver: Receiver<PixelSize>,
+        receiver: Receiver<()>,
         renderer: Arc<RwLock<R>>,
         node: Arc<RwLock<Node<R>>>,
         font_cache: Arc<RwLock<FontCache>>,
+        physical_size: Arc<RwLock<PixelSize>>,
         frame_dirty: Arc<RwLock<bool>>,
     ) -> JoinHandle<()>
     where
         R: Renderer,
     {
         thread::spawn(move || {
-            for physical_size in receiver.iter() {
+            for _ in receiver.iter() {
                 if *frame_dirty.read().unwrap() {
                     inst("UI::render");
                     renderer.write().unwrap().render(
                         &node.read().unwrap(),
-                        physical_size,
+                        *physical_size.read().unwrap(),
                         &font_cache.read().unwrap(),
                     );
                     *frame_dirty.write().unwrap() = false;
@@ -119,10 +121,10 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
     }
 
     pub fn new(window: W) -> Self {
-        let scale_factor = window.scale_factor();
+        let scale_factor = Arc::new(RwLock::new(window.scale_factor()));
         // dbg!(scale_factor);
-        let physical_size = window.physical_size();
-        let logical_size = window.logical_size();
+        let physical_size = Arc::new(RwLock::new(window.physical_size()));
+        let logical_size = Arc::new(RwLock::new(window.logical_size()));
         info!(
             "New window with physical size {:?} client size {:?} and scale factor {:?}",
             physical_size, logical_size, scale_factor
@@ -137,24 +139,27 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             Layout::default(),
         )));
         let font_cache = Arc::new(RwLock::new(FontCache {
-            scale_factor,
+            scale_factor: window.scale_factor(),
             ..Default::default()
         }));
         let renderer = Arc::new(RwLock::new(R::new(&window)));
         let frame_dirty = Arc::new(RwLock::new(true));
-        let window = Rc::new(RefCell::new(window));
-        set_current_window(window.clone());
-        let event_cache = EventCache::new(scale_factor);
+        let node_dirty = Arc::new(RwLock::new(true));
+        let event_cache = EventCache::new(window.scale_factor());
 
         // Create a channel to speak to the renderer. Every time we send to this channel we want to trigger a render;
-        let (render_channel, receiver) = unbounded::<PixelSize>();
+        let (render_channel, receiver) = unbounded::<()>();
         let render_thread = Self::render_thread(
             receiver,
             renderer.clone(),
             node.clone(),
             font_cache.clone(),
+            physical_size.clone(),
             frame_dirty.clone(),
         );
+
+        let window = Rc::new(RefCell::new(window));
+        set_current_window(window.clone());
 
         let n = Self {
             renderer,
@@ -169,27 +174,24 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             event_cache,
             font_cache,
             frame_dirty,
-            node_dirty: true,
+            node_dirty,
         };
         inst_end();
         n
     }
 
     pub fn draw(&mut self) -> bool {
-        if !self.node_dirty {
+        if !*self.node_dirty.read().unwrap() {
             return false;
         }
 
         inst("UI::draw");
+        let logical_size = *self.logical_size.read().unwrap();
+        let scale_factor = *self.scale_factor.read().unwrap();
         let mut new = Node::new(
             Box::new(A::new()),
             0,
-            lay!(
-                size: size!(
-                    self.logical_size.width as f32,
-                    self.logical_size.height as f32
-                )
-            ),
+            lay!(size: size!(logical_size.width as f32, logical_size.height as f32)),
         );
 
         inst("Node::view");
@@ -200,7 +202,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
         new.layout(
             &self.node_ref(),
             &self.font_cache.read().unwrap(),
-            self.scale_factor,
+            scale_factor,
         );
         inst_end();
 
@@ -209,7 +211,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             &mut self.renderer.write().unwrap(),
             Some(&mut self.node.write().unwrap()),
             &self.font_cache.read().unwrap(),
-            self.scale_factor,
+            scale_factor,
         );
         inst_end();
 
@@ -218,7 +220,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             self.window.borrow().redraw();
         }
 
-        self.node_dirty = false;
+        *self.node_dirty.write().unwrap() = false;
         *self.frame_dirty.write().unwrap() = true;
         inst_end();
 
@@ -226,7 +228,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
     }
 
     pub fn render(&mut self) {
-        self.render_channel.send(self.physical_size).unwrap();
+        self.render_channel.send(()).unwrap();
     }
 
     fn blur(&mut self) {
@@ -253,7 +255,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
 
     fn handle_dirty_event<T>(&mut self, event: &Event<T>) {
         if event.dirty {
-            self.node_dirty = true
+            *self.node_dirty.write().unwrap() = true
         }
     }
 
@@ -266,16 +268,17 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
         // }
         match input {
             Input::Resize => {
-                self.physical_size = self.window.borrow().physical_size();
-                self.logical_size = self.window.borrow().logical_size();
-                self.scale_factor = self.window.borrow().scale_factor();
-                self.event_cache.scale_factor = self.scale_factor;
-                self.font_cache.write().unwrap().scale_factor = self.scale_factor;
-                self.node_dirty = true;
+                let scale_factor = self.window.borrow().scale_factor();
+                *self.physical_size.write().unwrap() = self.window.borrow().physical_size();
+                *self.logical_size.write().unwrap() = self.window.borrow().logical_size();
+                *self.scale_factor.write().unwrap() = scale_factor;
+                self.event_cache.scale_factor = scale_factor;
+                self.font_cache.write().unwrap().scale_factor = scale_factor;
+                *self.node_dirty.write().unwrap() = true;
                 self.window.borrow().redraw(); // Always redraw after resizing
             }
             Input::Motion(Motion::Mouse { x, y }) => {
-                let pos = Point::new(*x, *y) * self.scale_factor;
+                let pos = Point::new(*x, *y) * self.event_cache.scale_factor;
 
                 if let Some(button) = self.event_cache.mouse_button_held() {
                     if self.event_cache.drag_started.is_none() {
@@ -337,8 +340,8 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             Input::Motion(Motion::Scroll { x, y }) => {
                 let mut event = Event::new(
                     event::Scroll {
-                        x: *x * self.scale_factor,
-                        y: *y * self.scale_factor,
+                        x: *x * self.event_cache.scale_factor,
+                        y: *y * self.event_cache.scale_factor,
                     },
                     &self.event_cache,
                 );
