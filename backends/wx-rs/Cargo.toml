@@ -8,6 +8,9 @@ repository = "https://github.com/AlexCharlton/lemna"
 documentation = "https://docs.rs/lemna"
 license = "MIT"
 
+[features]
+instrumented = ["lemna/instrumented"]
+
 [dependencies]
 lemna = { path = "../../", version = "0.2" }
 raw-window-handle = { workspace = true }
