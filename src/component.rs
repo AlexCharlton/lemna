@@ -22,7 +22,7 @@ macro_rules! msg {
     };
 }
 
-pub trait App<R>: Component<R>
+pub trait App<R>: Component<R> + Send + Sync
 where
     R: Renderer + fmt::Debug,
 {

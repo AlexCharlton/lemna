@@ -33,7 +33,7 @@ where
     R: Renderer + fmt::Debug,
 {
     pub id: u64,
-    pub component: Box<dyn Component<R>>,
+    pub component: Box<dyn Component<R> + Send + Sync>,
     pub render_cache: Option<Vec<R::Renderable>>,
     pub(crate) children: Vec<Node<R>>,
     pub layout: Layout,
@@ -83,7 +83,7 @@ fn expand_aabb(a: &mut AABB, b: AABB) {
 }
 
 impl<R: fmt::Debug + Renderer> Node<R> {
-    pub fn new(component: Box<dyn Component<R>>, key: u64, layout: Layout) -> Self {
+    pub fn new(component: Box<dyn Component<R> + Send + Sync>, key: u64, layout: Layout) -> Self {
         Self {
             id: 0,
             component,

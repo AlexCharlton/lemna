@@ -125,7 +125,7 @@ unsafe impl HasRawDisplayHandle for Window {
 }
 
 use lemna::input::{Button, Input, Key, Motion, MouseButton};
-impl<R: Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A> {
+impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A> {
     fn on_frame(&mut self, _window: &mut baseview::Window) {
         if self.ui.draw() {
             self.ui.render()

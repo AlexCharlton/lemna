@@ -59,14 +59,17 @@ struct SelectState {
 }
 
 #[state_component(SelectState)]
-pub struct Select<M> {
+pub struct Select<M: Send + Sync>
+where
+    M: Send + Sync,
+{
     pub selection: Vec<M>,
     pub style: SelectStyle,
     pub selected: usize,
     on_change: Option<Box<dyn Fn(usize, &M) -> Message>>,
 }
 
-impl<M: std::fmt::Debug> std::fmt::Debug for Select<M> {
+impl<M: std::fmt::Debug + Send + Sync> std::fmt::Debug for Select<M> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_struct("Select")
             .field("selection", &self.selection)
@@ -75,7 +78,7 @@ impl<M: std::fmt::Debug> std::fmt::Debug for Select<M> {
     }
 }
 
-impl<M: ToString> Select<M> {
+impl<M: ToString + Send + Sync> Select<M> {
     pub fn new(selection: Vec<M>, selected: usize, style: SelectStyle) -> Self {
         Self {
             selection,
@@ -93,8 +96,8 @@ impl<M: ToString> Select<M> {
 }
 
 #[state_component_impl(SelectState)]
-impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display> Component<WGPURenderer>
-    for Select<M>
+impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send + Sync>
+    Component<WGPURenderer> for Select<M>
 {
     fn view(&self) -> Option<Node<WGPURenderer>> {
         let mut base =
@@ -274,13 +277,18 @@ impl Component<WGPURenderer> for Caret {
 // SelectList
 // Visible after opening: The full selection list
 #[derive(Debug)]
-struct SelectList<M> {
+struct SelectList<M>
+where
+    M: Send + Sync,
+{
     selections: Vec<M>,
     style: SelectStyle,
     hovering: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString> Component<WGPURenderer> for SelectList<M> {
+impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component<WGPURenderer>
+    for SelectList<M>
+{
     fn view(&self) -> Option<Node<WGPURenderer>> {
         let mut l = node!(
             super::Div::new()
@@ -353,14 +361,19 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component<WGPURenderer> fo
 // SelectEntry
 // An individual entry within a SelectList
 #[derive(Debug)]
-struct SelectEntry<M> {
+struct SelectEntry<M>
+where
+    M: Send + Sync,
+{
     selection: M,
     id: usize,
     selected: bool,
     style: SelectStyle,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString> Component<WGPURenderer> for SelectEntry<M> {
+impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component<WGPURenderer>
+    for SelectEntry<M>
+{
     fn view(&self) -> Option<Node<WGPURenderer>> {
         let mut div = super::Div::new();
         if self.selected {

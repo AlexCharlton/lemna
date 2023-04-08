@@ -2,7 +2,10 @@ use std::cell::UnsafeCell;
 use std::cell::{RefCell, RefMut};
 use std::marker::PhantomData;
 use std::rc::Rc;
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::thread::{self, JoinHandle};
 
+use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::info;
 
 use crate::base_types::*;
@@ -18,17 +21,22 @@ use crate::window::Window;
 
 const DRAG_THRESHOLD: f32 = 5.0; // px
 
-pub struct UI<W: Window, R: Renderer, A> {
-    pub renderer: Option<R>,
+pub struct UI<W: Window, R: Renderer, A: App<R>> {
+    // pub renderer: Option<R>,
+    pub renderer: Arc<RwLock<R>>,
+    _render_thread: JoinHandle<()>,
+    render_channel: Sender<PixelSize>,
     pub(crate) window: Rc<RefCell<W>>,
-    node: Option<Node<R>>,
+    // pub(crate) window: Arc<RwLock<W>>, TODO
+    node: Arc<RwLock<Node<R>>>,
     phantom_app: PhantomData<A>,
     scale_factor: f32,
     physical_size: PixelSize,
     logical_size: PixelSize,
     event_cache: EventCache,
-    font_cache: FontCache,
-    dirty: bool,
+    font_cache: Arc<RwLock<FontCache>>,
+    node_dirty: bool,
+    frame_dirty: Arc<RwLock<bool>>,
 }
 
 thread_local!(
@@ -74,13 +82,40 @@ pub fn set_current_window(window: Rc<RefCell<dyn Window>>) {
     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
 }
 
-impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
-    fn node_ref(&self) -> &Node<R> {
-        self.node.as_ref().unwrap()
+impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A> {
+    fn node_ref(&self) -> RwLockReadGuard<'_, Node<R>> {
+        self.node.read().unwrap()
     }
 
-    fn node_mut(&mut self) -> &mut Node<R> {
-        self.node.as_mut().unwrap()
+    fn node_mut(&mut self) -> RwLockWriteGuard<'_, Node<R>> {
+        self.node.write().unwrap()
+    }
+
+    fn render_thread(
+        receiver: Receiver<PixelSize>,
+        renderer: Arc<RwLock<R>>,
+        node: Arc<RwLock<Node<R>>>,
+        font_cache: Arc<RwLock<FontCache>>,
+        frame_dirty: Arc<RwLock<bool>>,
+    ) -> JoinHandle<()>
+    where
+        R: Renderer,
+    {
+        thread::spawn(move || {
+            for physical_size in receiver.iter() {
+                if *frame_dirty.read().unwrap() {
+                    inst("UI::render");
+                    renderer.write().unwrap().render(
+                        &node.read().unwrap(),
+                        physical_size,
+                        &font_cache.read().unwrap(),
+                    );
+                    *frame_dirty.write().unwrap() = false;
+                    // println!("rendered");
+                    inst_end();
+                }
+            }
+        })
     }
 
     pub fn new(window: W) -> Self {
@@ -96,32 +131,52 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         let mut component = A::new();
         component.init();
 
-        let renderer = Some(R::new(&window));
+        let node = Arc::new(RwLock::new(Node::new(
+            Box::new(component),
+            0,
+            Layout::default(),
+        )));
+        let font_cache = Arc::new(RwLock::new(FontCache {
+            scale_factor,
+            ..Default::default()
+        }));
+        let renderer = Arc::new(RwLock::new(R::new(&window)));
+        let frame_dirty = Arc::new(RwLock::new(true));
         let window = Rc::new(RefCell::new(window));
         set_current_window(window.clone());
         let event_cache = EventCache::new(scale_factor);
 
+        // Create a channel to speak to the renderer. Every time we send to this channel we want to trigger a render;
+        let (render_channel, receiver) = unbounded::<PixelSize>();
+        let render_thread = Self::render_thread(
+            receiver,
+            renderer.clone(),
+            node.clone(),
+            font_cache.clone(),
+            frame_dirty.clone(),
+        );
+
         let n = Self {
             renderer,
+            render_channel,
+            _render_thread: render_thread,
             window,
-            node: Some(Node::new(Box::new(component), 0, Layout::default())),
+            node,
             phantom_app: PhantomData,
             scale_factor,
             physical_size,
             logical_size,
             event_cache,
-            font_cache: FontCache {
-                scale_factor,
-                ..Default::default()
-            },
-            dirty: true,
+            font_cache,
+            frame_dirty,
+            node_dirty: true,
         };
         inst_end();
         n
     }
 
     pub fn draw(&mut self) -> bool {
-        if !self.dirty {
+        if !self.node_dirty {
             return false;
         }
 
@@ -138,42 +193,40 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         );
 
         inst("Node::view");
-        new.view(self.node.as_mut());
+        new.view(Some(&mut self.node_mut()));
         inst_end();
 
         inst("Node::layout");
-        new.layout(self.node_ref(), &self.font_cache, self.scale_factor);
-        inst_end();
-
-        inst("Node::render");
-        let do_render = new.render(
-            self.renderer.as_mut().unwrap(),
-            self.node.as_mut(),
-            &self.font_cache,
+        new.layout(
+            &self.node_ref(),
+            &self.font_cache.read().unwrap(),
             self.scale_factor,
         );
         inst_end();
 
-        self.node = Some(new);
+        inst("Node::render");
+        let do_render = new.render(
+            &mut self.renderer.write().unwrap(),
+            Some(&mut self.node.write().unwrap()),
+            &self.font_cache.read().unwrap(),
+            self.scale_factor,
+        );
+        inst_end();
+
+        *self.node.write().unwrap() = new;
         if do_render {
             self.window.borrow().redraw();
         }
 
-        self.dirty = false;
+        self.node_dirty = false;
+        *self.frame_dirty.write().unwrap() = true;
         inst_end();
 
         do_render
     }
 
     pub fn render(&mut self) {
-        inst("UI::render");
-        self.renderer.as_mut().unwrap().render(
-            self.node.as_ref().unwrap(),
-            self.physical_size,
-            &self.font_cache,
-        );
-        // println!("rendered");
-        inst_end();
+        self.render_channel.send(self.physical_size).unwrap();
     }
 
     fn blur(&mut self) {
@@ -182,7 +235,7 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
         self.node_mut().blur(&mut blur_event);
         self.handle_dirty_event(&blur_event);
 
-        self.event_cache.focus = self.node.as_ref().unwrap().id; // The root note gets focus
+        self.event_cache.focus = self.node.read().unwrap().id; // The root note gets focus
     }
 
     fn handle_focus_or_blur<T>(&mut self, event: &Event<T>) {
@@ -200,29 +253,29 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
 
     fn handle_dirty_event<T>(&mut self, event: &Event<T>) {
         if event.dirty {
-            self.dirty = true
+            self.node_dirty = true
         }
     }
 
     pub fn handle_input(&mut self, input: &Input) {
         inst("UI::handle_input");
-        if self.node.is_none() || self.renderer.is_none() {
-            // If there is no node, the event has happened after exiting
-            // For some reason checking for both works better, even though they're unset at the same time?
-            return;
-        }
+        // if self.node.is_none() || self.renderer.is_none() {
+        //     // If there is no node, the event has happened after exiting
+        //     // For some reason checking for both works better, even though they're unset at the same time?
+        //     return;
+        // }
         match input {
             Input::Resize => {
                 self.renderer
-                    .as_mut()
+                    .write()
                     .unwrap()
                     .resize(self.window.borrow().physical_size());
                 self.physical_size = self.window.borrow().physical_size();
                 self.logical_size = self.window.borrow().logical_size();
                 self.scale_factor = self.window.borrow().scale_factor();
                 self.event_cache.scale_factor = self.scale_factor;
-                self.font_cache.scale_factor = self.scale_factor;
-                self.dirty = true;
+                self.font_cache.write().unwrap().scale_factor = self.scale_factor;
+                self.node_dirty = true;
                 self.window.borrow().redraw(); // Always redraw after resizing
             }
             Input::Motion(Motion::Mouse { x, y }) => {
@@ -435,8 +488,8 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
             Input::Redraw => (),
             Input::Exit => {
                 // This prevents a hang when exiting on some backends
-                self.renderer = None;
-                self.node = None;
+                // self.renderer = None;
+                // self.node = None;
             }
             Input::Menu(id) => {
                 let current_focus = self.event_cache.focus;
@@ -454,8 +507,10 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
                         self.handle_dirty_event(&menu_event);
                         if !messages.is_empty() {
                             // If so, first send the messages to the non-root node
-                            if let Some(stack) = self.node_ref().get_target_stack(current_focus) {
-                                self.node_mut().send_messages(stack, messages);
+                            if let Some(stack) =
+                                self.node.read().unwrap().get_target_stack(current_focus)
+                            {
+                                self.node.write().unwrap().send_messages(stack, messages);
                             }
                         }
                     }
@@ -476,6 +531,6 @@ impl<W: 'static + Window, R: Renderer, A: 'static + App<R>> UI<W, R, A> {
     }
 
     pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
-        self.font_cache.add_font(name, bytes);
+        self.font_cache.write().unwrap().add_font(name, bytes);
     }
 }
