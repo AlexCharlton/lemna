@@ -1,6 +1,7 @@
+use arboard::{self, Clipboard};
 use lemna::component::App;
 use lemna::render::Renderer;
-use lemna::{PixelSize, UI};
+use lemna::{Data, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -57,11 +58,6 @@ impl Window {
                 });
                 for (name, data) in fonts.drain(..) {
                     ui.add_font(name, data);
-                }
-                // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
-                #[cfg(windows)]
-                {
-                    window.resize(baseview::Size::new(1.0, 1.0));
                 }
                 BaseViewUI { ui }
             },
@@ -356,5 +352,23 @@ impl lemna::window::Window for Window {
 
     fn scale_factor(&self) -> f32 {
         self.scale_factor
+    }
+
+    fn get_from_clipboard(&self) -> Option<Data> {
+        let mut clipboard = Clipboard::new().expect("Could get a clipboard");
+        match clipboard.get_text() {
+            Ok(s) => Some(Data::String(s)),
+            _ => None,
+        }
+    }
+
+    fn put_on_clipboard(&self, data: &Data) {
+        let mut clipboard = Clipboard::new().expect("Could get a clipboard");
+        match data {
+            Data::String(s) => {
+                clipboard.set_text(s).unwrap();
+            }
+            _ => (),
+        }
     }
 }

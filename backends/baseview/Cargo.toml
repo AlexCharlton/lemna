@@ -12,6 +12,7 @@ license = "MIT"
 instrumented = ["lemna/instrumented"]
 
 [dependencies]
+arboard = "3.2"
 keyboard-types = "0.6"
 lemna = { path = "../../", version = "0.2" }
 raw-window-handle = { workspace = true }
