@@ -25,9 +25,10 @@ pub fn state_component(attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let input = parse_macro_input!(input as syn::ItemStruct);
     let struct_name = input.ident;
-    let generics = input.generics;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
     let expanded = quote!(
-        impl #generics #struct_name #generics {
+        impl #impl_generics #struct_name #ty_generics #where_clause {
             #[allow(dead_code)]
             fn state_mut(&mut self) -> &mut #state_type {
                 self.state.as_mut().expect(&format!("Expected state to exist"))
