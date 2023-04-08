@@ -13,6 +13,8 @@ use winit::{
 pub struct Window {
     winit_window: winit::window::Window,
 }
+unsafe impl Send for Window {}
+unsafe impl Sync for Window {}
 
 impl Window {
     pub fn open_blocking<R, A>(
@@ -50,10 +52,11 @@ impl Window {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::CursorMoved { position, .. } => {
+                        let scale_factor = ui.window.read().unwrap().winit_window.scale_factor();
                         // println!("{:?}", position);
                         ui.handle_input(&Input::Motion(Motion::Mouse {
-                            x: position.x as f32,
-                            y: position.y as f32,
+                            x: position.x as f32 / scale_factor as f32,
+                            y: position.y as f32 / scale_factor as f32,
                         }));
                     }
                     WindowEvent::MouseInput {
@@ -68,7 +71,7 @@ impl Window {
                         state: winit::event::ElementState::Released,
                         ..
                     } => {
-                        ui.handle_input(&Input::Press(Button::Mouse(MouseButton::Left)));
+                        ui.handle_input(&Input::Release(Button::Mouse(MouseButton::Left)));
                     }
                     WindowEvent::MouseWheel { delta, .. } => {
                         // println!("scroll delta{:?}", delta);
