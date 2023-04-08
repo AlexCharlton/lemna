@@ -716,7 +716,7 @@ mod tests {
 
     pub struct TestWindow {}
     impl Window for TestWindow {
-        fn client_size(&self) -> PixelSize {
+        fn logical_size(&self) -> PixelSize {
             PixelSize {
                 width: 100,
                 height: 100,

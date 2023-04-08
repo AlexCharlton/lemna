@@ -1495,7 +1495,7 @@ mod tests {
     #[test]
     fn test_empty() {
         let mut nodes = node!(Div::new(), lay!(size: size!(300.0)));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.layout_result.position.top, px!(0.0));
         assert_eq!(nodes.layout_result.position.left, px!(0.0));
@@ -1510,7 +1510,7 @@ mod tests {
         .push(node!(Div::new(), lay!(size: size!(150.0))))
         .push(node!(Div::new(), lay!(size: size!(100.0))))
         .push(node!(Div::new(), lay!(size: size!(200.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(0.0));
@@ -1538,7 +1538,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(200.0), margin: rect_pct!(1.0))
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(
             nodes.children[0].layout_result.position.left,
@@ -1567,7 +1567,7 @@ mod tests {
             node!(Div::new(), lay!(size: size_pct!(50.0, 100.0)))
                 .push(node!(Div::new(), lay!(size: size_pct!(50.0, 100.0)))),
         );
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(150.0, 300.0));
         assert_eq!(
@@ -1587,7 +1587,7 @@ mod tests {
             Div::new(),
             lay!(size: Size {width: Dimension::Pct(100.0), height: Dimension::Px(50.0)})
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(50.0, 150.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(50.0, 100.0));
         assert_eq!(nodes.children[1].layout_result.size, size!(50.0, 50.0));
@@ -1606,7 +1606,7 @@ mod tests {
         )
         .push(node!(Div::new()))
         .push(node!(Div::new()));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(150.0, 300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
@@ -1629,7 +1629,7 @@ mod tests {
         )
         .push(node!(Div::new()))
         .push(node!(Div::new(), lay!(size: size!(100.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(200.0, 300.0));
@@ -1647,7 +1647,7 @@ mod tests {
             lay!(size: size!(300.0), padding: rect!(10.0, 20.0, 30.0, 40.0))
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(240.0, 260.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(20.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(10.0));
@@ -1663,7 +1663,7 @@ mod tests {
             )
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(120.0, 180.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(60.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(30.0));
@@ -1686,7 +1686,7 @@ mod tests {
                     margin: rect!(15.0, 10.0, 5.0, 20.0)
                 )
             ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(120.0, 280.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(10.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(5.0));
@@ -1712,7 +1712,7 @@ mod tests {
                     margin: rect_pct!(15.0, 10.0, 5.0, 20.0),
                 )
             ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(60.0, 240.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(30.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(15.0));
@@ -1733,7 +1733,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(200.0), margin: rect!(2.0))
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(
             nodes.layout_result.size,
             size!(
@@ -1749,7 +1749,7 @@ mod tests {
             Div::new(),
             lay!(direction: Direction::Row, min_size: size!(250.0, 300.0))
         );
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(250.0, 300.0));
     }
 
@@ -1764,7 +1764,7 @@ mod tests {
         .push(node!(Div::new(), lay!(size: size!(100.0)))) // Child 1
         .push(node!(Div::new(), lay!(size: size!(200.0)))); // Child 2
 
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
 
         assert_eq!(nodes.children[0].layout_result.position.right, px!(300.0));
@@ -1800,7 +1800,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(100.0), margin: rect!(1.0))
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(415.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(56.5));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(56.5));
@@ -1828,7 +1828,7 @@ mod tests {
                 position: rect!(Auto, Auto, 10.0, 10.0)
             )
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default());
+        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(0.0));
