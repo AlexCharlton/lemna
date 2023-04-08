@@ -21,6 +21,10 @@ default = ["msaa_shapes", "open_iconic"]
 instrumented = ["superluminal-perf"]
 msaa_shapes = []
 open_iconic = []
+docs_rs = []
+
+[package.metadata.docs.rs]
+features = ["docs_rs"]
 
 [dependencies.wgpu]
 version = "0.15"

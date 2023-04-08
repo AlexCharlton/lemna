@@ -5,6 +5,10 @@ use glob::glob;
 use shaderc;
 
 fn main() -> Result<(), Box<dyn Error>> {
+    if cfg!(feature = "docs_rs") {
+        println!("Skipping build because we're running on docs.rs");
+        return Ok(());
+    }
     let compiler = shaderc::Compiler::new().unwrap();
     let path = Path::new("./src/render/wgpu/pipelines/shaders");
 
