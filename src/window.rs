@@ -14,7 +14,7 @@ impl From<&str> for Data {
     }
 }
 
-pub trait Window: HasRawWindowHandle + HasRawDisplayHandle + Any {
+pub trait Window: HasRawWindowHandle + HasRawDisplayHandle + Send + Sync + Any {
     fn logical_size(&self) -> PixelSize;
     fn physical_size(&self) -> PixelSize;
     fn scale_factor(&self) -> f32;

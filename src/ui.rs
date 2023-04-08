@@ -1,7 +1,5 @@
 use std::cell::UnsafeCell;
-use std::cell::{RefCell, RefMut};
 use std::marker::PhantomData;
-use std::rc::Rc;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread::{self, JoinHandle};
 
@@ -25,10 +23,10 @@ pub struct UI<W: Window, R: Renderer, A: App<R>> {
     // pub renderer: Option<R>,
     pub renderer: Arc<RwLock<R>>,
     _render_thread: JoinHandle<()>,
+    _draw_thread: JoinHandle<()>,
     render_channel: Sender<()>,
-    //draw_channel: Sender<DrawMsg>,
-    pub window: Rc<RefCell<W>>,
-    // pub(crate) window: Arc<RwLock<W>>, TODO
+    draw_channel: Sender<()>,
+    pub window: Arc<RwLock<W>>,
     node: Arc<RwLock<Node<R>>>,
     phantom_app: PhantomData<A>,
     scale_factor: Arc<RwLock<f32>>,
@@ -37,7 +35,7 @@ pub struct UI<W: Window, R: Renderer, A: App<R>> {
     event_cache: EventCache,
     font_cache: Arc<RwLock<FontCache>>,
     node_dirty: Arc<RwLock<bool>>,
-    frame_dirty: Arc<RwLock<bool>>,
+    // frame_dirty: Arc<RwLock<bool>>,
 }
 
 thread_local!(
@@ -59,15 +57,15 @@ pub fn focus_immediately<T>(event: &Event<T>) {
 }
 
 thread_local!(
-    static CURRENT_WINDOW: UnsafeCell<Option<Rc<RefCell<dyn Window>>>> = {
+    static CURRENT_WINDOW: UnsafeCell<Option<Arc<RwLock<dyn Window>>>> = {
         UnsafeCell::new(None)
     }
 );
 
-pub fn current_window<'a>() -> Option<RefMut<'a, dyn Window>> {
+pub fn current_window<'a>() -> Option<RwLockReadGuard<'a, dyn Window>> {
     CURRENT_WINDOW.with(|r| unsafe {
         if let Some(w) = r.get().as_ref().unwrap() {
-            Some(w.borrow_mut())
+            Some(w.read().unwrap())
         } else {
             None
         }
@@ -79,7 +77,7 @@ pub fn current_window<'a>() -> Option<RefMut<'a, dyn Window>> {
 //     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
 // }
 
-pub fn set_current_window(window: Rc<RefCell<dyn Window>>) {
+pub fn set_current_window(window: Arc<RwLock<dyn Window>>) {
     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
 }
 
@@ -108,12 +106,74 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                 if *frame_dirty.read().unwrap() {
                     inst("UI::render");
                     renderer.write().unwrap().render(
+                        // TODO pass in Arc
                         &node.read().unwrap(),
                         *physical_size.read().unwrap(),
                         &font_cache.read().unwrap(),
                     );
                     *frame_dirty.write().unwrap() = false;
                     // println!("rendered");
+                    inst_end();
+                }
+            }
+        })
+    }
+
+    fn draw_thread(
+        receiver: Receiver<()>,
+        renderer: Arc<RwLock<R>>,
+        node: Arc<RwLock<Node<R>>>,
+        font_cache: Arc<RwLock<FontCache>>,
+        logical_size: Arc<RwLock<PixelSize>>,
+        scale_factor: Arc<RwLock<f32>>,
+        frame_dirty: Arc<RwLock<bool>>,
+        node_dirty: Arc<RwLock<bool>>,
+        window: Arc<RwLock<W>>,
+    ) -> JoinHandle<()>
+    where
+        R: Renderer,
+    {
+        thread::spawn(move || {
+            for _ in receiver.iter() {
+                if *node_dirty.read().unwrap() {
+                    inst("UI::draw");
+                    let logical_size = *logical_size.read().unwrap();
+                    let scale_factor = *scale_factor.read().unwrap();
+                    let mut new = Node::new(
+                        Box::new(A::new()),
+                        0,
+                        lay!(size: size!(logical_size.width as f32, logical_size.height as f32)),
+                    );
+
+                    {
+                        // We need to acquire a lock on the node once we `view` it, because we remove its state at this point
+                        let mut old = node.write().unwrap();
+                        inst("Node::view");
+                        new.view(Some(&mut old));
+                        inst_end();
+
+                        inst("Node::layout");
+                        new.layout(&old, &font_cache.read().unwrap(), scale_factor);
+                        inst_end();
+
+                        inst("Node::render");
+                        let do_render = new.render(
+                            &mut renderer.write().unwrap(),
+                            Some(&mut old),
+                            &font_cache.read().unwrap(),
+                            scale_factor,
+                        );
+                        inst_end();
+
+                        *old = new;
+
+                        if do_render {
+                            window.write().unwrap().redraw();
+                        }
+                    }
+
+                    *node_dirty.write().unwrap() = false;
+                    *frame_dirty.write().unwrap() = true;
                     inst_end();
                 }
             }
@@ -133,16 +193,19 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
         let mut component = A::new();
         component.init();
 
+        let renderer = Arc::new(RwLock::new(R::new(&window)));
+        let event_cache = EventCache::new(window.scale_factor());
+        let window = Arc::new(RwLock::new(window));
+        set_current_window(window.clone());
+
         let node = Arc::new(RwLock::new(Node::new(
             Box::new(component),
             0,
             Layout::default(),
         )));
         let font_cache = Arc::new(RwLock::new(FontCache::default()));
-        let renderer = Arc::new(RwLock::new(R::new(&window)));
-        let frame_dirty = Arc::new(RwLock::new(true));
+        let frame_dirty = Arc::new(RwLock::new(false));
         let node_dirty = Arc::new(RwLock::new(true));
-        let event_cache = EventCache::new(window.scale_factor());
 
         // Create a channel to speak to the renderer. Every time we send to this channel we want to trigger a render;
         let (render_channel, receiver) = unbounded::<()>();
@@ -155,13 +218,26 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             frame_dirty.clone(),
         );
 
-        let window = Rc::new(RefCell::new(window));
-        set_current_window(window.clone());
+        // Create a channel to speak to the drawer. Every time we send to this channel we want to trigger a draw;
+        let (draw_channel, receiver) = unbounded::<()>();
+        let draw_thread = Self::draw_thread(
+            receiver,
+            renderer.clone(),
+            node.clone(),
+            font_cache.clone(),
+            logical_size.clone(),
+            scale_factor.clone(),
+            frame_dirty.clone(),
+            node_dirty.clone(),
+            window.clone(),
+        );
 
         let n = Self {
             renderer,
             render_channel,
             _render_thread: render_thread,
+            draw_channel,
+            _draw_thread: draw_thread,
             window,
             node,
             phantom_app: PhantomData,
@@ -170,58 +246,15 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             logical_size,
             event_cache,
             font_cache,
-            frame_dirty,
+            // frame_dirty,
             node_dirty,
         };
         inst_end();
         n
     }
 
-    pub fn draw(&mut self) -> bool {
-        if !*self.node_dirty.read().unwrap() {
-            return false;
-        }
-
-        inst("UI::draw");
-        let logical_size = *self.logical_size.read().unwrap();
-        let scale_factor = *self.scale_factor.read().unwrap();
-        let mut new = Node::new(
-            Box::new(A::new()),
-            0,
-            lay!(size: size!(logical_size.width as f32, logical_size.height as f32)),
-        );
-
-        inst("Node::view");
-        new.view(Some(&mut self.node_mut()));
-        inst_end();
-
-        inst("Node::layout");
-        new.layout(
-            &self.node_ref(),
-            &self.font_cache.read().unwrap(),
-            scale_factor,
-        );
-        inst_end();
-
-        inst("Node::render");
-        let do_render = new.render(
-            &mut self.renderer.write().unwrap(),
-            Some(&mut self.node.write().unwrap()),
-            &self.font_cache.read().unwrap(),
-            scale_factor,
-        );
-        inst_end();
-
-        *self.node.write().unwrap() = new;
-        if do_render {
-            self.window.borrow().redraw();
-        }
-
-        *self.node_dirty.write().unwrap() = false;
-        *self.frame_dirty.write().unwrap() = true;
-        inst_end();
-
-        do_render
+    pub fn draw(&mut self) {
+        self.draw_channel.send(()).unwrap();
     }
 
     pub fn render(&mut self) {
@@ -265,13 +298,13 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
         // }
         match input {
             Input::Resize => {
-                let scale_factor = self.window.borrow().scale_factor();
-                *self.physical_size.write().unwrap() = self.window.borrow().physical_size();
-                *self.logical_size.write().unwrap() = self.window.borrow().logical_size();
+                let scale_factor = self.window.read().unwrap().scale_factor();
+                *self.physical_size.write().unwrap() = self.window.read().unwrap().physical_size();
+                *self.logical_size.write().unwrap() = self.window.read().unwrap().logical_size();
                 *self.scale_factor.write().unwrap() = scale_factor;
                 self.event_cache.scale_factor = scale_factor;
                 *self.node_dirty.write().unwrap() = true;
-                self.window.borrow().redraw(); // Always redraw after resizing
+                self.window.write().unwrap().redraw(); // Always redraw after resizing
             }
             Input::Motion(Motion::Mouse { x, y }) => {
                 let pos = Point::new(*x, *y) * self.event_cache.scale_factor;

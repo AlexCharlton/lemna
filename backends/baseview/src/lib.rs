@@ -19,6 +19,9 @@ pub struct Window {
     scale_factor: f32,
 }
 
+unsafe impl Send for Window {}
+unsafe impl Sync for Window {}
+
 impl Window {
     pub fn open_parented<P, R, A>(
         parent: &P,
@@ -122,9 +125,8 @@ unsafe impl HasRawDisplayHandle for Window {
 use lemna::input::{Button, Input, Key, Motion, MouseButton};
 impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A> {
     fn on_frame(&mut self, _window: &mut baseview::Window) {
-        if self.ui.draw() {
-            self.ui.render()
-        }
+        self.ui.draw();
+        self.ui.render();
     }
 
     fn on_event(
@@ -136,12 +138,12 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
                     let win = &self.ui.window;
-                    let scale_policy = win.borrow().scale_policy;
-                    win.borrow_mut().scale_factor = match scale_policy {
+                    let scale_policy = win.read().unwrap().scale_policy;
+                    win.write().unwrap().scale_factor = match scale_policy {
                         baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                         baseview::WindowScalePolicy::SystemScaleFactor => window_info.scale(),
                     } as f32;
-                    win.borrow_mut().size = (
+                    win.write().unwrap().size = (
                         window_info.logical_size().width as u32,
                         window_info.logical_size().height as u32,
                     );
