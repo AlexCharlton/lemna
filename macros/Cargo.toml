@@ -1,6 +1,6 @@
 [package]
 name = "lemna-macros"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 edition = "2018"
 description = "Macros for lemna"
