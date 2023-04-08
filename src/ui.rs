@@ -105,10 +105,12 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             for _ in receiver.iter() {
                 if *frame_dirty.read().unwrap() {
                     inst("UI::render");
+                    // Pull out size so it get pulled into the renderer lock
+                    let size = *physical_size.read().unwrap();
                     renderer.write().unwrap().render(
                         // TODO pass in Arc
                         &node.read().unwrap(),
-                        *physical_size.read().unwrap(),
+                        size,
                         &font_cache.read().unwrap(),
                     );
                     *frame_dirty.write().unwrap() = false;
@@ -146,6 +148,10 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                     );
 
                     {
+                        // We need to lock the renderer while modify the node, so that we don't try to render it while doing so
+                        // Since this will cause a deadlock
+                        let mut renderer = renderer.write().unwrap();
+
                         // We need to acquire a lock on the node once we `view` it, because we remove its state at this point
                         let mut old = node.write().unwrap();
                         inst("Node::view");
@@ -158,7 +164,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
 
                         inst("Node::render");
                         let do_render = new.render(
-                            &mut renderer.write().unwrap(),
+                            &mut renderer,
                             Some(&mut old),
                             &font_cache.read().unwrap(),
                             scale_factor,
@@ -170,10 +176,10 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                         if do_render {
                             window.write().unwrap().redraw();
                         }
+                        *node_dirty.write().unwrap() = false;
+                        *frame_dirty.write().unwrap() = true;
                     }
 
-                    *node_dirty.write().unwrap() = false;
-                    *frame_dirty.write().unwrap() = true;
                     inst_end();
                 }
             }
