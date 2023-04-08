@@ -66,7 +66,7 @@ where
     pub selection: Vec<M>,
     pub style: SelectStyle,
     pub selected: usize,
-    on_change: Option<Box<dyn Fn(usize, &M) -> Message>>,
+    on_change: Option<Box<dyn Fn(usize, &M) -> Message + Send + Sync>>,
 }
 
 impl<M: std::fmt::Debug + Send + Sync> std::fmt::Debug for Select<M> {
@@ -89,7 +89,7 @@ impl<M: ToString + Send + Sync> Select<M> {
         }
     }
 
-    pub fn on_change(mut self, change_fn: Box<dyn Fn(usize, &M) -> Message>) -> Self {
+    pub fn on_change(mut self, change_fn: Box<dyn Fn(usize, &M) -> Message + Send + Sync>) -> Self {
         self.on_change = Some(change_fn);
         self
     }

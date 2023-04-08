@@ -55,7 +55,7 @@ impl Default for ButtonStyle {
 pub struct Button {
     pub label: Vec<TextSegment>,
     pub style: ButtonStyle,
-    pub on_click: Option<Box<dyn Fn() -> Message>>,
+    pub on_click: Option<Box<dyn Fn() -> Message + Send + Sync>>,
     pub tool_tip: Option<String>,
 }
 
@@ -79,7 +79,7 @@ impl Button {
         }
     }
 
-    pub fn on_click(mut self, f: Box<dyn Fn() -> Message>) -> Self {
+    pub fn on_click(mut self, f: Box<dyn Fn() -> Message + Send + Sync>) -> Self {
         self.on_click = Some(f);
         self
     }

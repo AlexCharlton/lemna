@@ -40,7 +40,7 @@ impl Default for ToggleStyle {
 pub struct Toggle {
     active: bool,
     style: ToggleStyle,
-    on_change: Option<Box<dyn Fn(bool) -> Message>>,
+    on_change: Option<Box<dyn Fn(bool) -> Message + Send + Sync>>,
 }
 
 impl fmt::Debug for Toggle {
@@ -62,7 +62,7 @@ impl Toggle {
         }
     }
 
-    pub fn on_change(mut self, change_fn: Box<dyn Fn(bool) -> Message>) -> Self {
+    pub fn on_change(mut self, change_fn: Box<dyn Fn(bool) -> Message + Send + Sync>) -> Self {
         self.on_change = Some(change_fn);
         self
     }

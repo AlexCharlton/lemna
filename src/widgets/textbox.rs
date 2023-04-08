@@ -68,9 +68,9 @@ struct TextBoxState {
 pub struct TextBox {
     style: TextBoxStyle,
     text: Option<String>,
-    on_change: Option<Box<dyn Fn(&str) -> Message>>,
-    on_commit: Option<Box<dyn Fn(&str) -> Message>>,
-    on_focus: Option<Box<dyn Fn() -> Message>>,
+    on_change: Option<Box<dyn Fn(&str) -> Message + Send + Sync>>,
+    on_commit: Option<Box<dyn Fn(&str) -> Message + Send + Sync>>,
+    on_focus: Option<Box<dyn Fn() -> Message + Send + Sync>>,
 }
 
 impl std::fmt::Debug for TextBox {
@@ -94,17 +94,17 @@ impl TextBox {
         }
     }
 
-    pub fn on_change(mut self, change_fn: Box<dyn Fn(&str) -> Message>) -> Self {
+    pub fn on_change(mut self, change_fn: Box<dyn Fn(&str) -> Message + Send + Sync>) -> Self {
         self.on_change = Some(change_fn);
         self
     }
 
-    pub fn on_commit(mut self, commit_fn: Box<dyn Fn(&str) -> Message>) -> Self {
+    pub fn on_commit(mut self, commit_fn: Box<dyn Fn(&str) -> Message + Send + Sync>) -> Self {
         self.on_commit = Some(commit_fn);
         self
     }
 
-    pub fn on_focus(mut self, focus_fn: Box<dyn Fn() -> Message>) -> Self {
+    pub fn on_focus(mut self, focus_fn: Box<dyn Fn() -> Message + Send + Sync>) -> Self {
         self.on_focus = Some(focus_fn);
         self
     }

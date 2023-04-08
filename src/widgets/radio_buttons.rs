@@ -24,7 +24,7 @@ pub struct RadioButtons {
     multi_select: bool,
     /// Does clicking on a selected button clear it?
     nullable: bool,
-    on_change: Option<Box<dyn Fn(Vec<usize>) -> Message>>,
+    on_change: Option<Box<dyn Fn(Vec<usize>) -> Message + Send + Sync>>,
 }
 
 impl fmt::Debug for RadioButtons {
@@ -83,7 +83,10 @@ impl RadioButtons {
         self
     }
 
-    pub fn on_change(mut self, change_fn: Box<dyn Fn(Vec<usize>) -> Message>) -> Self {
+    pub fn on_change(
+        mut self,
+        change_fn: Box<dyn Fn(Vec<usize>) -> Message + Send + Sync>,
+    ) -> Self {
         self.on_change = Some(change_fn);
         self
     }
