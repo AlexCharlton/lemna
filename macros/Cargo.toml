@@ -2,7 +2,7 @@
 name = "lemna-macros"
 version = "0.2.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Macros for lemna"
 repository = "https://github.com/AlexCharlton/lemna"
 license = "MIT"
