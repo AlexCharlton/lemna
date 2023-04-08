@@ -46,7 +46,6 @@ pub struct WGPURenderer {
     context: context::WGPUContext,
     uniform_bind_group: wgpu::BindGroup,
     globals_ubo: wgpu::Buffer,
-    was_resized: bool,
 }
 
 impl fmt::Debug for WGPURenderer {
@@ -131,12 +130,12 @@ impl super::Renderer for WGPURenderer {
             context,
             uniform_bind_group,
             globals_ubo,
-            was_resized: true,
         }
     }
 
     fn render(&mut self, node: &Node<Self>, physical_size: PixelSize, font_cache: &FontCache) {
         inst("WGPURenderer::render#get_current_texture");
+        let was_resized = self.do_resize(physical_size);
         let output = match self.context.surface.get_current_texture() {
             Ok(o) => o,
             Err(wgpu::SurfaceError::Timeout) => {
@@ -145,17 +144,16 @@ impl super::Renderer for WGPURenderer {
             }
             Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                 evt("SurfaceError::Lost or Outdated");
-                self.resize(self.context.size());
+                self.do_resize(self.context.size());
                 return;
             }
             Err(e) => panic!("Failed to get current texture: {}", e),
         };
         inst_end();
-        if self.was_resized {
+        if was_resized {
             evt("WGPURenderer::was_resized");
             self.update_ubo(physical_size);
             output.present();
-            self.was_resized = false;
             self.render(node, physical_size, font_cache);
             return;
         }
@@ -446,19 +444,24 @@ impl super::Renderer for WGPURenderer {
         output.present();
         inst_end();
     }
-
-    fn resize(&mut self, size: PixelSize) {
-        inst("WGPURenderer::resize_context");
-        self.context.resize(size.width, size.height);
-        self.msaa_pipeline
-            .resize(&self.context.device, &self.context.framebuffer);
-
-        self.was_resized = true;
-        inst_end();
-    }
 }
 
 impl WGPURenderer {
+    fn do_resize(&mut self, size: PixelSize) -> bool {
+        if size.width != self.context.surface_config.width
+            || size.height != self.context.surface_config.height
+        {
+            inst("WGPURenderer::resize_context");
+            self.context.resize(size.width, size.height);
+            self.msaa_pipeline
+                .resize(&self.context.device, &self.context.framebuffer);
+            inst_end();
+            true
+        } else {
+            false
+        }
+    }
+
     fn update_ubo(&mut self, physical_size: PixelSize) {
         let mut encoder =
             self.context

@@ -266,10 +266,6 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
         // }
         match input {
             Input::Resize => {
-                self.renderer
-                    .write()
-                    .unwrap()
-                    .resize(self.window.borrow().physical_size());
                 self.physical_size = self.window.borrow().physical_size();
                 self.logical_size = self.window.borrow().logical_size();
                 self.scale_factor = self.window.borrow().scale_factor();
