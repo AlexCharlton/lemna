@@ -27,6 +27,7 @@ const DRAG_THRESHOLD: f32 = 5.0; // px
 /// which could otherwise happen if rendering takes a while. Even though the wgpu rendering pipeline
 /// itself is quite efficient, delays have been observed when fetching
 /// the next frame in the swapchain after resizing on certain platforms.
+/// Event handling happens on the same thread that the `current_window` is accessible from.
 pub struct UI<W: Window, R: Renderer, A: App<R>> {
     pub renderer: Arc<RwLock<R>>,
     pub window: Arc<RwLock<W>>,
