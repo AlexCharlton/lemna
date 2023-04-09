@@ -1,3 +1,18 @@
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Data {
+    String(String),
+    Filepath(PathBuf),
+    Custom(Vec<u8>),
+}
+
+impl From<&str> for Data {
+    fn from(s: &str) -> Data {
+        Data::String(s.to_string())
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Motion {
     Mouse { x: f32, y: f32 },
@@ -234,6 +249,13 @@ pub enum Button {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum Drag {
+    Start,
+    End,
+    Dragging,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Input {
     Press(Button),
     Release(Button),
@@ -241,10 +263,11 @@ pub enum Input {
     Motion(Motion),
     Text(String),
     Focus(bool),
-    Redraw,
     Menu(i32),
     MouseLeaveWindow,
     MouseEnterWindow,
     Timer,
     Exit,
+    Drag(Drag),
+    Drop(Data),
 }

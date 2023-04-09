@@ -118,7 +118,7 @@ unsafe impl HasRawDisplayHandle for Window {
     }
 }
 
-use lemna::input::{Button, Input, Key, Motion, MouseButton};
+use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
 impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A> {
     fn on_frame(&mut self, _window: &mut baseview::Window) {
         self.ui.draw();
@@ -130,7 +130,7 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
         _window: &mut baseview::Window,
         event: baseview::Event,
     ) -> baseview::EventStatus {
-        match &event {
+        match event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
                     let win = &self.ui.window;
@@ -148,6 +148,14 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                 baseview::WindowEvent::WillClose => (),
                 baseview::WindowEvent::Focused => self.ui.handle_input(&Input::Focus(true)),
                 baseview::WindowEvent::Unfocused => self.ui.handle_input(&Input::Focus(false)),
+                baseview::WindowEvent::DragEnter => self.ui.handle_input(&Input::Drag(Drag::Start)),
+                baseview::WindowEvent::DragLeave => self.ui.handle_input(&Input::Drag(Drag::End)),
+                baseview::WindowEvent::Dragging => {
+                    self.ui.handle_input(&Input::Drag(Drag::Dragging));
+                }
+                baseview::WindowEvent::Drop(d) => self
+                    .ui
+                    .handle_input(&Input::Drop(baseview_data_to_lemna(d))),
             },
             baseview::Event::Mouse(event) => match event {
                 baseview::MouseEvent::CursorMoved {
@@ -163,7 +171,7 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                     button,
                     modifiers: _,
                 } => {
-                    if let Some(button) = translate_mouse_button(button) {
+                    if let Some(button) = translate_mouse_button(&button) {
                         self.ui.handle_input(&Input::Press(button));
                     }
                 }
@@ -171,7 +179,7 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                     button,
                     modifiers: _,
                 } => {
-                    if let Some(button) = translate_mouse_button(button) {
+                    if let Some(button) = translate_mouse_button(&button) {
                         self.ui.handle_input(&Input::Release(button));
                     }
                 }
@@ -182,9 +190,9 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                     let (mut x, y) = match delta {
                         baseview::ScrollDelta::Lines { x, y } => {
                             let points_per_scroll_line = 10.0;
-                            (*x * points_per_scroll_line, -*y * points_per_scroll_line)
+                            (x * points_per_scroll_line, -y * points_per_scroll_line)
                         }
-                        baseview::ScrollDelta::Pixels { x, y } => (*x, -*y),
+                        baseview::ScrollDelta::Pixels { x, y } => (x, -y),
                     };
                     if cfg!(target_os = "macos") {
                         // TODO Is this necessary?
@@ -370,5 +378,24 @@ impl lemna::window::Window for Window {
             }
             _ => (),
         }
+    }
+
+    fn start_drag(&self, data: Data) {
+        baseview::start_drag(lemna_data_to_baseview(data));
+    }
+}
+
+pub fn baseview_data_to_lemna(d: baseview::Data) -> Data {
+    match d {
+        baseview::Data::Filepath(p) => Data::Filepath(p),
+        baseview::Data::String(s) => Data::String(s),
+    }
+}
+
+pub fn lemna_data_to_baseview(d: Data) -> baseview::Data {
+    match d {
+        Data::Filepath(p) => baseview::Data::Filepath(p),
+        Data::String(s) => baseview::Data::String(s),
+        _ => unimplemented!(),
     }
 }

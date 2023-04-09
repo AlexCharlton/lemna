@@ -11,6 +11,7 @@ pub use layout::*;
 pub mod render;
 
 pub mod input;
+pub use input::Data;
 
 pub mod event;
 pub use event::*;

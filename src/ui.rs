@@ -524,7 +524,14 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                 self.event_cache.clear();
             }
             Input::MouseEnterWindow => (),
-            Input::Redraw => (),
+            Input::Drag(drag) => {
+                // TODO
+                dbg!(drag);
+            }
+            Input::Drop(data) => {
+                // TODO
+                dbg!(data);
+            }
             Input::Exit => {
                 // This prevents a hang when exiting on some backends
                 // self.renderer = None;
