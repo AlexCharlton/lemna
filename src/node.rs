@@ -629,6 +629,26 @@ impl<R: fmt::Debug + Renderer> Node<R> {
         self.handle_targeted_event(event, |node, e| node.component.on_drag_end(e));
     }
 
+    // DND
+    pub fn drag_target(&mut self, event: &mut Event<event::DragTarget>) {
+        self.handle_event_under_mouse(event, |node, e| {
+            e.target = Some(node.id);
+            node.component.on_drag_target(e)
+        });
+    }
+
+    pub fn drag_enter(&mut self, event: &mut Event<event::DragEnter>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_drag_enter(e));
+    }
+
+    pub fn drag_leave(&mut self, event: &mut Event<event::DragLeave>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_drag_leave(e));
+    }
+
+    pub fn drag_drop(&mut self, event: &mut Event<event::DragDrop>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_drag_drop(e));
+    }
+
     pub fn menu_select(&mut self, event: &mut Event<event::MenuSelect>) {
         self.handle_targeted_event(event, |node, e| node.component.on_menu_select(e));
     }

@@ -250,9 +250,10 @@ pub enum Button {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Drag {
-    Start,
+    Start(Data),
     End,
     Dragging,
+    Drop(Data),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -269,5 +270,4 @@ pub enum Input {
     Timer,
     Exit,
     Drag(Drag),
-    Drop(Data),
 }

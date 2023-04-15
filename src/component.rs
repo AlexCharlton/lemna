@@ -177,6 +177,18 @@ where
     fn on_drag_end(&mut self, _event: &mut Event<event::DragEnd>) -> Vec<Message> {
         vec![]
     }
+    fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) -> Vec<Message> {
+        vec![]
+    }
+    fn on_drag_enter(&mut self, _event: &mut Event<event::DragEnter>) -> Vec<Message> {
+        vec![]
+    }
+    fn on_drag_leave(&mut self, _event: &mut Event<event::DragLeave>) -> Vec<Message> {
+        vec![]
+    }
+    fn on_drag_drop(&mut self, _event: &mut Event<event::DragDrop>) -> Vec<Message> {
+        vec![]
+    }
     fn on_menu_select(&mut self, _event: &mut Event<event::MenuSelect>) -> Vec<Message> {
         vec![]
     }

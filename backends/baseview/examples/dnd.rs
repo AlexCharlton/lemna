@@ -16,9 +16,14 @@ impl lemna::Component<Renderer> for HelloApp {
                      padding: rect!(10.0),
                      axis_alignment: Alignment::Center, cross_alignment: Alignment::Center)
             )
-            .push(node!(DropTarget {}, lay!(size: size!(100.0)), 0))
+            .push(node!(DropTarget::new(), lay!(size: size!(100.0)), 0))
             .push(node!(DragSource {}, lay!(size: size!(100.0)), 0)),
         )
+    }
+
+    fn on_drag_drop(&mut self, event: &mut Event<event::DragDrop>) -> Vec<Message> {
+        println!("Oops, you missed the target. Got {:?}", event.input.0);
+        vec![]
     }
 }
 
@@ -28,15 +33,34 @@ impl lemna::App<Renderer> for HelloApp {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct DropTargetState {
+    active: bool,
+}
+
+#[state_component(DropTargetState)]
 #[derive(Debug)]
 pub struct DropTarget {}
 
+impl DropTarget {
+    fn new() -> Self {
+        Self {
+            state: Some(DropTargetState::default()),
+        }
+    }
+}
+
+#[state_component_impl(DropTargetState)]
 impl Component<Renderer> for DropTarget {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
                 widgets::Div::new()
-                    .bg(Color::rgb(0.5, 1.0, 0.5))
+                    .bg(if self.state_ref().active {
+                        Color::rgb(1.0, 0.5, 0.5)
+                    } else {
+                        Color::rgb(0.5, 1.0, 0.5)
+                    })
                     .border(Color::BLACK, 2.0),
                 lay!(
                     size: size_pct!(100.0),
@@ -57,10 +81,29 @@ impl Component<Renderer> for DropTarget {
         )
     }
 
-    // fn on_text_entry(&mut self, event: &mut Event<event::TextEntry>) -> Vec<Message> {
-    //     println!("{} got a some text: {:?})", &self.name, event.input.0);
-    //     vec![]
-    // }
+    fn on_drag_drop(&mut self, event: &mut Event<event::DragDrop>) -> Vec<Message> {
+        println!("Got {:?}", event.input.0);
+        self.state_mut().active = false;
+        event.dirty();
+        vec![]
+    }
+
+    fn on_drag_enter(&mut self, event: &mut Event<event::DragEnter>) -> Vec<Message> {
+        self.state_mut().active = true;
+        event.dirty();
+        vec![]
+    }
+
+    fn on_drag_leave(&mut self, event: &mut Event<event::DragLeave>) -> Vec<Message> {
+        self.state_mut().active = false;
+        event.dirty();
+        vec![]
+    }
+
+    fn on_drag_target(&mut self, event: &mut Event<event::DragTarget>) -> Vec<Message> {
+        event.stop_bubbling();
+        vec![]
+    }
 }
 
 #[derive(Debug)]
@@ -95,7 +138,7 @@ impl Component<Renderer> for DragSource {
     fn on_drag_start(&mut self, event: &mut Event<event::DragStart>) -> Vec<Message> {
         current_window()
             .unwrap()
-            .start_drag(Data::Filepath("/foo".into()));
+            .start_drag(Data::Filepath("/test/file.txt".into()));
         event.stop_bubbling();
         vec![]
     }

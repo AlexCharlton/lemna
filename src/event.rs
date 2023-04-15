@@ -1,5 +1,5 @@
 use super::base_types::*;
-use super::input::{Key, MouseButton};
+use super::input::{Data, Key, MouseButton};
 use std::collections::HashSet;
 
 pub struct Event<T> {
@@ -83,6 +83,14 @@ pub struct DragEnd {
     pub button: MouseButton,
     pub start_pos: Point,
 }
+#[derive(Debug)]
+pub struct DragTarget;
+#[derive(Debug)]
+pub struct DragEnter(pub Vec<Data>);
+#[derive(Debug)]
+pub struct DragLeave;
+#[derive(Debug)]
+pub struct DragDrop(pub Data);
 #[derive(Debug)]
 pub struct MenuSelect(pub i32);
 
@@ -255,6 +263,7 @@ pub(crate) struct EventCache {
     pub drag_button: Option<MouseButton>,
     pub drag_target: Option<u64>,
     pub scale_factor: f32,
+    pub drag_data: Vec<Data>,
 }
 
 impl std::fmt::Debug for EventCache {
@@ -270,6 +279,7 @@ impl std::fmt::Debug for EventCache {
             .field("drag_button", &self.drag_button)
             .field("drag_target", &self.drag_target)
             .field("scale_factor", &self.scale_factor)
+            .field("drag_data", &self.drag_data)
             .finish()
     }
 }
@@ -286,6 +296,7 @@ impl EventCache {
             drag_button: None,
             drag_started: None,
             drag_target: None,
+            drag_data: vec![],
             scale_factor,
         }
     }
@@ -297,6 +308,7 @@ impl EventCache {
         self.drag_button = None;
         self.drag_started = None;
         self.drag_target = None;
+        self.drag_data = vec![];
     }
 
     pub(crate) fn key_down(&mut self, key: Key) {

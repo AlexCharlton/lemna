@@ -525,14 +525,45 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                 self.event_cache.clear();
             }
             Input::MouseEnterWindow => (),
-            Input::Drag(drag) => {
-                // TODO
-                dbg!(drag);
-            }
-            Input::Drop(data) => {
-                // TODO
-                dbg!(data);
-            }
+            Input::Drag(drag) => match drag {
+                Drag::Start(data) => {
+                    self.event_cache.drag_data.push(data.clone());
+                }
+                Drag::Dragging => {
+                    let mut event = Event::new(event::DragTarget, &self.event_cache);
+                    self.node_mut().drag_target(&mut event);
+                    self.handle_dirty_event(&event);
+
+                    if event.target != self.event_cache.drag_target {
+                        if self.event_cache.drag_target.is_some() {
+                            let mut leave_event = Event::new(event::DragLeave, &self.event_cache);
+                            leave_event.target = self.event_cache.drag_target;
+                            self.node_mut().drag_leave(&mut leave_event);
+                            self.handle_dirty_event(&leave_event);
+                        }
+                        if event.target.is_some() {
+                            let mut enter_event = Event::new(
+                                event::DragEnter(self.event_cache.drag_data.clone()),
+                                &self.event_cache,
+                            );
+                            enter_event.target = event.target;
+                            self.node_mut().drag_enter(&mut enter_event);
+                            self.handle_dirty_event(&enter_event);
+                        }
+                        self.event_cache.drag_target = event.target;
+                    }
+                }
+                Drag::End => {
+                    self.event_cache.drag_data.clear();
+                }
+                Drag::Drop(data) => {
+                    let mut event = Event::new(event::DragDrop(data.clone()), &self.event_cache);
+                    event.target = self.event_cache.drag_target;
+                    self.node_mut().drag_drop(&mut event);
+                    self.handle_dirty_event(&event);
+                    self.event_cache.drag_data.clear();
+                }
+            },
             Input::Exit => {
                 // This prevents a hang when exiting on some backends
                 // self.renderer = None;

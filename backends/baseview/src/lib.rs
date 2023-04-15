@@ -18,6 +18,7 @@ pub struct Window {
     size: (u32, u32),
     scale_policy: baseview::WindowScalePolicy,
     scale_factor: f32,
+    baseview_window: Option<&'static baseview::Window<'static>>,
 }
 
 unsafe impl Send for Window {}
@@ -55,6 +56,7 @@ impl Window {
                     size: (width, height),
                     scale_factor,
                     scale_policy,
+                    baseview_window: None,
                 });
                 for (name, data) in fonts.drain(..) {
                     ui.add_font(name, data);
@@ -91,6 +93,7 @@ impl Window {
                     size: (width, height),
                     scale_factor,
                     scale_policy,
+                    baseview_window: None,
                 });
                 for (name, data) in fonts.drain(..) {
                     ui.add_font(name, data);
@@ -127,9 +130,17 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
 
     fn on_event(
         &mut self,
-        _window: &mut baseview::Window,
+        window: &mut baseview::Window,
         event: baseview::Event,
     ) -> baseview::EventStatus {
+        unsafe {
+            // We're forcing the window into a static lifetime because we release it at the end of on_event
+            let baseview_window: &'static baseview::Window<'static> = std::mem::transmute::<
+                &baseview::Window,
+                &'static baseview::Window<'static>,
+            >(window);
+            self.ui.window.write().unwrap().baseview_window = Some(baseview_window);
+        }
         match event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
@@ -148,14 +159,16 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                 baseview::WindowEvent::WillClose => (),
                 baseview::WindowEvent::Focused => self.ui.handle_input(&Input::Focus(true)),
                 baseview::WindowEvent::Unfocused => self.ui.handle_input(&Input::Focus(false)),
-                baseview::WindowEvent::DragEnter => self.ui.handle_input(&Input::Drag(Drag::Start)),
+                baseview::WindowEvent::DragEnter(d) => self
+                    .ui
+                    .handle_input(&Input::Drag(Drag::Start(baseview_data_to_lemna(d)))),
                 baseview::WindowEvent::DragLeave => self.ui.handle_input(&Input::Drag(Drag::End)),
                 baseview::WindowEvent::Dragging => {
                     self.ui.handle_input(&Input::Drag(Drag::Dragging));
                 }
                 baseview::WindowEvent::Drop(d) => self
                     .ui
-                    .handle_input(&Input::Drop(baseview_data_to_lemna(d))),
+                    .handle_input(&Input::Drag(Drag::Drop(baseview_data_to_lemna(d)))),
             },
             baseview::Event::Mouse(event) => match event {
                 baseview::MouseEvent::CursorMoved {
@@ -381,7 +394,9 @@ impl lemna::window::Window for Window {
     }
 
     fn start_drag(&self, data: Data) {
-        baseview::start_drag(lemna_data_to_baseview(data));
+        if let Some(win) = self.baseview_window {
+            win.start_drag(lemna_data_to_baseview(data));
+        }
     }
 }
 
