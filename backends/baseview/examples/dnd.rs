@@ -22,7 +22,13 @@ impl lemna::Component<Renderer> for HelloApp {
     }
 
     fn on_drag_drop(&mut self, event: &mut Event<event::DragDrop>) -> Vec<Message> {
+        // This will never print, because this is not a valid target per `on_drag_target`
         println!("Oops, you missed the target. Got {:?}", event.input.0);
+        vec![]
+    }
+
+    fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) -> Vec<Message> {
+        current_window().unwrap().set_drop_target_valid(false);
         vec![]
     }
 }
@@ -90,12 +96,14 @@ impl Component<Renderer> for DropTarget {
 
     fn on_drag_enter(&mut self, event: &mut Event<event::DragEnter>) -> Vec<Message> {
         self.state_mut().active = true;
+        current_window().unwrap().set_drop_target_valid(true);
         event.dirty();
         vec![]
     }
 
     fn on_drag_leave(&mut self, event: &mut Event<event::DragLeave>) -> Vec<Message> {
         self.state_mut().active = false;
+        current_window().unwrap().set_drop_target_valid(false);
         event.dirty();
         vec![]
     }

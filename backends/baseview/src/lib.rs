@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use arboard::{self, Clipboard};
 use lemna::component::App;
 use lemna::render::Renderer;
@@ -19,6 +21,7 @@ pub struct Window {
     scale_policy: baseview::WindowScalePolicy,
     scale_factor: f32,
     baseview_window: Option<&'static baseview::Window<'static>>,
+    drop_target_valid: Arc<RwLock<bool>>,
 }
 
 unsafe impl Send for Window {}
@@ -38,12 +41,17 @@ impl Window {
         R: Renderer + 'static,
         A: 'static + App<R>,
     {
+        let drop_target_valid = Arc::new(RwLock::new(true));
+        let drop_target_valid2 = drop_target_valid.clone();
         baseview::Window::open_parented(
             parent,
             baseview::WindowOpenOptions {
                 title,
                 size: baseview::Size::new(width.into(), height.into()),
                 scale: scale_policy,
+                drop_target_valid: Some(Box::new(move || -> bool {
+                    *drop_target_valid2.read().unwrap()
+                })),
             },
             move |window: &mut baseview::Window<'_>| -> BaseViewUI<R, A> {
                 let scale_factor = match scale_policy {
@@ -57,6 +65,7 @@ impl Window {
                     scale_factor,
                     scale_policy,
                     baseview_window: None,
+                    drop_target_valid,
                 });
                 for (name, data) in fonts.drain(..) {
                     ui.add_font(name, data);
@@ -76,11 +85,16 @@ impl Window {
         R: Renderer + 'static,
         A: 'static + App<R>,
     {
+        let drop_target_valid = Arc::new(RwLock::new(true));
+        let drop_target_valid2 = drop_target_valid.clone();
         baseview::Window::open_blocking(
             baseview::WindowOpenOptions {
                 title,
                 size: baseview::Size::new(width.into(), height.into()),
                 scale: scale_policy,
+                drop_target_valid: Some(Box::new(move || -> bool {
+                    *drop_target_valid2.read().unwrap()
+                })),
             },
             move |window: &mut baseview::Window<'_>| -> BaseViewUI<R, A> {
                 let scale_factor = match scale_policy {
@@ -94,6 +108,7 @@ impl Window {
                     scale_factor,
                     scale_policy,
                     baseview_window: None,
+                    drop_target_valid,
                 });
                 for (name, data) in fonts.drain(..) {
                     ui.add_font(name, data);
@@ -397,6 +412,10 @@ impl lemna::window::Window for Window {
         if let Some(win) = self.baseview_window {
             win.start_drag(lemna_data_to_baseview(data));
         }
+    }
+
+    fn set_drop_target_valid(&self, valid: bool) {
+        *self.drop_target_valid.write().unwrap() = valid
     }
 }
 

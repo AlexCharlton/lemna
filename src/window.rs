@@ -15,4 +15,5 @@ pub trait Window: HasRawWindowHandle + HasRawDisplayHandle + Send + Sync + Any {
     fn get_from_clipboard(&self) -> Option<Data> {
         None
     }
+    fn set_drop_target_valid(&self, _valid: bool) {}
 }
