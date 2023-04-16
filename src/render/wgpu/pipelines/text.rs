@@ -389,21 +389,21 @@ impl TextPipeline {
         // ];
 
         // let index_data: [u16; 6] = [0, 1, 2, 2, 1, 3];
-        // self.buffer_cache.vertex_buffer = Some(device.create_buffer_init(
+        // self.buffer_cache.vertex_buffer = device.create_buffer_init(
         //     &wgpu::util::BufferInitDescriptor {
         //         label: None,
         //         contents: cast_slice(&vertex_data),
         //         usage: wgpu::BufferUsages::VERTEX,
         //     },
-        // ));
+        // );
 
-        // self.buffer_cache.index_buffer = Some(device.create_buffer_init(
+        // self.buffer_cache.index_buffer = device.create_buffer_init(
         //     &wgpu::util::BufferInitDescriptor {
         //         label: None,
         //         contents: cast_slice(&index_data),
         //         usage: wgpu::BufferUsages::INDEX,
         //     },
-        // ));
+        // );
 
         // self.instance_data.push(Instance {
         //     pos: Pos {
@@ -414,22 +414,20 @@ impl TextPipeline {
         //     color: 0.0.into(),
         // });
 
-        // self.instance_buffer = Some(
-        //     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        // self.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         //         label: None,
         //         contents: cast_slice(&self.instance_data),
         //         usage: wgpu::BufferUsages::VERTEX,
-        //     }),
-        // );
+        //     });
 
         // pass.set_pipeline(&self.pipeline);
         // pass.set_bind_group(1, &self.bind_group, &[]);
         // pass.set_vertex_buffer(
         //     0,
-        //     self.buffer_cache.vertex_buffer.as_ref().unwrap().slice(..),
+        //     self.buffer_cache.vertex_buffer.slice(..),
         // );
-        // pass.set_vertex_buffer(1, self.instance_buffer.as_ref().unwrap().slice(..));
-        // pass.set_index_buffer(self.buffer_cache.index_buffer.as_ref().unwrap().slice(..));
+        // pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        // pass.set_index_buffer(self.buffer_cache.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
         // pass.draw_indexed(0..6 as u32, 0, 0..1);
     }
 

@@ -171,7 +171,7 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                     );
                     self.ui.handle_input(&Input::Resize);
                 }
-                baseview::WindowEvent::WillClose => (),
+                baseview::WindowEvent::WillClose => self.ui.handle_input(&Input::Exit),
                 baseview::WindowEvent::Focused => self.ui.handle_input(&Input::Focus(true)),
                 baseview::WindowEvent::Unfocused => self.ui.handle_input(&Input::Focus(false)),
                 baseview::WindowEvent::DragEnter(d) => self
