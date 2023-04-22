@@ -554,14 +554,14 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                     }
                 }
                 Drag::End => {
-                    self.event_cache.drag_data.clear();
+                    self.event_cache.clear();
                 }
                 Drag::Drop(data) => {
                     let mut event = Event::new(event::DragDrop(data.clone()), &self.event_cache);
                     event.target = self.event_cache.drag_target;
                     self.node_mut().drag_drop(&mut event);
                     self.handle_dirty_event(&event);
-                    self.event_cache.drag_data.clear();
+                    self.event_cache.clear();
                 }
             },
             Input::Exit => {
