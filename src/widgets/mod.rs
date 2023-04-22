@@ -1,11 +1,12 @@
-mod tool_tip;
-pub use tool_tip::*;
-
 mod button;
 pub use button::{Button, ButtonStyle};
 
 mod div;
 pub use div::{Div, HorizontalPosition, ScrollDescriptor, VerticalPosition};
+
+#[cfg(feature = "file-dialogs")]
+mod file_selector;
+pub use file_selector::*;
 
 mod radio_buttons;
 pub use radio_buttons::*;
@@ -25,3 +26,6 @@ pub use textbox::{TextBox, TextBoxAction, TextBoxStyle};
 
 mod toggle;
 pub use toggle::*;
+
+mod tool_tip;
+pub use tool_tip::*;

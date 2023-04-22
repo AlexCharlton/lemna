@@ -16,9 +16,10 @@ members = ["macros", "backends/baseview", "backends/winit", "backends/wx-rs",
           ]
 
 [features]
-default = ["msaa_shapes", "open_iconic"]
+default = ["msaa_shapes", "open_iconic", "file-dialogs"]
 
 instrumented = ["superluminal-perf"]
+file-dialogs = ["tinyfiledialogs"]
 msaa_shapes = []
 open_iconic = []
 docs_rs = []
@@ -54,6 +55,7 @@ rayon = "1.3"
 
 # Features
 superluminal-perf = { version = "0.1", optional = true }
+tinyfiledialogs = { version = "3.9", optional = true }
 
 [workspace.dependencies]
 raw-window-handle = "0.5"

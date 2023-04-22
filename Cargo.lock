@@ -287,7 +287,7 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 [[package]]
 name = "baseview"
 version = "0.1.0"
-source = "git+https://github.com/AlexCharlton/baseview.git#791e65038ac10c9e4fe89a5155bfab467eab9836"
+source = "git+https://github.com/AlexCharlton/baseview.git#224a1f9593217737444cae37cfed46eb070d7104"
 dependencies = [
  "cocoa",
  "core-foundation",
@@ -1816,6 +1816,7 @@ dependencies = [
  "shaderc",
  "simplelog",
  "superluminal-perf",
+ "tinyfiledialogs",
  "wgpu",
 ]
 
@@ -3487,6 +3488,16 @@ dependencies = [
  "arrayref",
  "bytemuck",
  "strict-num",
+]
+
+[[package]]
+name = "tinyfiledialogs"
+version = "3.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e25fa0bc43a6566e2cc6d7ac96df3fa5a57beba34445bead1b368ba8fe9ca568"
+dependencies = [
+ "cc",
+ "libc",
 ]
 
 [[package]]

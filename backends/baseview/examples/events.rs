@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use lemna::open_iconic::Icon;
 use lemna::*;
 use lemna_baseview::Window;
@@ -37,6 +39,9 @@ enum HelloEvent {
         selection: Vec<usize>,
     },
     Toggle(bool),
+    FileSelect {
+        selection: Option<PathBuf>,
+    },
 }
 
 impl lemna::App<Renderer> for HelloApp {
@@ -103,6 +108,12 @@ impl lemna::Component<Renderer> for HelloApp {
                 lay!(size: size!(Auto)),
                 3
             ))
+                .push(node!(
+                    widgets::FileSelector::new("Choose a file".to_string(), widgets::FileSelectorStyle::default())
+                        .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
+                    lay!(size: size!(Auto), margin: rect!(Auto, Auto, 50.0)),
+                    4
+                ))
             .push(node!(
                 widgets::Select::<String>::new(
                     vec![
@@ -117,8 +128,8 @@ impl lemna::Component<Renderer> for HelloApp {
                     name: "My selection".to_string(),
                     value: s.clone(),
                 }))),
-                lay!(size: size!(Auto), margin: rect!(Auto, Auto, 50.0)),
-                4
+                lay!(),
+                5
             ))
             .push(node!(
                 widgets::TextBox::new(Some("Hello".to_string()), widgets::TextBoxStyle::default())
@@ -133,7 +144,7 @@ impl lemna::Component<Renderer> for HelloApp {
                         update_type: "commit".to_string(),
                     }))),
                 lay!(size: size!(100.0, Auto)),
-                5
+                6
             ))
             .push(node!(
                 widgets::RadioButtons::new(
@@ -155,7 +166,7 @@ impl lemna::Component<Renderer> for HelloApp {
                 .max_columns(2)
                 .on_change(Box::new(|s| msg!(HelloEvent::RadioSelect { selection: s }))),
                 lay!(margin: rect!(10.0)),
-                6
+                7
             ))
             .push(node!(
                 widgets::Toggle::new(
@@ -164,7 +175,7 @@ impl lemna::Component<Renderer> for HelloApp {
                 )
                 .on_change(Box::new(|s| msg!(HelloEvent::Toggle(s)))),
                 lay!(margin: rect!(10.0)),
-                7
+                8
             )),
         )
     }
