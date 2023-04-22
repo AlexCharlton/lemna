@@ -287,7 +287,7 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 [[package]]
 name = "baseview"
 version = "0.1.0"
-source = "git+https://github.com/AlexCharlton/baseview.git#b7ac1f3aea344280d2f8a4abf17395e5de06c101"
+source = "git+https://github.com/AlexCharlton/baseview.git#a5a510b7993504a729afe61faf929bb870d52f9e"
 dependencies = [
  "cocoa",
  "core-foundation",

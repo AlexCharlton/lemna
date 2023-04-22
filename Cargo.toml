@@ -65,3 +65,6 @@ ttf-noto-sans = "0.1"
 [build-dependencies]
 glob = "0.3"
 shaderc = "0.8"
+
+# [patch.crates-io]
+# objc = { path="../external/rust-objc" }
