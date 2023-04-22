@@ -70,7 +70,7 @@ impl MSAAPipeline {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
+                    resource: wgpu::BindingResource::TextureView(texture_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,

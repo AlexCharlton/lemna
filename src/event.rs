@@ -389,15 +389,15 @@ impl EventCache {
 
     pub(crate) fn mouse_button_held(&self) -> Option<MouseButton> {
         if self.mouse_buttons_held.left {
-            return Some(MouseButton::Left);
+            Some(MouseButton::Left)
         } else if self.mouse_buttons_held.right {
-            return Some(MouseButton::Right);
+            Some(MouseButton::Right)
         } else if self.mouse_buttons_held.middle {
-            return Some(MouseButton::Middle);
+            Some(MouseButton::Middle)
         } else if self.mouse_buttons_held.aux1 {
-            return Some(MouseButton::Aux1);
+            Some(MouseButton::Aux1)
         } else if self.mouse_buttons_held.aux2 {
-            return Some(MouseButton::Aux2);
+            Some(MouseButton::Aux2)
         } else {
             None
         }

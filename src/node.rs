@@ -363,7 +363,7 @@ impl<R: fmt::Debug + Renderer> Node<R> {
         handler: fn(&mut Self, &mut Event<E>) -> Vec<Message>,
     ) {
         let mut nodes_under = self.nodes_under(event);
-        while nodes_under.len() != 0 && event.bubbles {
+        while !nodes_under.is_empty() && event.bubbles {
             self._handle_event_under_mouse(event, handler, &mut nodes_under);
         }
     }
@@ -421,7 +421,7 @@ impl<R: fmt::Debug + Renderer> Node<R> {
 
         self._nodes_under(event, &mut collector);
         // Maybe TODO: Discard siblings?
-        collector.sort_by(|(m, _), (n, _)| m.partial_cmp(&n).unwrap());
+        collector.sort_by(|(m, _), (n, _)| m.partial_cmp(n).unwrap());
         collector
     }
 
@@ -694,7 +694,7 @@ impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
                     if n.scrollable() {
                         let mut f = self.current_frame.clone();
                         f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
-                        self.frame_queue.push((&n, f));
+                        self.frame_queue.push((n, f));
                     } else {
                         self.queue
                             .extend(n.children.iter().collect::<Vec<&Node<R>>>());
@@ -704,15 +704,13 @@ impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
                     self.queue.push(n);
                     return Some((&c[i], &n.aabb, self.current_frame.clone()));
                 }
+            } else if n.scrollable() {
+                let mut f = self.current_frame.clone();
+                f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
+                self.frame_queue.push((n, f));
             } else {
-                if n.scrollable() {
-                    let mut f = self.current_frame.clone();
-                    f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
-                    self.frame_queue.push((&n, f));
-                } else {
-                    self.queue
-                        .extend(n.children.iter().collect::<Vec<&Node<R>>>());
-                }
+                self.queue
+                    .extend(n.children.iter().collect::<Vec<&Node<R>>>());
             }
 
             if self.queue.is_empty() && !self.frame_queue.is_empty() {
@@ -975,7 +973,7 @@ mod tests {
             }
 
             fn render_hash(&self, hasher: &mut ComponentHasher) {
-                self.state.as_ref().map(|s| s.foo.hash(hasher));
+                if let Some(s) = self.state.as_ref() { s.foo.hash(hasher) }
             }
         }
 

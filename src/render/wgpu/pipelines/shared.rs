@@ -64,7 +64,7 @@ pub fn create_pipeline_depth_stencil(
         label: None,
         vertex,
         fragment: Some(wgpu::FragmentState {
-            module: &frag,
+            module: frag,
             entry_point: "main",
             targets: &[Some(wgpu::ColorTargetState {
                 format: context.surface_config.format,

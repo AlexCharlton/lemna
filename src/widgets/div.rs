@@ -134,15 +134,13 @@ impl Component<WGPURenderer> for Div {
                         scroll_position.y = scroll_position.y.min(max_position);
                         scrolled = true;
                     }
-                } else if event.input.y < 0.0 {
-                    if scroll_position.y > 0.0 {
-                        if scroll_position.y + size.height > inner_scale.height {
-                            scroll_position.y = inner_scale.height - size.height;
-                        }
-                        scroll_position.y += event.input.y;
-                        scroll_position.y = scroll_position.y.max(0.0);
-                        scrolled = true;
+                } else if event.input.y < 0.0 && scroll_position.y > 0.0 {
+                    if scroll_position.y + size.height > inner_scale.height {
+                        scroll_position.y = inner_scale.height - size.height;
                     }
+                    scroll_position.y += event.input.y;
+                    scroll_position.y = scroll_position.y.max(0.0);
+                    scrolled = true;
                 }
             }
 
@@ -154,15 +152,13 @@ impl Component<WGPURenderer> for Div {
                         scroll_position.x = scroll_position.x.min(max_position);
                         scrolled = true;
                     }
-                } else if event.input.x < 0.0 {
-                    if scroll_position.x > 0.0 {
-                        if scroll_position.x + size.width > inner_scale.width {
-                            scroll_position.x = inner_scale.width - size.width;
-                        }
-                        scroll_position.x += event.input.x;
-                        scroll_position.x = scroll_position.x.max(0.0);
-                        scrolled = true;
+                } else if event.input.x < 0.0 && scroll_position.x > 0.0 {
+                    if scroll_position.x + size.width > inner_scale.width {
+                        scroll_position.x = inner_scale.width - size.width;
                     }
+                    scroll_position.x += event.input.x;
+                    scroll_position.x = scroll_position.x.max(0.0);
+                    scrolled = true;
                 }
             }
 
@@ -287,23 +283,19 @@ impl Component<WGPURenderer> for Div {
             let size = aabb.size();
             let max_position = inner_scale - size;
 
-            if scroll.scroll_y {
-                if max_position.height > 0.0 {
-                    if scroll.y_bar_position == HorizontalPosition::Left {
-                        aabb.pos.x += scaled_width;
-                    } else {
-                        aabb.bottom_right.x -= scaled_width;
-                    }
+            if scroll.scroll_y && max_position.height > 0.0 {
+                if scroll.y_bar_position == HorizontalPosition::Left {
+                    aabb.pos.x += scaled_width;
+                } else {
+                    aabb.bottom_right.x -= scaled_width;
                 }
             }
 
-            if scroll.scroll_x {
-                if max_position.width > 0.0 {
-                    if scroll.x_bar_position == VerticalPosition::Top {
-                        aabb.pos.y += scaled_width;
-                    } else {
-                        aabb.bottom_right.y -= scaled_width;
-                    }
+            if scroll.scroll_x && max_position.width > 0.0 {
+                if scroll.x_bar_position == VerticalPosition::Top {
+                    aabb.pos.y += scaled_width;
+                } else {
+                    aabb.bottom_right.y -= scaled_width;
                 }
             }
         }

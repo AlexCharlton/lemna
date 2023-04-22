@@ -671,7 +671,7 @@ impl<R: super::render::Renderer> super::node::Node<R> {
                 || child.layout_result.size.cross_mut(dir).is_pct())
                 && !child.layout_result.size.cross(dir).resolved()
                 && !self.layout.wrap
-                && f32::from(max_cross_size) > 0.0
+                && max_cross_size > 0.0
             {
                 let mut max_cross = Size::default();
                 *max_cross.cross_mut(dir) = Dimension::Px(max_cross_size);

@@ -395,8 +395,7 @@ impl TextBoxText {
 
     fn cut(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            crate::current_window()
-                .map(|w| w.put_on_clipboard(&self.state_ref().text[a..b].into()));
+            if let Some(w) = crate::current_window() { w.put_on_clipboard(&self.state_ref().text[a..b].into()) }
             self.insert_text("");
             true
         } else {
@@ -406,8 +405,7 @@ impl TextBoxText {
 
     fn copy(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            crate::current_window()
-                .map(|w| w.put_on_clipboard(&self.state_ref().text[a..b].into()));
+            if let Some(w) = crate::current_window() { w.put_on_clipboard(&self.state_ref().text[a..b].into()) }
             true
         } else {
             false
@@ -471,12 +469,12 @@ impl Component<WGPURenderer> for TextBoxText {
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
         event.stop_bubbling();
-        crate::current_window().map(|w| w.set_cursor("Ibeam"));
+        if let Some(w) = crate::current_window() { w.set_cursor("Ibeam") }
         vec![]
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
-        crate::current_window().map(|w| w.unset_cursor());
+        if let Some(w) = crate::current_window() { w.unset_cursor() }
         vec![]
     }
 
@@ -579,12 +577,10 @@ impl Component<WGPURenderer> for TextBoxText {
                     self.state_mut().cursor_pos = a;
                     self.state_mut().selection_from = None;
                     changed = true;
-                } else {
-                    if pos > 0 {
-                        self.state_mut().text.remove(pos - 1);
-                        self.state_mut().cursor_pos -= 1;
-                        changed = true;
-                    }
+                } else if pos > 0 {
+                    self.state_mut().text.remove(pos - 1);
+                    self.state_mut().cursor_pos -= 1;
+                    changed = true;
                 }
             }
             Key::Left => {
@@ -599,17 +595,13 @@ impl Component<WGPURenderer> for TextBoxText {
                             self.state_mut().selection_from = Some(pos);
                         }
                         self.state_mut().cursor_pos -= 1;
-                    } else {
-                        if self.state_ref().selection_from.is_some() {
-                            self.state_mut().selection_from = None;
-                        } else {
-                            self.state_mut().cursor_pos -= 1;
-                        }
-                    }
-                } else {
-                    if !event.modifiers_held.shift && self.state_ref().selection_from.is_some() {
+                    } else if self.state_ref().selection_from.is_some() {
                         self.state_mut().selection_from = None;
+                    } else {
+                        self.state_mut().cursor_pos -= 1;
                     }
+                } else if !event.modifiers_held.shift && self.state_ref().selection_from.is_some() {
+                    self.state_mut().selection_from = None;
                 }
             }
             Key::Right => {
@@ -624,17 +616,13 @@ impl Component<WGPURenderer> for TextBoxText {
                             self.state_mut().selection_from = Some(pos);
                         }
                         self.state_mut().cursor_pos += 1;
-                    } else {
-                        if self.state_ref().selection_from.is_some() {
-                            self.state_mut().selection_from = None;
-                        } else {
-                            self.state_mut().cursor_pos += 1;
-                        }
-                    }
-                } else {
-                    if !event.modifiers_held.shift && self.state_ref().selection_from.is_some() {
+                    } else if self.state_ref().selection_from.is_some() {
                         self.state_mut().selection_from = None;
+                    } else {
+                        self.state_mut().cursor_pos += 1;
                     }
+                } else if !event.modifiers_held.shift && self.state_ref().selection_from.is_some() {
+                    self.state_mut().selection_from = None;
                 }
             }
             Key::Up => {
@@ -758,7 +746,7 @@ impl Component<WGPURenderer> for TextBoxText {
     ) -> (Option<f32>, Option<f32>) {
         if self.state_ref().dirty {
             let font_size_px = self.style.font_size * super::Text::SIZE_SCALE * scale_factor;
-            let font_ref = font_cache.font_or_default(self.style.font.as_ref().map(|f| f.as_str()));
+            let font_ref = font_cache.font_or_default(self.style.font.as_deref());
             let font = &font_cache.fonts[font_ref.0];
 
             self.state_mut().glyphs = font_cache.layout_text(

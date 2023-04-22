@@ -121,7 +121,7 @@ impl StencilPipeline {
                 .slice(((instance_offset * std::mem::size_of::<Instance>()) as u64)..),
         );
         pass.set_index_buffer(self.index_buff.slice(..), wgpu::IndexFormat::Uint16);
-        pass.draw_indexed(0..6 as u32, 0, 0..(aabbs.len() as u32));
+        pass.draw_indexed(0..6_u32, 0, 0..(aabbs.len() as u32));
     }
 
     pub fn new(
@@ -169,7 +169,7 @@ impl StencilPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("stencil_pipeline_layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout],
+                bind_group_layouts: &[uniform_bind_group_layout],
                 push_constant_ranges: &[],
             });
 

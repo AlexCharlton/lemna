@@ -220,14 +220,12 @@ impl Component<WGPURenderer> for RadioButtons {
                                 self.selected.iter().cloned().filter(|x| x != n).collect(),
                             ));
                         }
+                    } else if self.multi_select {
+                        let mut selected = vec![*n];
+                        selected.extend(self.selected.iter());
+                        m.push(change_fn(selected));
                     } else {
-                        if self.multi_select {
-                            let mut selected = vec![*n];
-                            selected.extend(self.selected.iter());
-                            m.push(change_fn(selected));
-                        } else {
-                            m.push(change_fn(vec![*n]));
-                        }
+                        m.push(change_fn(vec![*n]));
                     }
                 }
             }

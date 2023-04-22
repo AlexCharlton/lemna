@@ -5,17 +5,12 @@ use crate::render::wgpu::WGPURenderer;
 use crate::{node, txt, ButtonStyle, Node};
 
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct FileSelectorStyle {
     pub button_style: ButtonStyle,
 }
 
-impl Default for FileSelectorStyle {
-    fn default() -> Self {
-        Self {
-            button_style: Default::default(),
-        }
-    }
-}
+
 
 pub struct FileSelector {
     pub title: String,

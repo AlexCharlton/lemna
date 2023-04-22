@@ -23,7 +23,7 @@
 //     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //     THE SOFTWARE.
 
-pub const ICONS: &'static [u8] = include_bytes!("../assets/open-iconic.ttf");
+pub const ICONS: &[u8] = include_bytes!("../assets/open-iconic.ttf");
 
 #[derive(Debug, Clone, Copy)]
 pub enum Icon {
@@ -257,8 +257,7 @@ impl From<Icon> for char {
         // char::from_u32_unchecked(i as u32) // TODO: Will be stable soon
         String::from_utf16(&[i as u16])
             .unwrap()
-            .chars()
-            .nth(0)
+            .chars().next()
             .unwrap()
     }
 }

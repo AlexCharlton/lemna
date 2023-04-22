@@ -104,8 +104,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send 
             node!(super::Div::new(), lay!(direction: Direction::Column)).push(node!(SelectBox {
                 selection: self
                     .selection
-                    .get(self.state_ref().selected)
-                    .map(|x| x.clone()),
+                    .get(self.state_ref().selected).cloned(),
                 style: self.style.clone(),
             }));
         if self.state_ref().open {

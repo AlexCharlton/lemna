@@ -5,27 +5,17 @@ pub use glyph_brush_layout::{FontId, SectionGlyph, SectionText};
 pub type Fonts = Vec<FontRef<'static>>;
 pub type HorizontalAlign = glyph_brush_layout::HorizontalAlign;
 
+#[derive(Default)]
 pub struct FontCache {
     pub(crate) fonts: Fonts,
     pub(crate) font_names: HashMap<String, usize>,
 }
 
-impl Default for FontCache {
-    fn default() -> Self {
-        Self {
-            fonts: Default::default(),
-            font_names: Default::default(),
-        }
-    }
-}
+
 
 impl FontCache {
     pub fn font(&self, name: &str) -> Option<FontId> {
-        if let Some(i) = self.font_names.get(name) {
-            Some(FontId(*i))
-        } else {
-            None
-        }
+        self.font_names.get(name).map(|i| FontId(*i))
     }
 
     pub fn font_or_default(&self, name: Option<&str>) -> FontId {

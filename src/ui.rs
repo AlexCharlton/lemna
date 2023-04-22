@@ -71,11 +71,7 @@ thread_local!(
 
 pub fn current_window<'a>() -> Option<RwLockReadGuard<'a, dyn Window>> {
     CURRENT_WINDOW.with(|r| unsafe {
-        if let Some(w) = r.get().as_ref().unwrap() {
-            Some(w.read().unwrap())
-        } else {
-            None
-        }
+        r.get().as_ref().unwrap().as_ref().map(|w| w.read().unwrap())
     })
 }
 
@@ -240,7 +236,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             font_cache.clone(),
             logical_size.clone(),
             scale_factor.clone(),
-            frame_dirty.clone(),
+            frame_dirty,
             node_dirty.clone(),
             window.clone(),
         );

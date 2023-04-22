@@ -172,7 +172,7 @@ impl Text {
 
     fn to_section_text(&self, font_cache: &FontCache, scale: f32) -> Vec<SectionText> {
         let scaled_size = self.style.size * scale * Text::SIZE_SCALE;
-        let base_font = font_cache.font_or_default(self.style.font.as_ref().map(|f| f.as_str()));
+        let base_font = font_cache.font_or_default(self.style.font.as_deref());
 
         self.text
             .iter()
@@ -230,7 +230,7 @@ impl Component<WGPURenderer> for Text {
         let scaled_size = self.style.size * scale * Text::SIZE_SCALE;
 
         let glyphs = font_cache.layout_text(
-            &self.to_section_text(&font_cache, scale),
+            &self.to_section_text(font_cache, scale),
             HorizontalAlign::Left,
             (0.0, 0.0),
             (
@@ -241,7 +241,7 @@ impl Component<WGPURenderer> for Text {
         let output = if let Some(last_glyph) = glyphs.last() {
             let p = last_glyph.glyph.position;
             // Unless there is only one row, use the max width
-            let w = if p.y as f32 <= scaled_size || max_width.is_none() {
+            let w = if p.y <= scaled_size || max_width.is_none() {
                 p.x + last_glyph.glyph.scale.x
             } else {
                 max_width.unwrap() * scale
@@ -275,7 +275,7 @@ impl Component<WGPURenderer> for Text {
     ) -> Option<Vec<WGPURenderable>> {
         let bounds = context.aabb.size();
         let glyphs = context.font_cache.layout_text(
-            &self.to_section_text(&context.font_cache, context.scale_factor),
+            &self.to_section_text(context.font_cache, context.scale_factor),
             self.style.h_alignment,
             (
                 match self.style.h_alignment {

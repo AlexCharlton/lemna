@@ -45,19 +45,13 @@ impl VBDesc for Vertex {
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
+#[derive(Default)]
 pub struct Instance {
     pub pos: Pos,
     pub color: Color,
 }
 
-impl Default for Instance {
-    fn default() -> Self {
-        Self {
-            pos: Default::default(),
-            color: Default::default(),
-        }
-    }
-}
+
 
 impl VBDesc for Instance {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
@@ -144,10 +138,10 @@ impl Text {
                 if let Some((uv_rect, screen_rect)) =
                     glyph_cache.glyph_cache.rect_for(g.font_id.0, &g.glyph)
                 {
-                    buffer_cache.vertex_data[v + 0] = Vertex {
+                    buffer_cache.vertex_data[v] = Vertex {
                         pos: Point {
-                            x: screen_rect.min.x as f32,
-                            y: screen_rect.min.y as f32,
+                            x: screen_rect.min.x,
+                            y: screen_rect.min.y,
                         },
                         tex_pos: Point {
                             x: uv_rect.min.x,
@@ -156,8 +150,8 @@ impl Text {
                     };
                     buffer_cache.vertex_data[v + 1] = Vertex {
                         pos: Point {
-                            x: screen_rect.max.x as f32,
-                            y: screen_rect.min.y as f32,
+                            x: screen_rect.max.x,
+                            y: screen_rect.min.y,
                         },
                         tex_pos: Point {
                             x: uv_rect.max.x,
@@ -166,8 +160,8 @@ impl Text {
                     };
                     buffer_cache.vertex_data[v + 2] = Vertex {
                         pos: Point {
-                            x: screen_rect.min.x as f32,
-                            y: screen_rect.max.y as f32,
+                            x: screen_rect.min.x,
+                            y: screen_rect.max.y,
                         },
                         tex_pos: Point {
                             x: uv_rect.min.x,
@@ -176,8 +170,8 @@ impl Text {
                     };
                     buffer_cache.vertex_data[v + 3] = Vertex {
                         pos: Point {
-                            x: screen_rect.max.x as f32,
-                            y: screen_rect.max.y as f32,
+                            x: screen_rect.max.x,
+                            y: screen_rect.max.y,
                         },
                         tex_pos: Point {
                             x: uv_rect.max.x,
@@ -185,7 +179,7 @@ impl Text {
                         },
                     };
 
-                    buffer_cache.index_data[i + 0] = 0 + v_relative;
+                    buffer_cache.index_data[i] = v_relative;
                     buffer_cache.index_data[i + 1] = 1 + v_relative;
                     buffer_cache.index_data[i + 2] = 2 + v_relative;
                     buffer_cache.index_data[i + 3] = 2 + v_relative;
@@ -336,7 +330,7 @@ impl TextPipeline {
         let mut cache_changed = false;
         for (renderable, aabb) in renderables.iter() {
             cache_changed |= renderable.render(
-                &aabb,
+                aabb,
                 &mut self.buffer_cache,
                 &self.glyph_cache,
                 &mut self.instance_data,
@@ -587,7 +581,7 @@ impl TextPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("text_pipeline_layout"),
-                bind_group_layouts: &[&uniform_bind_group_layout, &texture_bind_group_layout],
+                bind_group_layouts: &[uniform_bind_group_layout, &texture_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
