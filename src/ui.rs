@@ -71,7 +71,11 @@ thread_local!(
 
 pub fn current_window<'a>() -> Option<RwLockReadGuard<'a, dyn Window>> {
     CURRENT_WINDOW.with(|r| unsafe {
-        r.get().as_ref().unwrap().as_ref().map(|w| w.read().unwrap())
+        r.get()
+            .as_ref()
+            .unwrap()
+            .as_ref()
+            .map(|w| w.read().unwrap())
     })
 }
 

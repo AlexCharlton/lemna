@@ -12,6 +12,7 @@ pub extern crate baseview;
 
 struct BaseViewUI<R: Renderer, A: 'static + App<R>> {
     ui: UI<Window, R, A>,
+    first_frame: bool,
 }
 
 pub struct Window {
@@ -70,7 +71,16 @@ impl Window {
                 for (name, data) in fonts.drain(..) {
                     ui.add_font(name, data);
                 }
-                BaseViewUI { ui }
+                // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
+                #[cfg(windows)]
+                {
+                    window.resize(baseview::Size::new(1.0, 1.0));
+                }
+
+                BaseViewUI {
+                    ui,
+                    first_frame: true,
+                }
             },
         )
     }
@@ -118,7 +128,10 @@ impl Window {
                 {
                     window.resize(baseview::Size::new(1.0, 1.0));
                 }
-                BaseViewUI { ui }
+                BaseViewUI {
+                    ui,
+                    first_frame: true,
+                }
             },
         )
     }
@@ -138,7 +151,14 @@ unsafe impl HasRawDisplayHandle for Window {
 
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
 impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A> {
-    fn on_frame(&mut self, _window: &mut baseview::Window) {
+    fn on_frame(&mut self, window: &mut baseview::Window) {
+        if self.first_frame {
+            // Trigger a resize on the first frame
+            // This is only needed by nih_plug's standalone wrapper
+            let size = self.ui.window.read().unwrap().size;
+            window.resize(baseview::Size::new(size.0.into(), size.1.into()));
+            self.first_frame = false;
+        }
         self.ui.draw();
         self.ui.render();
     }

@@ -47,7 +47,6 @@ where
         parent: ParentWindowHandle,
         context: Arc<dyn GuiContext>,
     ) -> Box<dyn std::any::Any + Send> {
-        dbg!("spawn");
         let handle = lemna_baseview::Window::open_parented::<_, R, A>(
             &parent,
             self.title.clone(),
