@@ -12,7 +12,8 @@ keywords = ["ui", "gui"]
 [workspace]
 members = ["macros", "backends/baseview", "backends/winit", "backends/wx-rs",
            "nih-plug", "nih-plug/xtask",
-           "nih-plug/examples/hello"
+           "nih-plug/examples/hello",
+           "nih-plug/examples/params",
           ]
 
 [features]

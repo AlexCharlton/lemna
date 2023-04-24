@@ -115,7 +115,6 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                     // Pull out size so it get pulled into the renderer lock
                     let size = *physical_size.read().unwrap();
                     renderer.write().unwrap().render(
-                        // TODO pass in Arc
                         &node.read().unwrap(),
                         size,
                         &font_cache.read().unwrap(),
@@ -610,5 +609,23 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
 
     pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
         self.font_cache.write().unwrap().add_font(name, bytes);
+    }
+
+    pub fn set_dirty(&mut self) {
+        *self.node_dirty.write().unwrap() = true
+    }
+
+    pub fn with_app_state<S, F>(&mut self, f: F)
+    where
+        F: Fn(&mut S) -> (),
+        S: 'static,
+    {
+        let mut node = self.node_mut();
+        if let Some(mut state) = node.component.take_state() {
+            if let Some(s) = state.as_mut().downcast_mut::<S>() {
+                f(s);
+            }
+            node.component.replace_state(state);
+        }
     }
 }

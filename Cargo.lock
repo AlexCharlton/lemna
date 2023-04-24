@@ -1826,6 +1826,7 @@ version = "0.2.0"
 dependencies = [
  "arboard",
  "baseview",
+ "crossbeam-channel 0.4.4",
  "keyboard-types",
  "lemna",
  "lemna-macros",
@@ -1847,6 +1848,7 @@ dependencies = [
 name = "lemna-nih-plug"
 version = "0.2.0"
 dependencies = [
+ "crossbeam-channel 0.4.4",
  "lemna",
  "lemna-baseview",
  "nih_plug",
@@ -2639,6 +2641,16 @@ version = "0.0.0"
 dependencies = [
  "lemna",
  "lemna-nih-plug",
+]
+
+[[package]]
+name = "plugin-example-params"
+version = "0.0.0"
+dependencies = [
+ "lemna",
+ "lemna-macros",
+ "lemna-nih-plug",
+ "log",
 ]
 
 [[package]]

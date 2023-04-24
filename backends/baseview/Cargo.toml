@@ -16,6 +16,7 @@ arboard = "3.2"
 keyboard-types = "0.6"
 lemna = { path = "../../", version = "0.2" }
 raw-window-handle = { workspace = true }
+crossbeam-channel = "0.4"
 
 [dependencies.baseview]
 git = "https://github.com/AlexCharlton/baseview.git"

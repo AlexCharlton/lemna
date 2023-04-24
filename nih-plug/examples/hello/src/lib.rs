@@ -83,7 +83,13 @@ impl Plugin for HelloPlugin {
     }
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        lemna_nih_plug::create_lemna_editor::<Renderer, HelloApp>("Hello Lemna", 400, 300, vec![])
+        lemna_nih_plug::create_lemna_editor::<Renderer, HelloApp, _>(
+            "Hello Lemna",
+            400,
+            300,
+            vec![],
+            |_ctx, _ui| {},
+        )
     }
 }
 

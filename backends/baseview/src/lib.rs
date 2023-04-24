@@ -10,9 +10,15 @@ use raw_window_handle::{
 
 pub extern crate baseview;
 
+#[derive(Debug)]
+pub enum ParentMessage {
+    Dirty,
+    Resize,
+}
+
 struct BaseViewUI<R: Renderer, A: 'static + App<R>> {
     ui: UI<Window, R, A>,
-    first_frame: bool,
+    parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
 }
 
 pub struct Window {
@@ -29,18 +35,21 @@ unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
 impl Window {
-    pub fn open_parented<P, R, A>(
+    pub fn open_parented<P, R, A, B>(
         parent: &P,
         title: String,
         width: u32,
         height: u32,
         scale_policy: baseview::WindowScalePolicy,
         mut fonts: Vec<(String, &'static [u8])>,
+        build: B,
+        parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
     ) -> baseview::WindowHandle
     where
         P: HasRawWindowHandle,
         R: Renderer + 'static,
         A: 'static + App<R>,
+        B: Fn(&mut UI<Window, R, A>) + 'static + Send,
     {
         let drop_target_valid = Arc::new(RwLock::new(true));
         let drop_target_valid2 = drop_target_valid.clone();
@@ -71,16 +80,14 @@ impl Window {
                 for (name, data) in fonts.drain(..) {
                     ui.add_font(name, data);
                 }
+                build(&mut ui);
                 // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
                 #[cfg(windows)]
                 {
                     window.resize(baseview::Size::new(1.0, 1.0));
                 }
 
-                BaseViewUI {
-                    ui,
-                    first_frame: true,
-                }
+                BaseViewUI { ui, parent_channel }
             },
         )
     }
@@ -130,7 +137,7 @@ impl Window {
                 }
                 BaseViewUI {
                     ui,
-                    first_frame: true,
+                    parent_channel: None,
                 }
             },
         )
@@ -152,12 +159,18 @@ unsafe impl HasRawDisplayHandle for Window {
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
 impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for BaseViewUI<R, A> {
     fn on_frame(&mut self, window: &mut baseview::Window) {
-        if self.first_frame {
-            // Trigger a resize on the first frame
-            // This is only needed by nih_plug's standalone wrapper
-            let size = self.ui.window.read().unwrap().size;
-            window.resize(baseview::Size::new(size.0.into(), size.1.into()));
-            self.first_frame = false;
+        if let Some(receiver) = &self.parent_channel {
+            while let Ok(message) = receiver.try_recv() {
+                match message {
+                    ParentMessage::Dirty => {
+                        self.ui.set_dirty();
+                    }
+                    ParentMessage::Resize => {
+                        let size = self.ui.window.read().unwrap().size;
+                        window.resize(baseview::Size::new(size.0.into(), size.1.into()));
+                    }
+                }
+            }
         }
         self.ui.draw();
         self.ui.render();
