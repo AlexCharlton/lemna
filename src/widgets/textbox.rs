@@ -172,10 +172,10 @@ struct TextBoxContainer {
 }
 
 impl TextBoxContainer {
-    fn new(background_color: Color, border_color: Color, border_width: f32) -> Self {
+    fn new<C: Into<Color>>(background_color: C, border_color: C, border_width: f32) -> Self {
         Self {
-            background_color,
-            border_color,
+            background_color: background_color.into(),
+            border_color: border_color.into(),
             border_width,
             state: Some(Default::default()),
         }
@@ -395,7 +395,9 @@ impl TextBoxText {
 
     fn cut(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            if let Some(w) = crate::current_window() { w.put_on_clipboard(&self.state_ref().text[a..b].into()) }
+            if let Some(w) = crate::current_window() {
+                w.put_on_clipboard(&self.state_ref().text[a..b].into())
+            }
             self.insert_text("");
             true
         } else {
@@ -405,7 +407,9 @@ impl TextBoxText {
 
     fn copy(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            if let Some(w) = crate::current_window() { w.put_on_clipboard(&self.state_ref().text[a..b].into()) }
+            if let Some(w) = crate::current_window() {
+                w.put_on_clipboard(&self.state_ref().text[a..b].into())
+            }
             true
         } else {
             false
@@ -469,12 +473,16 @@ impl Component<WGPURenderer> for TextBoxText {
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
         event.stop_bubbling();
-        if let Some(w) = crate::current_window() { w.set_cursor("Ibeam") }
+        if let Some(w) = crate::current_window() {
+            w.set_cursor("Ibeam")
+        }
         vec![]
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
-        if let Some(w) = crate::current_window() { w.unset_cursor() }
+        if let Some(w) = crate::current_window() {
+            w.unset_cursor()
+        }
         vec![]
     }
 

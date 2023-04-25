@@ -28,6 +28,15 @@ impl Default for RoundedRect {
 }
 
 impl RoundedRect {
+    pub fn new<C: Into<Color>>(bg: C, radius: f32) -> Self {
+        Self {
+            background_color: bg.into(),
+            border_color: [0.0, 0.0, 0.0].into(),
+            border_width: 0.0,
+            radius: (radius, radius, radius, radius),
+        }
+    }
+
     pub fn radius(mut self, r: f32) -> Self {
         self.radius = (r, r, r, r);
         self

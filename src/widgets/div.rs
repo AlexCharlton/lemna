@@ -83,13 +83,13 @@ impl Div {
         Self::default()
     }
 
-    pub fn bg(mut self, bg: Color) -> Self {
-        self.background = Some(bg);
+    pub fn bg<C: Into<Color>>(mut self, bg: C) -> Self {
+        self.background = Some(bg.into());
         self
     }
 
-    pub fn border(mut self, color: Color, width: f32) -> Self {
-        self.border_color = Some(color);
+    pub fn border<C: Into<Color>>(mut self, color: C, width: f32) -> Self {
+        self.border_color = Some(color.into());
         self.border_width = Some(width);
         self
     }

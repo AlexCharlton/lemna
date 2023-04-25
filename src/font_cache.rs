@@ -11,8 +11,6 @@ pub struct FontCache {
     pub(crate) font_names: HashMap<String, usize>,
 }
 
-
-
 impl FontCache {
     pub fn font(&self, name: &str) -> Option<FontId> {
         self.font_names.get(name).map(|i| FontId(*i))
@@ -36,6 +34,7 @@ impl FontCache {
         }
     }
 
+    /// bytes is an OpenType font
     pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
         let i = self.fonts.len();
         self.fonts.push(FontRef::try_from_slice(bytes).unwrap());
