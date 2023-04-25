@@ -136,7 +136,8 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
     let format = surface_caps
         .formats
         .iter()
-        .copied().find(|f| f.describe().srgb)
+        .copied()
+        .find(|f| !f.describe().srgb)
         .unwrap_or(surface_caps.formats[0]);
 
     let surface_config = wgpu::SurfaceConfiguration {

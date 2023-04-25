@@ -17,18 +17,18 @@ impl lemna::Component<Renderer> for HelloApp {
                      axis_alignment: Alignment::Center, cross_alignment: Alignment::Center)
             )
             .push(node!(
-                widgets::Div::new().bg(Color::rgb(1.0, 0.0, 0.0)),
+                widgets::Div::new().bg(Color::rgb(1.0, 0.5, 0.5)),
                 lay!(size: size!(200.0, 100.0), margin: rect!(5.0)),
                 0
             ))
             .push(node!(
-                widgets::Div::new().bg(Color::rgb(0.0, 1.0, 0.0)),
+                widgets::Div::new().bg(Color::rgb(0.5, 1.0, 0.5)),
                 lay!(size: size!(100.0), margin: rect!(5.0)),
                 1
             ))
             .push(node!(
                 widgets::RoundedRect {
-                    background_color: [0.0, 0.0, 1.0].into(),
+                    background_color: [0.5, 0.5, 1.0].into(),
                     border_width: 1.0,
                     ..Default::default()
                 }
