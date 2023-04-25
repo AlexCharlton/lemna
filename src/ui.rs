@@ -309,13 +309,17 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
         // }
         match input {
             Input::Resize => {
-                let scale_factor = self.window.read().unwrap().scale_factor();
-                *self.physical_size.write().unwrap() = self.window.read().unwrap().physical_size();
-                *self.logical_size.write().unwrap() = self.window.read().unwrap().logical_size();
-                *self.scale_factor.write().unwrap() = scale_factor;
-                self.event_cache.scale_factor = scale_factor;
-                *self.node_dirty.write().unwrap() = true;
-                self.window.write().unwrap().redraw(); // Always redraw after resizing
+                let new_size = self.window.read().unwrap().physical_size();
+                if new_size.width != 0 && new_size.height != 0 {
+                    let scale_factor = self.window.read().unwrap().scale_factor();
+                    *self.physical_size.write().unwrap() = new_size;
+                    *self.logical_size.write().unwrap() =
+                        self.window.read().unwrap().logical_size();
+                    *self.scale_factor.write().unwrap() = scale_factor;
+                    self.event_cache.scale_factor = scale_factor;
+                    *self.node_dirty.write().unwrap() = true;
+                    self.window.write().unwrap().redraw(); // Always redraw after resizing
+                }
             }
             Input::Motion(Motion::Mouse { x, y }) => {
                 let pos = Point::new(*x, *y) * self.event_cache.scale_factor;
