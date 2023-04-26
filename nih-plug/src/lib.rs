@@ -18,7 +18,7 @@ struct LemnaEditor<R: lemna::render::Renderer, A: lemna::App<R>> {
     phantom_app: PhantomData<A>,
     scale_factor: Arc<RwLock<Option<f32>>>,
     // Called when initializing the app
-    build: Arc<dyn Fn(&dyn GuiContext, &mut UI<Window, R, A>) + 'static + Send + Sync>,
+    build: Arc<dyn Fn(Arc<dyn GuiContext>, &mut UI<Window, R, A>) + 'static + Send + Sync>,
     // Used to communicate with the baseview WindowHandler
     sender: Sender<ParentMessage>,
     receiver: Receiver<ParentMessage>,
@@ -34,7 +34,7 @@ pub fn create_lemna_editor<R, A, B>(
 where
     R: lemna::render::Renderer + 'static + Send,
     A: 'static + lemna::App<R> + Send,
-    B: Fn(&dyn GuiContext, &mut UI<Window, R, A>) + 'static + Send + Sync,
+    B: Fn(Arc<dyn GuiContext>, &mut UI<Window, R, A>) + 'static + Send + Sync,
 {
     let (sender, receiver) = unbounded::<ParentMessage>();
 
@@ -77,7 +77,7 @@ where
                 .map(|factor| baseview::WindowScalePolicy::ScaleFactor(factor as f64))
                 .unwrap_or(baseview::WindowScalePolicy::SystemScaleFactor),
             self.fonts.clone(),
-            move |ui| (build)(context.as_ref(), ui),
+            move |ui| (build)(context.clone(), ui),
             Some(self.receiver.clone()),
         );
         Box::new(LemnaEditorHandle { _window: handle })
