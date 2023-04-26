@@ -30,7 +30,7 @@ impl lemna::Component<Renderer> for HelloApp {
                         0
                     )
                     .push(node!(
-                        Div::new().bg([1.0, 0.0, 0.0].into()),
+                        Div::new().bg([1.0, 0.0, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                         0
                     ))
@@ -52,48 +52,48 @@ impl lemna::Component<Renderer> for HelloApp {
                             1
                         )
                         .push(node!(
-                            Div::new().bg([1.0, 0.0, 0.0].into()),
+                            Div::new().bg([1.0, 0.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                             0
                         ))
                         .push(node!(
-                            Div::new().bg([1.0, 0.5, 0.0].into()),
+                            Div::new().bg([1.0, 0.5, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                             1
                         ))
                         .push(node!(
-                            Div::new().bg([1.0, 1.0, 0.0].into()),
+                            Div::new().bg([1.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                             2
                         ))
                         .push(node!(
-                            Div::new().bg([0.0, 1.0, 0.0].into()),
+                            Div::new().bg([0.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                             3
                         ))
                         .push(node!(
-                            Div::new().bg([0.0, 0.0, 1.0].into()),
+                            Div::new().bg([0.0, 0.0, 1.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                             4
                         )),
                     )
                     .push(node!(
-                        Div::new().bg([1.0, 0.5, 0.0].into()),
+                        Div::new().bg([1.0, 0.5, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                         2
                     ))
                     .push(node!(
-                        Div::new().bg([1.0, 1.0, 0.0].into()),
+                        Div::new().bg([1.0, 1.0, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                         3
                     ))
                     .push(node!(
-                        Div::new().bg([0.0, 1.0, 0.0].into()),
+                        Div::new().bg([0.0, 1.0, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                         4
                     ))
                     .push(node!(
-                        Div::new().bg([0.0, 0.0, 1.0].into()),
+                        Div::new().bg([0.0, 0.0, 1.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
                         5
                     )),
@@ -128,27 +128,27 @@ impl lemna::Component<Renderer> for HelloApp {
                             0
                         )
                         .push(node!(
-                            Div::new().bg([1.0, 0.0, 0.0].into()),
+                            Div::new().bg([1.0, 0.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             0
                         ))
                         .push(node!(
-                            Div::new().bg([1.0, 0.5, 0.0].into()),
+                            Div::new().bg([1.0, 0.5, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             1
                         ))
                         .push(node!(
-                            Div::new().bg([1.0, 1.0, 0.0].into()),
+                            Div::new().bg([1.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             2
                         ))
                         .push(node!(
-                            Div::new().bg([0.0, 1.0, 0.0].into()),
+                            Div::new().bg([0.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             3
                         ))
                         .push(node!(
-                            Div::new().bg([0.0, 0.0, 1.0].into()),
+                            Div::new().bg([0.0, 0.0, 1.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             4
                         )),
@@ -165,27 +165,27 @@ impl lemna::Component<Renderer> for HelloApp {
                             1
                         )
                         .push(node!(
-                            Div::new().bg([1.0, 0.0, 0.0].into()),
+                            Div::new().bg([1.0, 0.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             0
                         ))
                         .push(node!(
-                            Div::new().bg([1.0, 0.5, 0.0].into()),
+                            Div::new().bg([1.0, 0.5, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             1
                         ))
                         .push(node!(
-                            Div::new().bg([1.0, 1.0, 0.0].into()),
+                            Div::new().bg([1.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             2
                         ))
                         .push(node!(
-                            Div::new().bg([0.0, 1.0, 0.0].into()),
+                            Div::new().bg([0.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             3
                         ))
                         .push(node!(
-                            Div::new().bg([0.0, 0.0, 1.0].into()),
+                            Div::new().bg([0.0, 0.0, 1.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
                             4
                         )),

@@ -242,7 +242,7 @@ impl Component<Renderer> for Sorter {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
-                widgets::Div::new().bg([0.8, 0.8, 0.8].into()),
+                widgets::Div::new().bg([0.8, 0.8, 0.8]),
                 lay!(
                     size: size!(100.0, 200.0),
                     direction: Direction::Column,
@@ -252,27 +252,27 @@ impl Component<Renderer> for Sorter {
                 )
             )
             .push(node!(
-                widgets::Div::new().bg([1.0, 0.0, 0.0].into()),
+                widgets::Div::new().bg([1.0, 0.0, 0.0]),
                 lay!(margin: rect!(5.0)),
                 0
             ))
             .push(node!(
-                widgets::Div::new().bg([1.0, 0.5, 0.0].into()),
+                widgets::Div::new().bg([1.0, 0.5, 0.0]),
                 lay!(margin: rect!(5.0)),
                 1
             ))
             .push(node!(
-                widgets::Div::new().bg([1.0, 1.0, 0.0].into()),
+                widgets::Div::new().bg([1.0, 1.0, 0.0]),
                 lay!(margin: rect!(5.0)),
                 2
             ))
             .push(node!(
-                widgets::Div::new().bg([0.0, 1.0, 0.0].into()),
+                widgets::Div::new().bg([0.0, 1.0, 0.0]),
                 lay!(margin: rect!(5.0)),
                 3
             ))
             .push(node!(
-                widgets::Div::new().bg([0.0, 0.0, 1.0].into()),
+                widgets::Div::new().bg([0.0, 0.0, 1.0]),
                 lay!(margin: rect!(5.0)),
                 4
             )),
