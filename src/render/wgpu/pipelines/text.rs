@@ -44,14 +44,11 @@ impl VBDesc for Vertex {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable, Default)]
 pub struct Instance {
     pub pos: Pos,
     pub color: Color,
 }
-
-
 
 impl VBDesc for Instance {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
@@ -68,11 +65,6 @@ impl VBDesc for Instance {
                     format: wgpu::VertexFormat::Float32x4,
                     offset: 4 * 3,
                     shader_location: 3,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32,
-                    offset: 4 * 7,
-                    shader_location: 4,
                 },
             ],
         }
