@@ -172,6 +172,7 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
                 }
             }
         }
+        self.ui.handle_input(&Input::Timer);
         self.ui.draw();
         self.ui.render();
     }
