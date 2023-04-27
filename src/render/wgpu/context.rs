@@ -123,7 +123,7 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
-                features: adapter.features(),
+                features: wgpu::Features::empty(),
                 limits: wgpu::Limits::default(),
                 label: None,
             },
