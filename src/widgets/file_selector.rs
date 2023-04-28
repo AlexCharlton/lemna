@@ -4,13 +4,10 @@ use crate::component::{Component, Message};
 use crate::render::wgpu::WGPURenderer;
 use crate::{node, txt, ButtonStyle, Node};
 
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FileSelectorStyle {
     pub button_style: ButtonStyle,
 }
-
-
 
 pub struct FileSelector {
     pub title: String,
@@ -86,6 +83,6 @@ impl Component<WGPURenderer> for FileSelector {
             b = b.on_click(Box::new(|| f(this.select())));
         }
 
-        Some(node!(b))
+        Some(node!(b, lay!(size: size_pct!(100.0))))
     }
 }
