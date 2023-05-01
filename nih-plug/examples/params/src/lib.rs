@@ -97,7 +97,7 @@ impl Plugin for ParamsPlugin {
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let app_params = self.params.clone();
-        lemna_nih_plug::create_lemna_editor::<Renderer, ParamsApp, _>(
+        lemna_nih_plug::create_lemna_editor::<Renderer, ParamsApp, _, _>(
             "Hello Lemna Params",
             400,
             300,
@@ -105,6 +105,7 @@ impl Plugin for ParamsPlugin {
             move |_ctx, ui| {
                 ui.with_app_state::<ParamsAppState, _>(|s| s.params = app_params.clone());
             },
+            || vec![msg!(())], // Trigger an update, the message doesn't matter
         )
     }
 }

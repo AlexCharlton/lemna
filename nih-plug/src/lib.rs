@@ -1,6 +1,6 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lemna::UI;
-use lemna_baseview::{self, baseview, ParentMessage, Window};
+use lemna_baseview::{self, baseview, Message, ParentMessage, Window};
 use nih_plug::prelude::*;
 use std::{
     marker::PhantomData,
@@ -19,22 +19,25 @@ struct LemnaEditor<R: lemna::render::Renderer, A: lemna::App<R>> {
     scale_factor: Arc<RwLock<Option<f32>>>,
     // Called when initializing the app
     build: Arc<dyn Fn(Arc<dyn GuiContext>, &mut UI<Window, R, A>) + 'static + Send + Sync>,
+    on_param_change: Arc<dyn Fn() -> Vec<Message> + 'static + Send + Sync>,
     // Used to communicate with the baseview WindowHandler
     sender: Sender<ParentMessage>,
     receiver: Receiver<ParentMessage>,
 }
 
-pub fn create_lemna_editor<R, A, B>(
+pub fn create_lemna_editor<R, A, B, P>(
     title: &str,
     width: u32,
     height: u32,
     fonts: Vec<(String, &'static [u8])>,
     build: B,
+    on_param_change: P,
 ) -> Option<Box<dyn Editor>>
 where
     R: lemna::render::Renderer + 'static + Send,
     A: 'static + lemna::App<R> + Send,
     B: Fn(Arc<dyn GuiContext>, &mut UI<Window, R, A>) + 'static + Send + Sync,
+    P: Fn() -> Vec<Message> + 'static + Send + Sync,
 {
     let (sender, receiver) = unbounded::<ParentMessage>();
 
@@ -50,6 +53,7 @@ where
         phantom_app: PhantomData,
         phantom_renderer: PhantomData,
         build: Arc::new(build),
+        on_param_change: Arc::new(on_param_change),
         sender,
         receiver,
     }))
@@ -91,15 +95,21 @@ where
         true
     }
     fn param_value_changed(&self, _id: &str, _normalized_value: f32) {
-        self.sender.send(ParentMessage::Dirty).unwrap();
+        for m in (self.on_param_change)().drain(..) {
+            self.sender.send(ParentMessage::AppMessage(m)).unwrap();
+        }
         ()
     }
     fn param_modulation_changed(&self, _id: &str, _modulation_offset: f32) {
-        self.sender.send(ParentMessage::Dirty).unwrap();
+        for m in (self.on_param_change)().drain(..) {
+            self.sender.send(ParentMessage::AppMessage(m)).unwrap();
+        }
         ()
     }
     fn param_values_changed(&self) {
-        self.sender.send(ParentMessage::Dirty).unwrap();
+        for m in (self.on_param_change)().drain(..) {
+            self.sender.send(ParentMessage::AppMessage(m)).unwrap();
+        }
         ()
     }
 }

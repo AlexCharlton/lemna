@@ -602,7 +602,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                     // Send the messages to the root update function,
                     // because that's where it should do its work
                     for message in messages.drain(..) {
-                        self.node_mut().component.update(message);
+                        self.update(message);
                     }
                 }
             }
@@ -617,6 +617,10 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
 
     pub fn set_dirty(&mut self) {
         *self.node_dirty.write().unwrap() = true
+    }
+
+    pub fn update(&mut self, msg: crate::Message) {
+        self.node_mut().component.update(msg);
     }
 
     pub fn with_app_state<S, F>(&mut self, f: F)

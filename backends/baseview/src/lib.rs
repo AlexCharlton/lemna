@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::sync::{Arc, RwLock};
 
 use arboard::{self, Clipboard};
@@ -9,11 +10,13 @@ use raw_window_handle::{
 };
 
 pub extern crate baseview;
+pub type Message = Box<dyn Any + Send>;
 
 #[derive(Debug)]
 pub enum ParentMessage {
     Dirty,
     Resize,
+    AppMessage(Message),
 }
 
 struct BaseViewUI<R: Renderer, A: 'static + App<R>> {
@@ -163,6 +166,10 @@ impl<R: 'static + Renderer, A: 'static + App<R>> baseview::WindowHandler for Bas
             while let Ok(message) = receiver.try_recv() {
                 match message {
                     ParentMessage::Dirty => {
+                        self.ui.set_dirty();
+                    }
+                    ParentMessage::AppMessage(m) => {
+                        self.ui.update(m);
                         self.ui.set_dirty();
                     }
                     ParentMessage::Resize => {
