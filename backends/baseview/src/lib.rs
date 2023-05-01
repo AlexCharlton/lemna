@@ -64,6 +64,7 @@ impl Window {
                 title,
                 size: baseview::Size::new(width.into(), height.into()),
                 scale: scale_policy,
+                resizable: false,
                 drop_target_valid: Some(Box::new(move || -> bool {
                     *drop_target_valid2.read().unwrap()
                 })),
@@ -101,6 +102,7 @@ impl Window {
         title: String,
         width: u32,
         height: u32,
+        resizable: bool,
         scale_policy: baseview::WindowScalePolicy,
         mut fonts: Vec<(String, &'static [u8])>,
     ) where
@@ -114,6 +116,7 @@ impl Window {
                 title,
                 size: baseview::Size::new(width.into(), height.into()),
                 scale: scale_policy,
+                resizable,
                 drop_target_valid: Some(Box::new(move || -> bool {
                     *drop_target_valid2.read().unwrap()
                 })),

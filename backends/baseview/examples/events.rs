@@ -331,6 +331,7 @@ fn main() {
         "Hello events".to_string(),
         800,
         600,
+        false,
         baseview::WindowScalePolicy::SystemScaleFactor,
         vec![
             ("noto sans regular".to_string(), ttf_noto_sans::REGULAR),

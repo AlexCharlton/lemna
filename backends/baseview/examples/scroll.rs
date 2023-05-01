@@ -215,6 +215,7 @@ fn main() {
         "Hello scrolling".to_string(),
         800,
         600,
+        false,
         baseview::WindowScalePolicy::SystemScaleFactor,
         vec![],
     );

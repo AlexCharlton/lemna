@@ -52,6 +52,7 @@ fn main() {
         "Hello".to_string(),
         400,
         300,
+        true,
         baseview::WindowScalePolicy::SystemScaleFactor,
         vec![],
     );
