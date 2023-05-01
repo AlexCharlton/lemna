@@ -153,12 +153,18 @@ impl Component<WGPURenderer> for Button {
 
     fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
         self.state_mut().hover = true;
+        if let Some(w) = crate::current_window() {
+            w.set_cursor("Hand");
+        }
         event.dirty();
         vec![]
     }
 
     fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
         self.state = Some(ButtonState::default());
+        if let Some(w) = crate::current_window() {
+            w.unset_cursor();
+        }
         event.dirty();
         vec![]
     }

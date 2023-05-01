@@ -473,6 +473,10 @@ impl Component<WGPURenderer> for TextBoxText {
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
         event.stop_bubbling();
+        vec![]
+    }
+
+    fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
         if let Some(w) = crate::current_window() {
             w.set_cursor("Ibeam")
         }

@@ -1,7 +1,9 @@
 use std::any::Any;
+use std::cell::UnsafeCell;
 use std::sync::{Arc, RwLock};
 
 use arboard::{self, Clipboard};
+use baseview::MouseCursor;
 use lemna::component::App;
 use lemna::render::Renderer;
 use lemna::{Data, PixelSize, UI};
@@ -457,6 +459,45 @@ impl lemna::window::Window for Window {
 
     fn set_drop_target_valid(&self, valid: bool) {
         *self.drop_target_valid.write().unwrap() = valid
+    }
+
+    fn set_cursor(&self, cursor_type: &str) {
+        let ct = match cursor_type {
+            "Arrow" => MouseCursor::Default,
+            "None" => MouseCursor::Hidden,
+            "Hidden" => MouseCursor::Hidden,
+            "Ibeam" => MouseCursor::Text,
+            "Text" => MouseCursor::Text,
+            "Hand" => MouseCursor::Hand,
+            "HandGrabbing" => MouseCursor::HandGrabbing,
+            "NoEntry" => MouseCursor::NotAllowed,
+            "Cross" => MouseCursor::Crosshair,
+            "Size" => MouseCursor::Move,
+            "SizeNWSE" => MouseCursor::NwseResize,
+            "SizeNS" => MouseCursor::NsResize,
+            "SizeNESW" => MouseCursor::NeswResize,
+            "SizeWE" => MouseCursor::EwResize,
+            _ => MouseCursor::Default,
+        };
+        if let Some(win) = self.baseview_window {
+            unsafe {
+                let t = win as *const _ as *const UnsafeCell<baseview::Window>;
+                let baseview_window: &UnsafeCell<baseview::Window> = &*t;
+                let baseview_window: &mut baseview::Window = &mut *baseview_window.get();
+                baseview_window.set_mouse_cursor(ct);
+            }
+        }
+    }
+
+    fn unset_cursor(&self) {
+        if let Some(win) = self.baseview_window {
+            unsafe {
+                let t = win as *const _ as *const UnsafeCell<baseview::Window>;
+                let baseview_window: &UnsafeCell<baseview::Window> = &*t;
+                let baseview_window: &mut baseview::Window = &mut *baseview_window.get();
+                baseview_window.set_mouse_cursor(MouseCursor::Default);
+            }
+        }
     }
 }
 
