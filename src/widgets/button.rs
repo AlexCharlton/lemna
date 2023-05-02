@@ -154,7 +154,7 @@ impl Component<WGPURenderer> for Button {
     fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
         self.state_mut().hover = true;
         if let Some(w) = crate::current_window() {
-            w.set_cursor("Hand");
+            w.set_cursor("PointingHand");
         }
         event.dirty();
         vec![]

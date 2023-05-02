@@ -287,7 +287,7 @@ checksum = "a4a4ddaa51a5bc52a6948f74c06d20aaaddb71924eab79b8c97a8c556e942d6a"
 [[package]]
 name = "baseview"
 version = "0.1.0"
-source = "git+https://github.com/AlexCharlton/baseview.git#e175bf42c937328ad61291bb0188c2f0b7426088"
+source = "git+https://github.com/AlexCharlton/baseview.git#0c938804c471774a07f2264ba565481c9d5f2873"
 dependencies = [
  "cocoa",
  "core-foundation",
@@ -2212,7 +2212,7 @@ dependencies = [
 [[package]]
 name = "nih_plug"
 version = "0.0.0"
-source = "git+https://github.com/AlexCharlton/nih-plug.git#2876a242c59e82af60dba1c30c521d45be00ec98"
+source = "git+https://github.com/AlexCharlton/nih-plug.git#b9586c91182269f473a38f3044fa6c32109e7e22"
 dependencies = [
  "anyhow",
  "anymap",
@@ -2249,7 +2249,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_derive"
 version = "0.1.0"
-source = "git+https://github.com/AlexCharlton/nih-plug.git#2876a242c59e82af60dba1c30c521d45be00ec98"
+source = "git+https://github.com/AlexCharlton/nih-plug.git#b9586c91182269f473a38f3044fa6c32109e7e22"
 dependencies = [
  "proc-macro2",
  "quote",
