@@ -590,6 +590,10 @@ impl<R: fmt::Debug + Renderer> Node<R> {
         self.handle_event_under_mouse(event, |node, e| node.component.on_click(e));
     }
 
+    pub fn double_click(&mut self, event: &mut Event<event::DoubleClick>) {
+        self.handle_event_under_mouse(event, |node, e| node.component.on_double_click(e));
+    }
+
     pub fn focus(&mut self, event: &mut Event<event::Focus>) {
         self.handle_targeted_event(event, |node, e| node.component.on_focus(e));
     }
@@ -973,7 +977,9 @@ mod tests {
             }
 
             fn render_hash(&self, hasher: &mut ComponentHasher) {
-                if let Some(s) = self.state.as_ref() { s.foo.hash(hasher) }
+                if let Some(s) = self.state.as_ref() {
+                    s.foo.hash(hasher)
+                }
             }
         }
 

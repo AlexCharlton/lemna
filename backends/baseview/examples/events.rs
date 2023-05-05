@@ -308,6 +308,11 @@ impl Component<Renderer> for EventReactor {
         vec![]
     }
 
+    fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) -> Vec<Message> {
+        println!("Double clicked on {} with {:?}", &self.name, event.input.0);
+        vec![]
+    }
+
     fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) -> Vec<Message> {
         println!("Entered {}", &self.name);
         vec![]

@@ -2,6 +2,7 @@ use std::cell::UnsafeCell;
 use std::marker::PhantomData;
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread::{self, JoinHandle};
+use std::time::Instant;
 
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::info;
@@ -406,6 +407,17 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                 self.handle_focus_or_blur(&event);
                 self.handle_dirty_event(&event);
 
+                let mut is_double_click = false;
+                // Double clicking
+                if b == &MouseButton::Left {
+                    if self.event_cache.last_mouse_click.elapsed().as_millis()
+                        < event::DOUBLE_CLICK_INTERVAL_MS
+                    {
+                        is_double_click = true;
+                    }
+                    self.event_cache.last_mouse_click = Instant::now();
+                }
+
                 // End drag
                 if Some(*b) == self.event_cache.drag_button {
                     let mut drag_end_event = Event::new(
@@ -435,15 +447,23 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                 } else
                 // Resolve click
                 if self.event_cache.is_mouse_button_held(*b) {
-                    // TODO: Double clicks
                     self.event_cache.mouse_up(*b);
-                    let mut event = Event::new(event::Click(*b), &self.event_cache);
-                    self.node_mut().click(&mut event);
-                    self.handle_focus_or_blur(&event);
-                    self.handle_dirty_event(&event);
+                    let event_current_node_id = if is_double_click {
+                        let mut event = Event::new(event::DoubleClick(*b), &self.event_cache);
+                        self.node_mut().double_click(&mut event);
+                        self.handle_focus_or_blur(&event);
+                        self.handle_dirty_event(&event);
+                        event.current_node_id
+                    } else {
+                        let mut event = Event::new(event::Click(*b), &self.event_cache);
+                        self.node_mut().click(&mut event);
+                        self.handle_focus_or_blur(&event);
+                        self.handle_dirty_event(&event);
+                        event.current_node_id
+                    };
 
                     // Unfocus when clicking a thing not focused
-                    if event.current_node_id != Some(self.event_cache.focus)
+                    if event_current_node_id != Some(self.event_cache.focus)
                         // Ignore the root node, which is the default focus
                             && self.event_cache.focus != self.node_ref().id
                     {

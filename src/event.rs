@@ -1,6 +1,9 @@
 use super::base_types::*;
 use super::input::{Data, Key, MouseButton};
 use std::collections::HashSet;
+use std::time::Instant;
+
+pub const DOUBLE_CLICK_INTERVAL_MS: u128 = 500;
 
 pub struct Event<T> {
     pub input: T,
@@ -257,6 +260,7 @@ pub(crate) struct EventCache {
     pub mouse_buttons_held: MouseButtonsHeld,
     pub mouse_over: Option<u64>,
     pub mouse_position: Point,
+    pub last_mouse_click: Instant,
     // This is used as the start of the drag position, even if we haven't decided to start dragging
     pub drag_started: Option<Point>,
     // This is used as the indicator of whether a drag is actually ongoing
@@ -293,6 +297,7 @@ impl EventCache {
             mouse_buttons_held: Default::default(),
             mouse_over: None,
             mouse_position: Default::default(),
+            last_mouse_click: Instant::now(),
             drag_button: None,
             drag_started: None,
             drag_target: None,
