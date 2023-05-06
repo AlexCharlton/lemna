@@ -41,10 +41,6 @@ where
 {
     let (sender, receiver) = unbounded::<ParentMessage>();
 
-    // Trigger a resize on the first frame
-    // This is only needed by nih_plug's standalone wrapper
-    sender.send(ParentMessage::Resize).unwrap();
-
     Some(Box::new(LemnaEditor::<R, A> {
         size: (width, height),
         title: title.to_string(),
@@ -70,6 +66,8 @@ where
         context: Arc<dyn GuiContext>,
     ) -> Box<dyn std::any::Any + Send> {
         let build = self.build.clone();
+        // Trigger a resize on the first frame
+        self.sender.send(ParentMessage::Resize).unwrap();
         let handle = lemna_baseview::Window::open_parented::<_, R, A, _>(
             &parent,
             self.title.clone(),
