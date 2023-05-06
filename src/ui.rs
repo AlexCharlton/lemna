@@ -586,7 +586,7 @@ impl<
                 }
                 Drag::Drop(data) => {
                     let mut event = Event::new(event::DragDrop(data.clone()), &self.event_cache);
-                    event.target = self.event_cache.drag_target;
+                    event.target = self.event_cache.drag_target.or(Some(0));
                     self.node_mut().drag_drop(&mut event);
                     self.handle_dirty_event(&event);
                     self.event_cache.clear();
