@@ -14,8 +14,11 @@ pub struct HelloAppState {
     toggle_state: bool,
 }
 
+unsafe impl Send for HelloAppState {}
+unsafe impl Sync for HelloAppState {}
+
 #[state_component(HelloAppState)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HelloApp {}
 
 #[allow(dead_code)]
@@ -49,12 +52,6 @@ enum HelloMenu {
     Copy,
     Cut,
     Paste,
-}
-
-impl lemna::App<Renderer> for HelloApp {
-    fn new() -> Self {
-        Self { state: None }
-    }
 }
 
 #[state_component_impl(HelloAppState)]

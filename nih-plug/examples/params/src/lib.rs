@@ -13,7 +13,7 @@ pub struct ParamsAppState {
 }
 
 #[state_component(ParamsAppState)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ParamsApp {}
 
 #[state_component_impl(ParamsAppState)]
@@ -33,12 +33,6 @@ impl lemna::Component<Renderer> for ParamsApp {
             )),
             lay!(size: size_pct!(100.0))
         ))
-    }
-}
-
-impl lemna::App<Renderer> for ParamsApp {
-    fn new() -> Self {
-        Self { state: None }
     }
 }
 

@@ -6,7 +6,7 @@ use lyon::tessellation::math as lyon_math;
 type Renderer = lemna::render::wgpu::WGPURenderer;
 type Renderable = lemna::render::wgpu::WGPURenderable;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HelloApp {}
 
 impl lemna::Component<Renderer> for HelloApp {
@@ -79,12 +79,6 @@ impl lemna::Component<Renderer> for HelloApp {
                 }),
             )),
         ])
-    }
-}
-
-impl lemna::App<Renderer> for HelloApp {
-    fn new() -> Self {
-        Self {}
     }
 }
 

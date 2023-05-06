@@ -4,7 +4,7 @@ use lemna_baseview::Window;
 type Renderer = lemna::render::wgpu::WGPURenderer;
 type Node = lemna::Node<Renderer>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HelloApp {}
 
 impl lemna::Component<Renderer> for HelloApp {
@@ -30,12 +30,6 @@ impl lemna::Component<Renderer> for HelloApp {
     fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) -> Vec<Message> {
         current_window().unwrap().set_drop_target_valid(false);
         vec![]
-    }
-}
-
-impl lemna::App<Renderer> for HelloApp {
-    fn new() -> Self {
-        Self {}
     }
 }
 

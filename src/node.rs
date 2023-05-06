@@ -909,7 +909,7 @@ mod tests {
     mod test_app {
         use super::*;
 
-        #[derive(Debug)]
+        #[derive(Debug, Default)]
         pub struct TestApp {
             pub state: Option<AppState>,
         }
@@ -982,18 +982,12 @@ mod tests {
                 }
             }
         }
-
-        impl App<TestRenderer> for TestApp {
-            fn new() -> Self {
-                Self { state: None }
-            }
-        }
     }
 
     #[test]
     fn test_caching() {
         let mut renderer = TestRenderer {};
-        let mut n = Node::new(Box::new(test_app::TestApp::new()), 0, Layout::default());
+        let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
         let font_cache = FontCache::default();
         n.view(None);
         //n.layout();
@@ -1022,7 +1016,7 @@ mod tests {
         );
         n.click(&mut event);
 
-        let mut new_n = Node::new(Box::new(test_app::TestApp::new()), 0, Layout::default());
+        let mut new_n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
         new_n.view(Some(&mut n));
         assert_eq!(n.id, new_n.id);
         assert_eq!(n.children[0].id, new_n.children[0].id);
@@ -1079,7 +1073,7 @@ mod tests {
             }
         }
 
-        #[derive(Debug)]
+        #[derive(Debug, Default)]
         pub struct TestApp {}
 
         impl Component<TestRenderer> for TestApp {
@@ -1213,12 +1207,6 @@ mod tests {
                 }])
             }
         }
-
-        impl App<TestRenderer> for TestApp {
-            fn new() -> Self {
-                Self {}
-            }
-        }
     }
 
     #[test]
@@ -1226,12 +1214,12 @@ mod tests {
         let mut renderer = TestRenderer {};
         let font_cache = FontCache::default();
         let m = Node::new(
-            Box::new(test_scroll_app::TestApp::new()),
+            Box::new(test_scroll_app::TestApp::default()),
             0,
             Layout::default(),
         );
         let mut n = Node::new(
-            Box::new(test_scroll_app::TestApp::new()),
+            Box::new(test_scroll_app::TestApp::default()),
             0,
             lay!(size: size!(300.0)),
         );

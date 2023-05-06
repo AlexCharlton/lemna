@@ -17,7 +17,7 @@ pub struct HelloAppState {
 }
 
 #[state_component(HelloAppState)]
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HelloApp {}
 
 #[allow(dead_code)]
@@ -42,12 +42,6 @@ enum HelloEvent {
     FileSelect {
         selection: Option<PathBuf>,
     },
-}
-
-impl lemna::App<Renderer> for HelloApp {
-    fn new() -> Self {
-        Self { state: None }
-    }
 }
 
 #[state_component_impl(HelloAppState)]

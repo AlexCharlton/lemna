@@ -22,13 +22,6 @@ macro_rules! msg {
     };
 }
 
-pub trait App<R>: Component<R> + Send + Sync
-where
-    R: Renderer + fmt::Debug,
-{
-    fn new() -> Self;
-}
-
 pub struct RenderContext<'a, R>
 where
     R: Renderer,

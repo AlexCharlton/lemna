@@ -1,5 +1,5 @@
 use lemna::input::{Button, Input, Motion, MouseButton};
-use lemna::{render::Renderer, App, PixelSize, UI};
+use lemna::{render::Renderer, Component, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -25,7 +25,7 @@ impl Window {
     ) where
         R: Renderer + 'static,
         <R as Renderer>::Renderable: std::fmt::Debug,
-        A: 'static + App<R>,
+        A: 'static + Component<R> + Default + Send + Sync,
     {
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()

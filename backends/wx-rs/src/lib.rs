@@ -5,7 +5,7 @@ use std::mem;
 use std::os::raw::c_void;
 
 use lemna::input::{Button, Input, Key, Motion, MouseButton};
-use lemna::{render::Renderer, App, PixelSize, UI};
+use lemna::{render::Renderer, Component, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -31,7 +31,7 @@ impl<R, A> Window<R, A>
 where
     R: Renderer + 'static,
     <R as Renderer>::Renderable: std::fmt::Debug,
-    A: 'static + App<R>,
+    A: 'static + Component<R> + Default + Send + Sync,
 {
     pub fn open_blocking(
         title: &str,
@@ -90,11 +90,11 @@ where
         wx_rs::get_scale_factor()
     }
 
-    fn put_on_clipboard(&self, data: &lemna::window::Data) {
+    fn put_on_clipboard(&self, data: &lemna::input::Data) {
         unsafe { wx_rs::put_on_clipboard(mem::transmute(data)) }
     }
 
-    fn get_from_clipboard(&self) -> Option<lemna::window::Data> {
+    fn get_from_clipboard(&self) -> Option<lemna::input::Data> {
         unsafe { mem::transmute(wx_rs::get_from_clipboard()) }
     }
 

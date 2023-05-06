@@ -8,7 +8,7 @@ use crossbeam_channel::{unbounded, Receiver, Sender};
 use log::info;
 
 use crate::base_types::*;
-use crate::component::App;
+use crate::component::Component;
 use crate::event::{self, Event, EventCache};
 use crate::font_cache::FontCache;
 use crate::input::*;
@@ -29,7 +29,7 @@ const DRAG_THRESHOLD: f32 = 5.0; // px
 /// itself is quite efficient, delays have been observed when fetching
 /// the next frame in the swapchain after resizing on certain platforms.
 /// Event handling happens on the same thread that the `current_window` is accessible from.
-pub struct UI<W: Window, R: Renderer, A: App<R>> {
+pub struct UI<W: Window, R: Renderer, A: Component<R> + Default + Send + Sync> {
     pub renderer: Arc<RwLock<R>>,
     pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
@@ -89,7 +89,12 @@ pub fn set_current_window(window: Arc<RwLock<dyn Window>>) {
     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
 }
 
-impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A> {
+impl<
+        W: 'static + Window,
+        R: 'static + Renderer,
+        A: 'static + Component<R> + Default + Send + Sync,
+    > UI<W, R, A>
+{
     fn node_ref(&self) -> RwLockReadGuard<'_, Node<R>> {
         self.node.read().unwrap()
     }
@@ -149,7 +154,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
                     let logical_size = *logical_size.read().unwrap();
                     let scale_factor = *scale_factor.read().unwrap();
                     let mut new = Node::new(
-                        Box::new(A::new()),
+                        Box::new(A::default()),
                         0,
                         lay!(size: size!(logical_size.width as f32, logical_size.height as f32)),
                     );
@@ -203,7 +208,7 @@ impl<W: 'static + Window, R: 'static + Renderer, A: 'static + App<R>> UI<W, R, A
             physical_size, logical_size, scale_factor
         );
         inst("UI::new");
-        let mut component = A::new();
+        let mut component = A::default();
         component.init();
 
         let renderer = Arc::new(RwLock::new(R::new(&window)));

@@ -3,7 +3,7 @@ use lemna::*;
 type Renderer = lemna::render::wgpu::WGPURenderer;
 type Node = lemna::Node<Renderer>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct HelloApp {}
 
 impl lemna::Component<Renderer> for HelloApp {
@@ -191,12 +191,6 @@ impl lemna::Component<Renderer> for HelloApp {
                     ),
                 ),
         )
-    }
-}
-
-impl lemna::App<Renderer> for HelloApp {
-    fn new() -> Self {
-        Self {}
     }
 }
 
