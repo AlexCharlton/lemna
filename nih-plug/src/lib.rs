@@ -68,6 +68,11 @@ where
         let build = self.build.clone();
         // Trigger a resize on the first frame
         self.sender.send(ParentMessage::Resize).unwrap();
+        // And trigger a param change too
+        for m in (self.on_param_change)().drain(..) {
+            self.sender.send(ParentMessage::AppMessage(m)).unwrap();
+        }
+
         let handle = lemna_baseview::Window::open_parented::<_, R, A, _>(
             &parent,
             self.title.clone(),
