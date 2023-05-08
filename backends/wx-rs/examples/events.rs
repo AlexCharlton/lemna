@@ -200,30 +200,27 @@ impl lemna::Component for HelloApp {
         vec![]
     }
 
-    fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) -> Vec<Message> {
+    fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) {
         println!(
             "The app got a key: {:?} (Modifiers: {:?})",
             event.input.0, event.modifiers_held
         );
-        vec![]
     }
 
-    fn on_menu_select(&mut self, event: &mut Event<event::MenuSelect>) -> Vec<Message> {
+    fn on_menu_select(&mut self, event: &mut Event<event::MenuSelect>) {
         if let Some(menu) = self
             .state_ref()
             .menu_bar
             .get_entry_from_event_id(event.input.0)
         {
             event.dirty();
-            vec![match menu {
+            event.emit(match menu {
                 HelloMenu::Open => msg!(HelloEvent::Menu { selection: menu }),
                 HelloMenu::Close => msg!(HelloEvent::Menu { selection: menu }),
                 HelloMenu::Copy => msg!(widgets::TextBoxAction::Copy),
                 HelloMenu::Cut => msg!(widgets::TextBoxAction::Cut),
                 HelloMenu::Paste => msg!(widgets::TextBoxAction::Paste),
-            }]
-        } else {
-            vec![]
+            })
         }
     }
 }
@@ -272,25 +269,21 @@ impl Component for Sorter {
         )
     }
 
-    fn on_drag_start(&mut self, event: &mut Event<event::DragStart>) -> Vec<Message> {
+    fn on_drag_start(&mut self, event: &mut Event<event::DragStart>) {
         println!("Drag start. Got child {:?}", event.over_subchild_n(),);
         event.stop_bubbling();
-        vec![]
     }
 
-    fn on_drag(&mut self, event: &mut Event<event::Drag>) -> Vec<Message> {
+    fn on_drag(&mut self, event: &mut Event<event::Drag>) {
         println!("Dragging {:?}", event.relative_logical_position());
-        vec![]
     }
 
-    fn on_drag_end(&mut self, event: &mut Event<event::DragEnd>) -> Vec<Message> {
+    fn on_drag_end(&mut self, event: &mut Event<event::DragEnd>) {
         println!("Drag stop at {:?}", event.relative_logical_position());
-        vec![]
     }
 
-    fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
         event.stop_bubbling();
-        vec![]
     }
 }
 
@@ -306,17 +299,16 @@ impl Component for EventReactor {
         )])
     }
 
-    fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
         println!(
             "Hovering over {} ({:?})",
             &self.name,
             event.logical_mouse_position()
         );
         event.stop_bubbling();
-        vec![]
     }
 
-    fn on_click(&mut self, event: &mut Event<event::Click>) -> Vec<Message> {
+    fn on_click(&mut self, event: &mut Event<event::Click>) {
         println!("Clicked on {} with {:?}", &self.name, event.input.0);
         match event.input.0 {
             input::MouseButton::Left => println!(
@@ -330,27 +322,22 @@ impl Component for EventReactor {
             _ => (),
         };
         event.focus();
-        vec![]
     }
 
-    fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) -> Vec<Message> {
+    fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) {
         println!("Double clicked on {} with {:?}", &self.name, event.input.0);
-        vec![]
     }
 
-    fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) -> Vec<Message> {
+    fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) {
         println!("Entered {}", &self.name);
-        vec![]
     }
 
-    fn on_mouse_leave(&mut self, _event: &mut Event<event::MouseLeave>) -> Vec<Message> {
+    fn on_mouse_leave(&mut self, _event: &mut Event<event::MouseLeave>) {
         println!("Left {}", &self.name);
-        vec![]
     }
 
-    fn on_text_entry(&mut self, event: &mut Event<event::TextEntry>) -> Vec<Message> {
+    fn on_text_entry(&mut self, event: &mut Event<event::TextEntry>) {
         println!("{} got a some text: {:?})", &self.name, event.input.0);
-        vec![]
     }
 }
 

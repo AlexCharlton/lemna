@@ -311,25 +311,22 @@ impl Component for RadioButton {
         Some(base)
     }
 
-    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         self.state_mut().hover_start = Some(Instant::now());
         event.stop_bubbling();
-        vec![]
     }
 
-    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
+    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) {
         self.state_mut().hover = true;
         event.dirty();
-        vec![]
     }
 
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
+    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
         self.state = Some(RadioButtonState::default());
         event.dirty();
-        vec![]
     }
 
-    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) -> Vec<Message> {
+    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
         if self.state_ref().hover_start.is_some()
             && self
                 .state_ref()
@@ -340,13 +337,12 @@ impl Component for RadioButton {
             self.state_mut().tool_tip_open = Some(event.relative_logical_position());
             event.dirty();
         }
-        vec![]
     }
 
-    fn on_click(&mut self, event: &mut event::Event<event::Click>) -> Vec<Message> {
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         self.state_mut().selected = true;
         event.dirty();
         event.stop_bubbling();
-        vec![msg!(RadioButtonMsg::Clicked(self.position))]
+        event.emit(msg!(RadioButtonMsg::Clicked(self.position)));
     }
 }

@@ -214,21 +214,20 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
         Some(base)
     }
 
-    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         event.stop_bubbling();
-        vec![]
     }
 
-    fn on_click(&mut self, event: &mut event::Event<event::Click>) -> Vec<Message> {
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         event.dirty();
         event.focus();
         event.stop_bubbling();
-        vec![Box::new(SelectMessage::OpenClose)]
+        event.emit(Box::new(SelectMessage::OpenClose));
     }
 
-    fn on_blur(&mut self, event: &mut event::Event<event::Blur>) -> Vec<Message> {
+    fn on_blur(&mut self, event: &mut event::Event<event::Blur>) {
         event.dirty();
-        vec![Box::new(SelectMessage::Close)]
+        event.emit(Box::new(SelectMessage::Close));
     }
 }
 
@@ -387,22 +386,19 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
         Some(base)
     }
 
-    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         event.stop_bubbling();
-        vec![]
     }
 
-    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
+    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) {
         event.dirty();
-        vec![Box::new(SelectMessage::Hover(self.id))]
+        event.emit(Box::new(SelectMessage::Hover(self.id)));
     }
 
-    fn on_click(&mut self, event: &mut event::Event<event::Click>) -> Vec<Message> {
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         event.dirty();
         event.stop_bubbling();
-        vec![
-            Box::new(SelectMessage::Select(self.id)),
-            Box::new(SelectMessage::Close),
-        ]
+        event.emit(Box::new(SelectMessage::Select(self.id)));
+        event.emit(Box::new(SelectMessage::Close));
     }
 }

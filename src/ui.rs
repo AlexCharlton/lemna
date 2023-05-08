@@ -609,24 +609,27 @@ impl<
                     self.handle_dirty_event(&menu_event);
                     if menu_event.bubbles {
                         // See if the root node reacts to the menu event
-                        let messages = self.node_mut().component.on_menu_select(&mut menu_event);
+                        self.node_mut().component.on_menu_select(&mut menu_event);
                         self.handle_dirty_event(&menu_event);
-                        if !messages.is_empty() {
+                        if !menu_event.messages.is_empty() {
                             // If so, first send the messages to the non-root node
                             if let Some(stack) =
                                 self.node.read().unwrap().get_target_stack(current_focus)
                             {
-                                self.node.write().unwrap().send_messages(stack, messages);
+                                self.node
+                                    .write()
+                                    .unwrap()
+                                    .send_messages(stack, &mut menu_event.messages);
                             }
                         }
                     }
                 } else {
                     // If it's the root node
-                    let mut messages = self.node_mut().component.on_menu_select(&mut menu_event);
+                    self.node_mut().component.on_menu_select(&mut menu_event);
                     self.handle_dirty_event(&menu_event);
                     // Send the messages to the root update function,
                     // because that's where it should do its work
-                    for message in messages.drain(..) {
+                    for message in menu_event.messages.drain(..) {
                         self.update(message);
                     }
                 }

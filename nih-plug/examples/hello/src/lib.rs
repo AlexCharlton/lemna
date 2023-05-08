@@ -38,11 +38,10 @@ impl lemna::Component for HelloApp {
         )
     }
 
-    fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
+    fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
         if let Some(w) = crate::current_window() {
             w.set_cursor("Cross");
         }
-        vec![]
     }
 }
 

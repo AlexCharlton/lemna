@@ -73,30 +73,25 @@ impl Toggle {
 
 #[state_component_impl(ToggleState)]
 impl Component for Toggle {
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
+    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
         self.state_mut().pressed = false;
         event.dirty();
-        vec![]
     }
 
-    fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) -> Vec<Message> {
+    fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) {
         self.state_mut().pressed = true;
         event.dirty();
-        vec![]
     }
 
-    fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) -> Vec<Message> {
+    fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) {
         self.state_mut().pressed = false;
         event.dirty();
-        vec![]
     }
 
-    fn on_click(&mut self, _event: &mut event::Event<event::Click>) -> Vec<Message> {
-        let mut m: Vec<Message> = vec![];
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         if let Some(f) = &self.on_change {
-            m.push(f(!self.active));
+            event.emit(f(!self.active));
         }
-        m
     }
 
     fn render_hash(&self, hasher: &mut ComponentHasher) {

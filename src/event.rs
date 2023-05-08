@@ -1,7 +1,9 @@
-use super::base_types::*;
-use super::input::{Data, Key, MouseButton};
 use std::collections::HashSet;
 use std::time::Instant;
+
+use super::base_types::*;
+use super::input::{Data, Key, MouseButton};
+use crate::Message;
 
 pub const DOUBLE_CLICK_INTERVAL_MS: u128 = 500;
 
@@ -19,6 +21,7 @@ pub struct Event<T> {
     pub(crate) target: Option<u64>,
     pub(crate) focus: Option<u64>,
     pub(crate) scale_factor: f32,
+    pub(crate) messages: Vec<Message>,
 }
 
 impl<T: std::fmt::Debug> std::fmt::Debug for Event<T> {
@@ -140,6 +143,7 @@ impl<T> Event<T> {
             over_child_n: None,
             over_subchild_n: None,
             scale_factor: event_cache.scale_factor,
+            messages: vec![],
         }
     }
 
@@ -157,6 +161,10 @@ impl<T> Event<T> {
 
     pub fn dirty(&mut self) {
         self.dirty = true;
+    }
+
+    pub fn emit(&mut self, msg: Message) {
+        self.messages.push(msg);
     }
 
     pub fn current_physical_aabb(&self) -> AABB {

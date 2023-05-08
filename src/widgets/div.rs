@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use crate::base_types::*;
-use crate::component::{Component, ComponentHasher, Message, RenderContext};
+use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
 use crate::layout::*;
 use crate::render::{renderables::Rect, Renderable};
@@ -120,7 +120,7 @@ impl Component for Div {
         // Maybe TODO: Should hash scroll_descriptor
     }
 
-    fn on_scroll(&mut self, event: &mut event::Event<event::Scroll>) -> Vec<Message> {
+    fn on_scroll(&mut self, event: &mut event::Event<event::Scroll>) {
         if let Some(scroll) = &self.scroll {
             let mut scroll_position = self.state_ref().scroll_position;
             let mut scrolled = false;
@@ -169,10 +169,9 @@ impl Component for Div {
                 event.dirty();
             }
         }
-        vec![]
     }
 
-    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         if self.scroll.is_some() {
             let over_y_bar = self
                 .state_ref()
@@ -194,19 +193,17 @@ impl Component for Div {
             }
             event.stop_bubbling();
         }
-        vec![]
     }
 
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
+    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
         if self.scroll.is_some() {
             self.state_mut().over_y_bar = false;
             self.state_mut().over_x_bar = false;
             event.dirty();
         }
-        vec![]
     }
 
-    fn on_drag_start(&mut self, event: &mut event::Event<event::DragStart>) -> Vec<Message> {
+    fn on_drag_start(&mut self, event: &mut event::Event<event::DragStart>) {
         if self.scroll.is_some() {
             let x_bar_pressed = self.state_ref().over_x_bar;
             let y_bar_pressed = self.state_ref().over_y_bar;
@@ -219,19 +216,17 @@ impl Component for Div {
                 event.stop_bubbling();
             }
         }
-        vec![]
     }
 
-    fn on_drag_end(&mut self, event: &mut event::Event<event::DragEnd>) -> Vec<Message> {
+    fn on_drag_end(&mut self, event: &mut event::Event<event::DragEnd>) {
         if self.scroll.is_some() {
             self.state_mut().x_bar_pressed = false;
             self.state_mut().y_bar_pressed = false;
             event.dirty();
         }
-        vec![]
     }
 
-    fn on_drag(&mut self, event: &mut event::Event<event::Drag>) -> Vec<Message> {
+    fn on_drag(&mut self, event: &mut event::Event<event::Drag>) {
         if self.scroll.is_some() {
             let start_position = self.state_ref().drag_start_position;
             let size = event.current_physical_aabb().size();
@@ -261,7 +256,6 @@ impl Component for Div {
             self.state_mut().scroll_position = scroll_position;
             event.dirty();
         }
-        vec![]
     }
 
     fn scroll_position(&self) -> Option<ScrollPosition> {

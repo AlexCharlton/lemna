@@ -471,26 +471,23 @@ impl Component for TextBoxText {
         }
     }
 
-    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         event.stop_bubbling();
-        vec![]
     }
 
-    fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
+    fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
         if let Some(w) = crate::current_window() {
             w.set_cursor("Ibeam")
         }
-        vec![]
     }
 
-    fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
+    fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         if let Some(w) = crate::current_window() {
             w.unset_cursor()
         }
-        vec![]
     }
 
-    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) -> Vec<Message> {
+    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
         if self.state_ref().focused {
             let visible =
                 (self.state_ref().activated_at.elapsed().as_millis() / CURSOR_BLINK_PERIOD) % 2
@@ -500,10 +497,9 @@ impl Component for TextBoxText {
                 event.dirty();
             }
         }
-        vec![]
     }
 
-    fn on_click(&mut self, event: &mut event::Event<event::Click>) -> Vec<Message> {
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         match event.input.0 {
             crate::input::MouseButton::Left => {
                 self.activate();
@@ -534,12 +530,10 @@ impl Component for TextBoxText {
 
         event.stop_bubbling();
         event.focus();
-
-        vec![]
     }
 
     #[cfg(feature = "backend_wx_rs")]
-    fn on_menu_select(&mut self, event: &mut event::Event<event::MenuSelect>) -> Vec<Message> {
+    fn on_menu_select(&mut self, event: &mut event::Event<event::MenuSelect>) {
         if let Some(action) = self
             .state_ref()
             .menu
@@ -548,37 +542,38 @@ impl Component for TextBoxText {
         {
             event.stop_bubbling();
             event.dirty();
-            self.handle_action(action)
-        } else {
-            vec![]
+            for message in self.handle_action(action).drain(..) {
+                event.emit(message);
+            }
         }
     }
 
-    fn on_double_click(&mut self, _event: &mut event::Event<event::DoubleClick>) -> Vec<Message> {
+    fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
+        event.stop_bubbling();
+        event.focus();
         // TODO select words
-        vec![]
     }
 
-    fn on_focus(&mut self, event: &mut event::Event<event::Focus>) -> Vec<Message> {
+    fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {
         self.state_mut().focused = true;
         self.state_mut().cursor_visible = true;
         event.dirty();
-        vec![Box::new(TextBoxMessage::Open)]
+        event.emit(Box::new(TextBoxMessage::Open))
     }
 
-    fn on_blur(&mut self, event: &mut event::Event<event::Blur>) -> Vec<Message> {
+    fn on_blur(&mut self, event: &mut event::Event<event::Blur>) {
         self.state_mut().focused = false;
         self.state_mut().cursor_visible = false;
         self.state_mut().selection_from = None;
         self.state_mut().cursor_pos = 0;
         event.dirty();
-        vec![
-            Box::new(TextBoxMessage::Close),
-            Box::new(TextBoxMessage::Commit(self.state_ref().text.clone())),
-        ]
+        event.emit(Box::new(TextBoxMessage::Close));
+        event.emit(Box::new(TextBoxMessage::Commit(
+            self.state_ref().text.clone(),
+        )));
     }
 
-    fn on_key_down(&mut self, event: &mut event::Event<event::KeyDown>) -> Vec<Message> {
+    fn on_key_down(&mut self, event: &mut event::Event<event::KeyDown>) {
         let pos = self.state_ref().cursor_pos;
         let len = self.state_ref().text.len();
         let mut changed = false;
@@ -685,47 +680,42 @@ impl Component for TextBoxText {
         event.dirty();
         if changed {
             self.state_mut().dirty = true;
-            vec![Box::new(TextBoxMessage::Change(
+            event.emit(Box::new(TextBoxMessage::Change(
                 self.state_ref().text.clone(),
-            ))]
-        } else {
-            vec![]
+            )))
         }
     }
 
-    fn on_text_entry(&mut self, event: &mut event::Event<event::TextEntry>) -> Vec<Message> {
+    fn on_text_entry(&mut self, event: &mut event::Event<event::TextEntry>) {
         self.insert_text(&event.input.0);
         self.state_mut().dirty = true;
         event.dirty();
         event.stop_bubbling();
-        vec![Box::new(TextBoxMessage::Change(
+        event.emit(Box::new(TextBoxMessage::Change(
             self.state_ref().text.clone(),
-        ))]
+        )));
     }
 
-    fn on_drag_start(&mut self, event: &mut event::Event<event::DragStart>) -> Vec<Message> {
+    fn on_drag_start(&mut self, event: &mut event::Event<event::DragStart>) {
         self.activate();
         self.state_mut().selection_from = Some(self.position(event.relative_physical_position().x));
         event.focus();
         event.stop_bubbling();
         event.dirty();
-        vec![]
     }
 
-    fn on_drag_end(&mut self, _event: &mut event::Event<event::DragEnd>) -> Vec<Message> {
+    fn on_drag_end(&mut self, _event: &mut event::Event<event::DragEnd>) {
         if self.selection().is_none() {
             self.state_mut().selection_from = None;
         }
-        vec![]
     }
 
-    fn on_drag(&mut self, event: &mut event::Event<event::Drag>) -> Vec<Message> {
+    fn on_drag(&mut self, event: &mut event::Event<event::Drag>) {
         let new_pos = self.position(event.relative_physical_position().x);
         if new_pos != self.state_ref().cursor_pos {
             self.state_mut().cursor_pos = new_pos;
             event.dirty();
         }
-        vec![]
     }
 
     fn render_hash(&self, hasher: &mut ComponentHasher) {

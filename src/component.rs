@@ -111,73 +111,27 @@ pub trait Component: fmt::Debug {
     }
 
     // Event handlers
-    fn on_click(&mut self, _event: &mut Event<event::Click>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_double_click(&mut self, _event: &mut Event<event::DoubleClick>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_mouse_down(&mut self, _event: &mut Event<event::MouseDown>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_mouse_up(&mut self, _event: &mut Event<event::MouseUp>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_mouse_leave(&mut self, _event: &mut Event<event::MouseLeave>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_mouse_motion(&mut self, _event: &mut Event<event::MouseMotion>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_focus(&mut self, _event: &mut Event<event::Focus>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_blur(&mut self, _event: &mut Event<event::Blur>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_tick(&mut self, _event: &mut Event<event::Tick>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_key_down(&mut self, _event: &mut Event<event::KeyDown>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_key_up(&mut self, _event: &mut Event<event::KeyUp>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_key_press(&mut self, _event: &mut Event<event::KeyPress>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_text_entry(&mut self, _event: &mut Event<event::TextEntry>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_scroll(&mut self, _event: &mut Event<event::Scroll>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_drag(&mut self, _event: &mut Event<event::Drag>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_drag_start(&mut self, _event: &mut Event<event::DragStart>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_drag_end(&mut self, _event: &mut Event<event::DragEnd>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_drag_enter(&mut self, _event: &mut Event<event::DragEnter>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_drag_leave(&mut self, _event: &mut Event<event::DragLeave>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_drag_drop(&mut self, _event: &mut Event<event::DragDrop>) -> Vec<Message> {
-        vec![]
-    }
-    fn on_menu_select(&mut self, _event: &mut Event<event::MenuSelect>) -> Vec<Message> {
-        vec![]
-    }
+    fn on_click(&mut self, _event: &mut Event<event::Click>) {}
+    fn on_double_click(&mut self, _event: &mut Event<event::DoubleClick>) {}
+    fn on_mouse_down(&mut self, _event: &mut Event<event::MouseDown>) {}
+    fn on_mouse_up(&mut self, _event: &mut Event<event::MouseUp>) {}
+    fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) {}
+    fn on_mouse_leave(&mut self, _event: &mut Event<event::MouseLeave>) {}
+    fn on_mouse_motion(&mut self, _event: &mut Event<event::MouseMotion>) {}
+    fn on_focus(&mut self, _event: &mut Event<event::Focus>) {}
+    fn on_blur(&mut self, _event: &mut Event<event::Blur>) {}
+    fn on_tick(&mut self, _event: &mut Event<event::Tick>) {}
+    fn on_key_down(&mut self, _event: &mut Event<event::KeyDown>) {}
+    fn on_key_up(&mut self, _event: &mut Event<event::KeyUp>) {}
+    fn on_key_press(&mut self, _event: &mut Event<event::KeyPress>) {}
+    fn on_text_entry(&mut self, _event: &mut Event<event::TextEntry>) {}
+    fn on_scroll(&mut self, _event: &mut Event<event::Scroll>) {}
+    fn on_drag(&mut self, _event: &mut Event<event::Drag>) {}
+    fn on_drag_start(&mut self, _event: &mut Event<event::DragStart>) {}
+    fn on_drag_end(&mut self, _event: &mut Event<event::DragEnd>) {}
+    fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) {}
+    fn on_drag_enter(&mut self, _event: &mut Event<event::DragEnter>) {}
+    fn on_drag_leave(&mut self, _event: &mut Event<event::DragLeave>) {}
+    fn on_drag_drop(&mut self, _event: &mut Event<event::DragDrop>) {}
+    fn on_menu_select(&mut self, _event: &mut Event<event::MenuSelect>) {}
 }

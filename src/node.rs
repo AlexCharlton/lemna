@@ -363,7 +363,7 @@ impl Node {
     fn handle_event_under_mouse<E>(
         &mut self,
         event: &mut Event<E>,
-        handler: fn(&mut Self, &mut Event<E>) -> Vec<Message>,
+        handler: fn(&mut Self, &mut Event<E>),
     ) {
         let mut nodes_under = self.nodes_under(event);
         while !nodes_under.is_empty() && event.bubbles {
@@ -374,7 +374,7 @@ impl Node {
     fn _handle_event_under_mouse<E>(
         &mut self,
         event: &mut Event<E>,
-        handler: fn(&mut Self, &mut Event<E>) -> Vec<Message>,
+        handler: fn(&mut Self, &mut Event<E>),
         node_order: &mut Vec<(u64, f32)>,
     ) -> Vec<Message> {
         let mut m: Vec<Message> = vec![];
@@ -411,7 +411,8 @@ impl Node {
             event.current_node_id = Some(self.id);
             event.current_aabb = Some(self.aabb);
             event.current_inner_scale = self.inner_scale;
-            m.append(&mut handler(self, event));
+            handler(self, event);
+            m.append(&mut event.messages);
         } else if Some(self.id) == node_order.last().map(|x| x.0) {
             node_order.pop();
         }
@@ -516,7 +517,7 @@ impl Node {
     fn handle_targeted_event<E>(
         &mut self,
         event: &mut Event<E>,
-        handler: fn(&mut Self, &mut Event<E>) -> Vec<Message>,
+        handler: fn(&mut Self, &mut Event<E>),
     ) {
         if event.target.is_none() {
             return;
@@ -526,7 +527,7 @@ impl Node {
             event.current_node_id = Some(node.id);
             event.current_aabb = Some(node.aabb);
             event.current_inner_scale = node.inner_scale;
-            let mut messages = handler(node, event);
+            handler(node, event);
             if stack.is_empty() {
                 return;
             }
@@ -535,19 +536,19 @@ impl Node {
             loop {
                 let node = self.get_target_from_stack(&stack);
                 let mut next_messages: Vec<Message> = vec![];
-                for message in messages.drain(..) {
+                for message in event.messages.drain(..) {
                     next_messages.append(&mut node.component.update(message))
                 }
                 if next_messages.is_empty() || stack.is_empty() {
                     return;
                 }
-                messages = next_messages;
+                event.messages = next_messages;
                 stack.pop();
             }
         }
     }
 
-    pub fn send_messages(&mut self, mut target_stack: Vec<usize>, mut messages: Vec<Message>) {
+    pub fn send_messages(&mut self, mut target_stack: Vec<usize>, messages: &mut Vec<Message>) {
         loop {
             let node = self.get_target_from_stack(&target_stack);
             let mut next_messages: Vec<Message> = vec![];
@@ -557,7 +558,7 @@ impl Node {
             if next_messages.is_empty() || target_stack.is_empty() {
                 return;
             }
-            messages = next_messages;
+            *messages = next_messages;
             target_stack.pop();
         }
     }
@@ -672,7 +673,8 @@ impl Node {
         event.current_node_id = Some(self.id);
         event.current_aabb = Some(self.aabb);
         event.current_inner_scale = self.inner_scale;
-        m.append(&mut self.component.on_tick(event));
+        self.component.on_tick(event);
+        m.append(&mut event.messages);
 
         m
     }
@@ -807,13 +809,11 @@ mod tests {
         }
 
         impl<M: 'static + fmt::Debug + Clone> Component for TestButton<M> {
-            fn on_click(&mut self, _event: &mut Event<event::Click>) -> Vec<Message> {
+            fn on_click(&mut self, event: &mut Event<event::Click>) {
                 println!("ON CLICK {}", &self.label);
-                let mut m: Vec<Message> = vec![];
                 if let Some(msg) = &self.on_click {
-                    m.push(Box::new(msg.clone()))
+                    event.emit(Box::new(msg.clone()));
                 }
-                m
             }
 
             fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {

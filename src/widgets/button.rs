@@ -144,31 +144,28 @@ impl Component for Button {
         Some(base)
     }
 
-    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) -> Vec<Message> {
+    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         self.state_mut().hover_start = Some(Instant::now());
         event.stop_bubbling();
-        vec![]
     }
 
-    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) -> Vec<Message> {
+    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) {
         self.state_mut().hover = true;
         if let Some(w) = crate::current_window() {
             w.set_cursor("PointingHand");
         }
         event.dirty();
-        vec![]
     }
 
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
+    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
         self.state = Some(ButtonState::default());
         if let Some(w) = crate::current_window() {
             w.unset_cursor();
         }
         event.dirty();
-        vec![]
     }
 
-    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) -> Vec<Message> {
+    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
         if self.state_ref().hover_start.is_some()
             && self
                 .state_ref()
@@ -179,26 +176,21 @@ impl Component for Button {
             self.state_mut().tool_tip_open = Some(event.relative_logical_position());
             event.dirty();
         }
-        vec![]
     }
 
-    fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) -> Vec<Message> {
+    fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) {
         self.state_mut().pressed = true;
         event.dirty();
-        vec![]
     }
 
-    fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) -> Vec<Message> {
+    fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) {
         self.state_mut().pressed = false;
         event.dirty();
-        vec![]
     }
 
-    fn on_click(&mut self, _event: &mut event::Event<event::Click>) -> Vec<Message> {
-        let mut m: Vec<Message> = vec![];
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         if let Some(f) = &self.on_click {
-            m.push(f());
+            event.emit(f());
         }
-        m
     }
 }
