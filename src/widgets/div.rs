@@ -4,7 +4,8 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::layout::*;
-use crate::render::wgpu::{Rect, WGPURenderable, WGPURenderer};
+use crate::render::{renderables::Rect, Renderable};
+
 use lemna_macros::{state_component, state_component_impl};
 
 const MIN_BAR_SIZE: f32 = 10.0;
@@ -104,7 +105,7 @@ impl Div {
 }
 
 #[state_component_impl(DivState)]
-impl Component<WGPURenderer> for Div {
+impl Component for Div {
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         if self.state.is_some() {
             self.state_ref().scroll_position.hash(hasher);
@@ -303,17 +304,14 @@ impl Component<WGPURenderer> for Div {
         aabb
     }
 
-    fn render<'a>(
-        &mut self,
-        context: RenderContext<'a, WGPURenderer>,
-    ) -> Option<Vec<WGPURenderable>> {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let mut rs = vec![];
         let border_width = self
             .border_width
             .map_or(0.0, |x| (x * context.scale_factor.floor()).round());
 
         if let Some(bg) = self.background {
-            rs.push(WGPURenderable::Rect(Rect::new(
+            rs.push(Renderable::Rect(Rect::new(
                 Pos {
                     x: border_width,
                     y: border_width,
@@ -325,7 +323,7 @@ impl Component<WGPURenderer> for Div {
         }
 
         if let (Some(color), Some(_width)) = (self.border_color, self.border_width) {
-            rs.push(WGPURenderable::Rect(Rect::new(
+            rs.push(Renderable::Rect(Rect::new(
                 Pos::default(),
                 context.aabb.size(),
                 color,
@@ -402,8 +400,8 @@ impl Component<WGPURenderer> for Div {
                     };
                     let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
                     self.state_mut().y_scroll_bar = Some(bar_aabb);
-                    rs.push(WGPURenderable::Rect(bar_background));
-                    rs.push(WGPURenderable::Rect(bar));
+                    rs.push(Renderable::Rect(bar_background));
+                    rs.push(Renderable::Rect(bar));
                 } else {
                     self.state_mut().y_scroll_bar = None;
                 }
@@ -469,8 +467,8 @@ impl Component<WGPURenderer> for Div {
                     };
                     let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
                     self.state_mut().x_scroll_bar = Some(bar_aabb);
-                    rs.push(WGPURenderable::Rect(bar_background));
-                    rs.push(WGPURenderable::Rect(bar));
+                    rs.push(Renderable::Rect(bar_background));
+                    rs.push(Renderable::Rect(bar));
                 } else {
                     self.state_mut().x_scroll_bar = None;
                 }

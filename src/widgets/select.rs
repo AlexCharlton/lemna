@@ -5,7 +5,7 @@ use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
-use crate::render::wgpu::{Shape, WGPURenderable, WGPURenderer};
+use crate::render::{renderables::shape::Shape, Renderable};
 use crate::{node, txt, Node};
 use lemna_macros::{state_component, state_component_impl};
 
@@ -96,15 +96,13 @@ impl<M: ToString + Send + Sync> Select<M> {
 }
 
 #[state_component_impl(SelectState)]
-impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send + Sync>
-    Component<WGPURenderer> for Select<M>
+impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send + Sync> Component
+    for Select<M>
 {
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+    fn view(&self) -> Option<Node> {
         let mut base =
             node!(super::Div::new(), lay!(direction: Direction::Column)).push(node!(SelectBox {
-                selection: self
-                    .selection
-                    .get(self.state_ref().selected).cloned(),
+                selection: self.selection.get(self.state_ref().selected).cloned(),
                 style: self.style.clone(),
             }));
         if self.state_ref().open {
@@ -168,8 +166,8 @@ struct SelectBox<M> {
     style: SelectStyle,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString> Component<WGPURenderer> for SelectBox<M> {
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M> {
+    fn view(&self) -> Option<Node> {
         let mut base = node!(
             super::RoundedRect {
                 background_color: self.style.background_color,
@@ -241,11 +239,8 @@ struct Caret {
 
 use lyon::path::Path;
 use lyon::tessellation::math as lyon_math;
-impl Component<WGPURenderer> for Caret {
-    fn render<'a>(
-        &mut self,
-        context: RenderContext<'a, WGPURenderer>,
-    ) -> Option<Vec<WGPURenderable>> {
+impl Component for Caret {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let scale = 1.0; // TODO: Adjust
 
         let mut path_builder = Path::builder();
@@ -258,14 +253,14 @@ impl Component<WGPURenderer> for Caret {
 
         let (geometry, _) = Shape::path_to_shape_geometry(path_builder.build(), false, true);
 
-        Some(vec![WGPURenderable::Shape(Shape::stroke(
+        Some(vec![Renderable::Shape(Shape::stroke(
             geometry,
             self.style.border_color,
             scale,
             0.0,
-            &mut context.renderer.shape_pipeline,
+            &mut context.buffer_caches.shape_cache.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(0) {
-                Some(WGPURenderable::Shape(r)) => Some(r.buffer_id),
+                Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,
             }),
         ))])
@@ -285,10 +280,8 @@ where
     hovering: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component<WGPURenderer>
-    for SelectList<M>
-{
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectList<M> {
+    fn view(&self) -> Option<Node> {
         let mut l = node!(
             super::Div::new()
                 .bg(self.style.background_color)
@@ -370,10 +363,8 @@ where
     style: SelectStyle,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component<WGPURenderer>
-    for SelectEntry<M>
-{
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectEntry<M> {
+    fn view(&self) -> Option<Node> {
         let mut div = super::Div::new();
         if self.selected {
             div = div.bg(self.style.highlight_color)

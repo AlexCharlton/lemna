@@ -2,13 +2,10 @@ use lemna::*;
 use lemna_baseview::Window;
 use simplelog::*;
 
-type Renderer = lemna::render::wgpu::WGPURenderer;
-type Node = lemna::Node<Renderer>;
-
 #[derive(Debug, Default)]
 pub struct HelloApp {}
 
-impl lemna::Component<Renderer> for HelloApp {
+impl lemna::Component for HelloApp {
     fn view(&self) -> Option<Node> {
         Some(
             node!(Div::new(), lay!(wrap: true))
@@ -205,7 +202,7 @@ fn main() {
         std::fs::File::create("example-scroll.log").unwrap(),
     );
 
-    Window::open_blocking::<Renderer, HelloApp>(
+    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, HelloApp>(
         "Hello scrolling".to_string(),
         800,
         600,

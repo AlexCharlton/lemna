@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use crate::component::{Component, Message};
-use crate::render::wgpu::WGPURenderer;
 use crate::{node, txt, ButtonStyle, Node};
 
 #[derive(Debug, Clone, Default)]
@@ -75,8 +74,8 @@ impl FileSelector {
     }
 }
 
-impl Component<WGPURenderer> for FileSelector {
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl Component for FileSelector {
+    fn view(&self) -> Option<Node> {
         let mut b = super::Button::new(txt!("..."), self.style.button_style.clone());
         let this: &'static Self = unsafe { std::mem::transmute(self) };
         if let Some(f) = &this.on_select {

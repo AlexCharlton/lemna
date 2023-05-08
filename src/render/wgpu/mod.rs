@@ -10,13 +10,14 @@ use crate::base_types::{PixelSize, AABB};
 use crate::font_cache::FontCache;
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
+use crate::render::{renderables::*, BufferCaches};
 use crate::window::Window;
 
 pub mod pipelines;
+pub use pipelines::shared::VBDesc;
 use pipelines::{
     msaa::MSAAPipeline, stencil::StencilPipeline, RectPipeline, ShapePipeline, TextPipeline,
 };
-pub use pipelines::{Rect, Shape, Text};
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -55,13 +56,6 @@ impl fmt::Debug for WGPURenderer {
     }
 }
 
-#[derive(Debug)]
-pub enum WGPURenderable {
-    Rect(Rect),
-    Shape(Shape),
-    Text(Text),
-}
-
 #[derive(Default)]
 struct FrameRenderables<'a> {
     frame: Vec<ScrollFrame>,
@@ -81,8 +75,6 @@ impl<'a> FrameRenderables<'a> {
 }
 
 impl super::Renderer for WGPURenderer {
-    type Renderable = WGPURenderable;
-
     fn new<W: Window>(window: &W) -> Self {
         let size = window.physical_size();
         let context = block_on(context::get_wgpu_context(
@@ -138,7 +130,7 @@ impl super::Renderer for WGPURenderer {
         }
     }
 
-    fn render(&mut self, node: &Node<Self>, physical_size: PixelSize, font_cache: &FontCache) {
+    fn render(&mut self, node: &Node, physical_size: PixelSize, font_cache: &FontCache) {
         inst("WGPURenderer::render#get_current_texture");
         let was_resized = self.do_resize(physical_size);
         let output = match self.context.surface.get_current_texture() {
@@ -180,11 +172,11 @@ impl super::Renderer for WGPURenderer {
                 frames.push(FrameRenderables::new(frame.clone()))
             }
             match renderable {
-                WGPURenderable::Rect(r) => {
+                Renderable::Rect(r) => {
                     frames.last_mut().unwrap().rects.push((r, aabb));
                     num_rects += 1;
                 }
-                WGPURenderable::Shape(r) => {
+                Renderable::Shape(r) => {
                     frames.last_mut().unwrap().shapes.push((r, aabb));
                     if r.is_filled() {
                         frames.last_mut().unwrap().num_shape_instances += 1;
@@ -195,10 +187,11 @@ impl super::Renderer for WGPURenderer {
                         num_shapes += 1;
                     }
                 }
-                WGPURenderable::Text(r) => {
+                Renderable::Text(r) => {
                     frames.last_mut().unwrap().texts.push((r, aabb));
                     num_texts += 1;
                 }
+                _ => (),
             }
         }
         let mut num_frames = frames.len();
@@ -448,6 +441,13 @@ impl super::Renderer for WGPURenderer {
         self.context.queue.submit(command_buffers.into_iter());
         output.present();
         inst_end();
+    }
+
+    fn buffer_caches(&self) -> BufferCaches {
+        BufferCaches {
+            shape_cache: self.shape_pipeline.buffer_cache.cache.clone(),
+            text_cache: self.text_pipeline.buffer_cache.cache.clone(),
+        }
     }
 }
 

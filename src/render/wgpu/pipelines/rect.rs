@@ -2,9 +2,21 @@ use bytemuck::{cast_slice, Pod, Zeroable};
 use log::info;
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{create_pipeline, next_power_of_2, VBDesc};
-use crate::base_types::{Color, Point, Pos, Scale, AABB};
+use super::shared::{create_pipeline, VBDesc};
+use crate::base_types::{Point, AABB};
+use crate::render::next_power_of_2;
+use crate::render::renderables::rect::{Instance, Rect};
 use crate::render::wgpu::context;
+
+pub struct RectPipeline {
+    pipeline: wgpu::RenderPipeline,
+    msaa_pipeline: wgpu::RenderPipeline,
+    vertex_buff: wgpu::Buffer,
+    index_buff: wgpu::Buffer,
+    instance_data: Vec<Instance>,
+    instance_buffer: wgpu::Buffer,
+    num_instances: usize,
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -12,7 +24,7 @@ pub struct Vertex {
     pub pos: Point,
 }
 
-impl VBDesc for Vertex {
+impl crate::render::wgpu::VBDesc for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -24,69 +36,6 @@ impl VBDesc for Vertex {
             }],
         }
     }
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Default, Debug, Pod, Zeroable)]
-pub struct Instance {
-    pub pos: Pos,
-    pub scale: Scale,
-    pub color: Color,
-}
-
-impl VBDesc for Instance {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x3,
-                    offset: 0,
-                    shader_location: 1,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 4 * 3,
-                    shader_location: 2,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x4,
-                    offset: 4 * 5,
-                    shader_location: 3,
-                },
-            ],
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct Rect {
-    instance_data: Instance,
-}
-
-impl Rect {
-    pub fn new(pos: Pos, scale: Scale, color: Color) -> Self {
-        Self {
-            instance_data: Instance { pos, scale, color },
-        }
-    }
-
-    fn render(&self, aabb: &AABB) -> Instance {
-        let mut i = self.instance_data;
-        i.pos += aabb.pos;
-        i
-    }
-}
-
-pub struct RectPipeline {
-    pipeline: wgpu::RenderPipeline,
-    msaa_pipeline: wgpu::RenderPipeline,
-    vertex_buff: wgpu::Buffer,
-    index_buff: wgpu::Buffer,
-    instance_data: Vec<Instance>,
-    instance_buffer: wgpu::Buffer,
-    num_instances: usize,
 }
 
 impl RectPipeline {

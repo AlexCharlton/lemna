@@ -2,8 +2,9 @@ use bytemuck::{cast_slice, Pod, Zeroable};
 use log::info;
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{create_pipeline_depth_stencil, next_power_of_2, VBDesc};
+use super::shared::{create_pipeline_depth_stencil, VBDesc};
 use crate::base_types::{Point, Pos, Scale, AABB};
+use crate::render::next_power_of_2;
 use crate::render::wgpu::context;
 
 #[repr(C)]

@@ -568,7 +568,7 @@ impl From<LayoutResult> for crate::base_types::AABB {
     }
 }
 
-impl<R: super::render::Renderer> super::node::Node<R> {
+impl super::node::Node {
     fn resolve_child_sizes(
         &mut self,
         inner_size: Size,

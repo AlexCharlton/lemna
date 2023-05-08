@@ -10,7 +10,7 @@ use std::{
 pub extern crate nih_plug;
 
 #[derive(Clone)]
-struct LemnaEditor<R: lemna::render::Renderer, A: lemna::Component<R> + Default + Send + Sync> {
+struct LemnaEditor<R: lemna::render::Renderer, A: lemna::Component + Default + Send + Sync> {
     size: (u32, u32),
     title: String,
     fonts: Vec<(String, &'static [u8])>,
@@ -35,7 +35,7 @@ pub fn create_lemna_editor<R, A, B, P>(
 ) -> Option<Box<dyn Editor>>
 where
     R: lemna::render::Renderer + 'static + Send,
-    A: 'static + lemna::Component<R> + Default + Send + Sync,
+    A: 'static + lemna::Component + Default + Send + Sync,
     B: Fn(Arc<dyn GuiContext>, &mut UI<Window, R, A>) + 'static + Send + Sync,
     P: Fn() -> Vec<Message> + 'static + Send + Sync,
 {
@@ -58,7 +58,7 @@ where
 impl<R, A> Editor for LemnaEditor<R, A>
 where
     R: lemna::render::Renderer + 'static + Send,
-    A: 'static + lemna::Component<R> + Default + Send + Sync,
+    A: 'static + lemna::Component + Default + Send + Sync,
 {
     fn spawn(
         &self,

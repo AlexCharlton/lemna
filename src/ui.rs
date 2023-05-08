@@ -29,14 +29,14 @@ const DRAG_THRESHOLD: f32 = 5.0; // px
 /// itself is quite efficient, delays have been observed when fetching
 /// the next frame in the swapchain after resizing on certain platforms.
 /// Event handling happens on the same thread that the `current_window` is accessible from.
-pub struct UI<W: Window, R: Renderer, A: Component<R> + Default + Send + Sync> {
+pub struct UI<W: Window, R: Renderer, A: Component + Default + Send + Sync> {
     pub renderer: Arc<RwLock<R>>,
     pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
     _draw_thread: JoinHandle<()>,
     render_channel: Sender<()>,
     draw_channel: Sender<()>,
-    node: Arc<RwLock<Node<R>>>,
+    node: Arc<RwLock<Node>>,
     phantom_app: PhantomData<A>,
     scale_factor: Arc<RwLock<f32>>,
     physical_size: Arc<RwLock<PixelSize>>,
@@ -92,21 +92,21 @@ pub fn set_current_window(window: Arc<RwLock<dyn Window>>) {
 impl<
         W: 'static + Window,
         R: 'static + Renderer,
-        A: 'static + Component<R> + Default + Send + Sync,
+        A: 'static + Component + Default + Send + Sync,
     > UI<W, R, A>
 {
-    fn node_ref(&self) -> RwLockReadGuard<'_, Node<R>> {
+    fn node_ref(&self) -> RwLockReadGuard<'_, Node> {
         self.node.read().unwrap()
     }
 
-    fn node_mut(&mut self) -> RwLockWriteGuard<'_, Node<R>> {
+    fn node_mut(&mut self) -> RwLockWriteGuard<'_, Node> {
         self.node.write().unwrap()
     }
 
     fn render_thread(
         receiver: Receiver<()>,
         renderer: Arc<RwLock<R>>,
-        node: Arc<RwLock<Node<R>>>,
+        node: Arc<RwLock<Node>>,
         font_cache: Arc<RwLock<FontCache>>,
         physical_size: Arc<RwLock<PixelSize>>,
         frame_dirty: Arc<RwLock<bool>>,
@@ -136,7 +136,7 @@ impl<
     fn draw_thread(
         receiver: Receiver<()>,
         renderer: Arc<RwLock<R>>,
-        node: Arc<RwLock<Node<R>>>,
+        node: Arc<RwLock<Node>>,
         font_cache: Arc<RwLock<FontCache>>,
         logical_size: Arc<RwLock<PixelSize>>,
         scale_factor: Arc<RwLock<f32>>,
@@ -162,7 +162,7 @@ impl<
                     {
                         // We need to lock the renderer while modify the node, so that we don't try to render it while doing so
                         // Since this will cause a deadlock
-                        let mut renderer = renderer.write().unwrap();
+                        let renderer = renderer.write().unwrap();
 
                         // We need to acquire a lock on the node once we `view` it, because we remove its state at this point
                         let mut old = node.write().unwrap();
@@ -176,9 +176,9 @@ impl<
 
                         inst("Node::render");
                         let do_render = new.render(
-                            &mut renderer,
+                            renderer.buffer_caches(),
                             Some(&mut old),
-                            &font_cache.read().unwrap(),
+                            font_cache.clone(),
                             scale_factor,
                         );
                         inst_end();

@@ -1,13 +1,14 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, RwLock};
 
 use crate::base_types::*;
 use crate::component::*;
 use crate::event::{self, Event};
 use crate::font_cache::FontCache;
 use crate::layout::*;
-use crate::render::Renderer;
+use crate::render::{BufferCaches, Renderable};
 
 static NODE_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);
 
@@ -28,14 +29,11 @@ macro_rules! node {
     };
 }
 
-pub struct Node<R>
-where
-    R: Renderer + fmt::Debug,
-{
+pub struct Node {
     pub id: u64,
-    pub component: Box<dyn Component<R> + Send + Sync>,
-    pub render_cache: Option<Vec<R::Renderable>>,
-    pub(crate) children: Vec<Node<R>>,
+    pub component: Box<dyn Component + Send + Sync>,
+    pub render_cache: Option<Vec<Renderable>>,
+    pub(crate) children: Vec<Node>,
     pub layout: Layout,
     pub layout_result: LayoutResult,
     pub aabb: AABB,
@@ -50,7 +48,7 @@ where
     pub key: u64,
 }
 
-impl<R: Renderer> fmt::Debug for Node<R> {
+impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Node")
             .field("id", &self.id)
@@ -82,8 +80,8 @@ fn expand_aabb(a: &mut AABB, b: AABB) {
     }
 }
 
-impl<R: fmt::Debug + Renderer> Node<R> {
-    pub fn new(component: Box<dyn Component<R> + Send + Sync>, key: u64, layout: Layout) -> Self {
+impl Node {
+    pub fn new(component: Box<dyn Component + Send + Sync>, key: u64, layout: Layout) -> Self {
         Self {
             id: 0,
             component,
@@ -264,11 +262,11 @@ impl<R: fmt::Debug + Renderer> Node<R> {
     }
 
     /// Return whether to redraw the screen
-    pub fn render(
-        &mut self,
-        renderer: &mut R,
+    pub fn render<'a>(
+        &'a mut self,
+        buffer_caches: BufferCaches,
         prev: Option<&mut Self>,
-        font_cache: &FontCache,
+        font_cache: Arc<RwLock<FontCache>>,
         scale_factor: f32,
     ) -> bool {
         // TODO: skip non-visible nodes
@@ -282,11 +280,11 @@ impl<R: fmt::Debug + Renderer> Node<R> {
 
             if self.render_hash != prev.render_hash {
                 let context = RenderContext {
-                    aabb: &self.aabb,
+                    aabb: self.aabb,
                     inner_scale: self.inner_scale,
-                    renderer,
+                    buffer_caches: buffer_caches.clone(),
                     prev_state: prev.render_cache.take(),
-                    font_cache,
+                    font_cache: font_cache.clone(),
                     scale_factor,
                 };
                 self.render_cache = self.component.render(context);
@@ -298,9 +296,9 @@ impl<R: fmt::Debug + Renderer> Node<R> {
             let prev_children = &mut prev.children;
             for child in self.children.iter_mut() {
                 ret |= child.render(
-                    renderer,
+                    buffer_caches.clone(),
                     prev_children.iter_mut().find(|x| x.key == child.key),
-                    font_cache,
+                    font_cache.clone(),
                     scale_factor,
                 )
             }
@@ -308,11 +306,11 @@ impl<R: fmt::Debug + Renderer> Node<R> {
             ret
         } else {
             let context = RenderContext {
-                aabb: &self.aabb,
+                aabb: self.aabb,
                 inner_scale: self.inner_scale,
-                renderer,
+                buffer_caches: buffer_caches.clone(),
                 prev_state: None,
-                font_cache,
+                font_cache: font_cache.clone(),
                 scale_factor,
             };
             self.render_cache = self.component.render(context);
@@ -320,7 +318,12 @@ impl<R: fmt::Debug + Renderer> Node<R> {
             self.render_hash = hasher.finish();
 
             for child in self.children.iter_mut() {
-                child.render(renderer, None, font_cache, scale_factor);
+                child.render(
+                    buffer_caches.clone(),
+                    None,
+                    font_cache.clone(),
+                    scale_factor,
+                );
             }
 
             true
@@ -339,7 +342,7 @@ impl<R: fmt::Debug + Renderer> Node<R> {
         self.scroll_x().is_some() || self.scroll_y().is_some()
     }
 
-    pub fn iter_renderables(&self) -> NodeRenderableIterator<'_, R> {
+    pub fn iter_renderables(&self) -> NodeRenderableIterator<'_> {
         NodeRenderableIterator {
             queue: vec![self],
             current_frame: vec![],
@@ -478,12 +481,12 @@ impl<R: fmt::Debug + Renderer> Node<R> {
     }
 
     pub fn get_target_stack(&self, target: u64) -> Option<Vec<usize>> {
-        struct Frame<'a, T: Renderer> {
-            node: &'a Node<T>,
+        struct Frame<'a> {
+            node: &'a Node,
             child: usize,
         }
 
-        let mut stack: Vec<Frame<R>> = vec![];
+        let mut stack: Vec<Frame> = vec![];
         let mut current = Frame {
             node: self,
             child: 0,
@@ -677,15 +680,15 @@ impl<R: fmt::Debug + Renderer> Node<R> {
 
 pub type ScrollFrame = AABB;
 
-pub struct NodeRenderableIterator<'a, R: Renderer> {
-    queue: Vec<&'a Node<R>>,
+pub struct NodeRenderableIterator<'a> {
+    queue: Vec<&'a Node>,
     current_frame: Vec<ScrollFrame>,
-    frame_queue: Vec<(&'a Node<R>, Vec<ScrollFrame>)>,
+    frame_queue: Vec<(&'a Node, Vec<ScrollFrame>)>,
     i: usize,
 }
 
-impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
-    type Item = (&'a R::Renderable, &'a AABB, Vec<ScrollFrame>);
+impl<'a> Iterator for NodeRenderableIterator<'a> {
+    type Item = (&'a Renderable, &'a AABB, Vec<ScrollFrame>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while !self.queue.is_empty() {
@@ -700,8 +703,7 @@ impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
                         f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
                         self.frame_queue.push((n, f));
                     } else {
-                        self.queue
-                            .extend(n.children.iter().collect::<Vec<&Node<R>>>());
+                        self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
                     }
                 } else {
                     self.i += 1;
@@ -713,15 +715,13 @@ impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
                 f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
                 self.frame_queue.push((n, f));
             } else {
-                self.queue
-                    .extend(n.children.iter().collect::<Vec<&Node<R>>>());
+                self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
             }
 
             if self.queue.is_empty() && !self.frame_queue.is_empty() {
                 let (n, f) = self.frame_queue.pop().unwrap();
                 self.current_frame = f;
-                self.queue
-                    .extend(n.children.iter().collect::<Vec<&Node<R>>>());
+                self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
             }
         }
         None
@@ -731,6 +731,7 @@ impl<'a, R: fmt::Debug + Renderer> Iterator for NodeRenderableIterator<'a, R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::render::{Renderable, Renderer};
     use crate::window::Window;
     use raw_window_handle::{
         HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
@@ -770,27 +771,18 @@ mod tests {
 
     #[derive(Debug)]
     pub struct TestRenderer {}
-    // Renderable that just holds a counter
-    #[derive(Debug, PartialEq)]
-    pub struct IncRenderable {
-        pub repr: String,
-        pub i: usize,
-    }
     impl Renderer for TestRenderer {
-        type Renderable = IncRenderable;
         fn new<W: Window>(_window: &W) -> Self {
             Self {}
         }
     }
-
-    type Node = super::Node<TestRenderer>;
 
     mod container {
         use super::*;
         #[derive(Debug)]
         pub struct Container {}
 
-        impl Component<TestRenderer> for Container {}
+        impl Component for Container {}
     }
 
     mod test_button {
@@ -814,7 +806,7 @@ mod tests {
             }
         }
 
-        impl<M: 'static + fmt::Debug + Clone> Component<TestRenderer> for TestButton<M> {
+        impl<M: 'static + fmt::Debug + Clone> Component for TestButton<M> {
             fn on_click(&mut self, _event: &mut Event<event::Click>) -> Vec<Message> {
                 println!("ON CLICK {}", &self.label);
                 let mut m: Vec<Message> = vec![];
@@ -824,13 +816,13 @@ mod tests {
                 m
             }
 
-            fn render<'a>(
-                &mut self,
-                context: RenderContext<'a, TestRenderer>,
-            ) -> Option<Vec<IncRenderable>> {
-                Some(vec![IncRenderable {
+            fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+                Some(vec![Renderable::Inc {
                     repr: self.label.clone(),
-                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                    i: context.prev_state.map_or(1, |r| match r[0] {
+                        Renderable::Inc { i, .. } => i + 1,
+                        _ => panic!(),
+                    }),
                 }])
             }
         }
@@ -862,7 +854,7 @@ mod tests {
             }
         }
 
-        impl Component<TestRenderer> for Widget {
+        impl Component for Widget {
             fn view(&self) -> Option<Node> {
                 Some(
                     container(0)
@@ -931,7 +923,7 @@ mod tests {
             }
         }
 
-        impl Component<TestRenderer> for TestApp {
+        impl Component for TestApp {
             fn init(&mut self) {
                 self.state = Some(test_app::AppState { foo: 1 });
             }
@@ -966,13 +958,13 @@ mod tests {
                 }
             }
 
-            fn render<'a>(
-                &mut self,
-                context: RenderContext<'a, TestRenderer>,
-            ) -> Option<Vec<IncRenderable>> {
-                Some(vec![IncRenderable {
+            fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+                Some(vec![Renderable::Inc {
                     repr: format!("{}", self.state.as_ref().map(|s| s.foo).unwrap()),
-                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                    i: context.prev_state.map_or(1, |r| match r[0] {
+                        Renderable::Inc { i, .. } => i + 1,
+                        _ => panic!(),
+                    }),
                 }])
             }
 
@@ -986,23 +978,23 @@ mod tests {
 
     #[test]
     fn test_caching() {
-        let mut renderer = TestRenderer {};
+        let renderer = TestRenderer {};
         let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
-        let font_cache = FontCache::default();
+        let font_cache = Arc::new(RwLock::new(FontCache::default()));
         n.view(None);
         //n.layout();
-        n.render(&mut renderer, None, &font_cache, 1.0);
+        n.render(renderer.buffer_caches(), None, font_cache.clone(), 1.0);
         //println!("{:#?}", n);
         assert_eq!(
             n.render_cache,
-            Some(vec![IncRenderable {
+            Some(vec![Renderable::Inc {
                 repr: "1".to_string(),
                 i: 1
             }])
         );
         assert_eq!(
             n.children[0].children[0].children[0].children[0].render_cache,
-            Some(vec![IncRenderable {
+            Some(vec![Renderable::Inc {
                 repr: "Button A".to_string(),
                 i: 1
             }])
@@ -1022,11 +1014,16 @@ mod tests {
         assert_eq!(n.children[0].id, new_n.children[0].id);
 
         //new_n.layout();
-        new_n.render(&mut renderer, Some(&mut n), &font_cache, 1.0);
+        new_n.render(
+            renderer.buffer_caches(),
+            Some(&mut n),
+            font_cache.clone(),
+            1.0,
+        );
         //println!("{:#?}", new_n);
         assert_eq!(
             new_n.render_cache,
-            Some(vec![IncRenderable {
+            Some(vec![Renderable::Inc {
                 repr: "2".to_string(),
                 i: 2
             }])
@@ -1034,7 +1031,7 @@ mod tests {
         // Button did not need to be re-rendered
         assert_eq!(
             new_n.children[0].children[0].children[0].children[0].render_cache,
-            Some(vec![IncRenderable {
+            Some(vec![Renderable::Inc {
                 repr: "Button A".to_string(),
                 i: 1
             }])
@@ -1050,14 +1047,14 @@ mod tests {
             scrollable: bool,
         }
 
-        impl Component<TestRenderer> for Div {
-            fn render<'a>(
-                &mut self,
-                context: RenderContext<'a, TestRenderer>,
-            ) -> Option<Vec<IncRenderable>> {
-                Some(vec![IncRenderable {
+        impl Component for Div {
+            fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+                Some(vec![Renderable::Inc {
                     repr: format!("Div {}", &self.name),
-                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                    i: context.prev_state.map_or(1, |r| match r[0] {
+                        Renderable::Inc { i, .. } => i + 1,
+                        _ => panic!(),
+                    }),
                 }])
             }
 
@@ -1076,7 +1073,7 @@ mod tests {
         #[derive(Debug, Default)]
         pub struct TestApp {}
 
-        impl Component<TestRenderer> for TestApp {
+        impl Component for TestApp {
             fn view(&self) -> Option<Node> {
                 Some(
                     Node::new(
@@ -1197,13 +1194,13 @@ mod tests {
                 )
             }
 
-            fn render<'a>(
-                &mut self,
-                context: RenderContext<'a, TestRenderer>,
-            ) -> Option<Vec<IncRenderable>> {
-                Some(vec![IncRenderable {
+            fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+                Some(vec![Renderable::Inc {
                     repr: "ScrollApp".to_string(),
-                    i: context.prev_state.map_or(1, |r| r[0].i + 1),
+                    i: context.prev_state.map_or(1, |r| match r[0] {
+                        Renderable::Inc { i, .. } => i + 1,
+                        _ => panic!(),
+                    }),
                 }])
             }
         }
@@ -1211,8 +1208,8 @@ mod tests {
 
     #[test]
     fn test_scroll() {
-        let mut renderer = TestRenderer {};
-        let font_cache = FontCache::default();
+        let renderer = TestRenderer {};
+        let font_cache = Arc::new(RwLock::new(FontCache::default()));
         let m = Node::new(
             Box::new(test_scroll_app::TestApp::default()),
             0,
@@ -1224,7 +1221,7 @@ mod tests {
             lay!(size: size!(300.0)),
         );
         n.view(None);
-        n.layout(&m, &font_cache, 1.0);
+        n.layout(&m, &font_cache.read().unwrap(), 1.0);
 
         // Expect the inner_scale to be a real size
         let scroll_node = &mut n.children[0].children[0];
@@ -1232,7 +1229,7 @@ mod tests {
         assert_eq!(scroll_node.inner_scale.unwrap(), [200.0, 150.0].into());
 
         // Expect renderables to be laid out in the right order, with the correct Frames
-        n.render(&mut renderer, None, &font_cache, 1.0);
+        n.render(renderer.buffer_caches(), None, font_cache.clone(), 1.0);
         let renderables = n.iter_renderables().collect::<Vec<_>>();
         assert_eq!(renderables.len(), 9);
         // First three (App, Top Div, Scroll Div) do not have Frames

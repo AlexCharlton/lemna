@@ -24,8 +24,7 @@ impl Window {
         mut fonts: Vec<(String, &'static [u8])>,
     ) where
         R: Renderer + 'static,
-        <R as Renderer>::Renderable: std::fmt::Debug,
-        A: 'static + Component<R> + Default + Send + Sync,
+        A: 'static + Component + Default + Send + Sync,
     {
         let event_loop = EventLoop::new();
         let window = WindowBuilder::new()

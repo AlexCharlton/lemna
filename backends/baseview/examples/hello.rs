@@ -1,13 +1,10 @@
 use lemna::*;
 use lemna_baseview::Window;
 
-type Renderer = lemna::render::wgpu::WGPURenderer;
-type Node = lemna::Node<Renderer>;
-
 #[derive(Debug, Default)]
 pub struct HelloApp {}
 
-impl lemna::Component<Renderer> for HelloApp {
+impl lemna::Component for HelloApp {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -42,7 +39,7 @@ impl lemna::Component<Renderer> for HelloApp {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<Renderer, HelloApp>(
+    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, HelloApp>(
         "Hello".to_string(),
         400,
         300,

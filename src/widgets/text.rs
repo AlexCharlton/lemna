@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::font_cache::{FontCache, HorizontalAlign, SectionText};
-use crate::render::wgpu::{self, WGPURenderable, WGPURenderer};
+use crate::render::{renderables::text, Renderable};
 use lemna_macros::{state_component, state_component_impl};
 
 #[derive(Debug, Clone)]
@@ -191,7 +191,7 @@ impl Text {
 }
 
 #[state_component_impl(TextState)]
-impl Component<WGPURenderer> for Text {
+impl Component for Text {
     fn new_props(&mut self) {
         self.state = Some(TextState::default());
     }
@@ -269,13 +269,10 @@ impl Component<WGPURenderer> for Text {
         output
     }
 
-    fn render<'a>(
-        &mut self,
-        context: RenderContext<'a, WGPURenderer>,
-    ) -> Option<Vec<WGPURenderable>> {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let bounds = context.aabb.size();
-        let glyphs = context.font_cache.layout_text(
-            &self.to_section_text(context.font_cache, context.scale_factor),
+        let glyphs = context.font_cache.read().unwrap().layout_text(
+            &self.to_section_text(&context.font_cache.read().unwrap(), context.scale_factor),
             self.style.h_alignment,
             (
                 match self.style.h_alignment {
@@ -291,13 +288,13 @@ impl Component<WGPURenderer> for Text {
         if glyphs.is_empty() {
             Some(vec![])
         } else {
-            Some(vec![WGPURenderable::Text(wgpu::Text::new(
+            Some(vec![Renderable::Text(text::Text::new(
                 glyphs,
                 Pos::default(),
                 self.style.color,
-                &mut context.renderer.text_pipeline,
+                &mut context.buffer_caches.text_cache.write().unwrap(),
                 context.prev_state.and_then(|v| match v.get(0) {
-                    Some(WGPURenderable::Text(r)) => Some(r.buffer_id),
+                    Some(Renderable::Text(r)) => Some(r.buffer_id),
                     _ => None,
                 }),
             ))])

@@ -1,12 +1,9 @@
 use lemna::*;
 
-type Renderer = lemna::render::wgpu::WGPURenderer;
-type Node = lemna::Node<Renderer>;
-
 #[derive(Debug, Default)]
 pub struct HelloApp {}
 
-impl lemna::Component<Renderer> for HelloApp {
+impl lemna::Component for HelloApp {
     fn view(&self) -> Option<Node> {
         Some(
             node!(Div::new(), lay!(wrap: true))
@@ -203,7 +200,12 @@ fn main() {
         ConfigBuilder::new().build(),
         std::fs::File::create("example.log").unwrap(),
     );
-    lemna_winit::Window::open_blocking::<Renderer, HelloApp>("Hello scroll!", 800, 600, vec![]);
+    lemna_winit::Window::open_blocking::<lemna::render::wgpu::WGPURenderer, HelloApp>(
+        "Hello scroll!",
+        800,
+        600,
+        vec![],
+    );
 
     println!("bye");
 }

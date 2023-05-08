@@ -3,13 +3,10 @@ use lemna_nih_plug::nih_plug;
 use nih_plug::prelude::*;
 use std::sync::Arc;
 
-type Renderer = lemna::render::wgpu::WGPURenderer;
-type Node = lemna::Node<Renderer>;
-
 #[derive(Debug, Default)]
 pub struct HelloApp {}
 
-impl lemna::Component<Renderer> for HelloApp {
+impl lemna::Component for HelloApp {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -84,7 +81,7 @@ impl Plugin for HelloPlugin {
     }
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        lemna_nih_plug::create_lemna_editor::<Renderer, HelloApp, _, _>(
+        lemna_nih_plug::create_lemna_editor::<lemna::render::wgpu::WGPURenderer, HelloApp, _, _>(
             "Hello Lemna",
             400,
             300,

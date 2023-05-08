@@ -9,7 +9,10 @@ use crate::event;
 use crate::font_cache::{FontCache, HorizontalAlign, SectionText};
 use crate::input::Key;
 use crate::layout::ScrollPosition;
-use crate::render::wgpu::{self, WGPURenderable, WGPURenderer};
+use crate::render::{
+    renderables::{Rect, Text},
+    Renderable,
+};
 use crate::{node, Node};
 use lemna_macros::{state_component, state_component_impl};
 
@@ -111,8 +114,8 @@ impl TextBox {
 }
 
 #[state_component_impl(TextBoxState)]
-impl Component<WGPURenderer> for TextBox {
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl Component for TextBox {
+    fn view(&self) -> Option<Node> {
         Some(
             node!(
                 TextBoxContainer::new(
@@ -187,7 +190,7 @@ impl TextBoxContainer {
 }
 
 #[state_component_impl(TextBoxContainerState)]
-impl Component<WGPURenderer> for TextBoxContainer {
+impl Component for TextBoxContainer {
     fn full_control(&self) -> bool {
         true
     }
@@ -242,14 +245,11 @@ impl Component<WGPURenderer> for TextBoxContainer {
         })
     }
 
-    fn render<'a>(
-        &mut self,
-        context: RenderContext<'a, WGPURenderer>,
-    ) -> Option<Vec<WGPURenderable>> {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let border_width = self.border_width_px(context.scale_factor);
         self.state_mut().border_width_px = border_width;
 
-        let background = WGPURenderable::Rect(wgpu::Rect::new(
+        let background = Renderable::Rect(Rect::new(
             Pos {
                 x: border_width,
                 y: border_width,
@@ -259,7 +259,7 @@ impl Component<WGPURenderer> for TextBoxContainer {
             self.background_color,
         ));
 
-        let border = WGPURenderable::Rect(wgpu::Rect::new(
+        let border = Renderable::Rect(Rect::new(
             Pos::default(),
             context.aabb.size(),
             self.border_color,
@@ -450,7 +450,7 @@ impl TextBoxText {
 }
 
 #[state_component_impl(TextBoxTextState)]
-impl Component<WGPURenderer> for TextBoxText {
+impl Component for TextBoxText {
     fn init(&mut self) {
         self.reset_state();
     }
@@ -801,10 +801,7 @@ impl Component<WGPURenderer> for TextBoxText {
         )
     }
 
-    fn render<'a>(
-        &mut self,
-        context: RenderContext<'a, WGPURenderer>,
-    ) -> Option<Vec<WGPURenderable>> {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let cursor_z = 2.0;
         let text_z = 5.0;
         let font_size = self.style.font_size * super::Text::SIZE_SCALE;
@@ -820,7 +817,7 @@ impl Component<WGPURenderer> for TextBoxText {
         let mut renderables = vec![];
 
         if !self.state_ref().glyphs.is_empty() {
-            let text = WGPURenderable::Text(wgpu::Text::new(
+            let text = Renderable::Text(Text::new(
                 self.state_ref().glyphs.clone(),
                 Pos {
                     x: offset,
@@ -828,9 +825,9 @@ impl Component<WGPURenderer> for TextBoxText {
                     z: text_z,
                 },
                 self.style.text_color,
-                &mut context.renderer.text_pipeline,
+                &mut context.buffer_caches.text_cache.write().unwrap(),
                 context.prev_state.and_then(|v| match v.get(0) {
-                    Some(WGPURenderable::Text(r)) => Some(r.buffer_id),
+                    Some(Renderable::Text(r)) => Some(r.buffer_id),
                     _ => None,
                 }),
             ));
@@ -839,7 +836,7 @@ impl Component<WGPURenderer> for TextBoxText {
         }
 
         if self.state_ref().cursor_visible && self.selection().is_none() {
-            let cursor_rect = WGPURenderable::Rect(wgpu::Rect::new(
+            let cursor_rect = Renderable::Rect(Rect::new(
                 Pos::new(cursor_x, offset + 2.0, cursor_z),
                 Scale::new(1.0, font_size_px - offset),
                 self.style.cursor_color,
@@ -852,7 +849,7 @@ impl Component<WGPURenderer> for TextBoxText {
                 (cursor_x, selection_from_x.unwrap())
             };
 
-            let selection_rect = WGPURenderable::Rect(wgpu::Rect::new(
+            let selection_rect = Renderable::Rect(Rect::new(
                 Pos::new(x1, offset + 2.0, cursor_z),
                 Scale::new(x2 - x1, font_size_px - offset),
                 self.style.selection_color,

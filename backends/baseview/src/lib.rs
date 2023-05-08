@@ -21,7 +21,7 @@ pub enum ParentMessage {
     AppMessage(Message),
 }
 
-struct BaseViewUI<R: Renderer, A: 'static + Component<R> + Default + Send + Sync> {
+struct BaseViewUI<R: Renderer, A: 'static + Component + Default + Send + Sync> {
     ui: UI<Window, R, A>,
     parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
 }
@@ -53,7 +53,7 @@ impl Window {
     where
         P: HasRawWindowHandle,
         R: Renderer + 'static,
-        A: 'static + Component<R> + Default + Send + Sync,
+        A: 'static + Component + Default + Send + Sync,
         B: Fn(&mut UI<Window, R, A>) + 'static + Send,
     {
         let drop_target_valid = Arc::new(RwLock::new(true));
@@ -107,7 +107,7 @@ impl Window {
         mut fonts: Vec<(String, &'static [u8])>,
     ) where
         R: Renderer + 'static,
-        A: 'static + Component<R> + Default + Send + Sync,
+        A: 'static + Component + Default + Send + Sync,
     {
         let drop_target_valid = Arc::new(RwLock::new(true));
         let drop_target_valid2 = drop_target_valid.clone();
@@ -165,8 +165,8 @@ unsafe impl HasRawDisplayHandle for Window {
 }
 
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
-impl<R: 'static + Renderer, A: 'static + Component<R> + Default + Send + Sync>
-    baseview::WindowHandler for BaseViewUI<R, A>
+impl<R: 'static + Renderer, A: 'static + Component + Default + Send + Sync> baseview::WindowHandler
+    for BaseViewUI<R, A>
 {
     fn on_frame(&mut self, window: &mut baseview::Window) {
         if let Some(receiver) = &self.parent_channel {

@@ -9,6 +9,7 @@ pub mod layout;
 pub use layout::*;
 
 pub mod render;
+pub use render::Renderable;
 
 pub mod input;
 pub use input::Data;

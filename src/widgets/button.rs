@@ -6,7 +6,6 @@ use crate::component::{Component, Message};
 use crate::event;
 use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
-use crate::render::wgpu::WGPURenderer;
 use crate::{node, Node};
 use lemna_macros::{state_component, state_component_impl};
 
@@ -91,8 +90,8 @@ impl Button {
 }
 
 #[state_component_impl(ButtonState)]
-impl Component<WGPURenderer> for Button {
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl Component for Button {
+    fn view(&self) -> Option<Node> {
         let mut base = node!(
             super::RoundedRect {
                 background_color: if self.state_ref().pressed {

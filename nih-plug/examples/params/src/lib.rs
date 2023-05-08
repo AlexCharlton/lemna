@@ -4,9 +4,6 @@ use lemna_nih_plug::nih_plug;
 use nih_plug::prelude::*;
 use std::sync::Arc;
 
-type Renderer = lemna::render::wgpu::WGPURenderer;
-type Node = lemna::Node<Renderer>;
-
 #[derive(Debug)]
 pub struct ParamsAppState {
     params: Arc<ParamsParams>,
@@ -17,7 +14,7 @@ pub struct ParamsAppState {
 pub struct ParamsApp {}
 
 #[state_component_impl(ParamsAppState)]
-impl lemna::Component<Renderer> for ParamsApp {
+impl lemna::Component for ParamsApp {
     fn init(&mut self) {
         self.state = Some(ParamsAppState {
             params: Default::default(),
@@ -91,7 +88,7 @@ impl Plugin for ParamsPlugin {
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let app_params = self.params.clone();
-        lemna_nih_plug::create_lemna_editor::<Renderer, ParamsApp, _, _>(
+        lemna_nih_plug::create_lemna_editor::<lemna::render::wgpu::WGPURenderer, ParamsApp, _, _>(
             "Hello Lemna Params",
             400,
             300,

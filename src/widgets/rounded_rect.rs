@@ -6,7 +6,10 @@ use lyon::tessellation::math as lyon_math;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
-use crate::render::wgpu::{self, pipelines::shape, WGPURenderable, WGPURenderer};
+use crate::render::{
+    renderables::shape::{self, Shape},
+    Renderable,
+};
 
 #[derive(Debug)]
 pub struct RoundedRect {
@@ -43,7 +46,7 @@ impl RoundedRect {
     }
 }
 
-impl Component<WGPURenderer> for RoundedRect {
+impl Component for RoundedRect {
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.background_color.hash(hasher);
         self.border_color.hash(hasher);
@@ -54,10 +57,7 @@ impl Component<WGPURenderer> for RoundedRect {
         (self.radius.3 as i32).hash(hasher);
     }
 
-    fn render<'a>(
-        &mut self,
-        context: RenderContext<'a, WGPURenderer>,
-    ) -> Option<Vec<WGPURenderable>> {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let mut geometry = shape::ShapeGeometry::new();
         let rect = lyon_math::rect(0.0, 0.0, context.aabb.width(), context.aabb.height());
         let radii = basic_shapes::BorderRadii {
@@ -91,16 +91,16 @@ impl Component<WGPURenderer> for RoundedRect {
             .unwrap();
         }
 
-        Some(vec![WGPURenderable::Shape(wgpu::Shape::new(
+        Some(vec![Renderable::Shape(Shape::new(
             geometry,
             fill_count.indices,
             self.background_color,
             self.border_color,
             self.border_width * 0.5,
             0.0,
-            &mut context.renderer.shape_pipeline,
+            &mut context.buffer_caches.shape_cache.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(0) {
-                Some(WGPURenderable::Shape(r)) => Some(r.buffer_id),
+                Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,
             }),
         ))])

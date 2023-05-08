@@ -1,16 +1,13 @@
-use lemna::render::wgpu::Shape;
+use lemna::render::renderables::Shape;
 use lemna::{self, *};
 use lyon::path::Path;
 use lyon::tessellation::math as lyon_math;
 
-type Renderer = lemna::render::wgpu::WGPURenderer;
-type Renderable = lemna::render::wgpu::WGPURenderable;
-
 #[derive(Debug, Default)]
 pub struct HelloApp {}
 
-impl lemna::Component<Renderer> for HelloApp {
-    fn render<'a>(&mut self, context: RenderContext<'a, Renderer>) -> Option<Vec<Renderable>> {
+impl lemna::Component for HelloApp {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let mut path_builder = Path::builder();
         path_builder.move_to(lyon_math::point(10.0, 10.0));
         path_builder.line_to(lyon_math::point(100.0, 10.0));
@@ -40,50 +37,55 @@ impl lemna::Component<Renderer> for HelloApp {
         let path3 = path_builder.build();
         let (geom3, _) = Shape::path_to_shape_geometry(path3, false, true);
 
-        Some(vec![
-            Renderable::Shape(Shape::new(
-                geom1,
-                index_count1,
-                [1.0, 0.0, 0.0].into(),
-                [0.0, 0.0, 0.0].into(),
-                4.0,
-                0.0,
-                &mut context.renderer.shape_pipeline,
-                context.prev_state.as_ref().and_then(|v| match v.get(0) {
-                    Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                    _ => None,
-                }),
-            )),
-            Renderable::Shape(Shape::new(
-                geom2,
-                index_count2,
-                [0.0, 1.0, 0.3].into(),
-                [1.0, 1.0, 1.0].into(),
-                0.0,
-                0.0,
-                &mut context.renderer.shape_pipeline,
-                context.prev_state.as_ref().and_then(|v| match v.get(1) {
-                    Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                    _ => None,
-                }),
-            )),
-            Renderable::Shape(Shape::stroke(
-                geom3,
-                [0.0, 1.0, 0.0].into(),
-                6.0,
-                0.0,
-                &mut context.renderer.shape_pipeline,
-                context.prev_state.as_ref().and_then(|v| match v.get(2) {
-                    Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                    _ => None,
-                }),
-            )),
-        ])
+        let shape1 = Renderable::Shape(Shape::new(
+            geom1,
+            index_count1,
+            [1.0, 0.0, 0.0].into(),
+            [0.0, 0.0, 0.0].into(),
+            4.0,
+            0.0,
+            &mut context.buffer_caches.shape_cache.write().unwrap(),
+            context.prev_state.as_ref().and_then(|v| match v.get(0) {
+                Some(Renderable::Shape(r)) => Some(r.buffer_id),
+                _ => None,
+            }),
+        ));
+        let shape2 = Renderable::Shape(Shape::new(
+            geom2,
+            index_count2,
+            [0.0, 1.0, 0.3].into(),
+            [1.0, 1.0, 1.0].into(),
+            0.0,
+            0.0,
+            &mut context.buffer_caches.shape_cache.write().unwrap(),
+            context.prev_state.as_ref().and_then(|v| match v.get(1) {
+                Some(Renderable::Shape(r)) => Some(r.buffer_id),
+                _ => None,
+            }),
+        ));
+        let shape3 = Renderable::Shape(Shape::stroke(
+            geom3,
+            [0.0, 1.0, 0.0].into(),
+            6.0,
+            0.0,
+            &mut context.buffer_caches.shape_cache.write().unwrap(),
+            context.prev_state.as_ref().and_then(|v| match v.get(2) {
+                Some(Renderable::Shape(r)) => Some(r.buffer_id),
+                _ => None,
+            }),
+        ));
+
+        Some(vec![shape1, shape2, shape3])
     }
 }
 
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<Renderer, HelloApp>::open_blocking("Hello shapes!", 400, 300, vec![]);
+    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, HelloApp>::open_blocking(
+        "Hello shapes!",
+        400,
+        300,
+        vec![],
+    );
     println!("bye");
 }

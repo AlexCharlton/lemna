@@ -3,10 +3,6 @@ use lemna_macros::{state_component, state_component_impl};
 use ttf_noto_sans;
 use wx_rs::{Menu, MenuBar, MenuEntry};
 
-type Renderer = lemna::render::wgpu::WGPURenderer;
-type Renderable = lemna::render::wgpu::WGPURenderable;
-type Node = lemna::Node<Renderer>;
-
 #[derive(Debug)]
 pub struct HelloAppState {
     menu_bar: MenuBar<HelloMenu>,
@@ -55,7 +51,7 @@ enum HelloMenu {
 }
 
 #[state_component_impl(HelloAppState)]
-impl lemna::Component<Renderer> for HelloApp {
+impl lemna::Component for HelloApp {
     fn init(&mut self) {
         let mut menu_bar = MenuBar::new();
         menu_bar.append(
@@ -77,8 +73,8 @@ impl lemna::Component<Renderer> for HelloApp {
         })
     }
 
-    fn render<'a>(&mut self, context: RenderContext<'a, Renderer>) -> Option<Vec<Renderable>> {
-        use crate::render::wgpu::Rect;
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        use crate::render::renderables::Rect;
 
         Some(vec![Renderable::Rect(Rect::new(
             Pos::default(),
@@ -235,7 +231,7 @@ impl lemna::Component<Renderer> for HelloApp {
 #[derive(Debug)]
 pub struct Sorter {}
 
-impl Component<Renderer> for Sorter {
+impl Component for Sorter {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -303,13 +299,11 @@ pub struct EventReactor {
     pub name: String,
 }
 
-impl Component<Renderer> for EventReactor {
-    fn render<'a>(&mut self, context: RenderContext<'a, Renderer>) -> Option<Vec<Renderable>> {
-        Some(vec![Renderable::Rect(lemna::render::wgpu::Rect::new(
-            Pos::default(),
-            context.aabb.size(),
-            Color::BLUE,
-        ))])
+impl Component for EventReactor {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        Some(vec![Renderable::Rect(
+            lemna::render::renderables::Rect::new(Pos::default(), context.aabb.size(), Color::BLUE),
+        )])
     }
 
     fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) -> Vec<Message> {
@@ -339,6 +333,11 @@ impl Component<Renderer> for EventReactor {
         vec![]
     }
 
+    fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) -> Vec<Message> {
+        println!("Double clicked on {} with {:?}", &self.name, event.input.0);
+        vec![]
+    }
+
     fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) -> Vec<Message> {
         println!("Entered {}", &self.name);
         vec![]
@@ -358,7 +357,7 @@ impl Component<Renderer> for EventReactor {
 // App setup
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<Renderer, HelloApp>::open_blocking(
+    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, HelloApp>::open_blocking(
         "Hello events!",
         800,
         600,

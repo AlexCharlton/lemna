@@ -1,13 +1,12 @@
 mod buffer_cache;
-mod glyph_brush_draw_cache;
-mod shared;
+pub(crate) mod shared;
 
 pub mod rect;
-pub use rect::{Rect, RectPipeline};
+pub use rect::RectPipeline;
 pub mod shape;
-pub use shape::{Shape, ShapePipeline};
+pub use shape::ShapePipeline;
 pub mod text;
-pub use text::{Text, TextPipeline};
+pub use text::TextPipeline;
 
 pub(crate) mod msaa;
 pub(crate) mod stencil;

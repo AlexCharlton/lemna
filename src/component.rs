@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::fmt;
+use std::sync::{Arc, RwLock};
 
 use ahash::AHasher;
 
@@ -8,7 +9,7 @@ use crate::event::{self, Event};
 use crate::font_cache::FontCache;
 use crate::layout::*;
 use crate::node::Node;
-use crate::render::Renderer;
+use crate::render::{BufferCaches, Renderable};
 
 pub type Message = Box<dyn Any>;
 pub type State = Box<dyn Any>;
@@ -22,22 +23,16 @@ macro_rules! msg {
     };
 }
 
-pub struct RenderContext<'a, R>
-where
-    R: Renderer,
-{
-    pub aabb: &'a AABB,
+pub struct RenderContext {
+    pub aabb: AABB,
     pub inner_scale: Option<Scale>,
-    pub renderer: &'a mut R,
-    pub prev_state: Option<Vec<R::Renderable>>,
-    pub font_cache: &'a FontCache,
+    pub buffer_caches: BufferCaches,
+    pub prev_state: Option<Vec<Renderable>>,
+    pub font_cache: Arc<RwLock<FontCache>>,
     pub scale_factor: f32,
 }
 
-pub trait Component<R>: fmt::Debug
-where
-    R: Renderer + fmt::Debug,
-{
+pub trait Component: fmt::Debug {
     fn init(&mut self) {}
 
     fn new_props(&mut self) {}
@@ -46,11 +41,11 @@ where
         vec![msg]
     }
 
-    fn view(&self) -> Option<Node<R>> {
+    fn view(&self) -> Option<Node> {
         None
     }
 
-    fn render<'a>(&mut self, _context: RenderContext<'a, R>) -> Option<Vec<R::Renderable>> {
+    fn render(&mut self, _context: RenderContext) -> Option<Vec<Renderable>> {
         None
     }
 

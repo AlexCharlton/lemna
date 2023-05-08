@@ -97,13 +97,3 @@ pub fn create_pipeline_depth_stencil(
         multiview: None,
     })
 }
-
-pub fn next_power_of_2(n: usize) -> usize {
-    let mut n = n - 1;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-    n + 1
-}

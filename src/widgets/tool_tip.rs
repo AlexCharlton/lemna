@@ -1,7 +1,6 @@
 use crate::base_types::*;
 use crate::component::Component;
 use crate::font_cache::HorizontalAlign;
-use crate::render::wgpu::WGPURenderer;
 use crate::{node, txt, Node};
 
 #[derive(Debug, Clone)]
@@ -39,8 +38,8 @@ impl ToolTip {
     pub(crate) const DELAY: u128 = 1000; // millis
 }
 
-impl Component<WGPURenderer> for ToolTip {
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl Component for ToolTip {
+    fn view(&self) -> Option<Node> {
         Some(
             node!(
                 super::Div::new()

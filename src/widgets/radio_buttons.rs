@@ -8,7 +8,6 @@ use crate::component::{Component, ComponentHasher, Message};
 use crate::event;
 use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
-use crate::render::wgpu::WGPURenderer;
 use crate::{node, Node};
 use lemna_macros::{state_component, state_component_impl};
 
@@ -100,8 +99,8 @@ impl RadioButtons {
     }
 }
 
-impl Component<WGPURenderer> for RadioButtons {
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+impl Component for RadioButtons {
+    fn view(&self) -> Option<Node> {
         let mut base = node!(
             super::Div::new(),
             lay!(direction: match self.direction {
@@ -255,7 +254,7 @@ struct RadioButton {
 }
 
 #[state_component_impl(RadioButtonState)]
-impl Component<WGPURenderer> for RadioButton {
+impl Component for RadioButton {
     fn props_hash(&self, hasher: &mut ComponentHasher) {
         self.selected.hash(hasher);
     }
@@ -264,7 +263,7 @@ impl Component<WGPURenderer> for RadioButton {
         self.state_mut().selected = self.selected;
     }
 
-    fn view(&self) -> Option<Node<WGPURenderer>> {
+    fn view(&self) -> Option<Node> {
         let mut base = node!(
             super::RoundedRect {
                 background_color: if self.state_ref().selected {

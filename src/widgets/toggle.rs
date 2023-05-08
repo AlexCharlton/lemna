@@ -4,7 +4,10 @@ use std::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
-use crate::render::wgpu::{pipelines::shape, Shape, WGPURenderable, WGPURenderer};
+use crate::render::{
+    renderables::shape::{self, Shape},
+    Renderable,
+};
 use lemna_macros::{state_component, state_component_impl};
 
 // TODO Make a tooltip
@@ -69,7 +72,7 @@ impl Toggle {
 }
 
 #[state_component_impl(ToggleState)]
-impl Component<WGPURenderer> for Toggle {
+impl Component for Toggle {
     fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) -> Vec<Message> {
         self.state_mut().pressed = false;
         event.dirty();
@@ -101,10 +104,7 @@ impl Component<WGPURenderer> for Toggle {
         self.state_ref().pressed.hash(hasher);
     }
 
-    fn render<'a>(
-        &mut self,
-        context: RenderContext<'a, WGPURenderer>,
-    ) -> Option<Vec<WGPURenderable>> {
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         use lyon::tessellation::math as lyon_math;
         use lyon::tessellation::{self, basic_shapes};
 
@@ -151,7 +151,7 @@ impl Component<WGPURenderer> for Toggle {
             .unwrap();
         }
 
-        Some(vec![WGPURenderable::Shape(Shape::new(
+        Some(vec![Renderable::Shape(Shape::new(
             geometry,
             fill_count,
             if self.state_ref().pressed {
@@ -164,9 +164,9 @@ impl Component<WGPURenderer> for Toggle {
             self.style.border_color,
             self.style.border_width * 0.5,
             0.0,
-            &mut context.renderer.shape_pipeline,
+            &mut context.buffer_caches.shape_cache.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(0) {
-                Some(WGPURenderable::Shape(r)) => Some(r.buffer_id),
+                Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,
             }),
         ))])

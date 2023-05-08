@@ -30,8 +30,7 @@ pub fn ui() -> &'static mut Box<dyn Any> {
 impl<R, A> Window<R, A>
 where
     R: Renderer + 'static,
-    <R as Renderer>::Renderable: std::fmt::Debug,
-    A: 'static + Component<R> + Default + Send + Sync,
+    A: 'static + Component + Default + Send + Sync,
 {
     pub fn open_blocking(
         title: &str,
