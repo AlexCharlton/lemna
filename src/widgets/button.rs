@@ -137,7 +137,6 @@ impl Component for Button {
                      z_index_increment: 1000.0,
                      position: (p + ToolTip::MOUSE_OFFSET).into(),
                 ),
-                1
             ));
         }
 

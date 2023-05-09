@@ -13,8 +13,8 @@ impl lemna::Component for HelloApp {
                      padding: rect!(10.0),
                      axis_alignment: Alignment::Center, cross_alignment: Alignment::Center)
             )
-            .push(node!(DropTarget::new(), lay!(size: size!(100.0)), 0))
-            .push(node!(DragSource {}, lay!(size: size!(100.0)), 0)),
+            .push(node!(DropTarget::new(), lay!(size: size!(100.0))))
+            .push(node!(DragSource {}, lay!(size: size!(100.0)))),
         )
     }
 
@@ -66,7 +66,6 @@ impl Component for DropTarget {
                     cross_alignment: crate::layout::Alignment::Center,
                     axis_alignment: crate::layout::Alignment::Center
                 ),
-                0
             )
             .push(node!(widgets::Text::new(
                 txt!("Drag something onto me"),
@@ -122,7 +121,6 @@ impl Component for DragSource {
                     cross_alignment: crate::layout::Alignment::Center,
                     axis_alignment: crate::layout::Alignment::Center
                 ),
-                0
             )
             .push(node!(widgets::Text::new(
                 txt!("Drag from me"),

@@ -22,7 +22,10 @@ macro_rules! node {
         $crate::Node::new(Box::new($component), $key, $layout)
     };
     ($component:expr, $layout:expr) => {
-        node!($component, $layout, 0)
+        node!($component, $layout, lemna_macros::static_id!())
+    };
+    ($component:expr, $layout:expr,) => {
+        node!($component, $layout)
     };
     ($component:expr) => {
         node!($component, $crate::layout::Layout::default())
@@ -30,22 +33,22 @@ macro_rules! node {
 }
 
 pub struct Node {
-    pub id: u64,
-    pub component: Box<dyn Component + Send + Sync>,
-    pub render_cache: Option<Vec<Renderable>>,
+    pub(crate) id: u64,
+    pub(crate) component: Box<dyn Component + Send + Sync>,
+    pub(crate) render_cache: Option<Vec<Renderable>>,
     pub(crate) children: Vec<Node>,
-    pub layout: Layout,
-    pub layout_result: LayoutResult,
-    pub aabb: AABB,
-    pub inclusive_aabb: AABB,
+    pub(crate) layout: Layout,
+    pub(crate) layout_result: LayoutResult,
+    pub(crate) aabb: AABB,
+    pub(crate) inclusive_aabb: AABB,
     /// TODO: Marking a node dirty should propagate to all its parents.
     ///   Clean nodes can be fully recycled instead of performing a `view`
-    pub dirty: bool,
+    pub(crate) dirty: bool,
     /// If the node is scrollable, how big are its children?
-    pub inner_scale: Option<Scale>,
-    pub props_hash: u64,
-    pub render_hash: u64,
-    pub key: u64,
+    pub(crate) inner_scale: Option<Scale>,
+    pub(crate) props_hash: u64,
+    pub(crate) render_hash: u64,
+    pub(crate) key: u64,
 }
 
 impl fmt::Debug for Node {
@@ -101,6 +104,11 @@ impl Node {
 
     pub fn push(mut self, node: Self) -> Self {
         self.children.push(node);
+        self
+    }
+
+    pub fn key(mut self, key: u64) -> Self {
+        self.key = key;
         self
     }
 

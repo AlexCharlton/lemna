@@ -207,8 +207,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
                         size: size!(self.style.font_size / 2.0),
                         // TODO: Margin here is awkward
                         margin: rect!(Auto, self.style.padding)
-                    ),
-                    1
+                    )
                 ))
         }
         Some(base)
@@ -295,16 +294,15 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
             )
         );
         for (i, s) in self.selections.iter().enumerate() {
-            l = l.push(node!(
-                SelectEntry {
+            l = l.push(
+                node!(SelectEntry {
                     selection: s.clone(),
                     id: i,
                     style: self.style.clone(),
                     selected: i == self.hovering,
-                },
-                lay!(),
-                i as u64
-            ));
+                })
+                .key(i as u64),
+            );
         }
         Some(l)
     }

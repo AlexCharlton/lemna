@@ -24,12 +24,10 @@ impl lemna::Component for HelloApp {
                             axis_alignment: Alignment::Stretch,
                             cross_alignment: Alignment::Stretch,
                         ),
-                        0
                     )
                     .push(node!(
                         Div::new().bg([1.0, 0.0, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                        0
                     ))
                     .push(
                         node!(
@@ -46,53 +44,43 @@ impl lemna::Component for HelloApp {
                                 axis_alignment: Alignment::Stretch,
                                 cross_alignment: Alignment::Stretch,
                             ),
-                            1
                         )
                         .push(node!(
                             Div::new().bg([1.0, 0.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                            0
                         ))
                         .push(node!(
                             Div::new().bg([1.0, 0.5, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                            1
                         ))
                         .push(node!(
                             Div::new().bg([1.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                            2
                         ))
                         .push(node!(
                             Div::new().bg([0.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                            3
                         ))
                         .push(node!(
                             Div::new().bg([0.0, 0.0, 1.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                            4
                         )),
                     )
                     .push(node!(
                         Div::new().bg([1.0, 0.5, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                        2
                     ))
                     .push(node!(
                         Div::new().bg([1.0, 1.0, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                        3
                     ))
                     .push(node!(
                         Div::new().bg([0.0, 1.0, 0.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                        4
                     ))
                     .push(node!(
                         Div::new().bg([0.0, 0.0, 1.0]),
                         lay!(margin: rect!(5.0), size: size!(Auto, 50.0)),
-                        5
                     )),
                 )
                 .push(
@@ -111,7 +99,6 @@ impl lemna::Component for HelloApp {
                             margin: rect!(10.0),
                             direction: Direction::Row,
                         ),
-                        1
                     )
                     .push(
                         node!(
@@ -122,32 +109,26 @@ impl lemna::Component for HelloApp {
                                 axis_alignment: Alignment::Stretch,
                                 cross_alignment: Alignment::Stretch,
                             ),
-                            0
                         )
                         .push(node!(
                             Div::new().bg([1.0, 0.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            0
                         ))
                         .push(node!(
                             Div::new().bg([1.0, 0.5, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            1
                         ))
                         .push(node!(
                             Div::new().bg([1.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            2
                         ))
                         .push(node!(
                             Div::new().bg([0.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            3
                         ))
                         .push(node!(
                             Div::new().bg([0.0, 0.0, 1.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            4
                         )),
                     )
                     .push(
@@ -159,32 +140,26 @@ impl lemna::Component for HelloApp {
                                 axis_alignment: Alignment::Stretch,
                                 cross_alignment: Alignment::Stretch,
                             ),
-                            1
                         )
                         .push(node!(
                             Div::new().bg([1.0, 0.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            0
                         ))
                         .push(node!(
                             Div::new().bg([1.0, 0.5, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            1
                         ))
                         .push(node!(
                             Div::new().bg([1.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            2
                         ))
                         .push(node!(
                             Div::new().bg([0.0, 1.0, 0.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            3
                         ))
                         .push(node!(
                             Div::new().bg([0.0, 0.0, 1.0]),
                             lay!(margin: rect!(5.0), size: size!(Auto, 80.0)),
-                            4
                         )),
                     ),
                 ),
