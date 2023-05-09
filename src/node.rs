@@ -21,11 +21,15 @@ macro_rules! node {
     ($component:expr, $layout:expr, $key:expr) => {
         $crate::Node::new(Box::new($component), $key, $layout)
     };
-    ($component:expr, $layout:expr) => {
-        node!($component, $layout, lemna_macros::static_id!())
+    ($component:expr, [ $( $param:ident : $val:expr ),* $(,)* ] $(,)*) => {
+        node!(
+            $component,
+            $crate::lay!($($param : $val,)*),
+            lemna_macros::static_id!()
+        )
     };
-    ($component:expr, $layout:expr,) => {
-        node!($component, $layout)
+    ($component:expr, $layout:expr $(,)*) => {
+        node!($component, $layout, lemna_macros::static_id!())
     };
     ($component:expr) => {
         node!($component, $crate::layout::Layout::default())
