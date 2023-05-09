@@ -18,12 +18,10 @@ impl lemna::Component for HelloApp {
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(1.0, 0.0, 0.0)),
                 lay!(size: size!(200.0, 100.0), margin: rect!(5.0)),
-                0
             ))
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(0.0, 1.0, 0.0)),
                 lay!(size: size!(100.0), margin: rect!(5.0)),
-                1
             ))
             .push(node!(
                 widgets::RoundedRect {
@@ -33,7 +31,6 @@ impl lemna::Component for HelloApp {
                 }
                 .radius(5.0),
                 lay!(size: size!(100.0), margin: rect!(5.0)),
-                2
             )),
         )
     }

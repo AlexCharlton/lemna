@@ -38,7 +38,7 @@ pub use crate::ui::*;
 pub mod widgets;
 pub use crate::widgets::*;
 
-pub use lemna_macros::{state_component, state_component_impl};
+pub use lemna_macros::{self, state_component, state_component_impl};
 
 #[cfg(feature = "open_iconic")]
 pub mod open_iconic;

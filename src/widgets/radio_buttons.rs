@@ -137,7 +137,7 @@ impl Component for RadioButtons {
 
         let mut i: usize = 0;
         let mut j: usize = 0;
-        let mut container = node!(super::Div::new(), lay!(direction: self.direction), i as u64);
+        let mut container = node!(super::Div::new(), lay!(direction: self.direction)).key(i as u64);
         for (position, b) in self.buttons.iter().enumerate() {
             if j >= limit {
                 j = 0;
@@ -148,9 +148,9 @@ impl Component for RadioButtons {
                     lay!(direction: self.direction,
                          cross_alignment: Alignment::Stretch,
                          // axis_alignment: Alignment::Stretch, // TODO: This is broken
-                    ),
-                    i as u64
-                );
+                    )
+                )
+                .key(i as u64);
                 base = base.push(old_container);
             }
             let row = match self.direction {
@@ -163,8 +163,8 @@ impl Component for RadioButtons {
             };
 
             let selected = self.selected.contains(&position);
-            container = container.push(node!(
-                RadioButton {
+            container = container.push(
+                node!(RadioButton {
                     label: b.clone(),
                     tool_tip: self.tool_tips.as_ref().map(|tt| tt[position].clone()),
                     position,
@@ -196,10 +196,9 @@ impl Component for RadioButtons {
                         selected,
                         ..Default::default()
                     }),
-                },
-                lay!(),
-                j as u64
-            ));
+                })
+                .key(j as u64),
+            );
 
             j += 1;
         }
@@ -303,8 +302,7 @@ impl Component for RadioButton {
                 lay!(position_type: PositionType::Absolute,
                      z_index_increment: 1000.0,
                      position: (p + ToolTip::MOUSE_OFFSET).into(),
-                ),
-                1
+                )
             ));
         }
 

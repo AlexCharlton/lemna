@@ -1,9 +1,12 @@
 extern crate proc_macro;
 
+use global_counter::primitive::exact::CounterU64;
 use proc_macro::{Group, TokenStream, TokenTree};
 use quote::quote;
 use std::iter::FromIterator;
 use syn::{self, parse_macro_input};
+
+static ID_COUNTER: CounterU64 = CounterU64::new(0);
 
 #[proc_macro_attribute]
 pub fn state_component(attr: TokenStream, input: TokenStream) -> TokenStream {
@@ -75,4 +78,10 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
     }
 
     TokenStream::from_iter(i.into_iter())
+}
+
+#[proc_macro]
+pub fn static_id(_item: TokenStream) -> TokenStream {
+    let id = ID_COUNTER.inc();
+    quote! { #id }.into()
 }

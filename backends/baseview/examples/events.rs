@@ -69,8 +69,7 @@ impl lemna::Component for HelloApp {
                 EventReactor {
                     name: "SomeWidget".to_string(),
                 },
-                lay!(size: size!(100.0)),
-                0
+                lay!(size: size!(100.0))
             ))
             .push(node!(Sorter {}, lay!(size: size!(100.0, 200.0)), 1))
             .push(node!(
@@ -79,8 +78,7 @@ impl lemna::Component for HelloApp {
                         name: "It me, a button!".to_string()
                     }))
                 ),
-                lay!(size: size!(100.0, 50.0)),
-                2
+                lay!(size: size!(100.0, 50.0))
             ))
             .push(node!(
                 widgets::Button::new(
@@ -95,14 +93,12 @@ impl lemna::Component for HelloApp {
                 .on_click(Box::new(|| msg!(HelloEvent::Button {
                     name: "jk, I'm just another button!".to_string()
                 }))),
-                lay!(size: size!(Auto)),
-                3
+                lay!(size: size!(Auto))
             ))
                 .push(node!(
                     widgets::FileSelector::new("Choose a file".to_string(), widgets::FileSelectorStyle::default())
                         .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
                     lay!(size: size!(Auto), margin: rect!(Auto, Auto, 50.0)),
-                    4
                 ))
             .push(node!(
                 widgets::Select::<String>::new(
@@ -117,9 +113,7 @@ impl lemna::Component for HelloApp {
                 .on_change(Box::new(|_, s| msg!(HelloEvent::Selection {
                     name: "My selection".to_string(),
                     value: s.clone(),
-                }))),
-                lay!(),
-                5
+                })))
             ))
             .push(node!(
                 widgets::TextBox::new(Some("Hello".to_string()), widgets::TextBoxStyle::default())
@@ -134,7 +128,6 @@ impl lemna::Component for HelloApp {
                         update_type: "commit".to_string(),
                     }))),
                 lay!(size: size!(100.0, Auto)),
-                6
             ))
             .push(node!(
                 widgets::RadioButtons::new(
@@ -156,7 +149,6 @@ impl lemna::Component for HelloApp {
                 .max_columns(2)
                 .on_change(Box::new(|s| msg!(HelloEvent::RadioSelect { selection: s }))),
                 lay!(margin: rect!(10.0)),
-                7
             ))
             .push(node!(
                 widgets::Toggle::new(
@@ -165,7 +157,6 @@ impl lemna::Component for HelloApp {
                 )
                 .on_change(Box::new(|s| msg!(HelloEvent::Toggle(s)))),
                 lay!(margin: rect!(10.0)),
-                8
             )),
         )
     }
@@ -209,27 +200,22 @@ impl Component for Sorter {
             .push(node!(
                 widgets::Div::new().bg([1.0, 0.0, 0.0]),
                 lay!(margin: rect!(5.0)),
-                0
             ))
             .push(node!(
                 widgets::Div::new().bg([1.0, 0.5, 0.0]),
                 lay!(margin: rect!(5.0)),
-                1
             ))
             .push(node!(
                 widgets::Div::new().bg([1.0, 1.0, 0.0]),
                 lay!(margin: rect!(5.0)),
-                2
             ))
             .push(node!(
                 widgets::Div::new().bg([0.0, 1.0, 0.0]),
                 lay!(margin: rect!(5.0)),
-                3
             ))
             .push(node!(
                 widgets::Div::new().bg([0.0, 0.0, 1.0]),
                 lay!(margin: rect!(5.0)),
-                4
             )),
         )
     }

@@ -1030,6 +1030,22 @@ macro_rules! lay {
         }
     );
 
+    // TODO
+    // ( @ { $param:ident : Center, $($rest:tt)* } -> ($($result:tt)*) ) => (
+    //     lay!(@ { $($rest)* } -> (
+    //         $($result)*
+    //             $param : $crate::layout::Alignment::Center
+    //     ))
+    // );
+
+
+    // ( @ { margin : ($($vals:expr)+), $($rest:tt)* } -> ($($result:tt)*) ) => (
+    //     lay!(@ { $($rest)* } -> (
+    //         $($result)*
+    //             margin : $crate::rect!($($val,)*),
+    //     ))
+    // );
+
     ( @ { $param:ident : $val:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
