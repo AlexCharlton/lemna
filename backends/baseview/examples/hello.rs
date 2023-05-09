@@ -9,19 +9,20 @@ impl lemna::Component for HelloApp {
         Some(
             node!(
                 widgets::Div::new(),
-                lay!(size: size_pct!(100.0), wrap: true,
-                     padding: rect!(10.0),
-                     axis_alignment: Alignment::Center,
+                lay![size_pct: [100.0],
+                     wrap: true,
+                     padding: [10.0],
+                     axis_alignment: Center,
                      cross_alignment: Alignment::Center,
-                )
+                ]
             )
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(1.0, 0.5, 0.5)),
-                [size: size!(200.0, 100.0), margin: rect!(5.0)],
+                [size: [200.0, 100.0], margin: [5]],
             ))
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(0.5, 1.0, 0.5)),
-                [size: size!(100.0), margin: rect!(5.0)],
+                [size: size!(100.0), margin: [5.0]],
             ))
             .push(node!(
                 widgets::RoundedRect {
@@ -30,7 +31,7 @@ impl lemna::Component for HelloApp {
                     ..Default::default()
                 }
                 .radius(5.0),
-                [size: size!(100.0), margin: rect!(5.0)]
+                [size: [100], margin: rect!(5)]
             )),
         )
     }

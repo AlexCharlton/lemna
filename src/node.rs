@@ -18,21 +18,21 @@ fn new_node_id() -> u64 {
 
 #[macro_export]
 macro_rules! node {
-    ($component:expr, $layout:expr, $key:expr) => {
-        $crate::Node::new(Box::new($component), $key, $layout)
+    ($component:expr) => {
+        node!($component, $crate::layout::Layout::default())
     };
-    ($component:expr, [ $( $param:ident : $val:expr ),* $(,)* ] $(,)*) => {
+    ($component:expr, [ $( $tt:tt )* ] $(,)*) => {
         node!(
             $component,
-            $crate::lay!($($param : $val,)*),
+            $crate::lay!($($tt)*),
             lemna_macros::static_id!()
         )
     };
     ($component:expr, $layout:expr $(,)*) => {
         node!($component, $layout, lemna_macros::static_id!())
     };
-    ($component:expr) => {
-        node!($component, $crate::layout::Layout::default())
+    ($component:expr, $layout:expr, $key:expr) => {
+        $crate::Node::new(Box::new($component), $key, $layout)
     };
 }
 
@@ -181,8 +181,8 @@ impl Node {
         }
         self.aabb.pos += parent_pos;
         self.aabb.bottom_right += parent_pos.into();
-        self.aabb.pos.z =
-            self.layout.z_index.unwrap_or(parent_pos.z + 1.0) + self.layout.z_index_increment;
+        self.aabb.pos.z = (self.layout.z_index.unwrap_or((parent_pos.z + 1.0).into())
+            + self.layout.z_index_increment) as f32;
 
         if full_control {
             let children: Vec<(&mut AABB, Option<Scale>, Option<Point>)> = self

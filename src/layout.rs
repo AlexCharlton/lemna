@@ -19,8 +19,8 @@ impl Div<f32> for ScrollPosition {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Dimension {
     Auto,
-    Px(f32),
-    Pct(f32),
+    Px(f64),
+    Pct(f64),
 }
 
 impl Default for Dimension {
@@ -82,7 +82,7 @@ impl Dimension {
 
     fn maybe_px(&self) -> Option<f32> {
         match self {
-            Self::Px(x) => Some(*x),
+            Self::Px(x) => Some(*x as f32),
             _ => None,
         }
     }
@@ -142,8 +142,8 @@ impl AddAssign for Dimension {
     }
 }
 
-impl DivAssign<f32> for Dimension {
-    fn div_assign(&mut self, b: f32) {
+impl DivAssign<f64> for Dimension {
+    fn div_assign(&mut self, b: f64) {
         let val = match *self {
             Self::Px(a) => Self::Px(a / b),
             Self::Pct(a) => Self::Pct(a / b),
@@ -154,6 +154,14 @@ impl DivAssign<f32> for Dimension {
 }
 
 impl From<Dimension> for f32 {
+    fn from(d: Dimension) -> Self {
+        match d {
+            Dimension::Px(p) => p as f32,
+            _ => 0.0,
+        }
+    }
+}
+impl From<Dimension> for f64 {
     fn from(d: Dimension) -> Self {
         match d {
             Dimension::Px(p) => p,
@@ -240,8 +248,8 @@ impl Size {
 impl From<ScrollPosition> for Size {
     fn from(p: ScrollPosition) -> Self {
         Self {
-            width: Dimension::Px(p.x.unwrap_or(0.0)),
-            height: Dimension::Px(p.y.unwrap_or(0.0)),
+            width: Dimension::Px(p.x.unwrap_or(0.0).into()),
+            height: Dimension::Px(p.y.unwrap_or(0.0).into()),
         }
     }
 }
@@ -424,8 +432,8 @@ impl Rect {
 impl From<crate::base_types::Point> for Rect {
     fn from(p: crate::base_types::Point) -> Self {
         Self {
-            top: Dimension::Px(p.y),
-            left: Dimension::Px(p.x),
+            top: Dimension::Px(p.y.into()),
+            left: Dimension::Px(p.x.into()),
             ..Default::default()
         }
     }
@@ -524,8 +532,8 @@ pub struct Layout {
     // TODO employ this more consistently
     pub max_size: Size,
     pub min_size: Size,
-    pub z_index: Option<f32>,
-    pub z_index_increment: f32,
+    pub z_index: Option<f64>,
+    pub z_index_increment: f64,
     pub debug: Option<String>,
 }
 
@@ -577,7 +585,7 @@ impl super::node::Node {
         final_pass: bool,
     ) {
         let dir = self.layout.direction;
-        let mut main_remaining = f32::from(inner_size.main(dir));
+        let mut main_remaining = f64::from(inner_size.main(dir));
         let mut max_cross_size = 0.0;
         let mut unresolved = 0;
         // dbg!(&self.component, inner_size);
@@ -636,10 +644,10 @@ impl super::node::Node {
                     scale_factor,
                 );
                 if let Some(w) = w {
-                    child.layout_result.size.width = Dimension::Px(w);
+                    child.layout_result.size.width = Dimension::Px(w.into());
                 }
                 if let Some(h) = h {
-                    child.layout_result.size.height = Dimension::Px(h);
+                    child.layout_result.size.height = Dimension::Px(h.into());
                 }
             }
 
@@ -661,7 +669,7 @@ impl super::node::Node {
             {
                 let margin = child.layout.margin.maybe_resolve(&inner_size);
                 *child.layout_result.size.main_mut(dir) =
-                    Dimension::Px(main_remaining / unresolved as f32)
+                    Dimension::Px(main_remaining / unresolved as f64)
                         - margin.main(dir, Alignment::Start)
                         - margin.main(dir, Alignment::End);
             }
@@ -674,7 +682,7 @@ impl super::node::Node {
                 && max_cross_size > 0.0
             {
                 let mut max_cross = Size::default();
-                *max_cross.cross_mut(dir) = Dimension::Px(max_cross_size);
+                *max_cross.cross_mut(dir) = Dimension::Px(max_cross_size.into());
 
                 child.layout_result.size = child
                     .layout
@@ -694,27 +702,27 @@ impl super::node::Node {
         match (pos.top, pos.bottom) {
             (Dimension::Px(top), _) => {
                 // Correct any discrepancy with bottom relative to top
-                self.layout_result.position.bottom = Dimension::Px(top + f32::from(size.height));
+                self.layout_result.position.bottom = Dimension::Px(top + f64::from(size.height));
             }
             (_, Dimension::Px(bottom)) => {
                 self.layout_result.position.top =
-                    Dimension::Px(f32::from(bounds.height) - bottom - f32::from(size.height));
+                    Dimension::Px(f64::from(bounds.height) - bottom - f64::from(size.height));
                 // Transform the bottom relative position into top relative
                 self.layout_result.position.bottom =
-                    Dimension::Px(f32::from(bounds.height) - bottom);
+                    Dimension::Px(f64::from(bounds.height) - bottom);
             }
             _ => self.layout_result.position.top = Dimension::Px(0.0),
         }
         match (pos.left, pos.right) {
             (Dimension::Px(left), _) => {
                 // Correct any discrepancy with bottom relative to top
-                self.layout_result.position.right = Dimension::Px(left + f32::from(size.width));
+                self.layout_result.position.right = Dimension::Px(left + f64::from(size.width));
             }
             (_, Dimension::Px(right)) => {
                 self.layout_result.position.left =
-                    Dimension::Px(f32::from(bounds.width) - right - f32::from(size.width));
+                    Dimension::Px(f64::from(bounds.width) - right - f64::from(size.width));
                 // Transform the right relative position into left relative
-                self.layout_result.position.right = Dimension::Px(f32::from(bounds.width) - right);
+                self.layout_result.position.right = Dimension::Px(f64::from(bounds.width) - right);
             }
             _ => self.layout_result.position.left = Dimension::Px(0.0),
         }
@@ -724,19 +732,19 @@ impl super::node::Node {
         let dir = self.layout.direction;
         let axis_align = self.layout.axis_alignment;
         let cross_align = self.layout.cross_alignment;
-        let main_start_padding = self
+        let main_start_padding: f64 = self
             .layout
             .padding
             .main(dir, axis_align)
             .maybe_resolve(&size.main(dir))
             .into();
-        let main_end_padding: f32 = self
+        let main_end_padding: f64 = self
             .layout
             .padding
             .main_reverse(dir, axis_align)
             .maybe_resolve(&size.main(dir))
             .into();
-        let mut main_pos: f32 = main_start_padding;
+        let mut main_pos: f64 = main_start_padding;
         let mut cross_pos = self
             .layout
             .padding
@@ -744,7 +752,7 @@ impl super::node::Node {
             .maybe_resolve(&size.cross(dir))
             .into();
         let mut max_cross_size = 0.0;
-        let mut row_lengths: Vec<(f32, usize)> = vec![];
+        let mut row_lengths: Vec<(f64, usize)> = vec![];
         let mut row_elements_count: usize = 0;
 
         // Reverse the calculation when End axis_aligned
@@ -762,8 +770,8 @@ impl super::node::Node {
             if self.layout.wrap
                 && size.main(dir).resolved()
                 && child.layout.position_type != PositionType::Absolute
-                && (main_pos + main_end_padding + f32::from(child_outer_size.main(dir)))
-                    > f32::from(size.main(dir))
+                && (main_pos + main_end_padding + f64::from(child_outer_size.main(dir)))
+                    > f64::from(size.main(dir))
                 && main_pos > main_start_padding
             {
                 row_lengths.push((main_pos + main_end_padding, row_elements_count));
@@ -788,9 +796,9 @@ impl super::node::Node {
                 child.resolve_position(size);
 
                 // Push bounds
-                main_pos += f32::from(child_outer_size.main(dir));
+                main_pos += f64::from(child_outer_size.main(dir));
                 row_elements_count += 1;
-                if f32::from(child_outer_size.cross(dir)) > max_cross_size {
+                if f64::from(child_outer_size.cross(dir)) > max_cross_size {
                     max_cross_size = child_outer_size.cross(dir).into();
                 }
 
@@ -844,15 +852,15 @@ impl super::node::Node {
             let main_offset = if axis_align == Alignment::Center && size.main(dir).resolved() {
                 // This is only accurate when for non-wrapped elements.
                 // For wrapped elements, we compute within the loop
-                (f32::from(size.main(dir)) - f32::from(children_size.main(dir))) / 2.0
+                (f64::from(size.main(dir)) - f64::from(children_size.main(dir))) / 2.0
             } else {
                 0.0
             };
             let cross_size = {
                 if size.cross(dir).resolved() {
-                    f32::from(size.cross(dir))
+                    f64::from(size.cross(dir))
                 } else {
-                    f32::from(children_size.cross(dir))
+                    f64::from(children_size.cross(dir))
                 }
             };
 
@@ -867,7 +875,7 @@ impl super::node::Node {
                         elements_positioned_in_row = 0;
                         current_row += 1;
                     }
-                    (f32::from(size.main(dir)) - row_lengths[current_row].0) / 2.0
+                    (f64::from(size.main(dir)) - row_lengths[current_row].0) / 2.0
                 } else {
                     main_offset
                 };
@@ -878,10 +886,10 @@ impl super::node::Node {
                     if row_lengths.len() > 1 {
                         // TODO: Center within a row?
                         *child.layout_result.position.cross_mut(dir, cross_align) +=
-                            Dimension::Px((cross_size - f32::from(children_size.cross(dir))) / 2.0);
+                            Dimension::Px((cross_size - f64::from(children_size.cross(dir))) / 2.0);
                     } else {
                         *child.layout_result.position.cross_mut(dir, cross_align) = Dimension::Px(
-                            (cross_size - f32::from(child.layout_result.size.cross(dir))) / 2.0,
+                            (cross_size - f64::from(child.layout_result.size.cross(dir))) / 2.0,
                         );
                     };
                 }
@@ -905,7 +913,7 @@ impl super::node::Node {
     /// Make sure the node has a size, either taken from its children or from itself
     fn resolve_size(&mut self, mut size: Size, children_size: Size) {
         let min_size = self.layout.min_size;
-        if !size.width.resolved() || f32::from(size.width) < 0.0 {
+        if !size.width.resolved() || f64::from(size.width) < 0.0 {
             if self.scroll_x().is_none() && children_size.width.resolved() {
                 size.width = children_size.width;
             } else if min_size.width.resolved() {
@@ -914,7 +922,7 @@ impl super::node::Node {
                 size.width = Dimension::Px(10.0)
             }
         }
-        if !size.height.resolved() || f32::from(size.height) < 0.0 {
+        if !size.height.resolved() || f64::from(size.height) < 0.0 {
             if self.scroll_y().is_none() && children_size.height.resolved() {
                 size.height = children_size.height;
             } else if min_size.height.resolved() {
@@ -1023,6 +1031,7 @@ impl super::node::Node {
 
 #[macro_export]
 macro_rules! lay {
+    // Finish it
     ( @ { } -> ($($result:tt)*) ) => (
         $crate::layout::Layout {
             $($result)*
@@ -1030,31 +1039,171 @@ macro_rules! lay {
         }
     );
 
-    // TODO
-    // ( @ { $param:ident : Center, $($rest:tt)* } -> ($($result:tt)*) ) => (
-    //     lay!(@ { $($rest)* } -> (
-    //         $($result)*
-    //             $param : $crate::layout::Alignment::Center
-    //     ))
-    // );
+    // margin
+    ( @ { $(,)* margin : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                margin : rect!($($vals),*),
+        ))
+    );
+    ( @ { $(,)* margin_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                margin : rect_pct!($($vals),*),
+        ))
+    );
+
+    // padding
+    ( @ { $(,)* padding : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                padding : rect!($($vals),*),
+        ))
+    );
+    ( @ { $(,)* padding_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                padding : rect_pct!($($vals),*),
+        ))
+    );
+
+    // position
+    ( @ { $(,)* position : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                position : rect!($($vals),*),
+        ))
+    );
+    ( @ { $(,)* position_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                position : rect_pct!($($vals),*),
+        ))
+    );
+
+    // size
+    ( @ { $(,)* size : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                size : size!($($vals),*),
+        ))
+    );
+    ( @ { $(,)* size_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                size : size_pct!($($vals),*),
+        ))
+    );
+    ( @ { $(,)* min_size : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                min_size : size!($($vals),*),
+        ))
+    );
+    ( @ { $(,)* max_size : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                max_size : size!($($vals),*),
+        ))
+    );
+
+    // Direction
+    ( @ { $(,)* $param:ident : Row $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::Direction::Row
+        ))
+    );
+    ( @ { $(,)* $param:ident : Column $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::Direction::Column
+        ))
+    );
+
+    // PositionType
+    ( @ { $(,)* $param:ident : Relative $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::PositionType::Relative
+        ))
+    );
+    ( @ { $(,)* $param:ident : Absolute $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::PositionType::Absolute
+        ))
+    );
 
 
-    // ( @ { margin : ($($vals:expr)+), $($rest:tt)* } -> ($($result:tt)*) ) => (
-    //     lay!(@ { $($rest)* } -> (
-    //         $($result)*
-    //             margin : $crate::rect!($($val,)*),
-    //     ))
-    // );
+    // Alignment
+    ( @ { $(,)* $param:ident : Start $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::Alignment::Start,
+        ))
+    );
+    ( @ { $(,)* $param:ident : End $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::Alignment::End,
+        ))
+    );
+    ( @ { $(,)* $param:ident : Center $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::Alignment::Center,
+        ))
+    );
+    ( @ { $(,)* $param:ident : Stretch $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : $crate::layout::Alignment::Stretch,
+        ))
+    );
 
-    ( @ { $param:ident : $val:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
+    // z_index
+    ( @ { $(,)* z_index : $z_index:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                z_index : Some($z_index .into()),
+        ))
+    );
+    ( @ { $(,)* z_index : $z_index:expr} -> ($($result:tt)*) ) => (
+        lay!(@ { } -> ( $($result)* z_index : Some($z_index .into()), ))
+    );
+
+    // Debug
+    ( @ { $(,)* debug : $debug:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                debug : Some($debug .into()),
+        ))
+    );
+    ( @ { $(,)* debug : $debug:expr} -> ($($result:tt)*) ) => (
+        lay!(@ { } -> ( $($result)* debug : Some($debug .into()), ))
+    );
+
+
+    // Everything else
+    ( @ { $(,)* $param:ident : $val:expr } -> ($($result:tt)*) ) => (
+        lay!(@ { } -> (
+            $($result)*
+                $param : $val,
+        ))
+    );
+
+    ( @ { $(,)* $param:ident : $val:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 $param : $val,
         ))
     );
 
-    ( $( $param:ident : $val:expr ),* $(,)* ) => (
-        lay!(@ { $($param : $val,)* } -> ())
+    // Entry point
+    // This inserts a comma at the beginning
+    ( $( $tt:tt )* ) => (
+        lay!(@ { $($tt)* } -> ())
     );
 }
 
@@ -1076,20 +1225,20 @@ macro_rules! pct {
 macro_rules! size {
     ($width:expr, Auto) => {
         $crate::layout::Size {
-            width: $crate::layout::Dimension::Px($width),
+            width: $crate::layout::Dimension::Px($width.into()),
             height: $crate::layout::Dimension::Auto,
         }
     };
     (Auto, $height:expr) => {
         $crate::layout::Size {
             width: $crate::layout::Dimension::Auto,
-            height: $crate::layout::Dimension::Px($height),
+            height: $crate::layout::Dimension::Px($height.into()),
         }
     };
     ($width:expr, $height:expr) => {
         $crate::layout::Size {
-            width: $crate::layout::Dimension::Px($width),
-            height: $crate::layout::Dimension::Px($height),
+            width: $crate::layout::Dimension::Px($width.into()),
+            height: $crate::layout::Dimension::Px($height.into()),
         }
     };
     (Auto) => {
@@ -1100,8 +1249,8 @@ macro_rules! size {
     };
     ($x:expr) => {
         $crate::layout::Size {
-            width: $crate::layout::Dimension::Px($x),
-            height: $crate::layout::Dimension::Px($x),
+            width: $crate::layout::Dimension::Px($x.into()),
+            height: $crate::layout::Dimension::Px($x.into()),
         }
     };
 }
@@ -1147,17 +1296,17 @@ macro_rules! rect {
     };
     ($all:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($all),
-            right: $crate::layout::Dimension::Px($all),
-            top: $crate::layout::Dimension::Px($all),
-            bottom: $crate::layout::Dimension::Px($all),
+            left: $crate::layout::Dimension::Px($all.into()),
+            right: $crate::layout::Dimension::Px($all.into()),
+            top: $crate::layout::Dimension::Px($all.into()),
+            bottom: $crate::layout::Dimension::Px($all.into()),
         }
     };
     // Two args
     (Auto, $se:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($se),
-            right: $crate::layout::Dimension::Px($se),
+            left: $crate::layout::Dimension::Px($se.into()),
+            right: $crate::layout::Dimension::Px($se.into()),
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
         }
@@ -1166,16 +1315,16 @@ macro_rules! rect {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Px($tb),
-            bottom: $crate::layout::Dimension::Px($tb),
+            top: $crate::layout::Dimension::Px($tb.into()),
+            bottom: $crate::layout::Dimension::Px($tb.into()),
         }
     };
     ($tb:expr, $se:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($se),
-            right: $crate::layout::Dimension::Px($se),
-            top: $crate::layout::Dimension::Px($tb),
-            bottom: $crate::layout::Dimension::Px($tb),
+            left: $crate::layout::Dimension::Px($se.into()),
+            right: $crate::layout::Dimension::Px($se.into()),
+            top: $crate::layout::Dimension::Px($tb.into()),
+            bottom: $crate::layout::Dimension::Px($tb.into()),
         }
     };
     // Three args
@@ -1192,45 +1341,45 @@ macro_rules! rect {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Px($b),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     (Auto, $se:expr, $b:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($se),
-            right: $crate::layout::Dimension::Px($se),
+            left: $crate::layout::Dimension::Px($se.into()),
+            right: $crate::layout::Dimension::Px($se.into()),
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Px($b),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     ($t:expr, Auto, $b:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Px($t),
-            bottom: $crate::layout::Dimension::Px($b),
+            top: $crate::layout::Dimension::Px($t.into()),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     ($t:expr, $se:expr, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($se),
-            right: $crate::layout::Dimension::Px($se),
-            top: $crate::layout::Dimension::Px($t),
+            left: $crate::layout::Dimension::Px($se.into()),
+            right: $crate::layout::Dimension::Px($se.into()),
+            top: $crate::layout::Dimension::Px($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     ($t:expr, $se:expr, $b:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($se),
-            right: $crate::layout::Dimension::Px($se),
-            top: $crate::layout::Dimension::Px($t),
-            bottom: $crate::layout::Dimension::Px($b),
+            left: $crate::layout::Dimension::Px($se.into()),
+            right: $crate::layout::Dimension::Px($se.into()),
+            top: $crate::layout::Dimension::Px($t.into()),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     // Four args
     (Auto, $s:expr, Auto, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($s),
+            left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
@@ -1239,15 +1388,15 @@ macro_rules! rect {
     (Auto, Auto, Auto, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Px($e),
+            right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     (Auto, $s:expr, Auto, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($s),
-            right: $crate::layout::Dimension::Px($e),
+            left: $crate::layout::Dimension::Px($s.into()),
+            right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
         }
@@ -1255,65 +1404,65 @@ macro_rules! rect {
     (Auto, Auto, $b:expr, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Px($e),
+            right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Px($b),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     ($t:expr, $s:expr, Auto, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($s),
+            left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Px($t),
+            top: $crate::layout::Dimension::Px($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     ($t:expr, Auto, Auto, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Px($e),
-            top: $crate::layout::Dimension::Px($t),
+            right: $crate::layout::Dimension::Px($e.into()),
+            top: $crate::layout::Dimension::Px($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     (Auto, $s:expr, $b:expr, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($s),
-            right: $crate::layout::Dimension::Px($e),
+            left: $crate::layout::Dimension::Px($s.into()),
+            right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Px($b),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     ($t:expr, Auto, $b:expr, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Px($e),
-            top: $crate::layout::Dimension::Px($t),
-            bottom: $crate::layout::Dimension::Px($b),
+            right: $crate::layout::Dimension::Px($e.into()),
+            top: $crate::layout::Dimension::Px($t.into()),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     ($t:expr, $s:expr, Auto, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($s),
-            right: $crate::layout::Dimension::Px($e),
-            top: $crate::layout::Dimension::Px($t),
+            left: $crate::layout::Dimension::Px($s.into()),
+            right: $crate::layout::Dimension::Px($e.into()),
+            top: $crate::layout::Dimension::Px($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     ($t:expr, $s:expr, $b:expr, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($s),
+            left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Px($t),
-            bottom: $crate::layout::Dimension::Px($b),
+            top: $crate::layout::Dimension::Px($t.into()),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
     ($t:expr, $s:expr, $b:expr, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Px($s),
-            right: $crate::layout::Dimension::Px($e),
-            top: $crate::layout::Dimension::Px($t),
-            bottom: $crate::layout::Dimension::Px($b),
+            left: $crate::layout::Dimension::Px($s.into()),
+            right: $crate::layout::Dimension::Px($e.into()),
+            top: $crate::layout::Dimension::Px($t.into()),
+            bottom: $crate::layout::Dimension::Px($b.into()),
         }
     };
 }
@@ -1331,17 +1480,17 @@ macro_rules! rect_pct {
     };
     ($all:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($all),
-            right: $crate::layout::Dimension::Pct($all),
-            top: $crate::layout::Dimension::Pct($all),
-            bottom: $crate::layout::Dimension::Pct($all),
+            left: $crate::layout::Dimension::Pct($all.into()),
+            right: $crate::layout::Dimension::Pct($all.into()),
+            top: $crate::layout::Dimension::Pct($all.into()),
+            bottom: $crate::layout::Dimension::Pct($all.into()),
         }
     };
     // Two args
     (Auto, $se:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($se),
-            right: $crate::layout::Dimension::Pct($se),
+            left: $crate::layout::Dimension::Pct($se.into()),
+            right: $crate::layout::Dimension::Pct($se.into()),
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
         }
@@ -1350,16 +1499,16 @@ macro_rules! rect_pct {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Pct($tb),
-            bottom: $crate::layout::Dimension::Pct($tb),
+            top: $crate::layout::Dimension::Pct($tb.into()),
+            bottom: $crate::layout::Dimension::Pct($tb.into()),
         }
     };
     ($tb:expr, $se:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($se),
-            right: $crate::layout::Dimension::Pct($se),
-            top: $crate::layout::Dimension::Pct($tb),
-            bottom: $crate::layout::Dimension::Pct($tb),
+            left: $crate::layout::Dimension::Pct($se.into()),
+            right: $crate::layout::Dimension::Pct($se.into()),
+            top: $crate::layout::Dimension::Pct($tb.into()),
+            bottom: $crate::layout::Dimension::Pct($tb.into()),
         }
     };
     // Three args
@@ -1367,7 +1516,7 @@ macro_rules! rect_pct {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Pct($t),
+            top: $crate::layout::Dimension::Pct($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
@@ -1376,45 +1525,45 @@ macro_rules! rect_pct {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Pct($b),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     (Auto, $se:expr, $b:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($se),
-            right: $crate::layout::Dimension::Pct($se),
+            left: $crate::layout::Dimension::Pct($se.into()),
+            right: $crate::layout::Dimension::Pct($se.into()),
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Pct($b),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     ($t:expr, Auto, $b:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Pct($t),
-            bottom: $crate::layout::Dimension::Pct($b),
+            top: $crate::layout::Dimension::Pct($t.into()),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     ($t:expr, $se:expr, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($se),
-            right: $crate::layout::Dimension::Pct($se),
-            top: $crate::layout::Dimension::Pct($t),
+            left: $crate::layout::Dimension::Pct($se.into()),
+            right: $crate::layout::Dimension::Pct($se.into()),
+            top: $crate::layout::Dimension::Pct($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     ($t:expr, $se:expr, $b:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($se),
-            right: $crate::layout::Dimension::Pct($se),
-            top: $crate::layout::Dimension::Pct($t),
-            bottom: $crate::layout::Dimension::Pct($b),
+            left: $crate::layout::Dimension::Pct($se.into()),
+            right: $crate::layout::Dimension::Pct($se.into()),
+            top: $crate::layout::Dimension::Pct($t.into()),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     // Four args
     (Auto, $s:expr, Auto, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($s),
+            left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
@@ -1423,15 +1572,15 @@ macro_rules! rect_pct {
     (Auto, Auto, Auto, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Pct($e),
+            right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     (Auto, $s:expr, Auto, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($s),
-            right: $crate::layout::Dimension::Pct($e),
+            left: $crate::layout::Dimension::Pct($s.into()),
+            right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
             bottom: $crate::layout::Dimension::Auto,
         }
@@ -1439,65 +1588,65 @@ macro_rules! rect_pct {
     (Auto, Auto, $b:expr, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Pct($e),
+            right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Pct($b),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     ($t:expr, $s:expr, Auto, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($s),
+            left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Pct($t),
+            top: $crate::layout::Dimension::Pct($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     ($t:expr, Auto, Auto, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Pct($e),
-            top: $crate::layout::Dimension::Pct($t),
+            right: $crate::layout::Dimension::Pct($e.into()),
+            top: $crate::layout::Dimension::Pct($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     (Auto, $s:expr, $b:expr, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($s),
-            right: $crate::layout::Dimension::Pct($e),
+            left: $crate::layout::Dimension::Pct($s.into()),
+            right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
-            bottom: $crate::layout::Dimension::Pct($b),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     ($t:expr, Auto, $b:expr, $e:expr) => {
         $crate::layout::Rect {
             left: $crate::layout::Dimension::Auto,
-            right: $crate::layout::Dimension::Pct($e),
-            top: $crate::layout::Dimension::Pct($t),
-            bottom: $crate::layout::Dimension::Pct($b),
+            right: $crate::layout::Dimension::Pct($e.into()),
+            top: $crate::layout::Dimension::Pct($t.into()),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     ($t:expr, $s:expr, Auto, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($s),
-            right: $crate::layout::Dimension::Pct($e),
-            top: $crate::layout::Dimension::Pct($t),
+            left: $crate::layout::Dimension::Pct($s.into()),
+            right: $crate::layout::Dimension::Pct($e.into()),
+            top: $crate::layout::Dimension::Pct($t.into()),
             bottom: $crate::layout::Dimension::Auto,
         }
     };
     ($t:expr, $s:expr, $b:expr, Auto) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($s),
+            left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Auto,
-            top: $crate::layout::Dimension::Pct($t),
-            bottom: $crate::layout::Dimension::Pct($b),
+            top: $crate::layout::Dimension::Pct($t.into()),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
     ($t:expr, $s:expr, $b:expr, $e:expr) => {
         $crate::layout::Rect {
-            left: $crate::layout::Dimension::Pct($s),
-            right: $crate::layout::Dimension::Pct($e),
-            top: $crate::layout::Dimension::Pct($t),
-            bottom: $crate::layout::Dimension::Pct($b),
+            left: $crate::layout::Dimension::Pct($s.into()),
+            right: $crate::layout::Dimension::Pct($e.into()),
+            top: $crate::layout::Dimension::Pct($t.into()),
+            bottom: $crate::layout::Dimension::Pct($b.into()),
         }
     };
 }
