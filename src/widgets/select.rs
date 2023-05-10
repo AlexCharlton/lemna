@@ -239,7 +239,7 @@ use lyon::path::Path;
 use lyon::tessellation::math as lyon_math;
 impl Component for Caret {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        let scale = 1.0; // TODO: Adjust
+        let scale = 1.0;
 
         let mut path_builder = Path::builder();
         let w = context.aabb.width();

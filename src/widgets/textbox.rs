@@ -359,6 +359,33 @@ impl TextBoxText {
         }
     }
 
+    // Returns whether or not there was a word to select
+    fn select_word(&mut self) -> bool {
+        let pos = self.state_ref().cursor_pos;
+        let text = &self.state_ref().text;
+        let end_pos = pos
+            + text
+                .chars()
+                .skip(pos)
+                .position(|x| !x.is_alphanumeric())
+                .unwrap_or(text.len() - pos);
+        let start_pos = pos
+            - text
+                .chars()
+                .rev()
+                .skip(text.len() - pos)
+                .position(|x| !x.is_alphanumeric())
+                .unwrap_or(pos);
+
+        if start_pos != end_pos {
+            self.state_mut().selection_from = Some(start_pos);
+            self.state_mut().cursor_pos = end_pos;
+            true
+        } else {
+            false
+        }
+    }
+
     fn insert_text(&mut self, text: &str) {
         if let Some((a, b)) = self.selection() {
             self.state_mut().text.replace_range(a..b, text);
@@ -551,7 +578,9 @@ impl Component for TextBoxText {
     fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
         event.stop_bubbling();
         event.focus();
-        // TODO select words
+        if self.select_word() {
+            event.dirty();
+        }
     }
 
     fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {

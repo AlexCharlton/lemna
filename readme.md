@@ -49,3 +49,6 @@ cargo run -p lemna-winit --example scroll
 ```
 
 See `./backends/**/**examples` for other examples. Note that wx-rs presently has compilation limitations on most platforms, and winit does not handle many events. The Baseview backend is not on cargo (because baseview itself is not) but it is the most functional.
+
+## Practical Examples
+- [midi-m8](https://github.com/AlexCharlton/midi-m8/tree/master/plugin)

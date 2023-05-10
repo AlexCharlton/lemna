@@ -118,21 +118,6 @@ impl Component for Toggle {
         .unwrap()
         .indices;
 
-        // TODO: need colored shapes for this sort of thing
-        // if self.active {
-        //     fill_count += basic_shapes::fill_circle(
-        //         center,
-        //         context.aabb.width() / 3.0,
-        //         &tessellation::FillOptions::tolerance(shape::TOLERANCE),
-        //         &mut tessellation::BuffersBuilder::new(
-        //             &mut geometry,
-        //             shape::Vertex::basic_vertex_constructor,
-        //         ),
-        //     )
-        //     .unwrap()
-        //     .indices
-        // }
-
         if self.style.border_width > 0.0 {
             basic_shapes::stroke_circle(
                 center,
