@@ -271,7 +271,6 @@ impl<R: 'static + Renderer, A: 'static + Component + Default + Send + Sync> base
                         baseview::ScrollDelta::Pixels { x, y } => (x, -y),
                     };
                     if cfg!(target_os = "macos") {
-                        // TODO Is this necessary?
                         x *= -1.0;
                     }
                     self.ui

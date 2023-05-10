@@ -80,10 +80,9 @@ pub fn current_window<'a>() -> Option<RwLockReadGuard<'a, dyn Window>> {
     })
 }
 
-// TODO: Probably need this
-// fn clear_current_window() {
-//     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
-// }
+fn clear_current_window() {
+    CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
+}
 
 pub fn set_current_window(window: Arc<RwLock<dyn Window>>) {
     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
@@ -397,7 +396,6 @@ impl<
                 );
                 self.node_mut().scroll(&mut event);
                 self.handle_dirty_event(&event);
-                // TODO change target?
             }
             Input::Press(Button::Mouse(b)) => {
                 self.event_cache.mouse_down(*b);
@@ -599,9 +597,9 @@ impl<
                 }
             },
             Input::Exit => {
-                // This prevents a hang when exiting on some backends
                 // self.renderer = None;
                 // self.node = None;
+                clear_current_window();
             }
             Input::Menu(id) => {
                 let current_focus = self.event_cache.focus;

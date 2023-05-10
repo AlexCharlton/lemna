@@ -254,11 +254,7 @@ pub enum Icon {
 
 impl From<Icon> for char {
     fn from(i: Icon) -> char {
-        // char::from_u32_unchecked(i as u32) // TODO: Will be stable soon
-        String::from_utf16(&[i as u16])
-            .unwrap()
-            .chars().next()
-            .unwrap()
+        unsafe { char::from_u32_unchecked(i as u32) }
     }
 }
 

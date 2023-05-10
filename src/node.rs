@@ -117,7 +117,7 @@ impl Node {
     }
 
     pub fn view(&mut self, mut prev: Option<&mut Self>) {
-        // TODO: skip non-visible nodes
+        // TODO: skip non-visible (out of frame) nodes
         // Set up state and props
         let mut hasher = ComponentHasher::new_with_keys(0, 0);
         if let Some(prev) = &mut prev {
