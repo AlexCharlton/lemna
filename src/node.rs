@@ -18,7 +18,7 @@ fn new_node_id() -> u64 {
 
 #[macro_export]
 macro_rules! node {
-    ($component:expr) => {
+    ($component:expr $(,)*) => {
         node!($component, $crate::layout::Layout::default())
     };
     ($component:expr, [ $( $tt:tt )* ] $(,)*) => {
