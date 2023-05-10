@@ -1040,70 +1040,70 @@ macro_rules! lay {
     );
 
     // margin
-    ( @ { $(,)* margin : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* margin : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                margin : rect!($($vals),*),
+                margin : rect!($($vals)*),
         ))
     );
-    ( @ { $(,)* margin_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* margin_pct : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                margin : rect_pct!($($vals),*),
+                margin : rect_pct!($($vals)*),
         ))
     );
 
     // padding
-    ( @ { $(,)* padding : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* padding : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                padding : rect!($($vals),*),
+                padding : rect!($($vals)*),
         ))
     );
-    ( @ { $(,)* padding_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* padding_pct : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                padding : rect_pct!($($vals),*),
+                padding : rect_pct!($($vals)*),
         ))
     );
 
     // position
-    ( @ { $(,)* position : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* position : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                position : rect!($($vals),*),
+                position : rect!($($vals)*),
         ))
     );
-    ( @ { $(,)* position_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* position_pct : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                position : rect_pct!($($vals),*),
+                position : rect_pct!($($vals)*),
         ))
     );
 
     // size
-    ( @ { $(,)* size : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* size : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                size : size!($($vals),*),
+                size : size!($($vals)*),
         ))
     );
-    ( @ { $(,)* size_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* size_pct : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                size : size_pct!($($vals),*),
+                size : size_pct!($($vals)*),
         ))
     );
-    ( @ { $(,)* min_size : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* min_size : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                min_size : size!($($vals),*),
+                min_size : size!($($vals)*),
         ))
     );
-    ( @ { $(,)* max_size : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* max_size : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                max_size : size!($($vals),*),
+                max_size : size!($($vals)*),
         ))
     );
 
