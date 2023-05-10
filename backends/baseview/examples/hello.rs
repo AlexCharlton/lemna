@@ -18,7 +18,7 @@ impl lemna::Component for HelloApp {
             )
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(1.0, 0.5, 0.5)),
-                [size: [200.0, 100.0], margin: [5]],
+                [size: [200.0, 100.0], margin: [5],],
             ))
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(0.5, 1.0, 0.5)),

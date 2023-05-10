@@ -1040,13 +1040,13 @@ macro_rules! lay {
     );
 
     // margin
-    ( @ { $(,)* margin : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* margin : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 margin : rect!($($vals),*),
         ))
     );
-    ( @ { $(,)* margin_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* margin_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 margin : rect_pct!($($vals),*),
@@ -1054,13 +1054,13 @@ macro_rules! lay {
     );
 
     // padding
-    ( @ { $(,)* padding : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* padding : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 padding : rect!($($vals),*),
         ))
     );
-    ( @ { $(,)* padding_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* padding_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 padding : rect_pct!($($vals),*),
@@ -1068,13 +1068,13 @@ macro_rules! lay {
     );
 
     // position
-    ( @ { $(,)* position : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* position : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 position : rect!($($vals),*),
         ))
     );
-    ( @ { $(,)* position_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* position_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 position : rect_pct!($($vals),*),
@@ -1082,25 +1082,25 @@ macro_rules! lay {
     );
 
     // size
-    ( @ { $(,)* size : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* size : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 size : size!($($vals),*),
         ))
     );
-    ( @ { $(,)* size_pct : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* size_pct : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 size : size_pct!($($vals),*),
         ))
     );
-    ( @ { $(,)* min_size : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* min_size : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 min_size : size!($($vals),*),
         ))
     );
-    ( @ { $(,)* max_size : [$($vals:expr),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
+    ( @ { $(,)* max_size : [$($vals:tt),+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 max_size : size!($($vals),*),
@@ -1111,13 +1111,13 @@ macro_rules! lay {
     ( @ { $(,)* $param:ident : Row $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Direction::Row
+                $param : $crate::layout::Direction::Row,
         ))
     );
     ( @ { $(,)* $param:ident : Column $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Direction::Column
+                $param : $crate::layout::Direction::Column,
         ))
     );
 
@@ -1125,13 +1125,13 @@ macro_rules! lay {
     ( @ { $(,)* $param:ident : Relative $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::PositionType::Relative
+                $param : $crate::layout::PositionType::Relative,
         ))
     );
     ( @ { $(,)* $param:ident : Absolute $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::PositionType::Absolute
+                $param : $crate::layout::PositionType::Absolute,
         ))
     );
 
@@ -1192,13 +1192,18 @@ macro_rules! lay {
                 $param : $val,
         ))
     );
-
     ( @ { $(,)* $param:ident : $val:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
                 $param : $val,
         ))
     );
+    ( @ { $(,)* } -> ($($result:tt)*) ) => (
+        lay!(@ {} -> (
+            $($result)*
+        ))
+    );
+
 
     // Entry point
     // This inserts a comma at the beginning
@@ -1259,26 +1264,26 @@ macro_rules! size {
 macro_rules! size_pct {
     ($width:expr, Auto) => {
         $crate::layout::Size {
-            width: $crate::layout::Dimension::Pct($width),
+            width: $crate::layout::Dimension::Pct($width.into()),
             height: $crate::layout::Dimension::Auto,
         }
     };
     (Auto, $height:expr) => {
         $crate::layout::Size {
             width: $crate::layout::Dimension::Auto,
-            height: $crate::layout::Dimension::Pct($height),
+            height: $crate::layout::Dimension::Pct($height.into()),
         }
     };
     ($width:expr, $height:expr) => {
         $crate::layout::Size {
-            width: $crate::layout::Dimension::Pct($width),
-            height: $crate::layout::Dimension::Pct($height),
+            width: $crate::layout::Dimension::Pct($width.into()),
+            height: $crate::layout::Dimension::Pct($height.into()),
         }
     };
     ($x:expr) => {
         $crate::layout::Size {
-            width: $crate::layout::Dimension::Pct($x),
-            height: $crate::layout::Dimension::Pct($x),
+            width: $crate::layout::Dimension::Pct($x.into()),
+            height: $crate::layout::Dimension::Pct($x.into()),
         }
     };
 }
