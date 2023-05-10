@@ -62,10 +62,10 @@ impl Default for ScrollDescriptor {
             x_bar_position: VerticalPosition::Bottom,
             y_bar_position: HorizontalPosition::Right,
             bar_width: 12.0,
-            bar_background_color: 0.9.into(),
+            bar_background_color: Color::LIGHT_GREY,
             bar_color: 0.7.into(),
             bar_highlight_color: 0.5.into(),
-            bar_active_color: 0.3.into(),
+            bar_active_color: Color::DARK_GREY,
         }
     }
 }

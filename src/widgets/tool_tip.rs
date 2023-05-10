@@ -16,11 +16,11 @@ pub struct ToolTipStyle {
 impl Default for ToolTipStyle {
     fn default() -> Self {
         Self {
-            text_color: 0.0.into(),
+            text_color: Color::BLACK,
             font_size: 12.0,
             font: None,
-            background_color: 1.0.into(),
-            border_color: 0.0.into(),
+            background_color: Color::WHITE,
+            border_color: Color::BLACK,
             border_width: 1.0,
         }
     }

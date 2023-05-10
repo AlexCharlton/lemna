@@ -38,7 +38,7 @@ impl Default for TextBoxStyle {
             text_color: Color::BLACK,
             font: None,
             background_color: Color::WHITE,
-            selection_color: 0.5.into(),
+            selection_color: Color::MID_GREY,
             cursor_color: Color::BLACK,
             border_color: Color::BLACK,
             border_width: 1.0,

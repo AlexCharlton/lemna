@@ -55,7 +55,7 @@ impl lemna::Component for HelloApp {
         Some(vec![Renderable::Rect(Rect::new(
             Pos::default(),
             context.aabb.size(),
-            Color::GREEN,
+            [0.5, 0.7, 0.7].into(),
         ))])
     }
 

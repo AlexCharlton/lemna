@@ -22,8 +22,8 @@ pub struct RoundedRect {
 impl Default for RoundedRect {
     fn default() -> Self {
         Self {
-            background_color: [1.0, 1.0, 1.0].into(),
-            border_color: [0.0, 0.0, 0.0].into(),
+            background_color: Color::WHITE,
+            border_color: Color::BLACK,
             border_width: 0.0,
             radius: (3.0, 3.0, 3.0, 3.0),
         }
@@ -34,7 +34,7 @@ impl RoundedRect {
     pub fn new<C: Into<Color>>(bg: C, radius: f32) -> Self {
         Self {
             background_color: bg.into(),
-            border_color: [0.0, 0.0, 0.0].into(),
+            border_color: Color::BLACK,
             border_width: 0.0,
             radius: (radius, radius, radius, radius),
         }

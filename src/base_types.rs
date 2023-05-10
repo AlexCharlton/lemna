@@ -558,6 +558,24 @@ impl Color {
         b: 1.0,
         a: 1.0,
     };
+    pub const LIGHT_GREY: Self = Self {
+        r: 0.9,
+        g: 0.9,
+        b: 0.9,
+        a: 1.0,
+    };
+    pub const MID_GREY: Self = Self {
+        r: 0.6,
+        g: 0.6,
+        b: 0.6,
+        a: 1.0,
+    };
+    pub const DARK_GREY: Self = Self {
+        r: 0.3,
+        g: 0.3,
+        b: 0.3,
+        a: 1.0,
+    };
     pub const RED: Self = Self {
         r: 1.0,
         g: 0.0,

@@ -35,13 +35,13 @@ pub struct ButtonStyle {
 impl Default for ButtonStyle {
     fn default() -> Self {
         Self {
-            text_color: 0.0.into(),
+            text_color: Color::BLACK,
             font_size: 12.0,
             font: None,
-            background_color: 1.0.into(),
-            highlight_color: 0.9.into(),
-            active_color: 0.7.into(),
-            border_color: 0.0.into(),
+            background_color: Color::WHITE,
+            highlight_color: Color::LIGHT_GREY,
+            active_color: Color::MID_GREY,
+            border_color: Color::BLACK,
             border_width: 2.0,
             radius: 4.0,
             padding: 2.0,

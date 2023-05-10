@@ -18,7 +18,7 @@ impl Default for TextStyle {
     fn default() -> Self {
         Self {
             size: 12.0,
-            color: [0.0, 0.0, 0.0].into(),
+            color: Color::BLACK,
             font: None,
             h_alignment: HorizontalAlign::Left,
         }

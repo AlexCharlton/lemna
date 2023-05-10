@@ -30,10 +30,10 @@ pub struct ToggleStyle {
 impl Default for ToggleStyle {
     fn default() -> Self {
         Self {
-            background_color: 0.9.into(),
-            highlight_color: 0.4.into(),
-            active_color: 0.5.into(),
-            border_color: 0.0.into(),
+            background_color: Color::LIGHT_GREY,
+            highlight_color: Color::DARK_GREY,
+            active_color: Color::MID_GREY,
+            border_color: Color::BLACK,
             border_width: 2.0,
         }
     }
