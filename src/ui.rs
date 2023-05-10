@@ -18,7 +18,7 @@ use crate::node::Node;
 use crate::render::Renderer;
 use crate::window::Window;
 
-const DRAG_THRESHOLD: f32 = 5.0; // px
+const DRAG_THRESHOLD: f32 = 15.0; // px
 
 /// `UI` is the main struct that holds the `Window`, `Renderer` and `Node`s of an `App`.
 /// It handles events and drawing/rendering.
@@ -417,10 +417,16 @@ impl<
                 if b == &MouseButton::Left {
                     if self.event_cache.last_mouse_click.elapsed().as_millis()
                         < event::DOUBLE_CLICK_INTERVAL_MS
+                        && self
+                            .event_cache
+                            .last_mouse_click_position
+                            .dist(self.event_cache.mouse_position)
+                            < event::DOUBLE_CLICK_MAX_DIST
                     {
                         is_double_click = true;
                     }
                     self.event_cache.last_mouse_click = Instant::now();
+                    self.event_cache.last_mouse_click_position = self.event_cache.mouse_position;
                 }
 
                 // End drag

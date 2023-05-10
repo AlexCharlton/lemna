@@ -124,6 +124,10 @@ impl Point {
             y: clamp(self.y, aabb.pos.y, aabb.bottom_right.y),
         }
     }
+
+    pub fn dist(self, p2: Point) -> f32 {
+        ((self.x - p2.x).powf(2.0) + (self.y - p2.y).powf(2.0)).sqrt()
+    }
 }
 
 impl Scalable for Point {

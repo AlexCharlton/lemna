@@ -192,10 +192,7 @@ impl Component for RadioButtons {
                             0.0
                         },
                     ),
-                    state: Some(RadioButtonState {
-                        selected,
-                        ..Default::default()
-                    }),
+                    state: Some(Default::default()),
                 })
                 .key(j as u64),
             );
@@ -236,7 +233,6 @@ impl Component for RadioButtons {
 #[derive(Debug, Default)]
 struct RadioButtonState {
     hover: bool,
-    selected: bool,
     tool_tip_open: Option<Point>,
     hover_start: Option<Instant>,
 }
@@ -258,14 +254,10 @@ impl Component for RadioButton {
         self.selected.hash(hasher);
     }
 
-    fn new_props(&mut self) {
-        self.state_mut().selected = self.selected;
-    }
-
     fn view(&self) -> Option<Node> {
         let mut base = node!(
             super::RoundedRect {
-                background_color: if self.state_ref().selected {
+                background_color: if self.selected {
                     self.style.active_color
                 } else if self.state_ref().hover {
                     self.style.highlight_color
@@ -338,7 +330,6 @@ impl Component for RadioButton {
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
-        self.state_mut().selected = true;
         event.dirty();
         event.stop_bubbling();
         event.emit(msg!(RadioButtonMsg::Clicked(self.position)));

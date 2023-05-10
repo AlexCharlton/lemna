@@ -6,6 +6,7 @@ use super::input::{Data, Key, MouseButton};
 use crate::Message;
 
 pub const DOUBLE_CLICK_INTERVAL_MS: u128 = 500;
+pub const DOUBLE_CLICK_MAX_DIST: f32 = 10.0;
 
 pub struct Event<T> {
     pub input: T,
@@ -268,7 +269,9 @@ pub(crate) struct EventCache {
     pub mouse_buttons_held: MouseButtonsHeld,
     pub mouse_over: Option<u64>,
     pub mouse_position: Point,
+    // Used to detect double clicks
     pub last_mouse_click: Instant,
+    pub last_mouse_click_position: Point,
     // This is used as the start of the drag position, even if we haven't decided to start dragging
     pub drag_started: Option<Point>,
     // This is used as the indicator of whether a drag is actually ongoing
@@ -306,6 +309,7 @@ impl EventCache {
             mouse_over: None,
             mouse_position: Default::default(),
             last_mouse_click: Instant::now(),
+            last_mouse_click_position: Default::default(),
             drag_button: None,
             drag_started: None,
             drag_target: None,
