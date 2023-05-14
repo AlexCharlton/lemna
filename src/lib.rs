@@ -31,6 +31,8 @@ pub use component::*;
 mod font_cache;
 pub use font_cache::{FontCache, HorizontalAlign, SectionText};
 
+pub mod style;
+
 mod ui;
 pub use crate::ui::*;
 
