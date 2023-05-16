@@ -15,10 +15,11 @@ pub enum StyleVal {
     Point(Point),
     Pos(Pos),
     Color(Color),
+    Layout(Layout),
     Float(f64),
     Int(u32),
     Bool(bool),
-    Layout(Layout),
+    String(&'static str),
 } // Impls below
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -329,7 +330,19 @@ impl From<StyleVal> for bool {
         }
     }
 }
-
+impl From<&'static str> for StyleVal {
+    fn from(c: &'static str) -> Self {
+        Self::String(c)
+    }
+}
+impl From<StyleVal> for &str {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::String(c) => c,
+            x => panic!("Tried to coerce {x:?} into a string"),
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
