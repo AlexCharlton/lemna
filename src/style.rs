@@ -45,7 +45,7 @@ impl StyleKey {
 type StyleMap = HashMap<StyleKey, StyleVal>;
 type StyleOverrideMap = HashMap<&'static str, StyleVal>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Style(StyleMap);
 #[derive(Clone, Default, Debug)]
 pub struct StyleOverride(StyleOverrideMap);
@@ -126,10 +126,55 @@ trait Styled: Sized {
     }
 }
 
+#[macro_export]
+macro_rules! style {
+    // Widget.color = Color::WHITE;
+    // ->
+    // Style::new().add(StyleKey::new("Widget", "color", None), Color::WHITE.into())
+
+    // class.Widget.color = Color::BLACK;
+    // ->
+    // Style::new().add(StyleKey::new("Widget", "color", Some("class")), Color::BLACK.into())
+
+    //Finish it
+    ( @ { } -> ($($result:tt)*) ) => (
+        $crate::style::Style::new() $($result)*
+    );
+
+
+    ( @ { $component:ident . $param:ident = $val:expr ; $($rest:tt)* } -> ($($result:tt)*) ) => (
+        style!(@ { $($rest)* } -> (
+            $($result)*
+            .add($crate::style::StyleKey::new(stringify!($component), stringify!($param), None), $val.into())
+        ))
+    );
+
+    ( @ { $class:ident . $component:ident . $param:ident = $val:expr ; $($rest:tt)* } -> ($($result:tt)*) ) => (
+        style!(@ { $($rest)* } -> (
+            $($result)*
+            .add($crate::style::StyleKey::new(stringify!($component), stringify!($param), Some(stringify!($class))), $val.into())
+        ))
+    );
+
+    // Entry point
+    ( $( $tt:tt )* ) => (
+        style!(@ { $($tt)* } -> ())
+    );
+
+}
+
 // StyleVal Froms
 impl From<Color> for StyleVal {
     fn from(c: Color) -> Self {
         Self::Color(c)
+    }
+}
+impl From<StyleVal> for Color {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Color(c) => c,
+            x => panic!("Tried to coerce {x:?} into a Color"),
+        }
     }
 }
 impl From<Option<StyleVal>> for Color {
@@ -145,6 +190,14 @@ impl From<Dimension> for StyleVal {
         Self::Dimension(c)
     }
 }
+impl From<StyleVal> for Dimension {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Dimension(c) => c,
+            x => panic!("Tried to coerce {x:?} into a Dimension"),
+        }
+    }
+}
 impl From<Option<StyleVal>> for Dimension {
     fn from(v: Option<StyleVal>) -> Self {
         match v {
@@ -156,6 +209,14 @@ impl From<Option<StyleVal>> for Dimension {
 impl From<Pos> for StyleVal {
     fn from(c: Pos) -> Self {
         Self::Pos(c)
+    }
+}
+impl From<StyleVal> for Pos {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Pos(c) => c,
+            x => panic!("Tried to coerce {x:?} into a Pos"),
+        }
     }
 }
 impl From<Option<StyleVal>> for Pos {
@@ -171,6 +232,14 @@ impl From<Point> for StyleVal {
         Self::Point(c)
     }
 }
+impl From<StyleVal> for Point {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Point(c) => c,
+            x => panic!("Tried to coerce {x:?} into a Point"),
+        }
+    }
+}
 impl From<Option<StyleVal>> for Point {
     fn from(v: Option<StyleVal>) -> Self {
         match v {
@@ -184,6 +253,14 @@ impl From<Rect> for StyleVal {
         Self::Rect(c)
     }
 }
+impl From<StyleVal> for Rect {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Rect(c) => c,
+            x => panic!("Tried to coerce {x:?} into a Rect"),
+        }
+    }
+}
 impl From<Option<StyleVal>> for Rect {
     fn from(v: Option<StyleVal>) -> Self {
         match v {
@@ -195,6 +272,14 @@ impl From<Option<StyleVal>> for Rect {
 impl From<Layout> for StyleVal {
     fn from(c: Layout) -> Self {
         Self::Layout(c)
+    }
+}
+impl From<StyleVal> for Layout {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Layout(c) => c,
+            x => panic!("Tried to coerce {x:?} into a Layout"),
+        }
     }
 }
 impl From<Option<StyleVal>> for Layout {
@@ -312,5 +397,14 @@ mod tests {
             .override_style("color", Color::BLUE.into());
         let c: Color = w.style_param("color").into();
         assert_eq!(c, Color::BLUE);
+    }
+
+    #[test]
+    fn test_style_macro() {
+        let s = style!(
+            Widget.color = Color::WHITE;
+            dark.Widget.color = Color::BLACK;
+        );
+        assert_eq!(s, test_style());
     }
 }

@@ -1206,7 +1206,6 @@ macro_rules! lay {
 
 
     // Entry point
-    // This inserts a comma at the beginning
     ( $( $tt:tt )* ) => (
         lay!(@ { $($tt)* } -> ())
     );
