@@ -18,39 +18,6 @@ struct ButtonState {
     hover_start: Option<Instant>,
 }
 
-// #[derive(Debug, Clone)]
-// pub struct ButtonStyle {
-//     pub text_color: Color,
-//     pub font_size: f32,
-//     pub font: Option<String>,
-//     pub background_color: Color,
-//     pub highlight_color: Color,
-//     pub active_color: Color,
-//     pub border_color: Color,
-//     pub border_width: f32,
-//     pub radius: f32,
-//     pub padding: f32,
-//     pub tool_tip_style: ToolTipStyle,
-// }
-
-// impl Default for ButtonStyle {
-//     fn default() -> Self {
-//         Self {
-//             text_color: Color::BLACK,
-//             font_size: 12.0,
-//             font: None,
-//             background_color: Color::WHITE,
-//             highlight_color: Color::LIGHT_GREY,
-//             active_color: Color::MID_GREY,
-//             border_color: Color::BLACK,
-//             border_width: 2.0,
-//             radius: 4.0,
-//             padding: 2.0,
-//             tool_tip_style: Default::default(),
-//         }
-//     }
-// }
-
 #[component(State = "ButtonState", Styled, Internal)]
 pub struct Button {
     pub label: Vec<TextSegment>,
@@ -94,14 +61,11 @@ impl Component for Button {
     fn view(&self) -> Option<Node> {
         let radius: f32 = self.style_param("radius").unwrap().f32();
         let padding: f64 = self.style_param("padding").unwrap().into();
-        let font_size: f32 = self.style_param("font_size").unwrap().f32();
         let active_color: Color = self.style_param("active_color").into();
         let highlight_color: Color = self.style_param("highlight_color").into();
         let background_color: Color = self.style_param("background_color").into();
         let border_color: Color = self.style_param("border_color").into();
-        let text_color: Color = self.style_param("text_color").into();
         let border_width: f32 = self.style_param("border_width").unwrap().f32();
-        let font = self.style_param("font").map(|p| p.str().to_string());
 
         let mut base = node!(
             super::RoundedRect {
@@ -123,22 +87,15 @@ impl Component for Button {
                 axis_alignment: crate::layout::Alignment::Center
             )
         )
-        .push(node!(super::Text::new(
-            self.label.clone(),
-            super::TextStyle {
-                size: font_size,
-                color: text_color,
-                font,
-                h_alignment: HorizontalAlign::Center,
-            }
-        )));
+        .push(node!(super::Text::new(self.label.clone())
+            .style("size", self.style_param("font_size").unwrap())
+            .style("color", self.style_param("text_color").unwrap())
+            .style("h_alignment", HorizontalAlign::Center.into())
+            .maybe_style("font", self.style_param("font"))));
 
         if let (Some(p), Some(tt)) = (self.state_ref().tool_tip_open, self.tool_tip.as_ref()) {
             base = base.push(node!(
-                ToolTip {
-                    tool_tip: tt.clone(),
-                    style: Default::default(),
-                },
+                ToolTip::new(tt.clone()),
                 lay!(position_type: PositionType::Absolute,
                      z_index_increment: 1000.0,
                      position: (p + ToolTip::MOUSE_OFFSET).into(),

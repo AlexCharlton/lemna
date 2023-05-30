@@ -107,7 +107,6 @@ impl lemna::Component for HelloApp {
                         "3".to_string()
                     ],
                     1,
-                    widgets::SelectStyle::default()
                 )
                 .on_change(Box::new(|_, s| msg!(HelloEvent::Selection {
                     name: "My selection".to_string(),
@@ -115,7 +114,7 @@ impl lemna::Component for HelloApp {
                 })))
             ))
             .push(node!(
-                widgets::TextBox::new(Some("Hello".to_string()), widgets::TextBoxStyle::default())
+                widgets::TextBox::new(Some("Hello".to_string()))
                     .on_change(Box::new(|s| msg!(HelloEvent::TextBox {
                         name: "My text box".to_string(),
                         value: s.to_string(),
@@ -133,8 +132,8 @@ impl lemna::Component for HelloApp {
                     vec![txt!(Icon::Bell), txt!(Icon::Book), txt!(Icon::Bolt)],
                     self.state_ref().radio_selection.clone(),
                 )
-                    .override_style("font_size", 10.0.into())
-                    .override_style("font", "open iconic".into())
+                    .style("font_size", 10.0.into())
+                    .style("font", "open iconic".into())
                 .tool_tips(vec![
                     "Bell".to_string(),
                     "Book".to_string(),
@@ -149,7 +148,6 @@ impl lemna::Component for HelloApp {
             .push(node!(
                 widgets::Toggle::new(
                     self.state_ref().toggle_state,
-                    widgets::ToggleStyle::default()
                 )
                 .on_change(Box::new(|s| msg!(HelloEvent::Toggle(s)))),
                 lay!(margin: rect!(10.0)),

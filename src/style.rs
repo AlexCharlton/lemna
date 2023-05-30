@@ -2,10 +2,9 @@ use std::cell::UnsafeCell;
 use std::collections::HashMap;
 
 use crate::base_types::*;
+use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
-
-// TODO Styled Derive macro
-// TODO Style constructor macro
+use crate::widgets::{HorizontalPosition, VerticalPosition};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StyleVal {
@@ -16,6 +15,9 @@ pub enum StyleVal {
     Pos(Pos),
     Color(Color),
     Layout(Layout),
+    HorizontalAlign(HorizontalAlign),
+    HorizontalPosition(HorizontalPosition),
+    VerticalPosition(VerticalPosition),
     Float(f64),
     Int(u32),
     Bool(bool),
@@ -64,11 +66,33 @@ impl Style {
     pub fn get(&self, k: StyleKey) -> Option<StyleVal> {
         self.0.get(&k).cloned()
     }
+
+    pub fn style(&self, component: &'static str, parameter_name: &'static str) -> Option<StyleVal> {
+        let key = StyleKey {
+            struct_name: component,
+            parameter_name,
+            class: None,
+        };
+        self.get(key)
+    }
+
+    pub fn style_for_class(
+        &self,
+        component: &'static str,
+        parameter_name: &'static str,
+        class: &'static str,
+    ) -> Option<StyleVal> {
+        let key = StyleKey {
+            struct_name: component,
+            parameter_name,
+            class: Some(class),
+        };
+        self.get(key)
+    }
 }
 
 impl Default for Style {
     fn default() -> Self {
-        // TODO styles for the crate widgets
         let map = StyleMap::from([
             // Button
             (
@@ -100,7 +124,10 @@ impl Default for Style {
                 StyleKey::new("RadioButton", "text_color", None),
                 Color::BLACK.into(),
             ),
-            (StyleKey::new("RadioButton", "font_size", None), 12.0.into()),
+            (
+                StyleKey::new("RadioButton", "font_size", None),
+                Color::BLACK.into(),
+            ),
             (
                 StyleKey::new("RadioButton", "background_color", None),
                 Color::WHITE.into(),
@@ -123,6 +150,125 @@ impl Default for Style {
             ),
             (StyleKey::new("RadioButton", "radius", None), 4.0.into()),
             (StyleKey::new("RadioButton", "padding", None), 2.0.into()),
+            // Select
+            (
+                StyleKey::new("Select", "text_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("Select", "font_size", None), 12.0.into()),
+            (
+                StyleKey::new("Select", "background_color", None),
+                Color::WHITE.into(),
+            ),
+            (
+                StyleKey::new("Select", "highlight_color", None),
+                Color::LIGHT_GREY.into(),
+            ),
+            (
+                StyleKey::new("Select", "border_color", None),
+                Color::BLACK.into(),
+            ),
+            (
+                StyleKey::new("Select", "caret_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("Select", "border_width", None), 2.0.into()),
+            (StyleKey::new("Select", "radius", None), 4.0.into()),
+            (StyleKey::new("Select", "padding", None), 2.0.into()),
+            (StyleKey::new("Select", "max_height", None), 250.0.into()),
+            // Toggle
+            (
+                StyleKey::new("Toggle", "background_color", None),
+                Color::LIGHT_GREY.into(),
+            ),
+            (
+                StyleKey::new("Toggle", "highlight_color", None),
+                Color::DARK_GREY.into(),
+            ),
+            (
+                StyleKey::new("Toggle", "active_color", None),
+                Color::MID_GREY.into(),
+            ),
+            (
+                StyleKey::new("Toggle", "border_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("Toggle", "border_width", None), 2.0.into()),
+            // ToolTip
+            (
+                StyleKey::new("ToolTip", "text_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("ToolTip", "font_size", None), 12.0.into()),
+            (
+                StyleKey::new("ToolTip", "background_color", None),
+                Color::WHITE.into(),
+            ),
+            (
+                StyleKey::new("ToolTip", "border_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("ToolTip", "border_width", None), 2.0.into()),
+            (StyleKey::new("ToolTip", "padding", None), 4.0.into()),
+            // TextBox
+            (StyleKey::new("TextBox", "font_size", None), 12.0.into()),
+            (
+                StyleKey::new("TextBox", "text_color", None),
+                Color::BLACK.into(),
+            ),
+            (
+                StyleKey::new("TextBox", "background_color", None),
+                Color::WHITE.into(),
+            ),
+            (
+                StyleKey::new("TextBox", "selection_color", None),
+                Color::MID_GREY.into(),
+            ),
+            (
+                StyleKey::new("TextBox", "cursor_color", None),
+                Color::BLACK.into(),
+            ),
+            (
+                StyleKey::new("TextBox", "border_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("TextBox", "border_width", None), 1.0.into()),
+            (StyleKey::new("TextBox", "padding", None), 1.0.into()),
+            // Text
+            (StyleKey::new("Text", "size", None), 12.0.into()),
+            (StyleKey::new("Text", "color", None), Color::BLACK.into()),
+            (
+                StyleKey::new("Text", "h_alignment", None),
+                HorizontalAlign::Left.into(),
+            ),
+            // Scroll
+            (StyleKey::new("Scroll", "x", None), false.into()),
+            (StyleKey::new("Scroll", "y", None), false.into()),
+            (
+                StyleKey::new("Scroll", "x_bar_position", None),
+                VerticalPosition::Bottom.into(),
+            ),
+            (
+                StyleKey::new("Scroll", "y_bar_position", None),
+                HorizontalPosition::Right.into(),
+            ),
+            (StyleKey::new("Scroll", "bar_width", None), 12.0.into()),
+            (
+                StyleKey::new("Scroll", "bar_background_color", None),
+                Color::LIGHT_GREY.into(),
+            ),
+            (
+                StyleKey::new("Scroll", "bar_color", None),
+                Into::<Color>::into(0.7).into(),
+            ),
+            (
+                StyleKey::new("Scroll", "bar_highlight_color", None),
+                Into::<Color>::into(0.5).into(),
+            ),
+            (
+                StyleKey::new("Scroll", "bar_active_color", None),
+                Color::DARK_GREY.into(),
+            ),
         ]);
         Self(map)
     }
@@ -154,8 +300,15 @@ pub trait Styled: Sized {
         self
     }
 
-    fn override_style(mut self, parameter: &'static str, val: StyleVal) -> Self {
+    fn style(mut self, parameter: &'static str, val: StyleVal) -> Self {
         self.style_overrides_mut().0.insert(parameter, val);
+        self
+    }
+
+    fn maybe_style(mut self, parameter: &'static str, val: Option<StyleVal>) -> Self {
+        if let Some(val) = val {
+            self.style_overrides_mut().0.insert(parameter, val);
+        }
         self
     }
 
@@ -262,6 +415,27 @@ impl From<Option<StyleVal>> for Dimension {
         }
     }
 }
+impl From<Size> for StyleVal {
+    fn from(c: Size) -> Self {
+        Self::Size(c)
+    }
+}
+impl From<StyleVal> for Size {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Size(c) => c,
+            x => panic!("Tried to coerce {x:?} into a Size"),
+        }
+    }
+}
+impl From<Option<StyleVal>> for Size {
+    fn from(v: Option<StyleVal>) -> Self {
+        match v {
+            Some(StyleVal::Size(c)) => c,
+            x => panic!("Tried to coerce {x:?} into a Size"),
+        }
+    }
+}
 impl From<Pos> for StyleVal {
     fn from(c: Pos) -> Self {
         Self::Pos(c)
@@ -346,6 +520,61 @@ impl From<Option<StyleVal>> for Layout {
         }
     }
 }
+impl From<HorizontalAlign> for StyleVal {
+    fn from(c: HorizontalAlign) -> Self {
+        Self::HorizontalAlign(c)
+    }
+}
+impl From<StyleVal> for HorizontalAlign {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::HorizontalAlign(c) => c,
+            x => panic!("Tried to coerce {x:?} into a HorizontalAlign"),
+        }
+    }
+}
+impl From<VerticalPosition> for StyleVal {
+    fn from(c: VerticalPosition) -> Self {
+        Self::VerticalPosition(c)
+    }
+}
+impl From<StyleVal> for VerticalPosition {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::VerticalPosition(c) => c,
+            x => panic!("Tried to coerce {x:?} into a VerticalPosition"),
+        }
+    }
+}
+impl From<Option<StyleVal>> for VerticalPosition {
+    fn from(v: Option<StyleVal>) -> Self {
+        match v {
+            Some(StyleVal::VerticalPosition(c)) => c,
+            x => panic!("Tried to coerce {x:?} into a VerticalPosition"),
+        }
+    }
+}
+impl From<HorizontalPosition> for StyleVal {
+    fn from(c: HorizontalPosition) -> Self {
+        Self::HorizontalPosition(c)
+    }
+}
+impl From<StyleVal> for HorizontalPosition {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::HorizontalPosition(c) => c,
+            x => panic!("Tried to coerce {x:?} into a HorizontalPosition"),
+        }
+    }
+}
+impl From<Option<StyleVal>> for HorizontalPosition {
+    fn from(v: Option<StyleVal>) -> Self {
+        match v {
+            Some(StyleVal::HorizontalPosition(c)) => c,
+            x => panic!("Tried to coerce {x:?} into a HorizontalPosition"),
+        }
+    }
+}
 impl From<f64> for StyleVal {
     fn from(c: f64) -> Self {
         Self::Float(c)
@@ -400,9 +629,52 @@ impl From<StyleVal> for &str {
 }
 
 impl StyleVal {
-    // TODO
+    pub fn dimension(self) -> Dimension {
+        self.into()
+    }
+
+    pub fn size(self) -> Size {
+        self.into()
+    }
+
+    pub fn rect(self) -> Rect {
+        self.into()
+    }
+
+    pub fn point(self) -> Point {
+        self.into()
+    }
+
+    pub fn pos(self) -> Pos {
+        self.into()
+    }
+
+    pub fn layout(self) -> Layout {
+        self.into()
+    }
+
+    pub fn horizontal_align(self) -> HorizontalAlign {
+        self.into()
+    }
+
+    pub fn horizontal_position(self) -> HorizontalPosition {
+        self.into()
+    }
+
+    pub fn vertical_position(self) -> VerticalPosition {
+        self.into()
+    }
+
+    pub fn color(self) -> Color {
+        self.into()
+    }
+
     pub fn str(self) -> &'static str {
         self.into()
+    }
+
+    pub fn string(self) -> String {
+        self.str().to_string()
     }
 
     pub fn f32(self) -> f32 {
@@ -410,6 +682,14 @@ impl StyleVal {
     }
 
     pub fn f64(self) -> f64 {
+        self.into()
+    }
+
+    pub fn bool(self) -> bool {
+        self.into()
+    }
+
+    pub fn u32(self) -> u32 {
         self.into()
     }
 }
@@ -472,13 +752,13 @@ mod tests {
     fn test_style_param_overrides() {
         set_current_style(test_style());
 
-        let w = Widget::default().override_style("color", Color::BLUE.into());
+        let w = Widget::default().style("color", Color::BLUE.into());
         let c: Color = w.style_param("color").into();
         assert_eq!(c, Color::BLUE);
 
         let w = Widget::default()
             .with_class("dark") // Classes should not impact outcome
-            .override_style("color", Color::BLUE.into());
+            .style("color", Color::BLUE.into());
         let c: Color = w.style_param("color").into();
         assert_eq!(c, Color::BLUE);
     }

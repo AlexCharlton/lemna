@@ -13,39 +13,11 @@ use crate::render::{
     renderables::{Rect, Text},
     Renderable,
 };
+use crate::style::Styled;
 use crate::{node, Node};
-use lemna_macros::{state_component, state_component_impl};
+use lemna_macros::{component, state_component_impl};
 
 const CURSOR_BLINK_PERIOD: u128 = 500; // millis
-
-#[derive(Debug, Clone)]
-pub struct TextBoxStyle {
-    pub font_size: f32,
-    pub text_color: Color,
-    pub font: Option<String>,
-    pub background_color: Color,
-    pub selection_color: Color,
-    pub cursor_color: Color,
-    pub border_color: Color,
-    pub border_width: f32,
-    pub padding: f32,
-}
-
-impl Default for TextBoxStyle {
-    fn default() -> Self {
-        Self {
-            font_size: 12.0,
-            text_color: Color::BLACK,
-            font: None,
-            background_color: Color::WHITE,
-            selection_color: Color::MID_GREY,
-            cursor_color: Color::BLACK,
-            border_color: Color::BLACK,
-            border_width: 1.0,
-            padding: 1.0,
-        }
-    }
-}
 
 #[derive(Debug)]
 enum TextBoxMessage {
@@ -67,9 +39,8 @@ struct TextBoxState {
     focused: bool,
 }
 
-#[state_component(TextBoxState)]
+#[component(State = "TextBoxState", Styled, Internal)]
 pub struct TextBox {
-    style: TextBoxStyle,
     text: Option<String>,
     on_change: Option<Box<dyn Fn(&str) -> Message + Send + Sync>>,
     on_commit: Option<Box<dyn Fn(&str) -> Message + Send + Sync>>,
@@ -78,22 +49,20 @@ pub struct TextBox {
 
 impl std::fmt::Debug for TextBox {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_struct("TextBox")
-            .field("text", &self.text)
-            .field("style", &self.style)
-            .finish()
+        f.debug_struct("TextBox").field("text", &self.text).finish()
     }
 }
 
 impl TextBox {
-    pub fn new(default: Option<String>, style: TextBoxStyle) -> Self {
+    pub fn new(default: Option<String>) -> Self {
         Self {
-            style,
             text: default,
             on_change: None,
             on_commit: None,
             on_focus: None,
             state: Some(TextBoxState::default()),
+            class: Default::default(),
+            style_overrides: Default::default(),
         }
     }
 
@@ -116,17 +85,26 @@ impl TextBox {
 #[state_component_impl(TextBoxState)]
 impl Component for TextBox {
     fn view(&self) -> Option<Node> {
+        let background_color: Color = self.style_param("background_color").into();
+        let border_color: Color = self.style_param("border_color").into();
+        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+
         Some(
             node!(
                 TextBoxContainer::new(
-                    self.style.background_color,
-                    self.style.border_color,
-                    self.style.border_width * if self.state_ref().focused { 2.0 } else { 1.0 },
+                    background_color,
+                    border_color,
+                    border_width * if self.state_ref().focused { 2.0 } else { 1.0 },
                 ),
                 lay!(size: size_pct!(100.0),)
             )
             .push(node!(
-                TextBoxText::new(self.text.clone(), self.style.clone(),),
+                TextBoxText {
+                    default_text: self.text.clone().unwrap_or(String::new()),
+                    style_overrides: self.style_overrides.clone(),
+                    class: self.class.clone(),
+                    state: None,
+                },
                 lay!(size: size_pct!(100.0),)
             )),
         )
@@ -166,7 +144,7 @@ struct TextBoxContainerState {
     width_px: f32,
 }
 
-#[state_component(TextBoxContainerState)]
+#[component(State = "TextBoxContainerState", Internal)]
 #[derive(Debug)]
 struct TextBoxContainer {
     background_color: Color,
@@ -299,22 +277,13 @@ struct TextBoxTextState {
     dirty: bool,
 }
 
-#[state_component(TextBoxTextState)]
+#[component(State = "TextBoxTextState", Styled = "TextBox", Internal)]
 #[derive(Debug)]
 pub struct TextBoxText {
-    pub style: TextBoxStyle,
     pub default_text: String,
 }
 
 impl TextBoxText {
-    pub fn new(text: Option<String>, style: TextBoxStyle) -> Self {
-        Self {
-            style,
-            default_text: text.unwrap_or(String::new()),
-            state: None,
-        }
-    }
-
     fn reset_state(&mut self) {
         self.state = Some(TextBoxTextState {
             focused: false,
@@ -748,10 +717,10 @@ impl Component for TextBoxText {
     }
 
     fn render_hash(&self, hasher: &mut ComponentHasher) {
-        (self.style.font_size as u32).hash(hasher);
-        self.style.text_color.hash(hasher);
-        (self.style.padding as u32).hash(hasher);
-        self.style.font.hash(hasher);
+        (self.style_param("font_size").unwrap().f32() as u32).hash(hasher);
+        (self.style_param("text_color").unwrap().color()).hash(hasher);
+        (self.style_param("padding").unwrap().f32() as u32).hash(hasher);
+        (self.style_param("font").map(|p| p.str().to_string())).hash(hasher);
         self.state_ref().focused.hash(hasher);
         self.state_ref().selection_from.hash(hasher);
         self.state_ref().text.hash(hasher);
@@ -775,9 +744,15 @@ impl Component for TextBoxText {
         font_cache: &FontCache,
         scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
+        let padding: f32 = self.style_param("padding").unwrap().f32();
+        let font_size: f32 = self.style_param("font_size").unwrap().f32();
+        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+
         if self.state_ref().dirty {
-            let font_size_px = self.style.font_size * super::Text::SIZE_SCALE * scale_factor;
-            let font_ref = font_cache.font_or_default(self.style.font.as_deref());
+            let font = self.style_param("font").map(|p| p.str().to_string());
+
+            let font_size_px = font_size * super::Text::SIZE_SCALE * scale_factor;
+            let font_ref = font_cache.font_or_default(font.as_deref());
             let font = &font_cache.fonts[font_ref.0];
 
             self.state_mut().glyphs = font_cache.layout_text(
@@ -798,8 +773,7 @@ impl Component for TextBoxText {
                 .map(|g| font.as_scaled(font_size_px).h_advance(g.glyph.id))
                 .collect();
             self.state_mut().glyph_widths = glyph_widths;
-            self.state_mut().padding_offset_px =
-                ((self.style.padding + self.style.border_width) * scale_factor).round();
+            self.state_mut().padding_offset_px = ((padding + border_width) * scale_factor).round();
 
             self.state_mut().dirty = false;
         }
@@ -812,18 +786,17 @@ impl Component for TextBoxText {
             + self.state_ref().padding_offset_px * 2.0;
         (
             Some(width / scale_factor),
-            Some(
-                self.style.font_size * super::Text::SIZE_SCALE
-                    + self.style.padding * 2.0
-                    + self.style.border_width * 2.0,
-            ),
+            Some(font_size * super::Text::SIZE_SCALE + padding * 2.0 + border_width * 2.0),
         )
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let cursor_z = 2.0;
         let text_z = 5.0;
-        let font_size = self.style.font_size * super::Text::SIZE_SCALE;
+        let font_size: f32 = self.style_param("font_size").unwrap().f32() * super::Text::SIZE_SCALE;
+        let text_color: Color = self.style_param("text_color").into();
+        let cursor_color: Color = self.style_param("cursor_color").into();
+        let selection_color: Color = self.style_param("selection_color").into();
         let pos = self.state_ref().cursor_pos;
         let offset = self.state_ref().padding_offset_px;
         let font_size_px = font_size * context.scale_factor;
@@ -843,7 +816,7 @@ impl Component for TextBoxText {
                     y: offset,
                     z: text_z,
                 },
-                self.style.text_color,
+                text_color,
                 &mut context.buffer_caches.text_cache.write().unwrap(),
                 context.prev_state.and_then(|v| match v.get(0) {
                     Some(Renderable::Text(r)) => Some(r.buffer_id),
@@ -858,7 +831,7 @@ impl Component for TextBoxText {
             let cursor_rect = Renderable::Rect(Rect::new(
                 Pos::new(cursor_x, offset + 2.0, cursor_z),
                 Scale::new(1.0, font_size_px - offset),
-                self.style.cursor_color,
+                cursor_color,
             ));
             renderables.push(cursor_rect);
         } else if self.selection().is_some() {
@@ -871,7 +844,7 @@ impl Component for TextBoxText {
             let selection_rect = Renderable::Rect(Rect::new(
                 Pos::new(x1, offset + 2.0, cursor_z),
                 Scale::new(x2 - x1, font_size_px - offset),
-                self.style.selection_color,
+                selection_color,
             ));
             renderables.push(selection_rect);
         }

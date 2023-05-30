@@ -4,26 +4,8 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::font_cache::{FontCache, HorizontalAlign, SectionText};
 use crate::render::{renderables::text, Renderable};
-use lemna_macros::{state_component, state_component_impl};
-
-#[derive(Debug, Clone)]
-pub struct TextStyle {
-    pub size: f32,
-    pub color: Color,
-    pub font: Option<String>,
-    pub h_alignment: HorizontalAlign,
-}
-
-impl Default for TextStyle {
-    fn default() -> Self {
-        Self {
-            size: 12.0,
-            color: Color::BLACK,
-            font: None,
-            h_alignment: HorizontalAlign::Left,
-        }
-    }
-}
+use crate::style::Styled;
+use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug, Default)]
 pub struct BoundsCache {
@@ -152,27 +134,29 @@ impl Hash for TextSegment {
     }
 }
 
-#[state_component(TextState)]
+#[component(State = "TextState", Styled, Internal)]
 #[derive(Debug)]
 pub struct Text {
     pub text: Vec<TextSegment>,
-    pub style: TextStyle,
 }
 
 impl Text {
     pub const SIZE_SCALE: f32 = 1.5; // 12 px fonts render at scale 18 px for some reason
 
-    pub fn new(text: Vec<TextSegment>, style: TextStyle) -> Self {
+    pub fn new(text: Vec<TextSegment>) -> Self {
         Self {
             text,
-            style,
+            class: Default::default(),
+            style_overrides: Default::default(),
             state: Some(TextState::default()),
         }
     }
 
     fn to_section_text(&self, font_cache: &FontCache, scale: f32) -> Vec<SectionText> {
-        let scaled_size = self.style.size * scale * Text::SIZE_SCALE;
-        let base_font = font_cache.font_or_default(self.style.font.as_deref());
+        let font = self.style_param("font").map(|p| p.str().to_string());
+        let size: f32 = self.style_param("size").unwrap().f32();
+        let scaled_size = size * scale * Text::SIZE_SCALE;
+        let base_font = font_cache.font_or_default(font.as_deref());
 
         self.text
             .iter()
@@ -202,10 +186,10 @@ impl Component for Text {
 
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.text.hash(hasher);
-        (self.style.size as u32).hash(hasher);
-        self.style.color.hash(hasher);
-        self.style.font.hash(hasher);
-        self.style.h_alignment.hash(hasher);
+        (self.style_param("size").unwrap().f32() as u32).hash(hasher);
+        (self.style_param("color").unwrap().color()).hash(hasher);
+        (self.style_param("font").map(|p| p.str().to_string())).hash(hasher);
+        (self.style_param("h_alignment").unwrap().horizontal_align()).hash(hasher);
     }
 
     fn fill_bounds(
@@ -227,7 +211,8 @@ impl Component for Text {
             return c.output.unwrap();
         }
 
-        let scaled_size = self.style.size * scale * Text::SIZE_SCALE;
+        let size: f32 = self.style_param("size").unwrap().f32();
+        let scaled_size = size * scale * Text::SIZE_SCALE;
 
         let glyphs = font_cache.layout_text(
             &self.to_section_text(font_cache, scale),
@@ -270,12 +255,15 @@ impl Component for Text {
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        let h_alignment: HorizontalAlign =
+            self.style_param("h_alignment").unwrap().horizontal_align();
+        let color: Color = self.style_param("color").into();
         let bounds = context.aabb.size();
         let glyphs = context.font_cache.read().unwrap().layout_text(
             &self.to_section_text(&context.font_cache.read().unwrap(), context.scale_factor),
-            self.style.h_alignment,
+            h_alignment,
             (
-                match self.style.h_alignment {
+                match h_alignment {
                     HorizontalAlign::Left => 0.0,
                     HorizontalAlign::Center => bounds.width / 2.0,
                     HorizontalAlign::Right => bounds.width,
@@ -291,7 +279,7 @@ impl Component for Text {
             Some(vec![Renderable::Text(text::Text::new(
                 glyphs,
                 Pos::default(),
-                self.style.color,
+                color,
                 &mut context.buffer_caches.text_cache.write().unwrap(),
                 context.prev_state.and_then(|v| match v.get(0) {
                     Some(Renderable::Text(r)) => Some(r.buffer_id),

@@ -50,6 +50,7 @@ pub fn state_component(attr: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// e.g. `#[component(State = "ButtonState", Styled)]`
+/// e.g. `#[component(State = "StateType", Styled = "ComponentNameOverride")]`
 #[proc_macro_attribute]
 pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = parse_macro_input!(attr as syn::AttributeArgs);

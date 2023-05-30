@@ -2,7 +2,7 @@ mod button;
 pub use button::Button;
 
 mod div;
-pub use div::{Div, HorizontalPosition, ScrollDescriptor, VerticalPosition};
+pub use div::{Div, HorizontalPosition, VerticalPosition};
 
 #[cfg(feature = "file-dialogs")]
 mod file_selector;
@@ -19,10 +19,10 @@ pub use select::*;
 
 #[macro_use]
 mod text;
-pub use text::{Text, TextSegment, TextStyle};
+pub use text::{Text, TextSegment};
 
 mod textbox;
-pub use textbox::{TextBox, TextBoxAction, TextBoxStyle};
+pub use textbox::{TextBox, TextBoxAction};
 
 mod toggle;
 pub use toggle::*;

@@ -6,39 +6,9 @@ use crate::event;
 use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
 use crate::render::{renderables::shape::Shape, Renderable};
+use crate::style::{current_style, Styled};
 use crate::{node, txt, Node};
-use lemna_macros::{state_component, state_component_impl};
-
-#[derive(Debug, Clone)]
-pub struct SelectStyle {
-    pub text_color: Color,
-    pub font_size: f32,
-    pub font: Option<String>,
-    pub background_color: Color,
-    pub highlight_color: Color,
-    pub border_color: Color,
-    pub border_width: f32,
-    pub radius: f32,
-    pub padding: f32,
-    pub max_height: f32,
-}
-
-impl Default for SelectStyle {
-    fn default() -> Self {
-        Self {
-            text_color: 0.0.into(),
-            font_size: 12.0,
-            font: None,
-            background_color: Color::WHITE,
-            highlight_color: Color::LIGHT_GREY,
-            border_color: Color::BLACK,
-            border_width: 2.0,
-            radius: 4.0,
-            padding: 2.0,
-            max_height: 250.0,
-        }
-    }
-}
+use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug)]
 enum SelectMessage {
@@ -58,13 +28,12 @@ struct SelectState {
     hovering: usize,
 }
 
-#[state_component(SelectState)]
+#[component(State = "SelectState", Styled, Internal)]
 pub struct Select<M: Send + Sync>
 where
     M: Send + Sync,
 {
     pub selection: Vec<M>,
-    pub style: SelectStyle,
     pub selected: usize,
     on_change: Option<Box<dyn Fn(usize, &M) -> Message + Send + Sync>>,
 }
@@ -73,18 +42,18 @@ impl<M: std::fmt::Debug + Send + Sync> std::fmt::Debug for Select<M> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_struct("Select")
             .field("selection", &self.selection)
-            .field("style", &self.style)
             .finish()
     }
 }
 
 impl<M: ToString + Send + Sync> Select<M> {
-    pub fn new(selection: Vec<M>, selected: usize, style: SelectStyle) -> Self {
+    pub fn new(selection: Vec<M>, selected: usize) -> Self {
         Self {
             selection,
-            style,
             selected,
             on_change: None,
+            class: Default::default(),
+            style_overrides: Default::default(),
             state: Some(SelectState::default()),
         }
     }
@@ -103,14 +72,16 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send 
         let mut base =
             node!(super::Div::new(), lay!(direction: Direction::Column)).push(node!(SelectBox {
                 selection: self.selection.get(self.state_ref().selected).cloned(),
-                style: self.style.clone(),
+                style_overrides: self.style_overrides.clone(),
+                class: self.class.clone(),
             }));
         if self.state_ref().open {
             base = base.push(node!(
                 SelectList {
                     selections: self.selection.clone(),
-                    style: self.style.clone(),
                     hovering: self.state_ref().hovering,
+                    style_overrides: self.style_overrides.clone(),
+                    class: self.class.clone(),
                 },
                 lay!(position_type: PositionType::Absolute, z_index_increment: 1000.0),
                 1
@@ -160,29 +131,32 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send 
 //
 // SelectBox
 // The base component you interact with. A button that shows selection state
+#[component(Styled = "Select", Internal)]
 #[derive(Debug)]
 struct SelectBox<M> {
     selection: Option<M>,
-    style: SelectStyle,
 }
 
 impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M> {
     fn view(&self) -> Option<Node> {
+        let padding: f64 = self.style_param("padding").unwrap().into();
+        let radius: f32 = self.style_param("radius").unwrap().f32();
+        let font_size: f32 = self.style_param("font_size").unwrap().f32();
+        let background_color: Color = self.style_param("background_color").into();
+        let border_color: Color = self.style_param("border_color").into();
+        let caret_color: Color = self.style_param("caret_color").into();
+        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+
         let mut base = node!(
             super::RoundedRect {
-                background_color: self.style.background_color,
-                border_color: self.style.border_color,
-                border_width: self.style.border_width,
-                radius: (
-                    self.style.radius,
-                    self.style.radius,
-                    self.style.radius,
-                    self.style.radius
-                ),
+                background_color: background_color,
+                border_color: border_color,
+                border_width: border_width,
+                radius: (radius, radius, radius, radius),
             },
             lay!(
                 size: size_pct!(100.0),
-                padding: rect!(self.style.padding),
+                padding: rect!(padding),
                 cross_alignment: Alignment::Center,
                 axis_alignment: Alignment::Center,
                 direction: Direction::Row,
@@ -190,23 +164,17 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
         );
         if let Some(selection) = self.selection.as_ref() {
             base = base
-                .push(node!(super::Text::new(
-                    txt!(selection.to_string()),
-                    super::TextStyle {
-                        size: self.style.font_size,
-                        color: self.style.text_color,
-                        font: self.style.font.clone(),
-                        h_alignment: HorizontalAlign::Center,
-                    }
-                )))
+                .push(node!(super::Text::new(txt!(selection.to_string()))
+                    .style("size", self.style_param("font_size").unwrap())
+                    .style("color", self.style_param("text_color").unwrap())
+                    .style("h_alignment", HorizontalAlign::Center.into())
+                    .maybe_style("font", self.style_param("font"))))
                 .push(node!(
-                    Caret {
-                        style: self.style.clone()
-                    },
+                    Caret { color: caret_color },
                     lay!(
-                        size: size!(self.style.font_size / 2.0),
+                        size: size!(font_size / 2.0),
                         // TODO: Margin here is awkward
-                        margin: rect!(Auto, self.style.padding)
+                        margin: rect!(Auto, padding)
                     )
                 ))
         }
@@ -232,7 +200,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
 
 #[derive(Debug)]
 struct Caret {
-    style: SelectStyle,
+    color: Color,
 }
 
 use lyon::path::Path;
@@ -253,7 +221,7 @@ impl Component for Caret {
 
         Some(vec![Renderable::Shape(Shape::stroke(
             geometry,
-            self.style.border_color,
+            self.color,
             scale,
             0.0,
             &mut context.buffer_caches.shape_cache.write().unwrap(),
@@ -269,36 +237,31 @@ impl Component for Caret {
 // SelectList
 // Visible after opening: The full selection list
 #[derive(Debug)]
+#[component(Styled = "Select", Internal)]
 struct SelectList<M>
 where
     M: Send + Sync,
 {
     selections: Vec<M>,
-    style: SelectStyle,
     hovering: usize,
 }
 
 impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectList<M> {
     fn view(&self) -> Option<Node> {
+        let background_color: Color = self.style_param("background_color").into();
+
         let mut l = node!(
-            super::Div::new()
-                .bg(self.style.background_color)
-                .scroll(super::ScrollDescriptor {
-                    scroll_y: true,
-                    ..Default::default()
-                }),
-            lay!(
-                direction: Direction::Column,
-                cross_alignment: Alignment::Stretch,
-            )
+            super::Div::new().bg(background_color).scroll_y(),
+            [direction: Column, cross_alignment: Stretch,]
         );
         for (i, s) in self.selections.iter().enumerate() {
             l = l.push(
                 node!(SelectEntry {
                     selection: s.clone(),
                     id: i,
-                    style: self.style.clone(),
                     selected: i == self.hovering,
+                    style_overrides: self.style_overrides.clone(),
+                    class: self.class.clone(),
                 })
                 .key(i as u64),
             );
@@ -319,12 +282,14 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
         scale_factor: f32,
     ) {
         if let Some((child_aabb, Some(inner_scale), _)) = children.first_mut() {
-            // Set size based on list elements and style.max_height
+            let max_height: f32 = self.style_param("max_height").unwrap().f32();
+            let bar_width: f32 = current_style().style("Scroll", "bar_width").unwrap().f32();
+            // Set size based on list elements and max_height
             let mut h = inner_scale.height;
             let mut w = inner_scale.width;
-            if h > self.style.max_height * scale_factor {
-                h = self.style.max_height * scale_factor;
-                w = inner_scale.width + super::ScrollDescriptor::default().bar_width * scale_factor;
+            if h > max_height * scale_factor {
+                h = max_height * scale_factor;
+                w = inner_scale.width + bar_width * scale_factor;
             }
 
             // Shrink if there isn't enough room
@@ -332,7 +297,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
             let room_bellow = frame.bottom_right.y - parent_aabb.bottom_right.y;
             if h > room_bellow && h > room_above {
                 h = room_bellow.max(room_above);
-                w = inner_scale.width + super::ScrollDescriptor::default().bar_width * scale_factor;
+                w = inner_scale.width + bar_width * scale_factor;
             }
 
             aabb.set_scale_mut(w, h);
@@ -349,6 +314,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
 //
 // SelectEntry
 // An individual entry within a SelectList
+#[component(Styled = "Select", Internal)]
 #[derive(Debug)]
 struct SelectEntry<M>
 where
@@ -357,31 +323,27 @@ where
     selection: M,
     id: usize,
     selected: bool,
-    style: SelectStyle,
 }
 
 impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectEntry<M> {
     fn view(&self) -> Option<Node> {
+        let padding: f64 = self.style_param("padding").unwrap().into();
+        let highlight_color: Color = self.style_param("highlight_color").into();
+
         let mut div = super::Div::new();
         if self.selected {
-            div = div.bg(self.style.highlight_color)
+            div = div.bg(highlight_color)
         }
 
-        let mut base = node!(
-            div,
-            lay!(size: size_pct!(100.0), padding: rect!(self.style.padding),)
-        );
-
-        base = base.push(node!(super::Text::new(
-            txt!(self.selection.to_string()),
-            super::TextStyle {
-                size: self.style.font_size,
-                color: self.style.text_color,
-                font: self.style.font.clone(),
-                h_alignment: HorizontalAlign::Center,
-            }
-        )));
-        Some(base)
+        Some(
+            node!(div, lay!(size: size_pct!(100.0), padding: rect!(padding))).push(node!(
+                super::Text::new(txt!(self.selection.to_string()))
+                    .style("size", self.style_param("font_size").unwrap())
+                    .style("color", self.style_param("text_color").unwrap())
+                    .style("h_alignment", HorizontalAlign::Center.into())
+                    .maybe_style("font", self.style_param("font"))
+            )),
+        )
     }
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {

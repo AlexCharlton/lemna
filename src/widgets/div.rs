@@ -5,8 +5,9 @@ use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
 use crate::layout::*;
 use crate::render::{renderables::Rect, Renderable};
+use crate::style::{StyleVal, Styled};
 
-use lemna_macros::{state_component, state_component_impl};
+use lemna_macros::{component, state_component_impl};
 
 const MIN_BAR_SIZE: f32 = 10.0;
 
@@ -41,42 +42,12 @@ impl Default for VerticalPosition {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ScrollDescriptor {
-    pub scroll_x: bool,
-    pub scroll_y: bool,
-    pub x_bar_position: VerticalPosition,
-    pub y_bar_position: HorizontalPosition,
-    pub bar_width: f32,
-    pub bar_background_color: Color,
-    pub bar_color: Color,
-    pub bar_highlight_color: Color,
-    pub bar_active_color: Color,
-}
-
-impl Default for ScrollDescriptor {
-    fn default() -> Self {
-        Self {
-            scroll_x: false,
-            scroll_y: false,
-            x_bar_position: VerticalPosition::Bottom,
-            y_bar_position: HorizontalPosition::Right,
-            bar_width: 12.0,
-            bar_background_color: Color::LIGHT_GREY,
-            bar_color: 0.7.into(),
-            bar_highlight_color: 0.5.into(),
-            bar_active_color: Color::DARK_GREY,
-        }
-    }
-}
-
-#[state_component(DivState)]
+#[component(State = "DivState", Styled = "Scroll", Internal)]
 #[derive(Debug, Default)]
 pub struct Div {
     pub background: Option<Color>,
     pub border_color: Option<Color>,
     pub border_width: Option<f32>,
-    pub scroll: Option<ScrollDescriptor>,
 }
 
 impl Div {
@@ -95,12 +66,28 @@ impl Div {
         self
     }
 
-    pub fn scroll(mut self, scroll: ScrollDescriptor) -> Self {
-        if scroll.scroll_x || scroll.scroll_y {
-            self.scroll = Some(scroll);
-            self.state = Some(DivState::default());
-        }
+    pub fn scroll_x(mut self) -> Self {
+        self = self.style("x", true.into());
+        self.state = Some(DivState::default());
         self
+    }
+
+    pub fn scroll_y(mut self) -> Self {
+        self = self.style("y", true.into());
+        self.state = Some(DivState::default());
+        self
+    }
+
+    fn x_scrollable(&self) -> bool {
+        self.style_param("x").unwrap().into()
+    }
+
+    fn y_scrollable(&self) -> bool {
+        self.style_param("y").unwrap().into()
+    }
+
+    fn scrollable(&self) -> bool {
+        self.x_scrollable() || self.y_scrollable()
     }
 }
 
@@ -121,13 +108,13 @@ impl Component for Div {
     }
 
     fn on_scroll(&mut self, event: &mut event::Event<event::Scroll>) {
-        if let Some(scroll) = &self.scroll {
+        if self.scrollable() {
             let mut scroll_position = self.state_ref().scroll_position;
             let mut scrolled = false;
             let size = event.current_physical_aabb().size();
             let inner_scale = event.current_inner_scale.unwrap();
 
-            if scroll.scroll_y {
+            if self.y_scrollable() {
                 if event.input.y > 0.0 {
                     let max_position = inner_scale.height - size.height;
                     if scroll_position.y < max_position {
@@ -145,7 +132,7 @@ impl Component for Div {
                 }
             }
 
-            if scroll.scroll_x {
+            if self.x_scrollable() {
                 if event.input.x > 0.0 {
                     let max_position = inner_scale.width - size.width;
                     if scroll_position.x < max_position {
@@ -172,7 +159,7 @@ impl Component for Div {
     }
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
-        if self.scroll.is_some() {
+        if self.scrollable() {
             let over_y_bar = self
                 .state_ref()
                 .y_scroll_bar
@@ -196,7 +183,7 @@ impl Component for Div {
     }
 
     fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
-        if self.scroll.is_some() {
+        if self.scrollable() {
             self.state_mut().over_y_bar = false;
             self.state_mut().over_x_bar = false;
             event.dirty();
@@ -204,7 +191,7 @@ impl Component for Div {
     }
 
     fn on_drag_start(&mut self, event: &mut event::Event<event::DragStart>) {
-        if self.scroll.is_some() {
+        if self.scrollable() {
             let x_bar_pressed = self.state_ref().over_x_bar;
             let y_bar_pressed = self.state_ref().over_y_bar;
             if x_bar_pressed || y_bar_pressed {
@@ -219,7 +206,7 @@ impl Component for Div {
     }
 
     fn on_drag_end(&mut self, event: &mut event::Event<event::DragEnd>) {
-        if self.scroll.is_some() {
+        if self.scrollable() {
             self.state_mut().x_bar_pressed = false;
             self.state_mut().y_bar_pressed = false;
             event.dirty();
@@ -227,7 +214,7 @@ impl Component for Div {
     }
 
     fn on_drag(&mut self, event: &mut event::Event<event::Drag>) {
-        if self.scroll.is_some() {
+        if self.scrollable() {
             let start_position = self.state_ref().drag_start_position;
             let size = event.current_physical_aabb().size();
             let inner_scale = event.current_inner_scale.unwrap();
@@ -259,11 +246,11 @@ impl Component for Div {
     }
 
     fn scroll_position(&self) -> Option<ScrollPosition> {
-        if let Some(scroll) = &self.scroll {
+        if self.scrollable() {
             let p = self.state_ref().scroll_position;
             Some(ScrollPosition {
-                x: if scroll.scroll_x { Some(p.x) } else { None },
-                y: if scroll.scroll_y { Some(p.y) } else { None },
+                x: if self.x_scrollable() { Some(p.x) } else { None },
+                y: if self.y_scrollable() { Some(p.y) } else { None },
             })
         } else {
             None
@@ -272,22 +259,26 @@ impl Component for Div {
 
     fn frame_bounds(&self, aabb: AABB, inner_scale: Option<Scale>) -> AABB {
         let mut aabb = aabb;
-        if let Some(scroll) = &self.scroll {
+        if self.scrollable() {
             let inner_scale = inner_scale.unwrap();
             let scaled_width = self.state_ref().scaled_scroll_bar_width;
             let size = aabb.size();
             let max_position = inner_scale - size;
 
-            if scroll.scroll_y && max_position.height > 0.0 {
-                if scroll.y_bar_position == HorizontalPosition::Left {
+            if self.y_scrollable() && max_position.height > 0.0 {
+                if self.style_param("y_bar_position")
+                    == Some(StyleVal::HorizontalPosition(HorizontalPosition::Left))
+                {
                     aabb.pos.x += scaled_width;
                 } else {
                     aabb.bottom_right.x -= scaled_width;
                 }
             }
 
-            if scroll.scroll_x && max_position.width > 0.0 {
-                if scroll.x_bar_position == VerticalPosition::Top {
+            if self.x_scrollable() && max_position.width > 0.0 {
+                if self.style_param("x_bar_position")
+                    == Some(StyleVal::VerticalPosition(VerticalPosition::Top))
+                {
                     aabb.pos.y += scaled_width;
                 } else {
                     aabb.bottom_right.y -= scaled_width;
@@ -324,33 +315,36 @@ impl Component for Div {
             )))
         }
 
-        if self.scroll.is_some() {
-            let scroll = self.scroll.as_ref().unwrap().clone();
+        if self.scrollable() {
             let scroll_position = self.state_ref().scroll_position;
             let inner_scale = context.inner_scale.unwrap();
             let size = context.aabb.size();
-            let scaled_width = scroll.bar_width * context.scale_factor;
+            let scaled_width = self.style_param("bar_width").unwrap().f32() * context.scale_factor;
             self.state_mut().scaled_scroll_bar_width = scaled_width;
 
             let max_position = inner_scale - size;
 
-            if scroll.scroll_y {
+            if self.y_scrollable() {
                 if max_position.height > 0.0 {
-                    let x = if scroll.y_bar_position == HorizontalPosition::Left {
+                    let x = if self.style_param("y_bar_position")
+                        == Some(StyleVal::HorizontalPosition(HorizontalPosition::Left))
+                    {
                         0.0
                     } else {
                         size.width - scaled_width
                     };
 
-                    let x_scroll_bar = scroll.scroll_x && max_position.width > 0.0;
+                    let x_scroll_bar = self.x_scrollable() && max_position.width > 0.0;
                     let bar_background_height =
                         size.height - if x_scroll_bar { scaled_width } else { 0.0 };
-                    let bar_y_offset =
-                        if x_scroll_bar && scroll.x_bar_position == VerticalPosition::Top {
-                            scaled_width
-                        } else {
-                            0.0
-                        };
+                    let bar_y_offset = if x_scroll_bar
+                        && self.style_param("x_bar_position")
+                            == Some(StyleVal::VerticalPosition(VerticalPosition::Top))
+                    {
+                        scaled_width
+                    } else {
+                        0.0
+                    };
 
                     let bar_background = Rect::new(
                         Pos {
@@ -362,7 +356,7 @@ impl Component for Div {
                             width: scaled_width,
                             height: bar_background_height,
                         },
-                        scroll.bar_background_color,
+                        self.style_param("bar_background_color").into(),
                     );
 
                     let height = (bar_background_height * (size.height / inner_scale.height))
@@ -385,12 +379,12 @@ impl Component for Div {
                             height,
                         },
                     );
-                    let color = if self.state_ref().y_bar_pressed {
-                        scroll.bar_active_color
+                    let color: Color = if self.state_ref().y_bar_pressed {
+                        self.style_param("bar_active_color").into()
                     } else if self.state_ref().over_y_bar {
-                        scroll.bar_highlight_color
+                        self.style_param("bar_highlight_color").into()
                     } else {
-                        scroll.bar_color
+                        self.style_param("bar_color").into()
                     };
                     let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
                     self.state_mut().y_scroll_bar = Some(bar_aabb);
@@ -401,23 +395,27 @@ impl Component for Div {
                 }
             }
 
-            if scroll.scroll_x {
+            if self.x_scrollable() {
                 if max_position.width > 0.0 {
-                    let y = if scroll.x_bar_position == VerticalPosition::Top {
+                    let y = if self.style_param("x_bar_position")
+                        == Some(StyleVal::VerticalPosition(VerticalPosition::Top))
+                    {
                         0.0
                     } else {
                         size.height - scaled_width
                     };
 
-                    let y_scroll_bar = scroll.scroll_y && max_position.height > 0.0;
+                    let y_scroll_bar = self.y_scrollable() && max_position.height > 0.0;
                     let bar_background_width =
                         size.width - if y_scroll_bar { scaled_width } else { 0.0 };
-                    let bar_x_offset =
-                        if y_scroll_bar && scroll.y_bar_position == HorizontalPosition::Left {
-                            scaled_width
-                        } else {
-                            0.0
-                        };
+                    let bar_x_offset = if y_scroll_bar
+                        && self.style_param("y_bar_position")
+                            == Some(StyleVal::HorizontalPosition(HorizontalPosition::Left))
+                    {
+                        scaled_width
+                    } else {
+                        0.0
+                    };
 
                     let bar_background = Rect::new(
                         Pos {
@@ -429,7 +427,7 @@ impl Component for Div {
                             width: bar_background_width,
                             height: scaled_width,
                         },
-                        scroll.bar_background_color,
+                        self.style_param("bar_background_color").into(),
                     );
 
                     let width =
@@ -453,11 +451,11 @@ impl Component for Div {
                         },
                     );
                     let color = if self.state_ref().x_bar_pressed {
-                        scroll.bar_active_color
+                        self.style_param("bar_active_color").into()
                     } else if self.state_ref().over_x_bar {
-                        scroll.bar_highlight_color
+                        self.style_param("bar_highlight_color").into()
                     } else {
-                        scroll.bar_color
+                        self.style_param("bar_color").into()
                     };
                     let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
                     self.state_mut().x_scroll_bar = Some(bar_aabb);

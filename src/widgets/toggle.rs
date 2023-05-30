@@ -8,7 +8,8 @@ use crate::render::{
     renderables::shape::{self, Shape},
     Renderable,
 };
-use lemna_macros::{state_component, state_component_impl};
+use crate::style::Styled;
+use lemna_macros::{component, state_component_impl};
 
 // TODO Make a tooltip
 // TODO Font icons
@@ -18,31 +19,9 @@ struct ToggleState {
     pressed: bool,
 }
 
-#[derive(Debug, Clone)]
-pub struct ToggleStyle {
-    pub background_color: Color,
-    pub highlight_color: Color,
-    pub active_color: Color,
-    pub border_color: Color,
-    pub border_width: f32,
-}
-
-impl Default for ToggleStyle {
-    fn default() -> Self {
-        Self {
-            background_color: Color::LIGHT_GREY,
-            highlight_color: Color::DARK_GREY,
-            active_color: Color::MID_GREY,
-            border_color: Color::BLACK,
-            border_width: 2.0,
-        }
-    }
-}
-
-#[state_component(ToggleState)]
+#[component(State = "ToggleState", Styled, Internal)]
 pub struct Toggle {
     active: bool,
-    style: ToggleStyle,
     on_change: Option<Box<dyn Fn(bool) -> Message + Send + Sync>>,
 }
 
@@ -50,18 +29,18 @@ impl fmt::Debug for Toggle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Toggle")
             .field("active", &self.active)
-            .field("style", &self.style)
             .finish()
     }
 }
 
 impl Toggle {
-    pub fn new(active: bool, style: ToggleStyle) -> Self {
+    pub fn new(active: bool) -> Self {
         Self {
             active,
-            style,
             on_change: None,
             state: Some(ToggleState::default()),
+            class: Default::default(),
+            style_overrides: Default::default(),
         }
     }
 
@@ -103,6 +82,12 @@ impl Component for Toggle {
         use lyon::tessellation::math as lyon_math;
         use lyon::tessellation::{self, basic_shapes};
 
+        let background_color: Color = self.style_param("background_color").into();
+        let active_color: Color = self.style_param("active_color").into();
+        let border_color: Color = self.style_param("border_color").into();
+        let highlight_color: Color = self.style_param("highlight_color").into();
+        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+
         let mut geometry = shape::ShapeGeometry::new();
         let center = lyon_math::point(context.aabb.width() / 2.0, context.aabb.height() / 2.0);
 
@@ -118,7 +103,7 @@ impl Component for Toggle {
         .unwrap()
         .indices;
 
-        if self.style.border_width > 0.0 {
+        if border_width > 0.0 {
             basic_shapes::stroke_circle(
                 center,
                 context.aabb.width() / 2.0,
@@ -135,14 +120,14 @@ impl Component for Toggle {
             geometry,
             fill_count,
             if self.state_ref().pressed {
-                self.style.highlight_color
+                highlight_color
             } else if self.active {
-                self.style.active_color
+                active_color
             } else {
-                self.style.background_color
+                background_color
             },
-            self.style.border_color,
-            self.style.border_width * 0.5,
+            border_color,
+            border_width * 0.5,
             0.0,
             &mut context.buffer_caches.shape_cache.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(0) {

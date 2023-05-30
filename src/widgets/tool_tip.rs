@@ -1,64 +1,52 @@
 use crate::base_types::*;
 use crate::component::Component;
 use crate::font_cache::HorizontalAlign;
+use crate::style::Styled;
 use crate::{node, txt, Node};
+use lemna_macros::component;
 
-#[derive(Debug, Clone)]
-pub struct ToolTipStyle {
-    pub text_color: Color,
-    pub font_size: f32,
-    pub font: Option<String>,
-    pub background_color: Color,
-    pub border_color: Color,
-    pub border_width: f32,
-}
-
-impl Default for ToolTipStyle {
-    fn default() -> Self {
-        Self {
-            text_color: Color::BLACK,
-            font_size: 12.0,
-            font: None,
-            background_color: Color::WHITE,
-            border_color: Color::BLACK,
-            border_width: 1.0,
-        }
-    }
-}
-
+#[component(Styled, Internal)]
 #[derive(Debug)]
-pub(crate) struct ToolTip {
+pub struct ToolTip {
     pub tool_tip: String,
-    pub style: ToolTipStyle,
 }
 
 impl ToolTip {
     const MAX_WIDTH: f32 = 300.0;
     pub(crate) const MOUSE_OFFSET: Point = Point { x: 14.0, y: 0.0 };
     pub(crate) const DELAY: u128 = 1000; // millis
+
+    pub fn new(tool_tip: String) -> Self {
+        Self {
+            tool_tip,
+            class: Default::default(),
+            style_overrides: Default::default(),
+        }
+    }
 }
 
 impl Component for ToolTip {
     fn view(&self) -> Option<Node> {
+        let background_color: Color = self.style_param("background_color").into();
+        let border_color: Color = self.style_param("border_color").into();
+        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let padding: f32 = self.style_param("padding").unwrap().f32();
+
         Some(
             node!(
                 super::Div::new()
-                    .bg(self.style.background_color)
-                    .border(self.style.border_color, self.style.border_width),
+                    .bg(background_color)
+                    .border(border_color, border_width),
                 lay!(
-                    padding: rect!(2.0),
+                    padding: rect!(padding),
                     max_size: size!(ToolTip::MAX_WIDTH, Auto),
                 )
             )
-            .push(node!(super::Text::new(
-                txt!(self.tool_tip.clone()),
-                super::TextStyle {
-                    size: self.style.font_size,
-                    color: self.style.text_color,
-                    font: self.style.font.clone(),
-                    h_alignment: HorizontalAlign::Left,
-                }
-            ))),
+            .push(node!(super::Text::new(txt!(self.tool_tip.clone()))
+                .style("size", self.style_param("font_size").unwrap())
+                .style("color", self.style_param("text_color").unwrap())
+                .style("h_alignment", HorizontalAlign::Left.into())
+                .maybe_style("font", self.style_param("font")))),
         )
     }
 
