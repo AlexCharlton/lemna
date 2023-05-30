@@ -73,7 +73,7 @@ impl lemna::Component for HelloApp {
             ))
             .push(node!(Sorter {}, lay!(size: size!(100.0, 200.0)), 1))
             .push(node!(
-                widgets::Button::new(txt!("Click me!"), widgets::ButtonStyle::default()).on_click(
+                widgets::Button::new(txt!("Click me!")).on_click(
                     Box::new(|| msg!(HelloEvent::Button {
                         name: "It me, a button!".to_string()
                     }))
@@ -87,7 +87,6 @@ impl lemna::Component for HelloApp {
                         (Icon::Check, "open iconic"),
                         (" Yeah!", None, 9.0)
                     ),
-                    widgets::ButtonStyle::default()
                 )
                 .tool_tip("Wait, don't!\nWhy not? Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.".to_string())
                 .on_click(Box::new(|| msg!(HelloEvent::Button {
@@ -96,7 +95,7 @@ impl lemna::Component for HelloApp {
                 lay!(size: size!(Auto))
             ))
                 .push(node!(
-                    widgets::FileSelector::new("Choose a file".to_string(), widgets::FileSelectorStyle::default())
+                    widgets::FileSelector::new("Choose a file".to_string())
                         .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
                     lay!(size: size!(Auto), margin: rect!(Auto, Auto, 50.0)),
                 ))
@@ -133,12 +132,9 @@ impl lemna::Component for HelloApp {
                 widgets::RadioButtons::new(
                     vec![txt!(Icon::Bell), txt!(Icon::Book), txt!(Icon::Bolt)],
                     self.state_ref().radio_selection.clone(),
-                    widgets::ButtonStyle {
-                        font: Some("open iconic".to_string()),
-                        font_size: 10.0,
-                        ..Default::default()
-                    }
                 )
+                    .override_style("font_size", 10.0.into())
+                    .override_style("font", "open iconic".into())
                 .tool_tips(vec![
                     "Bell".to_string(),
                     "Book".to_string(),

@@ -69,7 +69,62 @@ impl Style {
 impl Default for Style {
     fn default() -> Self {
         // TODO styles for the crate widgets
-        Self(Default::default())
+        let map = StyleMap::from([
+            // Button
+            (
+                StyleKey::new("Button", "text_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("Button", "font_size", None), 12.0.into()),
+            (
+                StyleKey::new("Button", "background_color", None),
+                Color::WHITE.into(),
+            ),
+            (
+                StyleKey::new("Button", "highlight_color", None),
+                Color::LIGHT_GREY.into(),
+            ),
+            (
+                StyleKey::new("Button", "active_color", None),
+                Color::MID_GREY.into(),
+            ),
+            (
+                StyleKey::new("Button", "border_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("Button", "border_width", None), 2.0.into()),
+            (StyleKey::new("Button", "radius", None), 4.0.into()),
+            (StyleKey::new("Button", "padding", None), 2.0.into()),
+            // RadioButton
+            (
+                StyleKey::new("RadioButton", "text_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("RadioButton", "font_size", None), 12.0.into()),
+            (
+                StyleKey::new("RadioButton", "background_color", None),
+                Color::WHITE.into(),
+            ),
+            (
+                StyleKey::new("RadioButton", "highlight_color", None),
+                Color::LIGHT_GREY.into(),
+            ),
+            (
+                StyleKey::new("RadioButton", "active_color", None),
+                Color::MID_GREY.into(),
+            ),
+            (
+                StyleKey::new("RadioButton", "border_color", None),
+                Color::BLACK.into(),
+            ),
+            (
+                StyleKey::new("RadioButton", "border_width", None),
+                2.0.into(),
+            ),
+            (StyleKey::new("RadioButton", "radius", None), 4.0.into()),
+            (StyleKey::new("RadioButton", "padding", None), 2.0.into()),
+        ]);
+        Self(map)
     }
 }
 
@@ -87,7 +142,7 @@ pub fn set_current_style(s: Style) {
     CURRENT_STYLE.with(|c| unsafe { *c.get().as_mut().unwrap() = s })
 }
 
-trait Styled: Sized {
+pub trait Styled: Sized {
     fn name() -> &'static str;
     fn class(&self) -> Option<&'static str>;
     fn class_mut(&mut self) -> &mut Option<&'static str>;
@@ -343,6 +398,22 @@ impl From<StyleVal> for &str {
         }
     }
 }
+
+impl StyleVal {
+    // TODO
+    pub fn str(self) -> &'static str {
+        self.into()
+    }
+
+    pub fn f32(self) -> f32 {
+        Into::<f64>::into(self) as f32
+    }
+
+    pub fn f64(self) -> f64 {
+        self.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

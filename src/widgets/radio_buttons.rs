@@ -2,20 +2,21 @@ use std::fmt;
 use std::hash::Hash;
 use std::time::Instant;
 
-use super::{ButtonStyle, TextSegment, ToolTip};
+use super::{TextSegment, ToolTip};
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message};
 use crate::event;
 use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
+use crate::style::Styled;
 use crate::{node, Node};
-use lemna_macros::{state_component, state_component_impl};
+use lemna_macros::{component, state_component_impl};
 
+#[component(Styled = "RadioButton", Internal)]
 pub struct RadioButtons {
     buttons: Vec<Vec<TextSegment>>,
     tool_tips: Option<Vec<String>>,
     selected: Vec<usize>,
-    style: ButtonStyle,
     direction: Direction,
     max_rows: Option<usize>,
     max_columns: Option<usize>,
@@ -30,7 +31,6 @@ impl fmt::Debug for RadioButtons {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("RadioButtons")
             .field("buttons", &self.buttons)
-            .field("style", &self.style)
             .field("selected", &self.selected)
             .finish()
     }
@@ -41,18 +41,19 @@ enum RadioButtonMsg {
 }
 
 impl RadioButtons {
-    pub fn new(buttons: Vec<Vec<TextSegment>>, selected: Vec<usize>, style: ButtonStyle) -> Self {
+    pub fn new(buttons: Vec<Vec<TextSegment>>, selected: Vec<usize>) -> Self {
         Self {
             buttons,
             tool_tips: None,
             selected,
-            style,
             direction: Direction::Row,
             max_rows: None,
             max_columns: None,
             on_change: None,
             multi_select: false,
             nullable: false,
+            class: Default::default(),
+            style_overrides: Default::default(),
         }
     }
 
@@ -163,36 +164,30 @@ impl Component for RadioButtons {
             };
 
             let selected = self.selected.contains(&position);
+            let radius: f32 = self.style_param("radius").unwrap().f32();
             container = container.push(
                 node!(RadioButton {
                     label: b.clone(),
                     tool_tip: self.tool_tips.as_ref().map(|tt| tt[position].clone()),
                     position,
                     selected,
-                    style: self.style.clone(),
                     radius: (
-                        if row == 0 && col == 0 {
-                            self.style.radius
-                        } else {
-                            0.0
-                        },
+                        if row == 0 && col == 0 { radius } else { 0.0 },
                         if row == 0 && (col + 1 == n_columns || position + 1 == len) {
-                            self.style.radius
+                            radius
                         } else {
                             0.0
                         },
-                        if position + 1 == len {
-                            self.style.radius
-                        } else {
-                            0.0
-                        },
+                        if position + 1 == len { radius } else { 0.0 },
                         if col == 0 && (row + 1 == n_rows || position + 1 == len) {
-                            self.style.radius
+                            radius
                         } else {
                             0.0
                         },
                     ),
                     state: Some(Default::default()),
+                    class: self.class.clone(),
+                    style_overrides: self.style_overrides.clone(),
                 })
                 .key(j as u64),
             );
@@ -237,14 +232,13 @@ struct RadioButtonState {
     hover_start: Option<Instant>,
 }
 
-#[state_component(RadioButtonState)]
+#[component(State = "RadioButtonState", Styled, Internal)]
 #[derive(Debug)]
 struct RadioButton {
     label: Vec<TextSegment>,
     tool_tip: Option<String>,
     position: usize,
     selected: bool,
-    style: ButtonStyle,
     radius: (f32, f32, f32, f32),
 }
 
@@ -255,22 +249,32 @@ impl Component for RadioButton {
     }
 
     fn view(&self) -> Option<Node> {
+        let padding: f64 = self.style_param("padding").unwrap().into();
+        let font_size: f32 = self.style_param("font_size").unwrap().f32();
+        let active_color: Color = self.style_param("active_color").into();
+        let highlight_color: Color = self.style_param("highlight_color").into();
+        let background_color: Color = self.style_param("background_color").into();
+        let border_color: Color = self.style_param("border_color").into();
+        let text_color: Color = self.style_param("text_color").into();
+        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let font = self.style_param("font").map(|p| p.str().to_string());
+
         let mut base = node!(
             super::RoundedRect {
                 background_color: if self.selected {
-                    self.style.active_color
+                    active_color
                 } else if self.state_ref().hover {
-                    self.style.highlight_color
+                    highlight_color
                 } else {
-                    self.style.background_color
+                    background_color
                 },
-                border_color: self.style.border_color,
-                border_width: self.style.border_width,
+                border_color: border_color,
+                border_width: border_width,
                 radius: self.radius,
             },
             lay!(
                 size: size_pct!(100.0),
-                padding: rect!(self.style.padding),
+                padding: rect!(padding),
                 cross_alignment: crate::layout::Alignment::Center,
                 axis_alignment: crate::layout::Alignment::Center
             )
@@ -278,9 +282,9 @@ impl Component for RadioButton {
         .push(node!(super::Text::new(
             self.label.clone(),
             super::TextStyle {
-                size: self.style.font_size,
-                color: self.style.text_color,
-                font: self.style.font.clone(),
+                size: font_size,
+                color: text_color,
+                font,
                 h_alignment: HorizontalAlign::Center,
             }
         )));
@@ -289,7 +293,7 @@ impl Component for RadioButton {
             base = base.push(node!(
                 ToolTip {
                     tool_tip: tt.clone(),
-                    style: self.style.tool_tip_style.clone(),
+                    style: Default::default() // TODO
                 },
                 lay!(position_type: PositionType::Absolute,
                      z_index_increment: 1000.0,

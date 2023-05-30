@@ -1,5 +1,5 @@
 mod button;
-pub use button::{Button, ButtonStyle};
+pub use button::Button;
 
 mod div;
 pub use div::{Div, HorizontalPosition, ScrollDescriptor, VerticalPosition};

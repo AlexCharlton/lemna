@@ -1,37 +1,31 @@
 use std::path::PathBuf;
 
 use crate::component::{Component, Message};
-use crate::{node, txt, ButtonStyle, Node};
-
-#[derive(Debug, Clone, Default)]
-pub struct FileSelectorStyle {
-    pub button_style: ButtonStyle,
-}
+use crate::{node, txt, Node};
 
 pub struct FileSelector {
     pub title: String,
     pub default_path: Option<PathBuf>,
     /// Set of filters e.g. `["*.png", "*.jpg"]` plus a description e.g. "Image files"
     pub filter: Option<(Vec<String>, String)>,
-    pub style: FileSelectorStyle,
     pub on_select: Option<Box<dyn Fn(Option<PathBuf>) -> Message + Send + Sync>>,
 }
 
 impl std::fmt::Debug for FileSelector {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_struct("FileSelector")
-            .field("style", &self.style)
+            .field("title", &self.title)
+            .field("default_path", &self.default_path)
             .finish()
     }
 }
 
 impl FileSelector {
-    pub fn new(title: String, style: FileSelectorStyle) -> Self {
+    pub fn new(title: String) -> Self {
         Self {
             title,
             default_path: None,
             filter: None,
-            style,
             on_select: None,
         }
     }
@@ -76,7 +70,7 @@ impl FileSelector {
 
 impl Component for FileSelector {
     fn view(&self) -> Option<Node> {
-        let mut b = super::Button::new(txt!("..."), self.style.button_style.clone());
+        let mut b = super::Button::new(txt!("...")); // TODO Style override
         let this: &'static Self = unsafe { std::mem::transmute(self) };
         if let Some(f) = &this.on_select {
             b = b.on_click(Box::new(|| f(this.select())));

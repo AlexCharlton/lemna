@@ -1,13 +1,14 @@
 use std::time::Instant;
 
-use super::{TextSegment, ToolTip, ToolTipStyle};
+use super::{TextSegment, ToolTip};
 use crate::base_types::*;
 use crate::component::{Component, Message};
 use crate::event;
 use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
+use crate::style::Styled;
 use crate::{node, Node};
-use lemna_macros::{state_component, state_component_impl};
+use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug, Default)]
 struct ButtonState {
@@ -17,43 +18,42 @@ struct ButtonState {
     hover_start: Option<Instant>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ButtonStyle {
-    pub text_color: Color,
-    pub font_size: f32,
-    pub font: Option<String>,
-    pub background_color: Color,
-    pub highlight_color: Color,
-    pub active_color: Color,
-    pub border_color: Color,
-    pub border_width: f32,
-    pub radius: f32,
-    pub padding: f32,
-    pub tool_tip_style: ToolTipStyle,
-}
+// #[derive(Debug, Clone)]
+// pub struct ButtonStyle {
+//     pub text_color: Color,
+//     pub font_size: f32,
+//     pub font: Option<String>,
+//     pub background_color: Color,
+//     pub highlight_color: Color,
+//     pub active_color: Color,
+//     pub border_color: Color,
+//     pub border_width: f32,
+//     pub radius: f32,
+//     pub padding: f32,
+//     pub tool_tip_style: ToolTipStyle,
+// }
 
-impl Default for ButtonStyle {
-    fn default() -> Self {
-        Self {
-            text_color: Color::BLACK,
-            font_size: 12.0,
-            font: None,
-            background_color: Color::WHITE,
-            highlight_color: Color::LIGHT_GREY,
-            active_color: Color::MID_GREY,
-            border_color: Color::BLACK,
-            border_width: 2.0,
-            radius: 4.0,
-            padding: 2.0,
-            tool_tip_style: Default::default(),
-        }
-    }
-}
+// impl Default for ButtonStyle {
+//     fn default() -> Self {
+//         Self {
+//             text_color: Color::BLACK,
+//             font_size: 12.0,
+//             font: None,
+//             background_color: Color::WHITE,
+//             highlight_color: Color::LIGHT_GREY,
+//             active_color: Color::MID_GREY,
+//             border_color: Color::BLACK,
+//             border_width: 2.0,
+//             radius: 4.0,
+//             padding: 2.0,
+//             tool_tip_style: Default::default(),
+//         }
+//     }
+// }
 
-#[state_component(ButtonState)]
+#[component(State = "ButtonState", Styled, Internal)]
 pub struct Button {
     pub label: Vec<TextSegment>,
-    pub style: ButtonStyle,
     pub on_click: Option<Box<dyn Fn() -> Message + Send + Sync>>,
     pub tool_tip: Option<String>,
 }
@@ -62,19 +62,19 @@ impl std::fmt::Debug for Button {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_struct("Select")
             .field("label", &self.label)
-            .field("style", &self.style)
             .finish()
     }
 }
 
 impl Button {
-    pub fn new(label: Vec<TextSegment>, style: ButtonStyle) -> Self {
+    pub fn new(label: Vec<TextSegment>) -> Self {
         Self {
             label,
-            style,
             on_click: None,
             tool_tip: None,
             state: Some(ButtonState::default()),
+            class: Default::default(),
+            style_overrides: Default::default(),
         }
     }
 
@@ -92,27 +92,33 @@ impl Button {
 #[state_component_impl(ButtonState)]
 impl Component for Button {
     fn view(&self) -> Option<Node> {
+        let radius: f32 = self.style_param("radius").unwrap().f32();
+        let padding: f64 = self.style_param("padding").unwrap().into();
+        let font_size: f32 = self.style_param("font_size").unwrap().f32();
+        let active_color: Color = self.style_param("active_color").into();
+        let highlight_color: Color = self.style_param("highlight_color").into();
+        let background_color: Color = self.style_param("background_color").into();
+        let border_color: Color = self.style_param("border_color").into();
+        let text_color: Color = self.style_param("text_color").into();
+        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let font = self.style_param("font").map(|p| p.str().to_string());
+
         let mut base = node!(
             super::RoundedRect {
                 background_color: if self.state_ref().pressed {
-                    self.style.active_color
+                    active_color
                 } else if self.state_ref().hover {
-                    self.style.highlight_color
+                    highlight_color
                 } else {
-                    self.style.background_color
+                    background_color
                 },
-                border_color: self.style.border_color,
-                border_width: self.style.border_width,
-                radius: (
-                    self.style.radius,
-                    self.style.radius,
-                    self.style.radius,
-                    self.style.radius
-                ),
+                border_color,
+                border_width: border_width as f32,
+                radius: (radius, radius, radius, radius),
             },
             lay!(
                 size: size_pct!(100.0),
-                padding: rect!(self.style.padding),
+                padding: rect!(padding),
                 cross_alignment: crate::layout::Alignment::Center,
                 axis_alignment: crate::layout::Alignment::Center
             )
@@ -120,9 +126,9 @@ impl Component for Button {
         .push(node!(super::Text::new(
             self.label.clone(),
             super::TextStyle {
-                size: self.style.font_size,
-                color: self.style.text_color,
-                font: self.style.font.clone(),
+                size: font_size,
+                color: text_color,
+                font,
                 h_alignment: HorizontalAlign::Center,
             }
         )));
@@ -131,7 +137,7 @@ impl Component for Button {
             base = base.push(node!(
                 ToolTip {
                     tool_tip: tt.clone(),
-                    style: self.style.tool_tip_style.clone(),
+                    style: Default::default(),
                 },
                 lay!(position_type: PositionType::Absolute,
                      z_index_increment: 1000.0,

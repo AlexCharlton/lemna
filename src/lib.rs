@@ -33,7 +33,7 @@ pub use font_cache::{FontCache, HorizontalAlign, SectionText};
 
 #[macro_use]
 pub mod style;
-pub use style::{set_current_style, Style};
+pub use style::{set_current_style, Style, Styled};
 
 mod ui;
 pub use crate::ui::*;
