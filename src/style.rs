@@ -320,7 +320,7 @@ pub trait Styled: Sized {
         }
     }
 
-    fn style_param(&self, param: &'static str) -> Option<StyleVal> {
+    fn style_val(&self, param: &'static str) -> Option<StyleVal> {
         if let Some(v) = self.style_overrides().0.get(param) {
             Some(v.clone())
         } else if let Some(c) = self.class() {
@@ -731,35 +731,35 @@ mod tests {
     }
 
     #[test]
-    fn test_base_style_param() {
+    fn test_base_style_val() {
         set_current_style(test_style());
 
         let w = Widget::default();
-        let c: Color = w.style_param("color").into();
+        let c: Color = w.style_val("color").into();
         assert_eq!(c, Color::WHITE);
     }
 
     #[test]
-    fn test_style_param_with_class() {
+    fn test_style_val_with_class() {
         set_current_style(test_style());
 
         let w = Widget::default().with_class("dark");
-        let c: Color = w.style_param("color").into();
+        let c: Color = w.style_val("color").into();
         assert_eq!(c, Color::BLACK);
     }
 
     #[test]
-    fn test_style_param_overrides() {
+    fn test_style_val_overrides() {
         set_current_style(test_style());
 
         let w = Widget::default().style("color", Color::BLUE.into());
-        let c: Color = w.style_param("color").into();
+        let c: Color = w.style_val("color").into();
         assert_eq!(c, Color::BLUE);
 
         let w = Widget::default()
             .with_class("dark") // Classes should not impact outcome
             .style("color", Color::BLUE.into());
-        let c: Color = w.style_param("color").into();
+        let c: Color = w.style_val("color").into();
         assert_eq!(c, Color::BLUE);
     }
 

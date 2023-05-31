@@ -82,11 +82,11 @@ impl Component for Toggle {
         use lyon::tessellation::math as lyon_math;
         use lyon::tessellation::{self, basic_shapes};
 
-        let background_color: Color = self.style_param("background_color").into();
-        let active_color: Color = self.style_param("active_color").into();
-        let border_color: Color = self.style_param("border_color").into();
-        let highlight_color: Color = self.style_param("highlight_color").into();
-        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let background_color: Color = self.style_val("background_color").into();
+        let active_color: Color = self.style_val("active_color").into();
+        let border_color: Color = self.style_val("border_color").into();
+        let highlight_color: Color = self.style_val("highlight_color").into();
+        let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         let mut geometry = shape::ShapeGeometry::new();
         let center = lyon_math::point(context.aabb.width() / 2.0, context.aabb.height() / 2.0);

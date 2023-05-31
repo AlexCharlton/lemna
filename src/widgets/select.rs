@@ -139,13 +139,13 @@ struct SelectBox<M> {
 
 impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M> {
     fn view(&self) -> Option<Node> {
-        let padding: f64 = self.style_param("padding").unwrap().into();
-        let radius: f32 = self.style_param("radius").unwrap().f32();
-        let font_size: f32 = self.style_param("font_size").unwrap().f32();
-        let background_color: Color = self.style_param("background_color").into();
-        let border_color: Color = self.style_param("border_color").into();
-        let caret_color: Color = self.style_param("caret_color").into();
-        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let padding: f64 = self.style_val("padding").unwrap().into();
+        let radius: f32 = self.style_val("radius").unwrap().f32();
+        let font_size: f32 = self.style_val("font_size").unwrap().f32();
+        let background_color: Color = self.style_val("background_color").into();
+        let border_color: Color = self.style_val("border_color").into();
+        let caret_color: Color = self.style_val("caret_color").into();
+        let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         let mut base = node!(
             super::RoundedRect {
@@ -165,10 +165,10 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
         if let Some(selection) = self.selection.as_ref() {
             base = base
                 .push(node!(super::Text::new(txt!(selection.to_string()))
-                    .style("size", self.style_param("font_size").unwrap())
-                    .style("color", self.style_param("text_color").unwrap())
+                    .style("size", self.style_val("font_size").unwrap())
+                    .style("color", self.style_val("text_color").unwrap())
                     .style("h_alignment", HorizontalAlign::Center.into())
-                    .maybe_style("font", self.style_param("font"))))
+                    .maybe_style("font", self.style_val("font"))))
                 .push(node!(
                     Caret { color: caret_color },
                     lay!(
@@ -248,7 +248,7 @@ where
 
 impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectList<M> {
     fn view(&self) -> Option<Node> {
-        let background_color: Color = self.style_param("background_color").into();
+        let background_color: Color = self.style_val("background_color").into();
 
         let mut l = node!(
             super::Div::new().bg(background_color).scroll_y(),
@@ -282,7 +282,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
         scale_factor: f32,
     ) {
         if let Some((child_aabb, Some(inner_scale), _)) = children.first_mut() {
-            let max_height: f32 = self.style_param("max_height").unwrap().f32();
+            let max_height: f32 = self.style_val("max_height").unwrap().f32();
             let bar_width: f32 = current_style().style("Scroll", "bar_width").unwrap().f32();
             // Set size based on list elements and max_height
             let mut h = inner_scale.height;
@@ -327,8 +327,8 @@ where
 
 impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectEntry<M> {
     fn view(&self) -> Option<Node> {
-        let padding: f64 = self.style_param("padding").unwrap().into();
-        let highlight_color: Color = self.style_param("highlight_color").into();
+        let padding: f64 = self.style_val("padding").unwrap().into();
+        let highlight_color: Color = self.style_val("highlight_color").into();
 
         let mut div = super::Div::new();
         if self.selected {
@@ -338,10 +338,10 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
         Some(
             node!(div, lay!(size: size_pct!(100.0), padding: rect!(padding))).push(node!(
                 super::Text::new(txt!(self.selection.to_string()))
-                    .style("size", self.style_param("font_size").unwrap())
-                    .style("color", self.style_param("text_color").unwrap())
+                    .style("size", self.style_val("font_size").unwrap())
+                    .style("color", self.style_val("text_color").unwrap())
                     .style("h_alignment", HorizontalAlign::Center.into())
-                    .maybe_style("font", self.style_param("font"))
+                    .maybe_style("font", self.style_val("font"))
             )),
         )
     }

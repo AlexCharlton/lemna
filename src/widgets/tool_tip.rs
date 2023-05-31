@@ -27,10 +27,10 @@ impl ToolTip {
 
 impl Component for ToolTip {
     fn view(&self) -> Option<Node> {
-        let background_color: Color = self.style_param("background_color").into();
-        let border_color: Color = self.style_param("border_color").into();
-        let border_width: f32 = self.style_param("border_width").unwrap().f32();
-        let padding: f32 = self.style_param("padding").unwrap().f32();
+        let background_color: Color = self.style_val("background_color").into();
+        let border_color: Color = self.style_val("border_color").into();
+        let border_width: f32 = self.style_val("border_width").unwrap().f32();
+        let padding: f32 = self.style_val("padding").unwrap().f32();
 
         Some(
             node!(
@@ -43,10 +43,10 @@ impl Component for ToolTip {
                 )
             )
             .push(node!(super::Text::new(txt!(self.tool_tip.clone()))
-                .style("size", self.style_param("font_size").unwrap())
-                .style("color", self.style_param("text_color").unwrap())
+                .style("size", self.style_val("font_size").unwrap())
+                .style("color", self.style_val("text_color").unwrap())
                 .style("h_alignment", HorizontalAlign::Left.into())
-                .maybe_style("font", self.style_param("font")))),
+                .maybe_style("font", self.style_val("font")))),
         )
     }
 

@@ -85,9 +85,9 @@ impl TextBox {
 #[state_component_impl(TextBoxState)]
 impl Component for TextBox {
     fn view(&self) -> Option<Node> {
-        let background_color: Color = self.style_param("background_color").into();
-        let border_color: Color = self.style_param("border_color").into();
-        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let background_color: Color = self.style_val("background_color").into();
+        let border_color: Color = self.style_val("border_color").into();
+        let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         Some(
             node!(
@@ -717,10 +717,10 @@ impl Component for TextBoxText {
     }
 
     fn render_hash(&self, hasher: &mut ComponentHasher) {
-        (self.style_param("font_size").unwrap().f32() as u32).hash(hasher);
-        (self.style_param("text_color").unwrap().color()).hash(hasher);
-        (self.style_param("padding").unwrap().f32() as u32).hash(hasher);
-        (self.style_param("font").map(|p| p.str().to_string())).hash(hasher);
+        (self.style_val("font_size").unwrap().f32() as u32).hash(hasher);
+        (self.style_val("text_color").unwrap().color()).hash(hasher);
+        (self.style_val("padding").unwrap().f32() as u32).hash(hasher);
+        (self.style_val("font").map(|p| p.str().to_string())).hash(hasher);
         self.state_ref().focused.hash(hasher);
         self.state_ref().selection_from.hash(hasher);
         self.state_ref().text.hash(hasher);
@@ -744,12 +744,12 @@ impl Component for TextBoxText {
         font_cache: &FontCache,
         scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
-        let padding: f32 = self.style_param("padding").unwrap().f32();
-        let font_size: f32 = self.style_param("font_size").unwrap().f32();
-        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let padding: f32 = self.style_val("padding").unwrap().f32();
+        let font_size: f32 = self.style_val("font_size").unwrap().f32();
+        let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         if self.state_ref().dirty {
-            let font = self.style_param("font").map(|p| p.str().to_string());
+            let font = self.style_val("font").map(|p| p.str().to_string());
 
             let font_size_px = font_size * super::Text::SIZE_SCALE * scale_factor;
             let font_ref = font_cache.font_or_default(font.as_deref());
@@ -793,10 +793,10 @@ impl Component for TextBoxText {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let cursor_z = 2.0;
         let text_z = 5.0;
-        let font_size: f32 = self.style_param("font_size").unwrap().f32() * super::Text::SIZE_SCALE;
-        let text_color: Color = self.style_param("text_color").into();
-        let cursor_color: Color = self.style_param("cursor_color").into();
-        let selection_color: Color = self.style_param("selection_color").into();
+        let font_size: f32 = self.style_val("font_size").unwrap().f32() * super::Text::SIZE_SCALE;
+        let text_color: Color = self.style_val("text_color").into();
+        let cursor_color: Color = self.style_val("cursor_color").into();
+        let selection_color: Color = self.style_val("selection_color").into();
         let pos = self.state_ref().cursor_pos;
         let offset = self.state_ref().padding_offset_px;
         let font_size_px = font_size * context.scale_factor;

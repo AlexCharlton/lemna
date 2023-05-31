@@ -153,8 +153,8 @@ impl Text {
     }
 
     fn to_section_text(&self, font_cache: &FontCache, scale: f32) -> Vec<SectionText> {
-        let font = self.style_param("font").map(|p| p.str().to_string());
-        let size: f32 = self.style_param("size").unwrap().f32();
+        let font = self.style_val("font").map(|p| p.str().to_string());
+        let size: f32 = self.style_val("size").unwrap().f32();
         let scaled_size = size * scale * Text::SIZE_SCALE;
         let base_font = font_cache.font_or_default(font.as_deref());
 
@@ -186,10 +186,10 @@ impl Component for Text {
 
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.text.hash(hasher);
-        (self.style_param("size").unwrap().f32() as u32).hash(hasher);
-        (self.style_param("color").unwrap().color()).hash(hasher);
-        (self.style_param("font").map(|p| p.str().to_string())).hash(hasher);
-        (self.style_param("h_alignment").unwrap().horizontal_align()).hash(hasher);
+        (self.style_val("size").unwrap().f32() as u32).hash(hasher);
+        (self.style_val("color").unwrap().color()).hash(hasher);
+        (self.style_val("font").map(|p| p.str().to_string())).hash(hasher);
+        (self.style_val("h_alignment").unwrap().horizontal_align()).hash(hasher);
     }
 
     fn fill_bounds(
@@ -211,7 +211,7 @@ impl Component for Text {
             return c.output.unwrap();
         }
 
-        let size: f32 = self.style_param("size").unwrap().f32();
+        let size: f32 = self.style_val("size").unwrap().f32();
         let scaled_size = size * scale * Text::SIZE_SCALE;
 
         let glyphs = font_cache.layout_text(
@@ -256,8 +256,8 @@ impl Component for Text {
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let h_alignment: HorizontalAlign =
-            self.style_param("h_alignment").unwrap().horizontal_align();
-        let color: Color = self.style_param("color").into();
+            self.style_val("h_alignment").unwrap().horizontal_align();
+        let color: Color = self.style_val("color").into();
         let bounds = context.aabb.size();
         let glyphs = context.font_cache.read().unwrap().layout_text(
             &self.to_section_text(&context.font_cache.read().unwrap(), context.scale_factor),

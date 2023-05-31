@@ -164,7 +164,7 @@ impl Component for RadioButtons {
             };
 
             let selected = self.selected.contains(&position);
-            let radius: f32 = self.style_param("radius").unwrap().f32();
+            let radius: f32 = self.style_val("radius").unwrap().f32();
             container = container.push(
                 node!(RadioButton {
                     label: b.clone(),
@@ -249,12 +249,12 @@ impl Component for RadioButton {
     }
 
     fn view(&self) -> Option<Node> {
-        let padding: f64 = self.style_param("padding").unwrap().into();
-        let active_color: Color = self.style_param("active_color").into();
-        let highlight_color: Color = self.style_param("highlight_color").into();
-        let background_color: Color = self.style_param("background_color").into();
-        let border_color: Color = self.style_param("border_color").into();
-        let border_width: f32 = self.style_param("border_width").unwrap().f32();
+        let padding: f64 = self.style_val("padding").unwrap().into();
+        let active_color: Color = self.style_val("active_color").into();
+        let highlight_color: Color = self.style_val("highlight_color").into();
+        let background_color: Color = self.style_val("background_color").into();
+        let border_color: Color = self.style_val("border_color").into();
+        let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         let mut base = node!(
             super::RoundedRect {
@@ -277,10 +277,10 @@ impl Component for RadioButton {
             )
         )
         .push(node!(super::Text::new(self.label.clone())
-            .style("size", self.style_param("font_size").unwrap())
-            .style("color", self.style_param("text_color").unwrap())
+            .style("size", self.style_val("font_size").unwrap())
+            .style("color", self.style_val("text_color").unwrap())
             .style("h_alignment", HorizontalAlign::Center.into())
-            .maybe_style("font", self.style_param("font"))));
+            .maybe_style("font", self.style_val("font"))));
 
         if let (Some(p), Some(tt)) = (self.state_ref().tool_tip_open, self.tool_tip.as_ref()) {
             base = base.push(node!(

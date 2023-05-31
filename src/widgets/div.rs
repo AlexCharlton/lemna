@@ -79,11 +79,11 @@ impl Div {
     }
 
     fn x_scrollable(&self) -> bool {
-        self.style_param("x").unwrap().into()
+        self.style_val("x").unwrap().into()
     }
 
     fn y_scrollable(&self) -> bool {
-        self.style_param("y").unwrap().into()
+        self.style_val("y").unwrap().into()
     }
 
     fn scrollable(&self) -> bool {
@@ -266,7 +266,7 @@ impl Component for Div {
             let max_position = inner_scale - size;
 
             if self.y_scrollable() && max_position.height > 0.0 {
-                if self.style_param("y_bar_position")
+                if self.style_val("y_bar_position")
                     == Some(StyleVal::HorizontalPosition(HorizontalPosition::Left))
                 {
                     aabb.pos.x += scaled_width;
@@ -276,7 +276,7 @@ impl Component for Div {
             }
 
             if self.x_scrollable() && max_position.width > 0.0 {
-                if self.style_param("x_bar_position")
+                if self.style_val("x_bar_position")
                     == Some(StyleVal::VerticalPosition(VerticalPosition::Top))
                 {
                     aabb.pos.y += scaled_width;
@@ -319,14 +319,14 @@ impl Component for Div {
             let scroll_position = self.state_ref().scroll_position;
             let inner_scale = context.inner_scale.unwrap();
             let size = context.aabb.size();
-            let scaled_width = self.style_param("bar_width").unwrap().f32() * context.scale_factor;
+            let scaled_width = self.style_val("bar_width").unwrap().f32() * context.scale_factor;
             self.state_mut().scaled_scroll_bar_width = scaled_width;
 
             let max_position = inner_scale - size;
 
             if self.y_scrollable() {
                 if max_position.height > 0.0 {
-                    let x = if self.style_param("y_bar_position")
+                    let x = if self.style_val("y_bar_position")
                         == Some(StyleVal::HorizontalPosition(HorizontalPosition::Left))
                     {
                         0.0
@@ -338,7 +338,7 @@ impl Component for Div {
                     let bar_background_height =
                         size.height - if x_scroll_bar { scaled_width } else { 0.0 };
                     let bar_y_offset = if x_scroll_bar
-                        && self.style_param("x_bar_position")
+                        && self.style_val("x_bar_position")
                             == Some(StyleVal::VerticalPosition(VerticalPosition::Top))
                     {
                         scaled_width
@@ -356,7 +356,7 @@ impl Component for Div {
                             width: scaled_width,
                             height: bar_background_height,
                         },
-                        self.style_param("bar_background_color").into(),
+                        self.style_val("bar_background_color").into(),
                     );
 
                     let height = (bar_background_height * (size.height / inner_scale.height))
@@ -380,11 +380,11 @@ impl Component for Div {
                         },
                     );
                     let color: Color = if self.state_ref().y_bar_pressed {
-                        self.style_param("bar_active_color").into()
+                        self.style_val("bar_active_color").into()
                     } else if self.state_ref().over_y_bar {
-                        self.style_param("bar_highlight_color").into()
+                        self.style_val("bar_highlight_color").into()
                     } else {
-                        self.style_param("bar_color").into()
+                        self.style_val("bar_color").into()
                     };
                     let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
                     self.state_mut().y_scroll_bar = Some(bar_aabb);
@@ -397,7 +397,7 @@ impl Component for Div {
 
             if self.x_scrollable() {
                 if max_position.width > 0.0 {
-                    let y = if self.style_param("x_bar_position")
+                    let y = if self.style_val("x_bar_position")
                         == Some(StyleVal::VerticalPosition(VerticalPosition::Top))
                     {
                         0.0
@@ -409,7 +409,7 @@ impl Component for Div {
                     let bar_background_width =
                         size.width - if y_scroll_bar { scaled_width } else { 0.0 };
                     let bar_x_offset = if y_scroll_bar
-                        && self.style_param("y_bar_position")
+                        && self.style_val("y_bar_position")
                             == Some(StyleVal::HorizontalPosition(HorizontalPosition::Left))
                     {
                         scaled_width
@@ -427,7 +427,7 @@ impl Component for Div {
                             width: bar_background_width,
                             height: scaled_width,
                         },
-                        self.style_param("bar_background_color").into(),
+                        self.style_val("bar_background_color").into(),
                     );
 
                     let width =
@@ -451,11 +451,11 @@ impl Component for Div {
                         },
                     );
                     let color = if self.state_ref().x_bar_pressed {
-                        self.style_param("bar_active_color").into()
+                        self.style_val("bar_active_color").into()
                     } else if self.state_ref().over_x_bar {
-                        self.style_param("bar_highlight_color").into()
+                        self.style_val("bar_highlight_color").into()
                     } else {
-                        self.style_param("bar_color").into()
+                        self.style_val("bar_color").into()
                     };
                     let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
                     self.state_mut().x_scroll_bar = Some(bar_aabb);
