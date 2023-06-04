@@ -117,7 +117,7 @@ impl<
             for _ in receiver.iter() {
                 if *frame_dirty.read().unwrap() {
                     inst("UI::render");
-                    // Pull out size so it get pulled into the renderer lock
+                    // Pull out size so it gets pulled into the renderer lock
                     let size = *physical_size.read().unwrap();
                     renderer.write().unwrap().render(
                         &node.read().unwrap(),
@@ -149,6 +149,8 @@ impl<
         thread::spawn(move || {
             for _ in receiver.iter() {
                 if *node_dirty.read().unwrap() {
+                    // Set the node to clean right away so that concurrent events can reset it to dirty
+                    *node_dirty.write().unwrap() = false;
                     inst("UI::draw");
                     let logical_size = *logical_size.read().unwrap();
                     let scale_factor = *scale_factor.read().unwrap();
@@ -159,7 +161,7 @@ impl<
                     );
 
                     {
-                        // We need to lock the renderer while modify the node, so that we don't try to render it while doing so
+                        // We need to lock the renderer while we modify the node, so that we don't try to render it while doing so
                         // Since this will cause a deadlock
                         let renderer = renderer.write().unwrap();
 
@@ -187,7 +189,6 @@ impl<
                         if do_render {
                             window.write().unwrap().redraw();
                         }
-                        *node_dirty.write().unwrap() = false;
                         *frame_dirty.write().unwrap() = true;
                     }
 
