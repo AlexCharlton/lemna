@@ -2,9 +2,9 @@ use lemna::{self, lay, node, rect, size_pct, txt, widgets, Node};
 use ttf_noto_sans;
 
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
-impl lemna::Component for HelloApp {
+impl lemna::Component for App {
     fn view(&self) -> Option<Node> {
         Some(node!(widgets::Div::new().bg(0.5),
                    lay!(size: size_pct!(100.0, Auto)))
@@ -16,7 +16,7 @@ impl lemna::Component for HelloApp {
 
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, HelloApp>::open_blocking(
+    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, App>::open_blocking(
         "Hello events!",
         400,
         300,

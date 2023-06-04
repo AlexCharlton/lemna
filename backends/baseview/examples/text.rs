@@ -3,9 +3,9 @@ use lemna_baseview::Window;
 use ttf_noto_sans;
 
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
-impl lemna::Component for HelloApp {
+impl lemna::Component for App {
     fn view(&self) -> Option<Node> {
         Some(node!(widgets::Div::new().bg(0.7),
                    [size_pct: [100, Auto]])
@@ -17,7 +17,7 @@ impl lemna::Component for HelloApp {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, HelloApp>(
+    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
         "Hello text".to_string(),
         400,
         300,

@@ -1,6 +1,6 @@
 [package]
 name = "lemna-wx-rs"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "wx-rs windowing backend support for lemna"
 edition = "2021"
@@ -12,7 +12,7 @@ license = "MIT"
 instrumented = ["lemna/instrumented"]
 
 [dependencies]
-lemna = { path = "../../", version = "0.2" }
+lemna = { path = "../../", version = "0.3" }
 raw-window-handle = { workspace = true }
 
 [dependencies.wx-rs]

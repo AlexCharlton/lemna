@@ -2,9 +2,9 @@ use lemna::{self, *};
 use simplelog::*;
 
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
-impl lemna::Component for HelloApp {
+impl lemna::Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(Div::new(), [wrap: true])
@@ -161,7 +161,7 @@ fn main() {
         std::fs::File::create("example.log").unwrap(),
     );
 
-    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, HelloApp>::open_blocking(
+    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, App>::open_blocking(
         "Hello scroll!",
         800,
         600,

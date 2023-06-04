@@ -1804,7 +1804,7 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "lemna"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "ab_glyph",
  "ahash 0.3.8",
@@ -1832,7 +1832,7 @@ dependencies = [
 
 [[package]]
 name = "lemna-baseview"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "arboard",
  "baseview",
@@ -1848,7 +1848,7 @@ dependencies = [
 
 [[package]]
 name = "lemna-macros"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "global_counter",
  "proc-macro2",
@@ -1858,7 +1858,7 @@ dependencies = [
 
 [[package]]
 name = "lemna-nih-plug"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "crossbeam-channel 0.4.4",
  "lemna",
@@ -1868,7 +1868,7 @@ dependencies = [
 
 [[package]]
 name = "lemna-winit"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "lemna",
  "lemna-macros",
@@ -1880,7 +1880,7 @@ dependencies = [
 
 [[package]]
 name = "lemna-wx-rs"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "lemna",
  "lemna-macros",

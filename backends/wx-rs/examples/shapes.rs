@@ -4,9 +4,9 @@ use lyon::path::Path;
 use lyon::tessellation::math as lyon_math;
 
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
-impl lemna::Component for HelloApp {
+impl lemna::Component for App {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let mut path_builder = Path::builder();
         path_builder.move_to(lyon_math::point(10.0, 10.0));
@@ -81,7 +81,7 @@ impl lemna::Component for HelloApp {
 
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, HelloApp>::open_blocking(
+    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, App>::open_blocking(
         "Hello shapes!",
         400,
         300,

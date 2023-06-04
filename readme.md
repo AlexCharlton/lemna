@@ -3,16 +3,15 @@
 [![Crates.io](https://img.shields.io/crates/v/lemna)](https://crates.io/crates/lemna)
 [![Docs.rs](https://docs.rs/lemna/badge.svg)](https://docs.rs/lemna)
 
-*This is an alpha quality release. Don't expect much!*
-
 A Reactive UI framework for Rust
 
 Features:
-- React(or Elm, etc.)-esque stateful UI
+- React-esque stateful UI
 - Flexbox-like layout engine
+- Global styling
 - Configurable rendering targets (currently just wgpu, which offers cross-platform GPU-accelerated rendering)
-- Configurable windowing backends (winit, wx-rs)
-- Cross platform
+- Configurable windowing backends (baseview, winit, wx-rs)
+- Cross-platform
 - Components can be built using a combination of other components and graphical primitives that map well to GPU renderers.
 - State and render-state is cached, so state changes only trigger recompute of the relevant nodes
 - Built in components/widgets:
@@ -29,7 +28,6 @@ Features:
 - [nih-plug](https://github.com/robbert-vdh/nih-plug) support in the lemna-nih-plug package
 
 What's missing:
-- A way for handling global styles
 - Raster (image) rendering support
 - More robust and more widgets (e.g. text selection support on `Text` widget)
 

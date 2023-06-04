@@ -4,18 +4,18 @@ use ttf_noto_sans;
 use wx_rs::{Menu, MenuBar, MenuEntry};
 
 #[derive(Debug)]
-pub struct HelloAppState {
+pub struct AppState {
     menu_bar: MenuBar<HelloMenu>,
     radio_selection: Vec<usize>,
     toggle_state: bool,
 }
 
-unsafe impl Send for HelloAppState {}
-unsafe impl Sync for HelloAppState {}
+unsafe impl Send for AppState {}
+unsafe impl Sync for AppState {}
 
-#[state_component(HelloAppState)]
+#[state_component(AppState)]
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -50,8 +50,8 @@ enum HelloMenu {
     Paste,
 }
 
-#[state_component_impl(HelloAppState)]
-impl lemna::Component for HelloApp {
+#[state_component_impl(AppState)]
+impl lemna::Component for App {
     fn init(&mut self) {
         let mut menu_bar = MenuBar::new();
         menu_bar.append(
@@ -66,7 +66,7 @@ impl lemna::Component for HelloApp {
                 .push_entry(MenuEntry::new(HelloMenu::Paste, "&Paste".to_string())),
         );
         menu_bar.show();
-        self.state = Some(HelloAppState {
+        self.state = Some(AppState {
             menu_bar,
             radio_selection: vec![],
             toggle_state: false,
@@ -326,7 +326,7 @@ impl Component for EventReactor {
 // App setup
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, HelloApp>::open_blocking(
+    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, App>::open_blocking(
         "Hello events!",
         800,
         600,
