@@ -8,11 +8,11 @@ pub struct AppState {
     params: Arc<AppParams>,
 }
 
-#[state_component(ParamsAppState)]
+#[state_component(AppState)]
 #[derive(Debug, Default)]
-pub struct ParamsApp {}
+pub struct App {}
 
-#[state_component_impl(ParamsAppState)]
+#[state_component_impl(AppState)]
 impl lemna::Component for App {
     fn init(&mut self) {
         self.state = Some(AppState {
@@ -87,13 +87,13 @@ impl Plugin for ParamsPlugin {
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let app_params = self.params.clone();
-        lemna_nih_plug::create_lemna_editor::<lemna::render::wgpu::WGPURenderer, ParamsApp, _, _>(
+        lemna_nih_plug::create_lemna_editor::<lemna::render::wgpu::WGPURenderer, App, _, _>(
             "Hello Lemna Params",
             400,
             300,
             vec![],
             move |_ctx, ui| {
-                ui.with_app_state::<ParamsAppState, _>(|s| s.params = app_params.clone());
+                ui.with_app_state::<AppState, _>(|s| s.params = app_params.clone());
             },
             || vec![msg!(())], // Trigger an update, the message doesn't matter
         )

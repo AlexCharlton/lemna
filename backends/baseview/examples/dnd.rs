@@ -66,7 +66,7 @@ impl Component for DropTarget {
                 ],
             )
             .push(node!(widgets::Text::new(txt!("Drag something onto me"))
-                .style("h_alignment", HorizontalAlign::Center.into()))),
+                .style("h_alignment", HorizontalAlign::Center))),
         )
     }
 
@@ -112,7 +112,7 @@ impl Component for DragSource {
                 ],
             )
             .push(node!(widgets::Text::new(txt!("Drag from me"))
-                .style("h_alignment", HorizontalAlign::Center.into()))),
+                .style("h_alignment", HorizontalAlign::Center))),
         )
     }
 

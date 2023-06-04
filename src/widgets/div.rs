@@ -67,13 +67,13 @@ impl Div {
     }
 
     pub fn scroll_x(mut self) -> Self {
-        self = self.style("x", true.into());
+        self = self.style("x", true);
         self.state = Some(DivState::default());
         self
     }
 
     pub fn scroll_y(mut self) -> Self {
-        self = self.style("y", true.into());
+        self = self.style("y", true);
         self.state = Some(DivState::default());
         self
     }

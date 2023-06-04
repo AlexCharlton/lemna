@@ -167,7 +167,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
                 .push(node!(super::Text::new(txt!(selection.to_string()))
                     .style("size", self.style_val("font_size").unwrap())
                     .style("color", self.style_val("text_color").unwrap())
-                    .style("h_alignment", HorizontalAlign::Center.into())
+                    .style("h_alignment", HorizontalAlign::Center)
                     .maybe_style("font", self.style_val("font"))))
                 .push(node!(
                     Caret { color: caret_color },
@@ -340,7 +340,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
                 super::Text::new(txt!(self.selection.to_string()))
                     .style("size", self.style_val("font_size").unwrap())
                     .style("color", self.style_val("text_color").unwrap())
-                    .style("h_alignment", HorizontalAlign::Center.into())
+                    .style("h_alignment", HorizontalAlign::Center)
                     .maybe_style("font", self.style_val("font"))
             )),
         )

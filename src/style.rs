@@ -300,8 +300,8 @@ pub trait Styled: Sized {
         self
     }
 
-    fn style(mut self, parameter: &'static str, val: StyleVal) -> Self {
-        self.style_overrides_mut().0.insert(parameter, val);
+    fn style<V: Into<StyleVal>>(mut self, parameter: &'static str, val: V) -> Self {
+        self.style_overrides_mut().0.insert(parameter, val.into());
         self
     }
 
@@ -752,13 +752,13 @@ mod tests {
     fn test_style_val_overrides() {
         set_current_style(test_style());
 
-        let w = Widget::default().style("color", Color::BLUE.into());
+        let w = Widget::default().style("color", Color::BLUE);
         let c: Color = w.style_val("color").into();
         assert_eq!(c, Color::BLUE);
 
         let w = Widget::default()
             .with_class("dark") // Classes should not impact outcome
-            .style("color", Color::BLUE.into());
+            .style("color", Color::BLUE);
         let c: Color = w.style_val("color").into();
         assert_eq!(c, Color::BLUE);
     }

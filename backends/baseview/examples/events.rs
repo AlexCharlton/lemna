@@ -132,8 +132,8 @@ impl lemna::Component for App {
                     vec![txt!(Icon::Bell), txt!(Icon::Book), txt!(Icon::Bolt)],
                     self.state_ref().radio_selection.clone(),
                 )
-                    .style("font_size", 10.0.into())
-                    .style("font", "open iconic".into())
+                    .style("font_size", 10.0)
+                    .style("font", "open iconic")
                 .tool_tips(vec![
                     "Bell".to_string(),
                     "Book".to_string(),

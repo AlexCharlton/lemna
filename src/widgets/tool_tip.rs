@@ -45,7 +45,7 @@ impl Component for ToolTip {
             .push(node!(super::Text::new(txt!(self.tool_tip.clone()))
                 .style("size", self.style_val("font_size").unwrap())
                 .style("color", self.style_val("text_color").unwrap())
-                .style("h_alignment", HorizontalAlign::Left.into())
+                .style("h_alignment", HorizontalAlign::Left)
                 .maybe_style("font", self.style_val("font")))),
         )
     }

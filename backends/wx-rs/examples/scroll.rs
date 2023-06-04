@@ -79,7 +79,7 @@ impl lemna::Component for App {
                             .bg(Color::rgb(0.9, 0.9, 0.9))
                             .scroll_x()
                             .scroll_y()
-                            .style("y_bar_position", HorizontalPosition::Left.into()),
+                            .style("y_bar_position", HorizontalPosition::Left),
                         [
                             size: [160, 300],
                             padding: [10],

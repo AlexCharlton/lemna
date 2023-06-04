@@ -279,7 +279,7 @@ impl Component for RadioButton {
         .push(node!(super::Text::new(self.label.clone())
             .style("size", self.style_val("font_size").unwrap())
             .style("color", self.style_val("text_color").unwrap())
-            .style("h_alignment", HorizontalAlign::Center.into())
+            .style("h_alignment", HorizontalAlign::Center)
             .maybe_style("font", self.style_val("font"))));
 
         if let (Some(p), Some(tt)) = (self.state_ref().tool_tip_open, self.tool_tip.as_ref()) {
