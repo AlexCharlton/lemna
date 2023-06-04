@@ -57,21 +57,16 @@ impl Component for DropTarget {
                         Color::rgb(0.5, 1.0, 0.5)
                     })
                     .border(Color::BLACK, 2.0),
-                lay!(
-                    size: size_pct!(100.0),
-                    margin: rect!(10.0),
-                    padding: rect!(5.0),
-                    cross_alignment: crate::layout::Alignment::Center,
-                    axis_alignment: crate::layout::Alignment::Center
-                ),
+                [
+                    size_pct: [100],
+                    margin: [10],
+                    padding: [5],
+                    cross_alignment: Center,
+                    axis_alignment: Center,
+                ],
             )
-            .push(node!(widgets::Text::new(
-                txt!("Drag something onto me"),
-                widgets::TextStyle {
-                    h_alignment: HorizontalAlign::Center,
-                    ..widgets::TextStyle::default()
-                }
-            ))),
+            .push(node!(widgets::Text::new(txt!("Drag something onto me"))
+                .style("h_alignment", HorizontalAlign::Center.into()))),
         )
     }
 
@@ -108,21 +103,16 @@ impl Component for DragSource {
                 widgets::Div::new()
                     .bg(Color::rgb(0.5, 0.5, 1.0))
                     .border(Color::BLACK, 2.0),
-                lay!(
-                    size: size_pct!(100.0),
-                    margin: rect!(10.0),
-                    padding: rect!(5.0),
-                    cross_alignment: crate::layout::Alignment::Center,
-                    axis_alignment: crate::layout::Alignment::Center
-                ),
+                [
+                    size_pct: [100],
+                    margin: [10],
+                    padding: [5],
+                    cross_alignment: Center,
+                    axis_alignment: Center,
+                ],
             )
-            .push(node!(widgets::Text::new(
-                txt!("Drag from me"),
-                widgets::TextStyle {
-                    h_alignment: HorizontalAlign::Center,
-                    ..widgets::TextStyle::default()
-                }
-            ))),
+            .push(node!(widgets::Text::new(txt!("Drag from me"))
+                .style("h_alignment", HorizontalAlign::Center.into()))),
         )
     }
 

@@ -97,7 +97,7 @@ impl lemna::Component for HelloApp {
             ))
             .push(node!(Sorter {}, lay!(size: size!(100.0, 200.0)), 1))
             .push(node!(
-                widgets::Button::new(txt!("Click me!"), widgets::ButtonStyle::default()).on_click(
+                widgets::Button::new(txt!("Click me!")).on_click(
                     Box::new(|| msg!(HelloEvent::Button {
                         name: "It me, a button!".to_string()
                     }))
@@ -111,7 +111,6 @@ impl lemna::Component for HelloApp {
                         (Icon::Check, "open iconic"),
                         (" Yeah!", None, 9.0)
                     ),
-                    widgets::ButtonStyle::default()
                 )
                 .tool_tip("Wait, don't!\nWhy not? Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.".to_string())
                 .on_click(Box::new(|| msg!(HelloEvent::Button {
@@ -127,7 +126,6 @@ impl lemna::Component for HelloApp {
                         "3".to_string()
                     ],
                     1,
-                    widgets::SelectStyle::default()
                 )
                 .on_change(Box::new(|_, s| msg!(HelloEvent::Selection {
                     name: "My selection".to_string(),
@@ -136,7 +134,7 @@ impl lemna::Component for HelloApp {
                 lay!(size: size!(Auto), margin: rect!(Auto, Auto, 50.0)),
             ))
             .push(node!(
-                widgets::TextBox::new(Some("Hello".to_string()), widgets::TextBoxStyle::default())
+                widgets::TextBox::new(Some("Hello".to_string()))
                     .on_change(Box::new(|s| msg!(HelloEvent::TextBox {
                         name: "My text box".to_string(),
                         value: s.to_string(),
@@ -153,12 +151,9 @@ impl lemna::Component for HelloApp {
                 widgets::RadioButtons::new(
                     vec![txt!(Icon::Bell), txt!(Icon::Book), txt!(Icon::Bolt)],
                     self.state_ref().radio_selection.clone(),
-                    widgets::ButtonStyle {
-                        font: Some("open iconic".to_string()),
-                        font_size: 10.0,
-                        ..Default::default()
-                    }
-                )
+                    )
+                .style("font_size", 10.0.into())
+                .style("font", "open iconic".into())
                 .tool_tips(vec![
                     "Bell".to_string(),
                     "Book".to_string(),
@@ -173,7 +168,6 @@ impl lemna::Component for HelloApp {
             .push(node!(
                 widgets::Toggle::new(
                     self.state_ref().toggle_state,
-                    widgets::ToggleStyle::default()
                 )
                 .on_change(Box::new(|s| msg!(HelloEvent::Toggle(s)))),
                 lay!(margin: rect!(10.0)),
