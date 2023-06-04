@@ -1,9 +1,7 @@
 use std::path::PathBuf;
 
-use lemna::open_iconic::Icon;
 use lemna::*;
 use lemna_baseview::Window;
-use lemna_macros::{state_component, state_component_impl};
 use ttf_noto_sans;
 
 #[derive(Debug)]
@@ -12,7 +10,7 @@ pub struct AppState {
     toggle_state: bool,
 }
 
-#[state_component(AppState)]
+#[component(State = "AppState")]
 #[derive(Debug, Default)]
 pub struct App {}
 

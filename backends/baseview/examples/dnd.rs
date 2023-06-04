@@ -33,7 +33,7 @@ pub struct DropTargetState {
     active: bool,
 }
 
-#[state_component(DropTargetState)]
+#[component(State = "DropTargetState")]
 #[derive(Debug)]
 pub struct DropTarget {}
 

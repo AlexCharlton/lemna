@@ -1,5 +1,4 @@
-use lemna::{self, open_iconic::Icon, widgets, *};
-use lemna_macros::{state_component, state_component_impl};
+use lemna::{self, widgets, *};
 use ttf_noto_sans;
 use wx_rs::{Menu, MenuBar, MenuEntry};
 
@@ -13,7 +12,7 @@ pub struct AppState {
 unsafe impl Send for AppState {}
 unsafe impl Sync for AppState {}
 
-#[state_component(AppState)]
+#[component(State = "AppState")]
 #[derive(Debug, Default)]
 pub struct App {}
 

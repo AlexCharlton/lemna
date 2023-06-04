@@ -8,7 +8,7 @@ pub struct AppState {
     params: Arc<AppParams>,
 }
 
-#[state_component(AppState)]
+#[component(State = "AppState")]
 #[derive(Debug, Default)]
 pub struct App {}
 
