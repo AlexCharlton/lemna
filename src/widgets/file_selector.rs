@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use crate::component::{Component, Message};
-use crate::{node, txt, Node};
+use crate::{node, txt, Node, Styled};
+use lemna_macros::component;
 
+#[component(Styled, Internal)]
 pub struct FileSelector {
     pub title: String,
     pub default_path: Option<PathBuf>,
@@ -27,6 +29,8 @@ impl FileSelector {
             default_path: None,
             filter: None,
             on_select: None,
+            class: Default::default(),
+            style_overrides: Default::default(),
         }
     }
 
@@ -71,6 +75,10 @@ impl FileSelector {
 impl Component for FileSelector {
     fn view(&self) -> Option<Node> {
         let mut b = super::Button::new(txt!("...")); // TODO Style override
+        *b.style_overrides_mut() = self.style_overrides.clone();
+        if let Some(class) = self.class {
+            b = b.with_class(class);
+        }
         let this: &'static Self = unsafe { std::mem::transmute(self) };
         if let Some(f) = &this.on_select {
             b = b.on_click(Box::new(|| f(this.select())));
