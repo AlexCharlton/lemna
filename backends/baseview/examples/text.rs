@@ -6,6 +6,13 @@ use ttf_noto_sans;
 pub struct App {}
 
 impl lemna::Component for App {
+    fn init(&mut self) {
+        let dark_blue: Color = [0.0, 0.0, 0.3].into();
+        set_current_style(style!(
+            Text.color = dark_blue;
+        ));
+    }
+
     fn view(&self) -> Option<Node> {
         Some(node!(widgets::Div::new().bg(0.7),
                    [size_pct: [100, Auto]])

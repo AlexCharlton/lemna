@@ -1,5 +1,5 @@
-use std::cell::UnsafeCell;
 use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
 
 use crate::base_types::*;
 use crate::font_cache::HorizontalAlign;
@@ -274,18 +274,24 @@ impl Default for Style {
     }
 }
 
-thread_local!(
-    static CURRENT_STYLE: UnsafeCell<Style> = {
-        UnsafeCell::new(Style::new())
-    }
-);
-
-pub fn current_style<'a>() -> &'a Style {
-    CURRENT_STYLE.with(|s| unsafe { s.get().as_ref().unwrap() })
+fn _current_style() -> &'static Mutex<Style> {
+    static CURRENT_STYLE: OnceLock<Mutex<Style>> = OnceLock::new();
+    CURRENT_STYLE.get_or_init(|| Mutex::new(Style::new()))
 }
 
 pub fn set_current_style(s: Style) {
-    CURRENT_STYLE.with(|c| unsafe { *c.get().as_mut().unwrap() = s })
+    *_current_style().lock().unwrap() = s;
+}
+
+pub fn current_style(component: &'static str, parameter_name: &'static str) -> Option<StyleVal> {
+    _current_style()
+        .lock()
+        .unwrap()
+        .style(component, parameter_name)
+}
+
+pub fn get_current_style(k: StyleKey) -> Option<StyleVal> {
+    _current_style().lock().unwrap().get(k)
 }
 
 pub trait Styled: Sized {
@@ -324,13 +330,13 @@ pub trait Styled: Sized {
         if let Some(v) = self.style_overrides().0.get(param) {
             Some(v.clone())
         } else if let Some(c) = self.class() {
-            if let Some(v) = current_style().get(self.style_key(param, Some(c))) {
+            if let Some(v) = get_current_style(self.style_key(param, Some(c))) {
                 Some(v)
             } else {
-                current_style().get(self.style_key(param, None))
+                get_current_style(self.style_key(param, None))
             }
         } else {
-            current_style().get(self.style_key(param, None))
+            get_current_style(self.style_key(param, None))
         }
     }
 }
