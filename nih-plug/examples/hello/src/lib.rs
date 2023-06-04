@@ -4,9 +4,9 @@ use nih_plug::prelude::*;
 use std::sync::Arc;
 
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
-impl lemna::Component for HelloApp {
+impl lemna::Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -77,7 +77,7 @@ impl Plugin for HelloPlugin {
     }
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        lemna_nih_plug::create_lemna_editor::<lemna::render::wgpu::WGPURenderer, HelloApp, _, _>(
+        lemna_nih_plug::create_lemna_editor::<lemna::render::wgpu::WGPURenderer, App, _, _>(
             "Hello Lemna",
             400,
             300,

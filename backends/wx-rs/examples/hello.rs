@@ -1,9 +1,9 @@
 use lemna::{self, widgets, *};
 
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
-impl lemna::Component for HelloApp {
+impl lemna::Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -35,7 +35,7 @@ impl lemna::Component for HelloApp {
 
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, HelloApp>::open_blocking(
+    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, App>::open_blocking(
         "Hello!",
         400,
         300,

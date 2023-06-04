@@ -4,8 +4,8 @@ use nih_plug::prelude::*;
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct ParamsAppState {
-    params: Arc<ParamsParams>,
+pub struct AppState {
+    params: Arc<AppParams>,
 }
 
 #[state_component(ParamsAppState)]
@@ -13,9 +13,9 @@ pub struct ParamsAppState {
 pub struct ParamsApp {}
 
 #[state_component_impl(ParamsAppState)]
-impl lemna::Component for ParamsApp {
+impl lemna::Component for App {
     fn init(&mut self) {
-        self.state = Some(ParamsAppState {
+        self.state = Some(AppState {
             params: Default::default(),
         })
     }
@@ -34,11 +34,11 @@ impl lemna::Component for ParamsApp {
 
 #[derive(Default)]
 pub struct ParamsPlugin {
-    params: Arc<ParamsParams>,
+    params: Arc<AppParams>,
 }
 
 #[derive(Params, Debug)]
-struct ParamsParams {
+struct AppParams {
     #[id = "red"]
     pub red: FloatParam,
     #[id = "green"]
@@ -47,7 +47,7 @@ struct ParamsParams {
     pub blue: FloatParam,
 }
 
-impl Default for ParamsParams {
+impl Default for AppParams {
     fn default() -> Self {
         Self {
             red: FloatParam::new("Red", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 }),

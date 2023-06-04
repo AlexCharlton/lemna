@@ -7,14 +7,14 @@ use lemna_macros::{state_component, state_component_impl};
 use ttf_noto_sans;
 
 #[derive(Debug)]
-pub struct HelloAppState {
+pub struct AppState {
     radio_selection: Vec<usize>,
     toggle_state: bool,
 }
 
-#[state_component(HelloAppState)]
+#[state_component(AppState)]
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -40,10 +40,10 @@ enum HelloEvent {
     },
 }
 
-#[state_component_impl(HelloAppState)]
-impl lemna::Component for HelloApp {
+#[state_component_impl(AppState)]
+impl lemna::Component for App {
     fn init(&mut self) {
-        self.state = Some(HelloAppState {
+        self.state = Some(AppState {
             radio_selection: vec![],
             toggle_state: false,
         })
@@ -289,7 +289,7 @@ impl Component for EventReactor {
 // App setup
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, HelloApp>(
+    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
         "Hello events".to_string(),
         800,
         600,

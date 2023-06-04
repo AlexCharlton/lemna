@@ -2,9 +2,9 @@ use lemna::*;
 use lemna_baseview::Window;
 
 #[derive(Debug, Default)]
-pub struct HelloApp {}
+pub struct App {}
 
-impl lemna::Component for HelloApp {
+impl lemna::Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -126,7 +126,7 @@ impl Component for DragSource {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, HelloApp>(
+    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
         "Hello".to_string(),
         400,
         300,
