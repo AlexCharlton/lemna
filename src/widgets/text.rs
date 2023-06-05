@@ -149,7 +149,7 @@ impl Text {
             class: Default::default(),
             style_overrides: Default::default(),
             state: Some(TextState::default()),
-            dirty: true,
+            dirty: false,
         }
     }
 

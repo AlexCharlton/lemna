@@ -39,7 +39,7 @@ impl Toggle {
             active,
             on_change: None,
             state: Some(ToggleState::default()),
-            dirty: true,
+            dirty: false,
             class: Default::default(),
             style_overrides: Default::default(),
         }

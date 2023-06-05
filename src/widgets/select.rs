@@ -55,7 +55,7 @@ impl<M: ToString + Send + Sync> Select<M> {
             class: Default::default(),
             style_overrides: Default::default(),
             state: Some(SelectState::default()),
-            dirty: true,
+            dirty: false,
         }
     }
 

@@ -40,7 +40,7 @@ impl Button {
             on_click: None,
             tool_tip: None,
             state: Some(ButtonState::default()),
-            dirty: true,
+            dirty: false,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -109,6 +109,8 @@ impl Component for Button {
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         self.state_mut().hover_start = Some(Instant::now());
+        // This state mutation should not trigger a redraw
+        self.dirty = false;
         event.stop_bubbling();
     }
 
@@ -133,6 +135,7 @@ impl Component for Button {
                 .hover_start
                 .map(|s| s.elapsed().as_millis() > ToolTip::DELAY)
                 .unwrap_or(false)
+            && self.state_ref().tool_tip_open.is_none()
         {
             self.state_mut().tool_tip_open = Some(event.relative_logical_position());
         }

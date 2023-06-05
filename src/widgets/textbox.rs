@@ -61,7 +61,7 @@ impl TextBox {
             on_commit: None,
             on_focus: None,
             state: Some(TextBoxState::default()),
-            dirty: true,
+            dirty: false,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -105,7 +105,7 @@ impl Component for TextBox {
                     style_overrides: self.style_overrides.clone(),
                     class: self.class.clone(),
                     state: None,
-                    dirty: true,
+                    dirty: false,
                 },
                 lay!(size: size_pct!(100.0),)
             )),
@@ -161,7 +161,7 @@ impl TextBoxContainer {
             border_color: border_color.into(),
             border_width,
             state: Some(Default::default()),
-            dirty: true,
+            dirty: false,
         }
     }
 
