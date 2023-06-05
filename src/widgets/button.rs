@@ -40,6 +40,7 @@ impl Button {
             on_click: None,
             tool_tip: None,
             state: Some(ButtonState::default()),
+            dirty: true,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -111,20 +112,18 @@ impl Component for Button {
         event.stop_bubbling();
     }
 
-    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) {
+    fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
         self.state_mut().hover = true;
         if let Some(w) = crate::current_window() {
             w.set_cursor("PointingHand");
         }
-        event.dirty();
     }
 
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
-        self.state = Some(ButtonState::default());
+    fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
+        *self.state_mut() = ButtonState::default();
         if let Some(w) = crate::current_window() {
             w.unset_cursor();
         }
-        event.dirty();
     }
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
@@ -136,18 +135,15 @@ impl Component for Button {
                 .unwrap_or(false)
         {
             self.state_mut().tool_tip_open = Some(event.relative_logical_position());
-            event.dirty();
         }
     }
 
-    fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) {
+    fn on_mouse_down(&mut self, _event: &mut event::Event<event::MouseDown>) {
         self.state_mut().pressed = true;
-        event.dirty();
     }
 
-    fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) {
+    fn on_mouse_up(&mut self, _event: &mut event::Event<event::MouseUp>) {
         self.state_mut().pressed = false;
-        event.dirty();
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {

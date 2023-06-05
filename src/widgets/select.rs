@@ -55,6 +55,7 @@ impl<M: ToString + Send + Sync> Select<M> {
             class: Default::default(),
             style_overrides: Default::default(),
             state: Some(SelectState::default()),
+            dirty: true,
         }
     }
 
@@ -186,14 +187,12 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
-        event.dirty();
         event.focus();
         event.stop_bubbling();
         event.emit(Box::new(SelectMessage::OpenClose));
     }
 
     fn on_blur(&mut self, event: &mut event::Event<event::Blur>) {
-        event.dirty();
         event.emit(Box::new(SelectMessage::Close));
     }
 }
@@ -351,12 +350,10 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
     }
 
     fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) {
-        event.dirty();
         event.emit(Box::new(SelectMessage::Hover(self.id)));
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
-        event.dirty();
         event.stop_bubbling();
         event.emit(Box::new(SelectMessage::Select(self.id)));
         event.emit(Box::new(SelectMessage::Close));

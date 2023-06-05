@@ -41,6 +41,7 @@ impl DropTarget {
     fn new() -> Self {
         Self {
             state: Some(DropTargetState::default()),
+            dirty: true,
         }
     }
 }
@@ -73,19 +74,16 @@ impl Component for DropTarget {
     fn on_drag_drop(&mut self, event: &mut Event<event::DragDrop>) {
         println!("Got {:?}", event.input.0);
         self.state_mut().active = false;
-        event.dirty();
     }
 
     fn on_drag_enter(&mut self, event: &mut Event<event::DragEnter>) {
         self.state_mut().active = true;
         current_window().unwrap().set_drop_target_valid(true);
-        event.dirty();
     }
 
     fn on_drag_leave(&mut self, event: &mut Event<event::DragLeave>) {
         self.state_mut().active = false;
         current_window().unwrap().set_drop_target_valid(false);
-        event.dirty();
     }
 
     fn on_drag_target(&mut self, event: &mut Event<event::DragTarget>) {

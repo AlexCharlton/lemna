@@ -61,6 +61,7 @@ impl TextBox {
             on_commit: None,
             on_focus: None,
             state: Some(TextBoxState::default()),
+            dirty: true,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -104,6 +105,7 @@ impl Component for TextBox {
                     style_overrides: self.style_overrides.clone(),
                     class: self.class.clone(),
                     state: None,
+                    dirty: true,
                 },
                 lay!(size: size_pct!(100.0),)
             )),
@@ -159,6 +161,7 @@ impl TextBoxContainer {
             border_color: border_color.into(),
             border_width,
             state: Some(Default::default()),
+            dirty: true,
         }
     }
 
@@ -483,14 +486,13 @@ impl Component for TextBoxText {
         }
     }
 
-    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
+    fn on_tick(&mut self, _event: &mut event::Event<event::Tick>) {
         if self.state_ref().focused {
             let visible =
                 (self.state_ref().activated_at.elapsed().as_millis() / CURSOR_BLINK_PERIOD) % 2
                     == 0;
             if visible != self.state_ref().cursor_visible {
                 self.state_mut().cursor_visible = visible;
-                event.dirty();
             }
         }
     }
@@ -502,7 +504,6 @@ impl Component for TextBoxText {
                 let new_pos = self.position(event.relative_physical_position().x);
                 if new_pos != self.state_ref().cursor_pos {
                     self.state_mut().cursor_pos = new_pos;
-                    event.dirty();
                 }
             }
             #[cfg(feature = "backend_wx_rs")]
@@ -537,7 +538,6 @@ impl Component for TextBoxText {
             .and_then(|menu| menu.get_entry_from_event_id(event.input.0))
         {
             event.stop_bubbling();
-            event.dirty();
             for message in self.handle_action(action).drain(..) {
                 event.emit(message);
             }
@@ -547,15 +547,12 @@ impl Component for TextBoxText {
     fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
         event.stop_bubbling();
         event.focus();
-        if self.select_word() {
-            event.dirty();
-        }
+        self.select_word();
     }
 
     fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {
         self.state_mut().focused = true;
         self.state_mut().cursor_visible = true;
-        event.dirty();
         event.emit(Box::new(TextBoxMessage::Open))
     }
 
@@ -564,7 +561,6 @@ impl Component for TextBoxText {
         self.state_mut().cursor_visible = false;
         self.state_mut().selection_from = None;
         self.state_mut().cursor_pos = 0;
-        event.dirty();
         event.emit(Box::new(TextBoxMessage::Close));
         event.emit(Box::new(TextBoxMessage::Commit(
             self.state_ref().text.clone(),
@@ -675,7 +671,6 @@ impl Component for TextBoxText {
             _ => (),
         }
 
-        event.dirty();
         if changed {
             self.state_mut().dirty = true;
             event.emit(Box::new(TextBoxMessage::Change(
@@ -687,7 +682,6 @@ impl Component for TextBoxText {
     fn on_text_entry(&mut self, event: &mut event::Event<event::TextEntry>) {
         self.insert_text(&event.input.0);
         self.state_mut().dirty = true;
-        event.dirty();
         event.stop_bubbling();
         event.emit(Box::new(TextBoxMessage::Change(
             self.state_ref().text.clone(),
@@ -699,7 +693,6 @@ impl Component for TextBoxText {
         self.state_mut().selection_from = Some(self.position(event.relative_physical_position().x));
         event.focus();
         event.stop_bubbling();
-        event.dirty();
     }
 
     fn on_drag_end(&mut self, _event: &mut event::Event<event::DragEnd>) {
@@ -712,7 +705,6 @@ impl Component for TextBoxText {
         let new_pos = self.position(event.relative_physical_position().x);
         if new_pos != self.state_ref().cursor_pos {
             self.state_mut().cursor_pos = new_pos;
-            event.dirty();
         }
     }
 

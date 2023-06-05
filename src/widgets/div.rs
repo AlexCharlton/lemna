@@ -153,7 +153,6 @@ impl Component for Div {
             if scrolled {
                 self.state_mut().scroll_position = scroll_position;
                 event.stop_bubbling();
-                event.dirty();
             }
         }
     }
@@ -176,17 +175,15 @@ impl Component for Div {
             {
                 self.state_mut().over_y_bar = over_y_bar;
                 self.state_mut().over_x_bar = over_x_bar;
-                event.dirty();
             }
             event.stop_bubbling();
         }
     }
 
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
+    fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         if self.scrollable() {
             self.state_mut().over_y_bar = false;
             self.state_mut().over_x_bar = false;
-            event.dirty();
         }
     }
 
@@ -199,17 +196,15 @@ impl Component for Div {
                 self.state_mut().x_bar_pressed = x_bar_pressed;
                 self.state_mut().y_bar_pressed = y_bar_pressed;
                 self.state_mut().drag_start_position = drag_start;
-                event.dirty();
                 event.stop_bubbling();
             }
         }
     }
 
-    fn on_drag_end(&mut self, event: &mut event::Event<event::DragEnd>) {
+    fn on_drag_end(&mut self, _event: &mut event::Event<event::DragEnd>) {
         if self.scrollable() {
             self.state_mut().x_bar_pressed = false;
             self.state_mut().y_bar_pressed = false;
-            event.dirty();
         }
     }
 
@@ -241,7 +236,6 @@ impl Component for Div {
             }
 
             self.state_mut().scroll_position = scroll_position;
-            event.dirty();
         }
     }
 

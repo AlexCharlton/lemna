@@ -55,6 +55,10 @@ pub trait Component: fmt::Debug {
         None
     }
 
+    fn is_dirty(&mut self) -> bool {
+        false
+    }
+
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.props_hash(hasher);
     }

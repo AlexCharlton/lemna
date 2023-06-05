@@ -199,7 +199,6 @@ impl lemna::Component for App {
             .menu_bar
             .get_entry_from_event_id(event.input.0)
         {
-            event.dirty();
             event.emit(match menu {
                 HelloMenu::Open => msg!(HelloEvent::Menu { selection: menu }),
                 HelloMenu::Close => msg!(HelloEvent::Menu { selection: menu }),

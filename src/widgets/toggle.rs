@@ -39,6 +39,7 @@ impl Toggle {
             active,
             on_change: None,
             state: Some(ToggleState::default()),
+            dirty: true,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -52,19 +53,16 @@ impl Toggle {
 
 #[state_component_impl(ToggleState)]
 impl Component for Toggle {
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
+    fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         self.state_mut().pressed = false;
-        event.dirty();
     }
 
-    fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) {
+    fn on_mouse_down(&mut self, _event: &mut event::Event<event::MouseDown>) {
         self.state_mut().pressed = true;
-        event.dirty();
     }
 
-    fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) {
+    fn on_mouse_up(&mut self, _event: &mut event::Event<event::MouseUp>) {
         self.state_mut().pressed = false;
-        event.dirty();
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {

@@ -82,21 +82,15 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
         if let Some(state) = &state_type {
             let state_field = quote! {
                 state: Option<#state>,
+                dirty: bool,
             };
 
             s.extend(TokenStream::from(state_field));
         }
         if is_styled {
-            let styled_fields = if is_internal {
-                quote! {
-                    class: Option<&'static str>,
-                    style_overrides: #style_override_ref
-                }
-            } else {
-                quote! {
-                    class: Option<&'static str>,
-                    style_overrides: #style_override_ref
-                }
+            let styled_fields = quote! {
+                class: Option<&'static str>,
+                style_overrides: #style_override_ref
             };
 
             s.extend(TokenStream::from(styled_fields));
@@ -115,6 +109,7 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
             impl #impl_generics #struct_name #ty_generics #where_clause {
                 #[allow(dead_code)]
                 fn state_mut(&mut self) -> &mut #state {
+                    self.dirty = true;
                     self.state.as_mut().expect(&format!("Expected state to exist"))
                 }
 
@@ -178,6 +173,12 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
             } else {
                 None
             }
+        }
+
+        fn is_dirty(&mut self) -> bool {
+            let d = self.dirty;
+            self.dirty = false;
+            d
         }
     };
 

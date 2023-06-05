@@ -186,6 +186,7 @@ impl Component for RadioButtons {
                         },
                     ),
                     state: Some(Default::default()),
+                    dirty: true,
                     class: self.class.clone(),
                     style_overrides: self.style_overrides.clone(),
                 })
@@ -300,14 +301,12 @@ impl Component for RadioButton {
         event.stop_bubbling();
     }
 
-    fn on_mouse_enter(&mut self, event: &mut event::Event<event::MouseEnter>) {
+    fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
         self.state_mut().hover = true;
-        event.dirty();
     }
 
-    fn on_mouse_leave(&mut self, event: &mut event::Event<event::MouseLeave>) {
-        self.state = Some(RadioButtonState::default());
-        event.dirty();
+    fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
+        *self.state_mut() = RadioButtonState::default();
     }
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
@@ -319,12 +318,10 @@ impl Component for RadioButton {
                 .unwrap_or(false)
         {
             self.state_mut().tool_tip_open = Some(event.relative_logical_position());
-            event.dirty();
         }
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
-        event.dirty();
         event.stop_bubbling();
         event.emit(msg!(RadioButtonMsg::Clicked(self.position)));
     }

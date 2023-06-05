@@ -402,6 +402,9 @@ impl Node {
                     .drain(..)
                 {
                     m.append(&mut self.component.update(message));
+                    if self.component.is_dirty() {
+                        event.dirty();
+                    }
                 }
                 if child
                     .component
@@ -424,6 +427,9 @@ impl Node {
             event.current_aabb = Some(self.aabb);
             event.current_inner_scale = self.inner_scale;
             handler(self, event);
+            if self.component.is_dirty() {
+                event.dirty();
+            }
             m.append(&mut event.messages);
         } else if Some(self.id) == node_order.last().map(|x| x.0) {
             node_order.pop();
@@ -540,6 +546,9 @@ impl Node {
             event.current_aabb = Some(node.aabb);
             event.current_inner_scale = node.inner_scale;
             handler(node, event);
+            if self.component.is_dirty() {
+                event.dirty();
+            }
             if stack.is_empty() {
                 return;
             }
@@ -547,9 +556,16 @@ impl Node {
 
             loop {
                 let node = self.get_target_from_stack(&stack);
+                let mut dirty = false;
                 let mut next_messages: Vec<Message> = vec![];
                 for message in event.messages.drain(..) {
-                    next_messages.append(&mut node.component.update(message))
+                    next_messages.append(&mut node.component.update(message));
+                    if node.component.is_dirty() {
+                        dirty = true;
+                    }
+                }
+                if dirty {
+                    event.dirty();
                 }
                 if next_messages.is_empty() || stack.is_empty() {
                     return;
@@ -560,15 +576,23 @@ impl Node {
         }
     }
 
-    pub fn send_messages(&mut self, mut target_stack: Vec<usize>, messages: &mut Vec<Message>) {
+    pub fn send_messages(
+        &mut self,
+        mut target_stack: Vec<usize>,
+        messages: &mut Vec<Message>,
+    ) -> bool {
+        let mut dirty = false;
         loop {
             let node = self.get_target_from_stack(&target_stack);
             let mut next_messages: Vec<Message> = vec![];
             for message in messages.drain(..) {
-                next_messages.append(&mut node.component.update(message))
+                next_messages.append(&mut node.component.update(message));
+                if node.component.is_dirty() {
+                    dirty = true;
+                }
             }
             if next_messages.is_empty() || target_stack.is_empty() {
-                return;
+                return dirty;
             }
             *messages = next_messages;
             target_stack.pop();
@@ -686,6 +710,9 @@ impl Node {
         event.current_aabb = Some(self.aabb);
         event.current_inner_scale = self.inner_scale;
         self.component.on_tick(event);
+        if self.component.is_dirty() {
+            event.dirty();
+        }
         m.append(&mut event.messages);
 
         m

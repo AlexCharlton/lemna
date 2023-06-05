@@ -160,7 +160,7 @@ impl<T> Event<T> {
         self.bubbles = false;
     }
 
-    pub fn dirty(&mut self) {
+    pub(crate) fn dirty(&mut self) {
         self.dirty = true;
     }
 
