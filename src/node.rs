@@ -45,9 +45,9 @@ pub struct Node {
     pub(crate) layout_result: LayoutResult,
     pub(crate) aabb: AABB,
     pub(crate) inclusive_aabb: AABB,
-    /// TODO: Marking a node dirty should propagate to all its parents.
-    ///   Clean nodes can be fully recycled instead of performing a `view`
-    pub(crate) dirty: bool,
+    // TODO: Marking a node dirty should propagate to all its parents.
+    //   Clean nodes can be fully recycled instead of performing a `view`
+    // pub(crate) dirty: bool,
     /// If the node is scrollable, how big are its children?
     pub(crate) inner_scale: Option<Scale>,
     pub(crate) props_hash: u64,
@@ -96,7 +96,7 @@ impl Node {
             key,
             aabb: Default::default(),
             inclusive_aabb: Default::default(),
-            dirty: false,
+            // dirty: false,
             inner_scale: None,
             layout_result: Default::default(),
             children: vec![],
