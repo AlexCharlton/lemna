@@ -304,6 +304,29 @@ impl<
         }
     }
 
+    fn handle_event<T, F>(&mut self, handler: F, event: &mut Event<T>, target: Option<u64>)
+    where
+        F: Fn(&mut Node, &mut Event<T>),
+    {
+        event.target = target;
+        handler(&mut *self.node_mut(), event);
+        self.handle_focus_or_blur(event);
+        self.handle_dirty_event(event);
+    }
+
+    fn handle_event_without_focus<T, F>(
+        &mut self,
+        handler: F,
+        event: &mut Event<T>,
+        target: Option<u64>,
+    ) where
+        F: Fn(&mut Node, &mut Event<T>),
+    {
+        event.target = target;
+        handler(&mut *self.node_mut(), event);
+        self.handle_dirty_event(event);
+    }
+
     pub fn handle_input(&mut self, input: &Input) {
         inst("UI::handle_input");
         // if self.node.is_none() || self.renderer.is_none() {
@@ -343,17 +366,14 @@ impl<
                         let mut drag_start_event =
                             Event::new(event::DragStart(button), &self.event_cache);
                         drag_start_event.mouse_position = self.event_cache.drag_started.unwrap();
-                        self.node_mut().drag_start(&mut drag_start_event);
+                        self.handle_event(Node::drag_start, &mut drag_start_event, None);
                         self.event_cache.drag_target = drag_start_event.target;
-                        self.handle_focus_or_blur(&drag_start_event);
-                        self.handle_dirty_event(&drag_start_event);
                     }
                 }
 
                 self.event_cache.mouse_position = pos;
-                let mut event = Event::new(event::MouseMotion, &self.event_cache);
-                self.node_mut().mouse_motion(&mut event);
-                self.handle_dirty_event(&event);
+                let mut motion_event = Event::new(event::MouseMotion, &self.event_cache);
+                self.handle_event_without_focus(Node::mouse_motion, &mut motion_event, None);
 
                 let held_button = self.event_cache.mouse_button_held();
                 if held_button.is_some() && self.event_cache.drag_button.is_some() {
@@ -364,25 +384,25 @@ impl<
                         },
                         &self.event_cache,
                     );
-                    drag_event.target = self.event_cache.drag_target;
-                    self.node_mut().drag(&mut drag_event);
-                    self.handle_dirty_event(&drag_event);
-                } else if event.target != self.event_cache.mouse_over {
+                    self.handle_event_without_focus(
+                        Node::drag,
+                        &mut drag_event,
+                        self.event_cache.drag_target,
+                    );
+                } else if motion_event.target != self.event_cache.mouse_over {
                     if self.event_cache.mouse_over.is_some() {
                         let mut leave_event = Event::new(event::MouseLeave, &self.event_cache);
-                        leave_event.target = self.event_cache.mouse_over;
-                        self.node_mut().mouse_leave(&mut leave_event);
-                        self.handle_focus_or_blur(&leave_event);
-                        self.handle_dirty_event(&leave_event);
+                        self.handle_event(
+                            Node::mouse_leave,
+                            &mut leave_event,
+                            self.event_cache.mouse_over,
+                        );
                     }
-                    if event.target.is_some() {
+                    if motion_event.target.is_some() {
                         let mut enter_event = Event::new(event::MouseEnter, &self.event_cache);
-                        enter_event.target = event.target;
-                        self.node_mut().mouse_enter(&mut enter_event);
-                        self.handle_focus_or_blur(&enter_event);
-                        self.handle_dirty_event(&enter_event);
+                        self.handle_event(Node::mouse_enter, &mut enter_event, motion_event.target);
                     }
-                    self.event_cache.mouse_over = event.target;
+                    self.event_cache.mouse_over = motion_event.target;
                 }
             }
             Input::Motion(Motion::Scroll { x, y }) => {
@@ -393,21 +413,16 @@ impl<
                     },
                     &self.event_cache,
                 );
-                self.node_mut().scroll(&mut event);
-                self.handle_dirty_event(&event);
+                self.handle_event_without_focus(Node::scroll, &mut event, None);
             }
             Input::Press(Button::Mouse(b)) => {
                 self.event_cache.mouse_down(*b);
                 let mut event = Event::new(event::MouseDown(*b), &self.event_cache);
-                self.node_mut().mouse_down(&mut event);
-                self.handle_focus_or_blur(&event);
-                self.handle_dirty_event(&event);
+                self.handle_event(Node::mouse_down, &mut event, None);
             }
             Input::Release(Button::Mouse(b)) => {
                 let mut event = Event::new(event::MouseUp(*b), &self.event_cache);
-                self.node_mut().mouse_up(&mut event);
-                self.handle_focus_or_blur(&event);
-                self.handle_dirty_event(&event);
+                self.handle_event(Node::mouse_up, &mut event, None);
 
                 let mut is_double_click = false;
                 // Double clicking
@@ -435,10 +450,11 @@ impl<
                         },
                         &self.event_cache,
                     );
-                    drag_end_event.target = self.event_cache.drag_target;
-                    self.node_mut().drag_end(&mut drag_end_event);
-                    self.handle_focus_or_blur(&drag_end_event);
-                    self.handle_dirty_event(&drag_end_event);
+                    self.handle_event(
+                        Node::drag_end,
+                        &mut drag_end_event,
+                        self.event_cache.drag_target,
+                    );
 
                     let drag_distance = self
                         .event_cache
@@ -447,10 +463,8 @@ impl<
                         .dist(self.event_cache.mouse_position);
                     if drag_distance < event::DRAG_CLICK_MAX_DIST {
                         // Send a Click event if the drag was quite short
-                        let mut event = Event::new(event::Click(*b), &self.event_cache);
-                        self.node_mut().click(&mut event);
-                        self.handle_focus_or_blur(&event);
-                        self.handle_dirty_event(&event);
+                        let mut click_event = Event::new(event::Click(*b), &self.event_cache);
+                        self.handle_event(Node::click, &mut click_event, None);
                     }
 
                     // Unfocus when clicking a thing not focused
@@ -471,15 +485,11 @@ impl<
                     self.event_cache.mouse_up(*b);
                     let event_current_node_id = if is_double_click {
                         let mut event = Event::new(event::DoubleClick(*b), &self.event_cache);
-                        self.node_mut().double_click(&mut event);
-                        self.handle_focus_or_blur(&event);
-                        self.handle_dirty_event(&event);
+                        self.handle_event(Node::double_click, &mut event, None);
                         event.current_node_id
                     } else {
                         let mut event = Event::new(event::Click(*b), &self.event_cache);
-                        self.node_mut().click(&mut event);
-                        self.handle_focus_or_blur(&event);
-                        self.handle_dirty_event(&event);
+                        self.handle_event(Node::click, &mut event, None);
                         event.current_node_id
                     };
 
@@ -495,35 +505,27 @@ impl<
             Input::Press(Button::Keyboard(k)) => {
                 self.event_cache.key_down(*k);
                 let mut event = Event::new(event::KeyDown(*k), &self.event_cache);
-                event.target = event.focus;
-                self.node_mut().key_down(&mut event);
-                self.handle_focus_or_blur(&event);
-                self.handle_dirty_event(&event);
+                let focus = event.focus;
+                self.handle_event(Node::key_down, &mut event, focus);
             }
             Input::Release(Button::Keyboard(k)) => {
                 if self.event_cache.key_held(*k) {
                     self.event_cache.key_up(*k);
                     let mut event = Event::new(event::KeyPress(*k), &self.event_cache);
-                    event.target = event.focus;
-                    self.node_mut().key_press(&mut event);
-                    self.handle_focus_or_blur(&event);
-                    self.handle_dirty_event(&event);
+                    let focus = event.focus;
+                    self.handle_event(Node::key_press, &mut event, focus);
                 }
 
                 let mut event = Event::new(event::KeyUp(*k), &self.event_cache);
-                event.target = event.focus;
-                self.node_mut().key_up(&mut event);
-                self.handle_focus_or_blur(&event);
-                self.handle_dirty_event(&event);
+                let focus = event.focus;
+                self.handle_event(Node::key_up, &mut event, focus);
             }
             Input::Text(s) => {
                 let mods = self.event_cache.modifiers_held;
                 if !mods.alt && !mods.ctrl && !mods.meta {
                     let mut event = Event::new(event::TextEntry(s.clone()), &self.event_cache);
-                    event.target = event.focus;
-                    self.node_mut().text_entry(&mut event);
-                    self.handle_focus_or_blur(&event);
-                    self.handle_dirty_event(&event);
+                    let focus = event.focus;
+                    self.handle_event(Node::text_entry, &mut event, focus);
                 }
             }
             Input::Focus(false) => {
@@ -545,10 +547,11 @@ impl<
             Input::MouseLeaveWindow => {
                 if self.event_cache.mouse_over.is_some() {
                     let mut leave_event = Event::new(event::MouseLeave, &self.event_cache);
-                    leave_event.target = self.event_cache.mouse_over;
-                    self.node_mut().mouse_leave(&mut leave_event);
-                    self.handle_focus_or_blur(&leave_event);
-                    self.handle_dirty_event(&leave_event);
+                    self.handle_event(
+                        Node::mouse_leave,
+                        &mut leave_event,
+                        self.event_cache.mouse_over,
+                    );
                 }
                 if self.event_cache.drag_button.is_some() {
                     let mut drag_end_event = Event::new(
@@ -563,8 +566,7 @@ impl<
                     self.event_cache.drag_started = None;
                     self.event_cache.drag_button = None;
 
-                    self.node_mut().drag_end(&mut drag_end_event);
-                    self.handle_dirty_event(&drag_end_event);
+                    self.handle_event_without_focus(Node::drag_end, &mut drag_end_event, None);
                 }
                 self.event_cache.clear();
             }
@@ -574,27 +576,30 @@ impl<
                     self.event_cache.drag_data.push(data.clone());
                 }
                 Drag::Dragging => {
-                    let mut event = Event::new(event::DragTarget, &self.event_cache);
-                    self.node_mut().drag_target(&mut event);
-                    self.handle_dirty_event(&event);
+                    let mut drag_event = Event::new(event::DragTarget, &self.event_cache);
+                    self.handle_event_without_focus(Node::drag_target, &mut drag_event, None);
 
-                    if event.target != self.event_cache.drag_target {
+                    if drag_event.target != self.event_cache.drag_target {
                         if self.event_cache.drag_target.is_some() {
                             let mut leave_event = Event::new(event::DragLeave, &self.event_cache);
-                            leave_event.target = self.event_cache.drag_target;
-                            self.node_mut().drag_leave(&mut leave_event);
-                            self.handle_dirty_event(&leave_event);
+                            self.handle_event_without_focus(
+                                Node::drag_leave,
+                                &mut leave_event,
+                                self.event_cache.drag_target,
+                            );
                         }
-                        if event.target.is_some() {
+                        if drag_event.target.is_some() {
                             let mut enter_event = Event::new(
                                 event::DragEnter(self.event_cache.drag_data.clone()),
                                 &self.event_cache,
                             );
-                            enter_event.target = event.target;
-                            self.node_mut().drag_enter(&mut enter_event);
-                            self.handle_dirty_event(&enter_event);
+                            self.handle_event_without_focus(
+                                Node::drag_enter,
+                                &mut enter_event,
+                                drag_event.target,
+                            );
                         }
-                        self.event_cache.drag_target = event.target;
+                        self.event_cache.drag_target = drag_event.target;
                     }
                 }
                 Drag::End => {
@@ -602,9 +607,11 @@ impl<
                 }
                 Drag::Drop(data) => {
                     let mut event = Event::new(event::DragDrop(data.clone()), &self.event_cache);
-                    event.target = self.event_cache.drag_target.or(Some(0));
-                    self.node_mut().drag_drop(&mut event);
-                    self.handle_dirty_event(&event);
+                    self.handle_event_without_focus(
+                        Node::drag_drop,
+                        &mut event,
+                        self.event_cache.drag_target.or(Some(0)),
+                    );
                     self.event_cache.clear();
                 }
             },
@@ -621,8 +628,8 @@ impl<
                 // If the event is focused on a non-root node
                 if current_focus != self.node_ref().id {
                     // First see if the focused node will respond
-                    self.node_mut().menu_select(&mut menu_event);
-                    self.handle_dirty_event(&menu_event);
+                    self.handle_event_without_focus(Node::menu_select, &mut menu_event, None);
+
                     if menu_event.bubbles {
                         // See if the root node reacts to the menu event
                         self.node_mut().component.on_menu_select(&mut menu_event);
