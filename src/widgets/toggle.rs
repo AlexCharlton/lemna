@@ -71,6 +71,13 @@ impl Component for Toggle {
         }
     }
 
+    // Same as on_click
+    fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
+        if let Some(f) = &self.on_change {
+            event.emit(f(!self.active));
+        }
+    }
+
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.active.hash(hasher);
         self.state_ref().pressed.hash(hasher);

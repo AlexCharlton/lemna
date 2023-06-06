@@ -18,8 +18,6 @@ use crate::node::Node;
 use crate::render::Renderer;
 use crate::window::Window;
 
-const DRAG_THRESHOLD: f32 = 15.0; // px
-
 /// `UI` is the main struct that holds the `Window`, `Renderer` and `Node`s of an `App`.
 /// It handles events and drawing/rendering.
 /// Drawing (laying out `Nodes` and assembling their `Renderable`s) and rendering
@@ -338,8 +336,8 @@ impl<
                     let drag_start = self.event_cache.drag_started.unwrap();
 
                     if self.event_cache.drag_button.is_none()
-                        && ((drag_start.x - pos.x).abs() > DRAG_THRESHOLD
-                            || (drag_start.y - pos.y).abs() > DRAG_THRESHOLD)
+                        && ((drag_start.x - pos.x).abs() > event::DRAG_THRESHOLD
+                            || (drag_start.y - pos.y).abs() > event::DRAG_THRESHOLD)
                     {
                         self.event_cache.drag_button = Some(button);
                         let mut drag_start_event =
@@ -438,14 +436,22 @@ impl<
                         &self.event_cache,
                     );
                     drag_end_event.target = self.event_cache.drag_target;
-
-                    self.event_cache.drag_started = None;
-                    self.event_cache.drag_button = None;
-                    self.event_cache.mouse_up(*b);
-
                     self.node_mut().drag_end(&mut drag_end_event);
                     self.handle_focus_or_blur(&drag_end_event);
                     self.handle_dirty_event(&drag_end_event);
+
+                    let drag_distance = self
+                        .event_cache
+                        .drag_started
+                        .unwrap()
+                        .dist(self.event_cache.mouse_position);
+                    if drag_distance < event::DRAG_CLICK_MAX_DIST {
+                        // Send a Click event if the drag was quite short
+                        let mut event = Event::new(event::Click(*b), &self.event_cache);
+                        self.node_mut().click(&mut event);
+                        self.handle_focus_or_blur(&event);
+                        self.handle_dirty_event(&event);
+                    }
 
                     // Unfocus when clicking a thing not focused
                     if drag_end_event.current_node_id != Some(self.event_cache.focus)
@@ -454,6 +460,11 @@ impl<
                     {
                         self.blur();
                     }
+
+                    // Clean up event cache
+                    self.event_cache.drag_started = None;
+                    self.event_cache.drag_button = None;
+                    self.event_cache.mouse_up(*b);
                 } else
                 // Resolve click
                 if self.event_cache.is_mouse_button_held(*b) {

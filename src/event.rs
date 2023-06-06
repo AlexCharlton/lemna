@@ -5,8 +5,15 @@ use super::base_types::*;
 use super::input::{Data, Key, MouseButton};
 use crate::Message;
 
-pub const DOUBLE_CLICK_INTERVAL_MS: u128 = 500;
-pub const DOUBLE_CLICK_MAX_DIST: f32 = 10.0;
+/// How much time (ms) can elapse between clicks before it's no longer considered a double click
+pub const DOUBLE_CLICK_INTERVAL_MS: u128 = 500; // ms
+/// How much mouse travel (px) is allowed before it's no longer considered a double click
+pub const DOUBLE_CLICK_MAX_DIST: f32 = 10.0; // px
+/// How much distance (px) is required before we start a drag event
+pub const DRAG_THRESHOLD: f32 = 15.0; // px
+/// How much mouse travel (px) is allowed until we'll no longer send a click event
+/// Note this is longer than DRAG_THRESHOLD
+pub const DRAG_CLICK_MAX_DIST: f32 = 30.0; // px
 
 pub struct Event<T> {
     pub input: T,

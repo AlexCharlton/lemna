@@ -328,4 +328,10 @@ impl Component for RadioButton {
         event.stop_bubbling();
         event.emit(msg!(RadioButtonMsg::Clicked(self.position)));
     }
+
+    // Same as on_click
+    fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
+        event.stop_bubbling();
+        event.emit(msg!(RadioButtonMsg::Clicked(self.position)));
+    }
 }
