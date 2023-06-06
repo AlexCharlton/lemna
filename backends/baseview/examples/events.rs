@@ -61,22 +61,22 @@ impl lemna::Component for App {
         Some(
             node!(
                 widgets::Div::new(),
-                lay!(wrap: true, size: size_pct!(100.0), cross_alignment: Alignment::End)
+                [wrap: true, size_pct: [100], cross_alignment: End]
             )
             .push(node!(
                 EventReactor {
                     name: "SomeWidget".to_string(),
                 },
-                lay!(size: size!(100.0))
+                [size: [100]]
             ))
-            .push(node!(Sorter {}, lay!(size: size!(100.0, 200.0)), 1))
+            .push(node!(Sorter {}, [size: [100, 200]]))
             .push(node!(
                 widgets::Button::new(txt!("Click me!")).on_click(
                     Box::new(|| msg!(HelloEvent::Button {
                         name: "It me, a button!".to_string()
                     }))
                 ),
-                lay!(size: size!(100.0, 50.0))
+                [size: [100, 50]]
             ))
             .push(node!(
                 widgets::Button::new(
@@ -90,12 +90,12 @@ impl lemna::Component for App {
                 .on_click(Box::new(|| msg!(HelloEvent::Button {
                     name: "jk, I'm just another button!".to_string()
                 }))),
-                lay!(size: size!(Auto))
+                [size: [Auto]]
             ))
                 .push(node!(
                     widgets::FileSelector::new("Choose a file".to_string())
                         .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
-                    lay!(size: size!(Auto), margin: rect!(Auto, Auto, 50.0)),
+                    [size: [Auto], margin: [Auto, Auto, 50]]
                 ))
             .push(node!(
                 widgets::Select::<String>::new(
@@ -123,7 +123,7 @@ impl lemna::Component for App {
                         value: s.to_string(),
                         update_type: "commit".to_string(),
                     }))),
-                lay!(size: size!(100.0, Auto)),
+                [size: [100, Auto]]
             ))
             .push(node!(
                 widgets::RadioButtons::new(
@@ -141,14 +141,14 @@ impl lemna::Component for App {
                 //.multi_select(true)
                 .max_columns(2)
                 .on_change(Box::new(|s| msg!(HelloEvent::RadioSelect { selection: s }))),
-                lay!(margin: rect!(10.0)),
+                [margin: [10]]
             ))
             .push(node!(
                 widgets::Toggle::new(
                     self.state_ref().toggle_state,
                 )
                 .on_change(Box::new(|s| msg!(HelloEvent::Toggle(s)))),
-                lay!(margin: rect!(10.0)),
+                [margin: [10]]
             )),
         )
     }
@@ -181,33 +181,33 @@ impl Component for Sorter {
         Some(
             node!(
                 widgets::Div::new().bg([0.8, 0.8, 0.8]),
-                lay!(
-                    size: size!(100.0, 200.0),
-                    direction: Direction::Column,
-                    padding: rect!(10.0),
-                    axis_alignment: Alignment::Stretch,
-                    cross_alignment: Alignment::Stretch,
-                )
+                [
+                    size: [100, 200],
+                    direction: Column,
+                    padding: [10],
+                    axis_alignment: Stretch,
+                    cross_alignment: Stretch,
+                ]
             )
             .push(node!(
                 widgets::Div::new().bg([1.0, 0.0, 0.0]),
-                lay!(margin: rect!(5.0)),
+                [margin: [5]]
             ))
             .push(node!(
                 widgets::Div::new().bg([1.0, 0.5, 0.0]),
-                lay!(margin: rect!(5.0)),
+                [margin: [5]]
             ))
             .push(node!(
                 widgets::Div::new().bg([1.0, 1.0, 0.0]),
-                lay!(margin: rect!(5.0)),
+                [margin: [5]]
             ))
             .push(node!(
                 widgets::Div::new().bg([0.0, 1.0, 0.0]),
-                lay!(margin: rect!(5.0)),
+                [margin: [5]]
             ))
             .push(node!(
                 widgets::Div::new().bg([0.0, 0.0, 1.0]),
-                lay!(margin: rect!(5.0)),
+                [margin: [5]]
             )),
         )
     }

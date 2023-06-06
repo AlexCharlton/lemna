@@ -94,7 +94,7 @@ impl lemna::Component for App {
                 },
                 lay!(size: size!(100.0)),
             ))
-            .push(node!(Sorter {}, lay!(size: size!(100.0, 200.0)), 1))
+            .push(node!(Sorter {}, lay!(size: size!(100.0, 200.0))))
             .push(node!(
                 widgets::Button::new(txt!("Click me!")).on_click(
                     Box::new(|| msg!(HelloEvent::Button {

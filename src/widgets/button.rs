@@ -27,7 +27,7 @@ pub struct Button {
 
 impl std::fmt::Debug for Button {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_struct("Select")
+        f.debug_struct("Button")
             .field("label", &self.label)
             .finish()
     }
