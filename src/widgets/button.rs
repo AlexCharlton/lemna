@@ -108,9 +108,10 @@ impl Component for Button {
     }
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
+        let dirty = self.dirty;
         self.state_mut().hover_start = Some(Instant::now());
-        // This state mutation should not trigger a redraw
-        self.dirty = false;
+        // This state mutation should not trigger a redraw. We use whatever value was previously set.
+        self.dirty = dirty;
         event.stop_bubbling();
     }
 
