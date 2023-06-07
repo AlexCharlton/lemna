@@ -16,11 +16,21 @@ impl Div<f32> for ScrollPosition {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Dimension {
     Auto,
     Px(f64),
     Pct(f64),
+}
+
+impl std::fmt::Debug for Dimension {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Self::Auto => write!(f, "Auto"),
+            Self::Px(x) => write!(f, "{} px", x),
+            Self::Pct(x) => write!(f, "{} %", x),
+        }
+    }
 }
 
 impl Default for Dimension {
@@ -170,10 +180,16 @@ impl From<Dimension> for f64 {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Default, Copy, Clone, PartialEq)]
 pub struct Size {
     pub width: Dimension,
     pub height: Dimension,
+}
+
+impl std::fmt::Debug for Size {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Size[{:?}, {:?}]", self.width, self.height)
+    }
 }
 
 impl Size {
@@ -254,12 +270,22 @@ impl From<ScrollPosition> for Size {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Default, Copy, Clone, PartialEq)]
 pub struct Rect {
     pub left: Dimension,
     pub right: Dimension,
     pub top: Dimension,
     pub bottom: Dimension,
+}
+
+impl std::fmt::Debug for Rect {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "Rect[l:{:?}, r:{:?}, t:{:?}, b:{:?}]",
+            self.left, self.right, self.top, self.bottom
+        )
+    }
 }
 
 impl Rect {
