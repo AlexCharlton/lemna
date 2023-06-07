@@ -232,8 +232,8 @@ impl Component for Text {
             } else {
                 max_width.unwrap() * scale
             };
-            // Force h to the next multiple of size, which can result in some inconsistent results
-            let h = if p.y % scaled_size > 0.0 {
+            // Force h to the next multiple of size, in order to account for some lines not otherwise having the same height as others
+            let h = if p.y % scaled_size > 0.001 {
                 p.y + (scaled_size - p.y % scaled_size)
             } else {
                 p.y

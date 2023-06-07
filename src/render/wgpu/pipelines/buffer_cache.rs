@@ -86,6 +86,10 @@ impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
         self.cache.write().unwrap().unmark();
     }
 
+    pub fn get_chunks(&self, buffer_cache: BufferCacheId) -> (BufferChunk, BufferChunk) {
+        self.cache.read().unwrap().get_chunks(buffer_cache)
+    }
+
     // pub fn register(&mut self, chunk: BufferCacheId) {
     //     self.cache.write().unwrap().register(chunk);
     // }
@@ -112,10 +116,6 @@ impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
     //         .unwrap()
     //         .set_n_indices(buffer_cache, n_index)
     // }
-
-    pub fn get_chunks(&self, buffer_cache: BufferCacheId) -> (BufferChunk, BufferChunk) {
-        self.cache.read().unwrap().get_chunks(buffer_cache)
-    }
 
     // pub fn fill_chunks(&mut self, buffer_cache: BufferCacheId) {
     //     self.cache.write().unwrap().fill_chunks(buffer_cache);
