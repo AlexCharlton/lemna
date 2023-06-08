@@ -84,8 +84,9 @@ impl Component for Button {
             lay!(
                 size: size_pct!(100.0),
                 padding: rect!(padding),
+                margin: rect!(border_width / 2.0),
                 cross_alignment: crate::layout::Alignment::Center,
-                axis_alignment: crate::layout::Alignment::Center
+                axis_alignment: crate::layout::Alignment::Center,
             )
         )
         .push(node!(super::Text::new(self.label.clone())

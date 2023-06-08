@@ -82,8 +82,8 @@ impl lemna::Component for App {
                 widgets::Button::new(
                     txt!(
                         "Click me too! ",
-                        (Icon::Check, "open iconic"),
-                        (" Yeah!", None, 9.0)
+                        (Icon::Check, "open iconic", 10.0),
+                        (" Yeah!", None, 8.0)
                     ),
                 )
                 .tool_tip("Wait, don't!\nWhy not? Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.".to_string())
@@ -92,11 +92,11 @@ impl lemna::Component for App {
                 }))),
                 [size: [Auto]]
             ))
-                .push(node!(
-                    widgets::FileSelector::new("Choose a file".to_string())
-                        .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
-                    [size: [Auto], margin: [Auto, Auto, 50]]
-                ))
+            .push(node!(
+                widgets::FileSelector::new("Choose a file".to_string())
+                    .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
+                [size: [Auto], margin: [Auto, Auto, 50]]
+            ))
             .push(node!(
                 widgets::Select::<String>::new(
                     vec![

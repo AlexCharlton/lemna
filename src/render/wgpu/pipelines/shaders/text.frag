@@ -12,7 +12,9 @@ void main() {
   float alpha = texture(sampler2D(t_1D, s_text), v_TexPos).r;
   if (alpha <= 0.0) {
     discard;
+    // f_Color = vec4(1.0, 0.0, 1.0, 1.0);
+  } else {
+    f_Color = v_Color * vec4(1.0, 1.0, 1.0, alpha);
   }
 
-  f_Color = v_Color * vec4(1.0, 1.0, 1.0, alpha);
 }
