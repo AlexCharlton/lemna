@@ -9,7 +9,7 @@ use crate::event::{self, Event};
 use crate::font_cache::FontCache;
 use crate::layout::*;
 use crate::node::Node;
-use crate::render::{BufferCaches, Renderable};
+use crate::render::{Caches, Renderable};
 
 pub type Message = Box<dyn Any>;
 pub type State = Box<dyn Any>;
@@ -26,7 +26,7 @@ macro_rules! msg {
 pub struct RenderContext {
     pub aabb: AABB,
     pub inner_scale: Option<Scale>,
-    pub buffer_caches: BufferCaches,
+    pub caches: Caches,
     pub prev_state: Option<Vec<Renderable>>,
     pub font_cache: Arc<RwLock<FontCache>>,
     pub scale_factor: f32,

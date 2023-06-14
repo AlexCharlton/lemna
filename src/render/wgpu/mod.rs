@@ -10,13 +10,14 @@ use crate::base_types::{PixelSize, AABB};
 use crate::font_cache::FontCache;
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
-use crate::render::{renderables::*, BufferCaches};
+use crate::render::{renderables::*, Caches};
 use crate::window::Window;
 
 pub mod pipelines;
 pub use pipelines::shared::VBDesc;
 use pipelines::{
-    msaa::MSAAPipeline, stencil::StencilPipeline, RectPipeline, ShapePipeline, TextPipeline,
+    msaa::MSAAPipeline, stencil::StencilPipeline, RasterPipeline, RectPipeline, ShapePipeline,
+    TextPipeline,
 };
 
 #[repr(C)]
@@ -43,6 +44,7 @@ pub struct WGPURenderer {
     pub msaa_pipeline: MSAAPipeline,
     pub shape_pipeline: ShapePipeline,
     pub text_pipeline: TextPipeline,
+    pub raster_pipeline: RasterPipeline,
     stencil_pipeline: StencilPipeline,
     context: context::WGPUContext,
     uniform_bind_group: wgpu::BindGroup,
@@ -59,6 +61,7 @@ impl fmt::Debug for WGPURenderer {
 #[derive(Default)]
 struct FrameRenderables<'a> {
     frame: Vec<ScrollFrame>,
+    rasters: Vec<(&'a Raster, &'a AABB)>,
     rects: Vec<(&'a Rect, &'a AABB)>,
     shapes: Vec<(&'a Shape, &'a AABB)>,
     num_shape_instances: usize,
@@ -123,6 +126,7 @@ impl super::Renderer for WGPURenderer {
             msaa_pipeline: MSAAPipeline::new(&context),
             shape_pipeline: ShapePipeline::new(&context, &uniform_bind_group_layout),
             text_pipeline: TextPipeline::new(&context, &uniform_bind_group_layout),
+            raster_pipeline: RasterPipeline::new(&context, &uniform_bind_group_layout),
             stencil_pipeline: StencilPipeline::new(&context, &uniform_bind_group_layout),
             context,
             uniform_bind_group,
@@ -161,12 +165,14 @@ impl super::Renderer for WGPURenderer {
 
         self.text_pipeline.unmark_buffer_cache();
         self.shape_pipeline.unmark_buffer_cache();
+        self.raster_pipeline.unmark_cache();
 
         inst("WGPURenderer::render#collect_frames");
         let mut frames = vec![FrameRenderables::default()];
         let mut num_rects = 0;
         let mut num_shapes = 0;
         let mut num_texts = 0;
+        let mut num_rasters = 0;
         for (renderable, aabb, frame) in node.iter_renderables() {
             if frame != frames.last().unwrap().frame {
                 frames.push(FrameRenderables::new(frame.clone()))
@@ -191,6 +197,11 @@ impl super::Renderer for WGPURenderer {
                     frames.last_mut().unwrap().texts.push((r, aabb));
                     num_texts += 1;
                 }
+                Renderable::Raster(r) => {
+                    frames.last_mut().unwrap().rasters.push((r, aabb));
+                    num_rasters += 1;
+                }
+
                 _ => (),
             }
         }
@@ -204,6 +215,8 @@ impl super::Renderer for WGPURenderer {
             .alloc_instance_buffer(num_rects, &self.context.device);
         self.shape_pipeline
             .alloc_instance_buffer(num_shapes, &self.context.device);
+        self.raster_pipeline
+            .alloc_instance_buffer(num_rasters, &self.context.device);
         self.text_pipeline
             .alloc_instance_buffer(num_texts, &self.context.device);
         inst_end();
@@ -231,6 +244,14 @@ impl super::Renderer for WGPURenderer {
             &self.context.device,
             &mut self.context.queue,
         );
+        self.raster_pipeline.fill_buffers(
+            &frames
+                .iter()
+                .flat_map(|f| f.rasters.clone())
+                .collect::<Vec<(&Raster, &AABB)>>(),
+            &self.context.device,
+            &mut self.context.queue,
+        );
         self.text_pipeline.fill_buffers(
             &frames
                 .iter()
@@ -248,6 +269,7 @@ impl super::Renderer for WGPURenderer {
         num_frames = 0;
         num_rects = 0;
         num_shapes = 0;
+        num_rasters = 0;
         num_texts = 0;
         for frame_renderables in frames.iter() {
             let mut encoder =
@@ -311,6 +333,14 @@ impl super::Renderer for WGPURenderer {
                         &frame_renderables.shapes,
                         &mut pass,
                         num_shapes,
+                        false,
+                    );
+                }
+                if !frame_renderables.rasters.is_empty() {
+                    self.raster_pipeline.render(
+                        &frame_renderables.rasters,
+                        &mut pass,
+                        num_rasters,
                         false,
                     );
                 }
@@ -399,6 +429,8 @@ impl super::Renderer for WGPURenderer {
                 }
             }
 
+            // TODO rasters?
+
             num_frames += frame_renderables.frame.len();
             num_rects += frame_renderables.rects.len();
             num_shapes += frame_renderables.num_shape_instances;
@@ -443,10 +475,12 @@ impl super::Renderer for WGPURenderer {
         inst_end();
     }
 
-    fn buffer_caches(&self) -> BufferCaches {
-        BufferCaches {
-            shape_cache: self.shape_pipeline.buffer_cache.cache.clone(),
-            text_cache: self.text_pipeline.buffer_cache.cache.clone(),
+    fn caches(&self) -> Caches {
+        Caches {
+            shape_buffer_cache: self.shape_pipeline.buffer_cache.cache.clone(),
+            text_buffer_cache: self.text_pipeline.buffer_cache.cache.clone(),
+            image_buffer_cache: self.raster_pipeline.buffer_cache.cache.clone(),
+            raster_cache: self.raster_pipeline.texture_cache.raster_cache.clone(),
         }
     }
 }

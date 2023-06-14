@@ -98,7 +98,7 @@ impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
 
     pub fn alloc_or_reuse_chunk(
         &mut self,
-        buffer_cache: BufferCacheId,
+        buffer_cache: BufferCacheId, // TODO make this an Option<>
         n_vertex: usize,
         n_index: usize,
     ) -> BufferCacheId {

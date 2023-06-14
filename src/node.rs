@@ -8,7 +8,7 @@ use crate::component::*;
 use crate::event::{self, Event};
 use crate::font_cache::FontCache;
 use crate::layout::*;
-use crate::render::{BufferCaches, Renderable};
+use crate::render::{Caches, Renderable};
 
 static NODE_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);
 
@@ -276,7 +276,7 @@ impl Node {
     /// Return whether to redraw the screen
     pub fn render<'a>(
         &'a mut self,
-        buffer_caches: BufferCaches,
+        caches: Caches,
         prev: Option<&mut Self>,
         font_cache: Arc<RwLock<FontCache>>,
         scale_factor: f32,
@@ -294,7 +294,7 @@ impl Node {
                 let context = RenderContext {
                     aabb: self.aabb,
                     inner_scale: self.inner_scale,
-                    buffer_caches: buffer_caches.clone(),
+                    caches: caches.clone(),
                     prev_state: prev.render_cache.take(),
                     font_cache: font_cache.clone(),
                     scale_factor,
@@ -308,7 +308,7 @@ impl Node {
             let prev_children = &mut prev.children;
             for child in self.children.iter_mut() {
                 ret |= child.render(
-                    buffer_caches.clone(),
+                    caches.clone(),
                     prev_children.iter_mut().find(|x| x.key == child.key),
                     font_cache.clone(),
                     scale_factor,
@@ -320,7 +320,7 @@ impl Node {
             let context = RenderContext {
                 aabb: self.aabb,
                 inner_scale: self.inner_scale,
-                buffer_caches: buffer_caches.clone(),
+                caches: caches.clone(),
                 prev_state: None,
                 font_cache: font_cache.clone(),
                 scale_factor,
@@ -330,12 +330,7 @@ impl Node {
             self.render_hash = hasher.finish();
 
             for child in self.children.iter_mut() {
-                child.render(
-                    buffer_caches.clone(),
-                    None,
-                    font_cache.clone(),
-                    scale_factor,
-                );
+                child.render(caches.clone(), None, font_cache.clone(), scale_factor);
             }
 
             true
@@ -1022,7 +1017,7 @@ mod tests {
         let font_cache = Arc::new(RwLock::new(FontCache::default()));
         n.view(None);
         //n.layout();
-        n.render(renderer.buffer_caches(), None, font_cache.clone(), 1.0);
+        n.render(renderer.caches(), None, font_cache.clone(), 1.0);
         //println!("{:#?}", n);
         assert_eq!(
             n.render_cache,
@@ -1053,12 +1048,7 @@ mod tests {
         assert_eq!(n.children[0].id, new_n.children[0].id);
 
         //new_n.layout();
-        new_n.render(
-            renderer.buffer_caches(),
-            Some(&mut n),
-            font_cache.clone(),
-            1.0,
-        );
+        new_n.render(renderer.caches(), Some(&mut n), font_cache.clone(), 1.0);
         //println!("{:#?}", new_n);
         assert_eq!(
             new_n.render_cache,
@@ -1268,7 +1258,7 @@ mod tests {
         assert_eq!(scroll_node.inner_scale.unwrap(), [200.0, 150.0].into());
 
         // Expect renderables to be laid out in the right order, with the correct Frames
-        n.render(renderer.buffer_caches(), None, font_cache.clone(), 1.0);
+        n.render(renderer.caches(), None, font_cache.clone(), 1.0);
         let renderables = n.iter_renderables().collect::<Vec<_>>();
         assert_eq!(renderables.len(), 9);
         // First three (App, Top Div, Scroll Div) do not have Frames

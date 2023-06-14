@@ -1,6 +1,9 @@
 mod buffer_cache;
 pub(crate) mod shared;
+mod texture_cache;
 
+pub mod raster;
+pub use raster::RasterPipeline;
 pub mod rect;
 pub use rect::RectPipeline;
 pub mod shape;

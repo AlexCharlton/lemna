@@ -3,14 +3,16 @@ use log::info;
 use std::num::NonZeroU32;
 use wgpu;
 
+use super::buffer_cache::BufferCache;
 use super::shared::{create_pipeline, VBDesc};
 use super::texture_cache::TextureCache;
 use crate::base_types::AABB;
 use crate::font_cache::FontCache;
-use crate::render::glyph_brush_draw_cache::{CachedBy, DrawCache};
 use crate::render::next_power_of_2;
 use crate::render::renderables::raster::{Instance, Raster, Vertex};
 use crate::render::wgpu::context;
+
+const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 1024;
 
 pub struct RasterPipeline {
     pipeline: wgpu::RenderPipeline,
@@ -18,14 +20,16 @@ pub struct RasterPipeline {
     bind_group_layout: wgpu::BindGroupLayout,
 
     pub(crate) texture_cache: TextureCache,
+    pub(crate) buffer_cache: BufferCache<Vertex, u16>,
     instance_data: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     num_instances: usize,
 }
 
 impl RasterPipeline {
-    pub(crate) fn unmark_buffer_cache(&mut self) {
+    pub(crate) fn unmark_cache(&mut self) {
         self.buffer_cache.unmark();
+        self.texture_cache.unmark();
     }
 
     fn draw_renderables<'a: 'b, 'b>(
@@ -34,6 +38,7 @@ impl RasterPipeline {
         pass: &'b mut wgpu::RenderPass<'a>,
         instance_offset: usize,
     ) {
+        // TODO?
         // We construct our instance data in the same order of our renderables,
         // so `i` can be used to index into the instance_data
         for (i, (renderable, _)) in renderables.iter().enumerate() {
@@ -82,11 +87,11 @@ impl RasterPipeline {
 
     pub fn fill_buffers<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Text, &'a AABB)],
+        renderables: &[(&'a Raster, &'a AABB)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
-        font_cache: &FontCache,
     ) {
+        // TODO
         let cache_invalid = self.update_glyph_cache(renderables, device, queue, font_cache);
 
         self.instance_data.clear();
@@ -122,67 +127,6 @@ impl RasterPipeline {
 
         pass.set_bind_group(1, &self.bind_group, &[]);
         self.draw_renderables(renderables, pass, instance_offset);
-
-        // let vertex_data = vec![
-        //     Vertex {
-        //         pos: [0.0, 0.0].into(),
-        //         tex_pos: [0.0, 0.0].into(),
-        //     },
-        //     Vertex {
-        //         pos: [768.0, 0.0].into(),
-        //         tex_pos: [1.0, 0.0].into(),
-        //     },
-        //     Vertex {
-        //         pos: [0.0, 768.0].into(),
-        //         tex_pos: [0.0, 1.0].into(),
-        //     },
-        //     Vertex {
-        //         pos: [768.0, 768.0].into(),
-        //         tex_pos: [1.0, 1.0].into(),
-        //     },
-        // ];
-
-        // let index_data: [u16; 6] = [0, 1, 2, 2, 1, 3];
-        // self.buffer_cache.vertex_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: None,
-        //         contents: cast_slice(&vertex_data),
-        //         usage: wgpu::BufferUsages::VERTEX,
-        //     },
-        // );
-
-        // self.buffer_cache.index_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: None,
-        //         contents: cast_slice(&index_data),
-        //         usage: wgpu::BufferUsages::INDEX,
-        //     },
-        // );
-
-        // self.instance_data.push(Instance {
-        //     pos: Pos {
-        //         x: 100.0,
-        //         y: 70.0,
-        //         z: 100.0,
-        //     },
-        //     color: 0.0.into(),
-        // });
-
-        // self.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //         label: None,
-        //         contents: cast_slice(&self.instance_data),
-        //         usage: wgpu::BufferUsages::VERTEX,
-        //     });
-
-        // pass.set_pipeline(&self.pipeline);
-        // pass.set_bind_group(1, &self.bind_group, &[]);
-        // pass.set_vertex_buffer(
-        //     0,
-        //     self.buffer_cache.vertex_buffer.slice(..),
-        // );
-        // pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        // pass.set_index_buffer(self.buffer_cache.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        // pass.draw_indexed(0..6 as u32, 0, 0..1);
     }
 
     fn update_glyph_cache(
@@ -263,6 +207,7 @@ impl RasterPipeline {
         device: &wgpu::Device,
         texture_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> (wgpu::Texture, wgpu::BindGroup) {
+        // TODO
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             size: wgpu::Extent3d {
                 width,
@@ -312,6 +257,7 @@ impl RasterPipeline {
         context: &context::WGPUContext,
         uniform_bind_group_layout: &wgpu::BindGroupLayout,
     ) -> Self {
+        // TODO
         let texture_bind_group_layout =
             context
                 .device

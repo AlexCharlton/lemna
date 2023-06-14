@@ -175,7 +175,7 @@ impl<
 
                         inst("Node::render");
                         let do_render = new.render(
-                            renderer.buffer_caches(),
+                            renderer.caches(),
                             Some(&mut old),
                             font_cache.clone(),
                             scale_factor,
