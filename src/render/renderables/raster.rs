@@ -87,6 +87,7 @@ impl Raster {
     pub(crate) fn render(
         &self,
         aabb: &AABB,
+        tex_coords: (Point, Point),
         buffer_cache: &mut BufferCache<Vertex, u16>,
         raster_cache: &mut RasterCache,
         instance_data: &mut Vec<Instance>,

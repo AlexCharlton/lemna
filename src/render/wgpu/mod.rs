@@ -337,12 +337,8 @@ impl super::Renderer for WGPURenderer {
                     );
                 }
                 if !frame_renderables.rasters.is_empty() {
-                    self.raster_pipeline.render(
-                        &frame_renderables.rasters,
-                        &mut pass,
-                        num_rasters,
-                        false,
-                    );
+                    self.raster_pipeline
+                        .render(&frame_renderables.rasters, &mut pass, num_rasters);
                 }
                 // Text comes last because of transparency
                 if !frame_renderables.texts.is_empty() {

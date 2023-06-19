@@ -110,6 +110,13 @@ impl From<PixelSize> for Scale {
     }
 }
 
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(C)]
+pub struct PixelPoint {
+    pub x: u32,
+    pub y: u32,
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Point {
@@ -348,6 +355,13 @@ impl SubAssign for Pos {
             z: self.z - other.z,
         };
     }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+#[repr(C)]
+pub struct PixelAABB {
+    pub pos: PixelPoint,
+    pub bottom_right: PixelPoint,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
