@@ -117,6 +117,12 @@ pub struct PixelPoint {
     pub y: u32,
 }
 
+impl PixelPoint {
+    pub fn new(x: u32, y: u32) -> Self {
+        Self { x, y }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Point {
@@ -125,6 +131,10 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn new(x: f32, y: f32) -> Self {
+        Point { x, y }
+    }
+
     pub fn clamp(self, aabb: AABB) -> Self {
         Self {
             x: clamp(self.x, aabb.pos.x, aabb.bottom_right.x),
@@ -156,12 +166,6 @@ impl Hash for Point {
 impl Default for Point {
     fn default() -> Self {
         Self { x: 0.0, y: 0.0 }
-    }
-}
-
-impl Point {
-    pub fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
     }
 }
 
@@ -362,6 +366,21 @@ impl SubAssign for Pos {
 pub struct PixelAABB {
     pub pos: PixelPoint,
     pub bottom_right: PixelPoint,
+}
+
+impl PixelAABB {
+    pub fn normalize(&self, scale: PixelSize) -> (Point, Point) {
+        (
+            Point {
+                x: self.pos.x as f32 / scale.width as f32,
+                y: self.pos.y as f32 / scale.height as f32,
+            },
+            Point {
+                x: self.bottom_right.x as f32 / scale.width as f32,
+                y: self.bottom_right.x as f32 / scale.height as f32,
+            },
+        )
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Default)]

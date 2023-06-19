@@ -14,7 +14,7 @@ const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 1024;
 
 pub struct RasterPipeline {
     pipeline: wgpu::RenderPipeline,
-    //bind_group: wgpu::BindGroup,
+    sampler: wgpu::Sampler,
     bind_group_layout: wgpu::BindGroupLayout,
 
     pub(crate) texture_cache: TextureCache,
@@ -36,10 +36,21 @@ impl RasterPipeline {
         pass: &'b mut wgpu::RenderPass<'a>,
         instance_offset: usize,
     ) {
+        let last_texture = None;
         // We construct our instance data in the same order of our renderables,
         // so `i` can be used to index into the instance_data
         for (i, (renderable, _)) in renderables.iter().enumerate() {
             let (vertex_chunk, index_chunk) = self.buffer_cache.get_chunks(renderable.buffer_id);
+
+            let texture_index = self.texture_cache.texture_index(renderable.raster_id);
+            // We pre-sorted our renderables so that we will have to switch this a minimum number of times
+            if last_texture != texture_index {
+                pass.set_bind_group(
+                    1,
+                    &self.texture_cache.bind_group(texture_index.unwrap()),
+                    &[],
+                );
+            }
 
             pass.set_vertex_buffer(
                 0,
@@ -87,10 +98,8 @@ impl RasterPipeline {
         renderables: &[(&'a Raster, &'a AABB)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
+        cache_invalid: bool,
     ) {
-        // TODO
-        let cache_invalid = self.update_texture_cache(renderables, device, queue);
-
         self.instance_data.clear();
         // Update CPU buffers if changed
         let mut cache_changed = false;
@@ -130,12 +139,10 @@ impl RasterPipeline {
         // Draw the renderables
         pass.set_pipeline(&self.pipeline);
 
-        // TODO
-        //pass.set_bind_group(1, &self.bind_group, &[]);
         self.draw_renderables(renderables, pass, instance_offset);
     }
 
-    fn update_texture_cache(
+    pub fn update_texture_cache(
         &mut self,
         renderables: &[(&Raster, &AABB)],
         device: &wgpu::Device,
@@ -237,6 +244,16 @@ impl RasterPipeline {
                     label: Some("text_bind_group_layout"),
                 });
 
+        let sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Linear,
+            lod_min_clamp: 0.0,
+            lod_max_clamp: 100.0,
+            label: Some("texture_sampler"),
+            ..Default::default()
+        });
+
         let layout = &context
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -266,8 +283,8 @@ impl RasterPipeline {
             instance_buffer,
             num_instances,
 
-            // bind_group,
             bind_group_layout,
+            sampler,
             pipeline: create_pipeline(
                 context,
                 layout,

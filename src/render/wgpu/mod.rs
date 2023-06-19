@@ -244,14 +244,6 @@ impl super::Renderer for WGPURenderer {
             &self.context.device,
             &mut self.context.queue,
         );
-        self.raster_pipeline.fill_buffers(
-            &frames
-                .iter()
-                .flat_map(|f| f.rasters.clone())
-                .collect::<Vec<(&Raster, &AABB)>>(),
-            &self.context.device,
-            &mut self.context.queue,
-        );
         self.text_pipeline.fill_buffers(
             &frames
                 .iter()
@@ -261,6 +253,39 @@ impl super::Renderer for WGPURenderer {
             &mut self.context.queue,
             font_cache,
         );
+        {
+            // We have a three step process for rasters
+            // First we update the texture cache
+            // Then we sort our renderables based on what texture index they have
+            //   - This lets us swap textures as few times as possible
+            // Finally, we update our buffers
+            let cache_invalid = self.raster_pipeline.update_texture_cache(
+                &frames
+                    .iter()
+                    .flat_map(|f| f.rasters.clone())
+                    .collect::<Vec<(&Raster, &AABB)>>(),
+                &self.context.device,
+                &mut self.context.queue,
+            );
+
+            for frame_renderables in frames.iter_mut() {
+                frame_renderables.rasters.sort_unstable_by_key(|r| {
+                    self.raster_pipeline
+                        .texture_cache
+                        .texture_index(r.0.raster_id)
+                });
+            }
+
+            self.raster_pipeline.fill_buffers(
+                &frames
+                    .iter()
+                    .flat_map(|f| f.rasters.clone())
+                    .collect::<Vec<(&Raster, &AABB)>>(),
+                &self.context.device,
+                &mut self.context.queue,
+                cache_invalid,
+            );
+        }
         inst_end();
 
         inst("WGPURenderer::render#render_frames");
