@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
 use super::buffer_cache::{BufferCache, BufferCacheId};
-use super::raster_cache::{RasterCache, RasterCacheId};
+use super::raster_cache::{RasterCache, RasterCacheId, RasterData};
 use crate::base_types::{Point, Pos, AABB};
 use crate::PixelSize;
 
@@ -64,7 +64,7 @@ pub struct Raster {
 
 impl Raster {
     pub fn new(
-        data: Vec<u8>,
+        data: RasterData,
         size: PixelSize,
         buffer_cache: &mut BufferCache<Vertex, u16>,
         raster_cache: &mut RasterCache,

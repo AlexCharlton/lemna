@@ -1,15 +1,18 @@
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
-use crate::render::{renderables::raster::Raster, Renderable};
+use crate::render::{
+    renderables::{raster::Raster, raster_cache::RasterData},
+    Renderable,
+};
 use crate::FontCache;
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug)]
 enum CanvasUpdate {
-    Set((Vec<u8>, PixelSize)),
-    Update((PixelPoint, Color)),
+    Set((RasterData, PixelSize)),
+    Update((PixelPoint, [u8; 4])),
 }
 
 #[derive(Debug, Default)]
@@ -20,6 +23,7 @@ struct CanvasState {
     update_counter: usize,
 }
 
+/// Supports 8 bit rgba. E.g. `Color Into u32`
 #[component(State = "CanvasState", Internal)]
 #[derive(Debug)]
 pub struct Canvas {
@@ -36,8 +40,7 @@ impl Canvas {
     }
 
     /// You can call this when initializing a canvas and it won't overwrite any changes (TODO: is this true?)
-    /// TODO make this a [u8]
-    pub fn set(mut self, data: Vec<u8>, size: PixelSize) -> Self {
+    pub fn set<D: Into<RasterData>>(mut self, data: D, size: PixelSize) -> Self {
         self.reset(data, size);
         self
     }
@@ -47,15 +50,22 @@ impl Canvas {
         self
     }
 
-    pub fn reset(&mut self, data: Vec<u8>, size: PixelSize) {
+    pub fn reset<D: Into<RasterData>>(&mut self, data: D, size: PixelSize) {
         self.state_mut()
             .updates
-            .push(CanvasUpdate::Set((data, size)));
+            .push(CanvasUpdate::Set((data.into(), size)));
         self.state_mut().size = size;
         self.state_mut().update_counter += 1;
     }
 
     pub fn update(&mut self, point: PixelPoint, color: Color) {
+        self.state_mut()
+            .updates
+            .push(CanvasUpdate::Update((point, color.into())));
+        self.state_mut().update_counter += 1;
+    }
+
+    pub fn update_bytes(&mut self, point: PixelPoint, color: [u8; 4]) {
         self.state_mut()
             .updates
             .push(CanvasUpdate::Update((point, color)));

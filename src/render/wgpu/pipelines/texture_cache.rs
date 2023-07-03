@@ -192,12 +192,13 @@ impl TextureCache {
                                 z: 0,
                             },
                         },
-                        &self
+                        (&self
                             .raster_cache
                             .read()
                             .unwrap()
                             .get_raster_data(*raster_cache_id)
-                            .data[..],
+                            .data)
+                            .into(),
                         wgpu::ImageDataLayout {
                             offset: 0,
                             bytes_per_row: NonZeroU32::new(size.width * 4),

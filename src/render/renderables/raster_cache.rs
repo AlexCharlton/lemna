@@ -13,20 +13,56 @@ fn new_raster_id() -> RasterId {
     RASTER_ID_ATOMIC.fetch_add(1, Ordering::SeqCst)
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct RasterCache {
-    rasters: Vec<RasterData>,
+    rasters: Vec<RasterCacheData>,
 }
 
-#[derive(Debug)]
-pub struct RasterData {
+pub struct RasterCacheData {
     pub(crate) id: RasterId,
     // TODO data should be an enum type that's either a static slice or a Vec
-    pub data: Vec<u8>,
+    pub data: RasterData,
     pub size: PixelSize,
     /// Rasters are unmarked at the start of a render pass and marked as each renderable renders to them
     /// Rasters that remain unmarked at the end of the pass are free to be claimed for new renderables
     marked: bool,
+}
+
+pub enum RasterData {
+    Vec(Vec<u8>),
+    Slice(&'static [u8]),
+}
+
+impl std::fmt::Debug for RasterData {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let (t, len) = match self {
+            RasterData::Slice(d) => ("Slice", d.len()),
+            RasterData::Vec(d) => ("Vec", d.len()),
+        };
+        write!(f, "RasterData::{}<len: {}>", t, len)?;
+        Ok(())
+    }
+}
+
+impl From<&'static [u8]> for RasterData {
+    fn from(d: &'static [u8]) -> Self {
+        RasterData::Slice(d)
+    }
+}
+
+impl From<Vec<u8>> for RasterData {
+    fn from(d: Vec<u8>) -> Self {
+        RasterData::Vec(d)
+    }
+}
+
+impl<'a> From<&'a RasterData> for &'a [u8] {
+    fn from(d: &'a RasterData) -> &'a [u8] {
+        match d {
+            RasterData::Vec(v) => &v[..],
+            RasterData::Slice(s) => s,
+        }
+    }
 }
 
 impl RasterCache {
@@ -44,7 +80,7 @@ impl RasterCache {
         self.rasters[raster_cache_id.0].marked = true;
     }
 
-    pub fn get_raster_data(&self, raster_cache_id: RasterCacheId) -> &RasterData {
+    pub fn get_raster_data(&self, raster_cache_id: RasterCacheId) -> &RasterCacheData {
         &self.rasters[raster_cache_id.0]
     }
 
@@ -56,8 +92,8 @@ impl RasterCache {
                 if let Some(i) = self.rasters.iter().position(|r| !r.marked) {
                     i
                 } else {
-                    self.rasters.push(RasterData {
-                        data: vec![],
+                    self.rasters.push(RasterCacheData {
+                        data: RasterData::Slice(&[]),
                         id: 0,
                         marked: false,
                         size: PixelSize {
@@ -71,9 +107,14 @@ impl RasterCache {
         }
     }
 
-    pub fn set_raster(&mut self, raster_cache_id: RasterCacheId, data: Vec<u8>, size: PixelSize) {
-        self.rasters[raster_cache_id.0] = RasterData {
-            data,
+    pub fn set_raster<D: Into<RasterData>>(
+        &mut self,
+        raster_cache_id: RasterCacheId,
+        data: D,
+        size: PixelSize,
+    ) {
+        self.rasters[raster_cache_id.0] = RasterCacheData {
+            data: data.into(),
             id: new_raster_id(),
             marked: false,
             size,

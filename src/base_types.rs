@@ -669,10 +669,6 @@ impl From<f32> for Color {
     }
 }
 
-fn u8_to_norm(x: u8) -> f32 {
-    x as f32 / 255.0
-}
-
 impl From<u32> for Color {
     fn from(c: u32) -> Self {
         let a = u8_to_norm(c as u8);
@@ -683,24 +679,22 @@ impl From<u32> for Color {
     }
 }
 
-#[macro_export]
-macro_rules! color {
-    ($r:expr, $g:expr, $b:expr) => {
-        $crate::Color {
-            r: $r as f32 / 255.0,
-            g: $g as f32 / 255.0,
-            b: $b as f32 / 255.0,
-            a: 1.0,
-        }
-    };
-    ($r:expr, $g:expr, $b:expr, $a:expr) => {
-        $crate::Color {
-            r: $r as f32 / 255.0,
-            g: $g as f32 / 255.0,
-            b: $b as f32 / 255.0,
-            a: $a as f32 / 255.0,
-        }
-    };
+impl From<Color> for [u8; 4] {
+    fn from(c: Color) -> Self {
+        [
+            norm_to_u8(c.r),
+            norm_to_u8(c.g),
+            norm_to_u8(c.b),
+            norm_to_u8(c.a),
+        ]
+    }
+}
+
+impl From<Color> for u32 {
+    fn from(c: Color) -> Self {
+        let [r, g, b, a]: [u8; 4] = c.into();
+        ((r as u32) << 24) + ((g as u32) << 16) + ((b as u32) << 8) + (a as u32)
+    }
 }
 
 impl From<Color> for [f32; 4] {
@@ -726,12 +720,40 @@ impl From<[f32; 3]> for Color {
     }
 }
 
+fn u8_to_norm(x: u8) -> f32 {
+    x as f32 / 255.0
+}
+
+fn norm_to_u8(x: f32) -> u8 {
+    (x * 255.0) as u8
+}
+
+#[macro_export]
+macro_rules! color {
+    ($r:expr, $g:expr, $b:expr) => {
+        $crate::Color {
+            r: $r as f32 / 255.0,
+            g: $g as f32 / 255.0,
+            b: $b as f32 / 255.0,
+            a: 1.0,
+        }
+    };
+    ($r:expr, $g:expr, $b:expr, $a:expr) => {
+        $crate::Color {
+            r: $r as f32 / 255.0,
+            g: $g as f32 / 255.0,
+            b: $b as f32 / 255.0,
+            a: $a as f32 / 255.0,
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_from() {
+    fn test_pos_from() {
         assert_eq!(
             Pos::from([1.0, 2.0, 3.0]),
             Pos {
@@ -740,5 +762,12 @@ mod tests {
                 z: 3.0
             }
         );
+    }
+
+    #[test]
+    fn test_color_from() {
+        // A float that is representable in 8 bits:
+        let c: Color = (0.49803921568).into();
+        assert_eq!(c, Into::<Color>::into(Into::<u32>::into(c)))
     }
 }

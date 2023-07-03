@@ -4,14 +4,16 @@ use lemna_baseview::Window;
 use png;
 
 lazy_static! {
-    static ref IMAGE: (Vec<u8>, PixelSize) = {
+    static ref IMAGE: (Vec<u8>, usize, PixelSize) = {
         let decoder = png::Decoder::new(&include_bytes!("./icon_512x512@2x.png")[..]);
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size()];
         let info = reader.next_frame(&mut buf).unwrap();
+        let slice = &buf[..];
 
         (
-            buf[..info.buffer_size()].to_vec(),
+            buf,
+            info.buffer_size(),
             PixelSize {
                 width: info.width,
                 height: info.height,
@@ -36,7 +38,7 @@ impl lemna::Component for App {
                 ]
             )
             .push(node!(widgets::Canvas::new()
-                .set(IMAGE.0.clone(), IMAGE.1)
+                .set(&IMAGE.0[..IMAGE.1], IMAGE.2)
                 .scale(0.5))),
         )
     }
