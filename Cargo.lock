@@ -1847,6 +1847,7 @@ dependencies = [
  "baseview",
  "crossbeam-channel 0.4.4",
  "keyboard-types",
+ "lazy_static",
  "lemna",
  "lemna-macros",
  "lyon",

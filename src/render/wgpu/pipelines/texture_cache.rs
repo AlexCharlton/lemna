@@ -175,6 +175,12 @@ impl TextureCache {
         for t in self.textures.iter_mut() {
             for (_, (raster_cache_id, aabb, written)) in t.raster_map.iter_mut() {
                 if !*written {
+                    let size = self
+                        .raster_cache
+                        .read()
+                        .unwrap()
+                        .get_raster_data(*raster_cache_id)
+                        .size;
                     queue.write_texture(
                         wgpu::ImageCopyTexture {
                             aspect: wgpu::TextureAspect::All,
@@ -194,12 +200,12 @@ impl TextureCache {
                             .data[..],
                         wgpu::ImageDataLayout {
                             offset: 0,
-                            bytes_per_row: NonZeroU32::new(t.size.width),
-                            rows_per_image: NonZeroU32::new(t.size.height),
+                            bytes_per_row: NonZeroU32::new(size.width * 4),
+                            rows_per_image: NonZeroU32::new(size.height),
                         },
                         wgpu::Extent3d {
-                            width: aabb.width(),
-                            height: aabb.height(),
+                            width: size.width,
+                            height: size.height,
                             depth_or_array_layers: 1,
                         },
                     );

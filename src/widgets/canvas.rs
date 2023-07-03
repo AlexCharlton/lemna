@@ -22,13 +22,16 @@ struct CanvasState {
 
 #[component(State = "CanvasState", Internal)]
 #[derive(Debug)]
-pub struct Canvas {}
+pub struct Canvas {
+    scale: f32,
+}
 
 impl Canvas {
     pub fn new() -> Self {
         Self {
             state: Some(Default::default()),
             dirty: false,
+            scale: 1.0,
         }
     }
 
@@ -36,6 +39,11 @@ impl Canvas {
     /// TODO make this a [u8]
     pub fn set(mut self, data: Vec<u8>, size: PixelSize) -> Self {
         self.reset(data, size);
+        self
+    }
+
+    pub fn scale(mut self, scale: f32) -> Self {
+        self.scale = scale;
         self
     }
 
@@ -71,7 +79,10 @@ impl Component for Canvas {
         _scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
         let size = self.state_ref().size;
-        (Some(size.width as f32), Some(size.height as f32))
+        (
+            Some(size.width as f32 * self.scale),
+            Some(size.height as f32 * self.scale),
+        )
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
