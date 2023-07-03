@@ -3,6 +3,7 @@ use bytemuck::{Pod, Zeroable};
 use super::buffer_cache::{BufferCache, BufferCacheId};
 use super::raster_cache::{RasterCache, RasterCacheId};
 use crate::base_types::{Point, Pos, AABB};
+use crate::PixelSize;
 
 const INDEX_ENTRIES_PER_IMAGE: usize = 6;
 const VERTEX_ENTRIES_PER_IMAGE: usize = 4;
@@ -57,14 +58,14 @@ impl crate::render::wgpu::VBDesc for Instance {
 
 #[derive(Debug, PartialEq)]
 pub struct Raster {
-    offset: Pos,
     pub buffer_id: BufferCacheId,
-    pub raster_id: RasterCacheId,
+    pub raster_cache_id: RasterCacheId,
 }
 
 impl Raster {
     pub fn new(
-        offset: Pos,
+        data: Vec<u8>,
+        size: PixelSize,
         buffer_cache: &mut BufferCache<Vertex, u16>,
         raster_cache: &mut RasterCache,
         prev_buffer: Option<BufferCacheId>,
@@ -75,12 +76,12 @@ impl Raster {
         } else {
             buffer_cache.alloc_chunk(VERTEX_ENTRIES_PER_IMAGE, INDEX_ENTRIES_PER_IMAGE)
         };
-        let raster_id = raster_cache.alloc_or_reuse_chunk(prev_raster);
+        let raster_cache_id = raster_cache.alloc_or_reuse_chunk(prev_raster);
+        raster_cache.set_raster(raster_cache_id, data, size);
 
         Self {
-            offset,
             buffer_id,
-            raster_id,
+            raster_cache_id,
         }
     }
 
@@ -95,86 +96,59 @@ impl Raster {
     ) -> bool {
         let mut cache_changed = false;
         buffer_cache.register(self.buffer_id);
-        raster_cache.register(self.raster_id);
-        // let (vertex_chunk, index_chunk) = buffer_cache.get_chunks(self.buffer_id);
+        raster_cache.register(self.raster_cache_id);
+        let (vertex_chunk, index_chunk) = buffer_cache.get_chunks(self.buffer_id);
 
-        // if cache_invalid || !vertex_chunk.filled {
-        //     cache_changed = true;
+        if cache_invalid || !vertex_chunk.filled {
+            cache_changed = true;
+            let v = vertex_chunk.start;
+            let i = index_chunk.start;
+            let width = aabb.width();
+            let height = aabb.height();
 
-        //     let mut v = vertex_chunk.start;
-        //     let mut i = index_chunk.start;
-        //     let mut n_indices = 0;
-        //     let mut v_relative = 0;
-        //     for g in self.glyphs.iter() {
-        //         if let Some((uv_rect, screen_rect)) = glyph_cache.rect_for(g.font_id.0, &g.glyph) {
-        //             buffer_cache.vertex_data[v] = Vertex {
-        //                 pos: Point {
-        //                     x: screen_rect.min.x,
-        //                     y: screen_rect.min.y,
-        //                 },
-        //                 tex_pos: Point {
-        //                     x: uv_rect.min.x,
-        //                     y: uv_rect.min.y,
-        //                 },
-        //             };
-        //             buffer_cache.vertex_data[v + 1] = Vertex {
-        //                 pos: Point {
-        //                     x: screen_rect.max.x,
-        //                     y: screen_rect.min.y,
-        //                 },
-        //                 tex_pos: Point {
-        //                     x: uv_rect.max.x,
-        //                     y: uv_rect.min.y,
-        //                 },
-        //             };
-        //             buffer_cache.vertex_data[v + 2] = Vertex {
-        //                 pos: Point {
-        //                     x: screen_rect.min.x,
-        //                     y: screen_rect.max.y,
-        //                 },
-        //                 tex_pos: Point {
-        //                     x: uv_rect.min.x,
-        //                     y: uv_rect.max.y,
-        //                 },
-        //             };
-        //             buffer_cache.vertex_data[v + 3] = Vertex {
-        //                 pos: Point {
-        //                     x: screen_rect.max.x,
-        //                     y: screen_rect.max.y,
-        //                 },
-        //                 tex_pos: Point {
-        //                     x: uv_rect.max.x,
-        //                     y: uv_rect.max.y,
-        //                 },
-        //             };
+            buffer_cache.vertex_data[v] = Vertex {
+                pos: Point { x: 0.0, y: 0.0 },
+                tex_pos: Point {
+                    x: tex_coords.0.x,
+                    y: tex_coords.0.y,
+                },
+            };
+            buffer_cache.vertex_data[v + 1] = Vertex {
+                pos: Point { x: width, y: 0.0 },
+                tex_pos: Point {
+                    x: tex_coords.1.x,
+                    y: tex_coords.0.y,
+                },
+            };
+            buffer_cache.vertex_data[v + 2] = Vertex {
+                pos: Point { x: 0.0, y: height },
+                tex_pos: Point {
+                    x: tex_coords.0.x,
+                    y: tex_coords.1.y,
+                },
+            };
+            buffer_cache.vertex_data[v + 3] = Vertex {
+                pos: Point {
+                    x: width,
+                    y: height,
+                },
+                tex_pos: Point {
+                    x: tex_coords.1.x,
+                    y: tex_coords.1.y,
+                },
+            };
 
-        //             buffer_cache.index_data[i] = v_relative;
-        //             buffer_cache.index_data[i + 1] = 1 + v_relative;
-        //             buffer_cache.index_data[i + 2] = 2 + v_relative;
-        //             buffer_cache.index_data[i + 3] = 2 + v_relative;
-        //             buffer_cache.index_data[i + 4] = 1 + v_relative;
-        //             buffer_cache.index_data[i + 5] = 3 + v_relative;
+            buffer_cache.index_data[i] = 0;
+            buffer_cache.index_data[i + 1] = 1;
+            buffer_cache.index_data[i + 2] = 2;
+            buffer_cache.index_data[i + 3] = 2;
+            buffer_cache.index_data[i + 4] = 1;
+            buffer_cache.index_data[i + 5] = 3;
 
-        //             v_relative += VERTEX_ENTRIES_PER_IMAGE as u16;
-        //             v += VERTEX_ENTRIES_PER_IMAGE;
-        //             i += INDEX_ENTRIES_PER_IMAGE;
-        //             n_indices += INDEX_ENTRIES_PER_IMAGE;
-        //         }
-        //     }
-        //     // Reset the number of indices, because it may be less than the number of glyphs:
-        //     buffer_cache.set_n_indices(self.buffer_id, n_indices);
+            buffer_cache.fill_chunks(self.buffer_id);
+        }
 
-        //     buffer_cache.fill_chunks(self.buffer_id);
-        // }
-
-        // instance_data.push(Instance {
-        //     pos: Pos {
-        //         x: (self.offset.x + aabb.pos.x),
-        //         y: (self.offset.y + aabb.pos.y),
-        //         z: self.offset.z + aabb.pos.z,
-        //     },
-        //     color: self.color,
-        // });
+        instance_data.push(Instance { pos: aabb.pos });
 
         cache_changed
     }

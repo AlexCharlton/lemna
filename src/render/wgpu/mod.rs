@@ -272,7 +272,7 @@ impl super::Renderer for WGPURenderer {
                 frame_renderables.rasters.sort_unstable_by_key(|r| {
                     self.raster_pipeline
                         .texture_cache
-                        .texture_index(r.0.raster_id)
+                        .texture_index(r.0.raster_cache_id)
                 });
             }
 

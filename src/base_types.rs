@@ -29,7 +29,7 @@ pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
 pub struct PixelSize {
     pub width: u32,
@@ -380,6 +380,14 @@ impl PixelAABB {
                 y: self.bottom_right.x as f32 / scale.height as f32,
             },
         )
+    }
+
+    pub fn width(&self) -> u32 {
+        self.bottom_right.x - self.pos.x
+    }
+
+    pub fn height(&self) -> u32 {
+        self.bottom_right.y - self.pos.y
     }
 }
 

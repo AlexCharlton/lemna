@@ -25,5 +25,6 @@ git = "https://github.com/AlexCharlton/baseview.git"
 [dev-dependencies]
 lemna-macros = { workspace = true }
 lyon = { workspace = true }
+png = "0.17.9"
 simplelog = { workspace = true }
 ttf-noto-sans = { workspace = true }

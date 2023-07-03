@@ -10,8 +10,6 @@ use crate::render::next_power_of_2;
 use crate::render::renderables::raster::{Instance, Raster, Vertex};
 use crate::render::wgpu::context;
 
-const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 1024;
-
 pub struct RasterPipeline {
     pipeline: wgpu::RenderPipeline,
     sampler: wgpu::Sampler,
@@ -42,7 +40,7 @@ impl RasterPipeline {
         for (i, (renderable, _)) in renderables.iter().enumerate() {
             let (vertex_chunk, index_chunk) = self.buffer_cache.get_chunks(renderable.buffer_id);
 
-            let texture_index = self.texture_cache.texture_index(renderable.raster_id);
+            let texture_index = self.texture_cache.texture_index(renderable.raster_cache_id);
             // We pre-sorted our renderables so that we will have to switch this a minimum number of times
             if last_texture != texture_index {
                 pass.set_bind_group(
@@ -109,7 +107,7 @@ impl RasterPipeline {
                 .raster_cache
                 .read()
                 .unwrap()
-                .get_raster(renderable.raster_id)
+                .get_raster_data(renderable.raster_cache_id)
                 .id;
             let texture_pos = self.texture_cache.texture_pos(raster_id);
             cache_changed |= renderable.render(
@@ -148,71 +146,29 @@ impl RasterPipeline {
         device: &wgpu::Device,
         queue: &mut wgpu::Queue,
     ) -> bool {
-        // Draw glyphs onto GPU texture cache
-        // let mut cache_invalid = false;
-        // let mut cache_success = false;
-        // let mut cache_size = self.glyph_cache.size;
-        // while !cache_success {
-        //     // TODO Sort by height
-        //     for (renderable, _) in renderables.iter() {
-        //         for g in renderable.glyphs.iter().cloned() {
-        //             self.glyph_cache
-        //                 .glyph_cache
-        //                 .queue_glyph(g.font_id.0, g.glyph);
-        //         }
-        //     }
+        // Draw rasters onto GPU texture cache
 
-        //     let cache_result = {
-        //         let texture = &self.glyph_cache.texture;
-        //         self.glyph_cache
-        //             .glyph_cache
-        //             .cache_queued(&font_cache.fonts, |region, data| {
-        //                 queue.write_texture(
-        //                     wgpu::ImageCopyTexture {
-        //                         aspect: wgpu::TextureAspect::All,
-        //                         texture,
-        //                         mip_level: 0,
-        //                         origin: wgpu::Origin3d {
-        //                             x: 0,
-        //                             y: region.min[1],
-        //                             z: 0,
-        //                         },
-        //                     },
-        //                     data,
-        //                     wgpu::ImageDataLayout {
-        //                         offset: 0,
-        //                         bytes_per_row: NonZeroU32::new(region.width()),
-        //                         rows_per_image: NonZeroU32::new(region.height()),
-        //                     },
-        //                     wgpu::Extent3d {
-        //                         width: region.width(),
-        //                         height: region.height(),
-        //                         depth_or_array_layers: 1,
-        //                     },
-        //                 );
-        //             })
-        //     };
-        //     match cache_result {
-        //         Ok(CachedBy::Adding) => (),
-        //         Ok(CachedBy::Reordering) => cache_invalid = true,
-        //         Err(err) => {
-        //             cache_size *= 2;
-        //             eprintln!("{:?}: Resizing texture to {:?}", err, cache_size);
-        //             let (texture, bind_group) = Self::create_texture(
-        //                 cache_size,
-        //                 cache_size,
-        //                 device,
-        //                 &self.bind_group_layout,
-        //             );
-        //             self.glyph_cache.new_texture(texture, cache_size);
-        //             self.bind_group = bind_group;
-        //         }
-        //     };
+        let mut renderables = renderables.to_vec();
+        // Sort by height
+        renderables.sort_unstable_by_key(|r| {
+            self.texture_cache
+                .raster_cache
+                .read()
+                .unwrap()
+                .get_raster_data(r.0.raster_cache_id)
+                .size
+                .height;
+        });
 
-        //     cache_success = cache_result.is_ok();
-        // }
-        // cache_invalid
-        false
+        for (renderable, _) in renderables.iter() {
+            self.texture_cache
+                .insert(*renderable, device, &self.bind_group_layout, &self.sampler);
+        }
+
+        let cache_invalid = self.texture_cache.repack();
+        self.texture_cache.write_to_gpu(queue);
+
+        cache_invalid
     }
 
     pub fn new(
