@@ -123,6 +123,15 @@ impl PixelPoint {
     }
 }
 
+impl From<Point> for PixelPoint {
+    fn from(p: Point) -> Self {
+        Self {
+            x: p.x.round() as u32,
+            y: p.y.round() as u32,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Point {

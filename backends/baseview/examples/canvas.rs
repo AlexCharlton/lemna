@@ -28,7 +28,7 @@ impl lemna::Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
-                widgets::Div::new(),
+                widgets::Div::new().bg([0.5, 0.7, 0.7]),
                 lay![size_pct: [100.0],
                      wrap: true,
                      padding: [10.0],
@@ -37,8 +37,14 @@ impl lemna::Component for App {
                 ]
             )
             .push(node!(widgets::Canvas::new()
-                .set(&IMAGE.0[..IMAGE.1], IMAGE.2)
-                .scale(0.5))),
+                .init_with_color(
+                    Color::WHITE,
+                    PixelSize {
+                        width: 500,
+                        height: 500
+                    }
+                )
+                .on_draw(Box::new(|p| vec![(p, Color::BLACK.into())])))),
         )
     }
 }
@@ -46,7 +52,7 @@ impl lemna::Component for App {
 fn main() {
     println!("hello");
     Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
-        "An Image".to_string(),
+        "A Canvas".to_string(),
         600,
         600,
         true,

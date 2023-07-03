@@ -2,6 +2,8 @@ use std::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
+use crate::event;
+use crate::input::MouseButton;
 use crate::render::{
     renderables::{raster::Raster, raster_cache::RasterData},
     Renderable,
@@ -22,25 +24,36 @@ struct CanvasState {
     updates: Vec<CanvasUpdate>,
     size: PixelSize,
     update_counter: usize,
+    drawing: bool,
 }
 
-/// Supports 8 bit rgba. E.g. `Color Into u32`
+/// Supports 8 bit rgba. E.g. `Color Into [u8; 4]`
 #[component(State = "CanvasState", Internal)]
-#[derive(Debug)]
 pub struct Canvas {
     scale: f32,
+    on_draw: Option<Box<dyn Fn(PixelPoint) -> Vec<(PixelPoint, [u8; 4])> + Send + Sync>>,
+}
+
+impl std::fmt::Debug for Canvas {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("Canvas")
+            .field("scale", &self.scale)
+            .field("state", &self.state)
+            .finish()
+    }
 }
 
 impl Canvas {
     pub fn new() -> Self {
         Self {
+            scale: 1.0,
+            on_draw: None,
             state: Some(Default::default()),
             dirty: false,
-            scale: 1.0,
         }
     }
 
-    /// You can call this when initializing a canvas and it won't overwrite any changes (TODO: is this true?)
+    /// You can call this when initializing a canvas and it won't overwrite any changes because after the first instance, the state will be replaced
     pub fn set<D: Into<RasterData>>(mut self, data: D, size: PixelSize) -> Self {
         self.reset(data, size);
         self
@@ -56,6 +69,14 @@ impl Canvas {
 
     pub fn scale(mut self, scale: f32) -> Self {
         self.scale = scale;
+        self
+    }
+
+    pub fn on_draw(
+        mut self,
+        f: Box<dyn Fn(PixelPoint) -> Vec<(PixelPoint, [u8; 4])> + Send + Sync>,
+    ) -> Self {
+        self.on_draw = Some(f);
         self
     }
 
@@ -77,6 +98,35 @@ impl Canvas {
 
 #[state_component_impl(CanvasState)]
 impl Component for Canvas {
+    fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
+        if self.state_ref().drawing {
+            // TODO should interpolate from last position
+            if let Some(f) = &self.on_draw {
+                for update in f(event.relative_logical_position().into()).drain(..) {
+                    self.state_mut().updates.push(CanvasUpdate::Update(update));
+                    self.state_mut().update_counter += 1;
+                }
+            }
+        }
+        event.stop_bubbling();
+    }
+
+    fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) {
+        if event.input.0 == MouseButton::Left {
+            self.state_mut().drawing = true;
+        }
+    }
+
+    fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) {
+        if event.input.0 == MouseButton::Left {
+            self.state_mut().drawing = false;
+        }
+    }
+
+    fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
+        self.state_mut().drawing = false;
+    }
+
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.state_ref().update_counter.hash(hasher);
     }
@@ -102,6 +152,7 @@ impl Component for Canvas {
             Some(Renderable::Raster(r)) => Some(r),
             _ => None,
         });
+        let size = self.state_ref().size;
 
         self.state_mut().updates.drain(..).for_each(|u| match u {
             CanvasUpdate::Set((data, size)) => {
@@ -136,11 +187,13 @@ impl Component for Canvas {
                 if let Some(r) = raster.as_mut() {
                     match &mut context.caches.raster_cache.write().unwrap().get_mut_raster_data(r.raster_cache_id).data {
                         RasterData::Vec(ref mut v) => {
-                            let i = (point.x * point.y * 4) as usize;
-                            v[i] = pixel[0];
-                            v[i+1] = pixel[1];
-                            v[i+2] = pixel[2];
-                            v[i+3] = pixel[3];
+                            let i = ((point.x + (point.y * size.width)) * 4) as usize;
+                            if i < v.len() {
+                                v[i] = pixel[0];
+                                v[i+1] = pixel[1];
+                                v[i+2] = pixel[2];
+                                v[i+3] = pixel[3];
+                            }
                         }
                         _ => panic!("Cannot update a canvas that was not created with `init_with_color` or a Vec")
                     }
