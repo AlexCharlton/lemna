@@ -9,7 +9,6 @@ lazy_static! {
         let mut reader = decoder.read_info().unwrap();
         let mut buf = vec![0; reader.output_buffer_size()];
         let info = reader.next_frame(&mut buf).unwrap();
-        let slice = &buf[..];
 
         (
             buf,

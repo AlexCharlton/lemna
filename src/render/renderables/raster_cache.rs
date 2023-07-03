@@ -84,6 +84,10 @@ impl RasterCache {
         &self.rasters[raster_cache_id.0]
     }
 
+    pub fn get_mut_raster_data(&mut self, raster_cache_id: RasterCacheId) -> &mut RasterCacheData {
+        &mut self.rasters[raster_cache_id.0]
+    }
+
     pub fn alloc_or_reuse_chunk(&mut self, raster_cache: Option<RasterCacheId>) -> RasterCacheId {
         if let Some(c) = raster_cache {
             c
