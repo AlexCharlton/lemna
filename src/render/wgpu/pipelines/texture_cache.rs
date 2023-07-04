@@ -17,39 +17,88 @@ use crate::{
 use wgpu;
 
 const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 2048;
+const MIN_SLOT_DIM: u32 = 4; // px
 
 pub struct TextureCache {
     pub raster_cache: Arc<RwLock<RasterCache>>,
-    pub textures: Vec<PackedTexture>,
+    /// We separate textures from texture_info so we can test the latter
+    pub textures: Vec<(wgpu::Texture, wgpu::BindGroup)>,
+    pub texture_info: Vec<PackedTextureInfo>,
     // Map of Raster ID (from RasterCache) to texture index
     raster_texture_map: HashMap<RasterId, usize>,
 }
 
-pub struct PackedTexture {
-    // https://gamedev.stackexchange.com/questions/2829/texture-packing-algorithm
+#[derive(Debug)]
+pub struct PackedTextureInfo {
     size: PixelSize,
-    texture: wgpu::Texture,
-    bind_group: wgpu::BindGroup,
     // Raster ID -> (RasterCacheId, AABB within this Texture, has this been written to GPU?)
     raster_map: HashMap<RasterId, (RasterCacheId, PixelAABB, bool)>,
-    /// The row of free data that is considered first.
-    /// When a new row is started, any existing free space becomes a free slot
-    current_row: PixelAABB,
     /// Unfilled areas of data
     free_slots: Vec<PixelAABB>,
-    /// Number of pixels that have been skipped
-    dead_pixels: usize,
+    /// Number of pixels taken out of contention
+    dead_pixels: u32,
 }
 
-impl PackedTexture {
+impl PackedTextureInfo {
     fn room_for_raster(&self, size: PixelSize) -> bool {
-        // TODO
-        true
+        self.free_slots
+            .iter()
+            .any(|s| Self::fits_into_slot(size, s.size()))
     }
 
+    fn fits_into_slot(size: PixelSize, slot_size: PixelSize) -> bool {
+        size.width <= slot_size.width && size.height <= slot_size.height
+    }
+
+    fn dead_slot(aabb: PixelAABB) -> bool {
+        aabb.width() <= MIN_SLOT_DIM || aabb.height() <= MIN_SLOT_DIM
+    }
+
+    /// When inserting, we iterate through free slots. For the first one that can hold the data,
+    /// we select it and split it into two free slots: one for the row made by the inserted data,
+    /// and the other for everything else
+    /// Not really the same as described [here](https://gamedev.stackexchange.com/questions/2829/texture-packing-algorithm),
+    /// but this has some interesting discussion
     fn insert(&mut self, id: RasterId, size: PixelSize, raster_cache_id: RasterCacheId) {
-        let pos = PixelPoint { x: 0, y: 0 }; // TODO
-                                             // TODO update current_row, free_slots, dead_pixels
+        let mut extra_slot: Option<PixelAABB> = None;
+        let mut remove_slot = false;
+        let mut pos = PixelPoint { x: 0, y: 0 };
+        let mut i = 0;
+        for (j, slot) in self.free_slots.iter_mut().enumerate() {
+            i = j;
+            if Self::fits_into_slot(size, slot.size()) {
+                pos = slot.pos;
+
+                let mut remainder1 = slot.clone();
+                remainder1.pos.x += size.width;
+                remainder1.bottom_right.y = remainder1.pos.y + size.height;
+                let mut remainder2 = slot.clone();
+                remainder2.pos.y += size.height;
+
+                if !Self::dead_slot(remainder1) {
+                    *slot = remainder1;
+                    if !Self::dead_slot(remainder2) {
+                        extra_slot = Some(remainder2);
+                    } else {
+                        self.dead_pixels += remainder2.area();
+                    }
+                } else if !Self::dead_slot(remainder2) {
+                    *slot = remainder2;
+                    self.dead_pixels += remainder1.area();
+                } else {
+                    self.dead_pixels += remainder1.area() + remainder2.area();
+                    remove_slot = true;
+                }
+                break;
+            }
+        }
+        if remove_slot {
+            self.free_slots.remove(i);
+        }
+        if let Some(aabb) = extra_slot {
+            self.free_slots.push(aabb);
+        }
+
         let aabb = PixelAABB {
             pos,
             bottom_right: PixelPoint {
@@ -67,6 +116,7 @@ impl TextureCache {
             raster_cache: Arc::new(RwLock::new(RasterCache::new())),
             raster_texture_map: HashMap::new(),
             textures: vec![],
+            texture_info: vec![],
         }
     }
 
@@ -109,16 +159,14 @@ impl TextureCache {
             label: Some("text_bind_group"),
         });
 
-        self.textures.push(PackedTexture {
+        self.textures.push((texture, bind_group));
+        self.texture_info.push(PackedTextureInfo {
             size,
-            texture,
-            bind_group,
-            current_row: PixelAABB {
+            raster_map: Default::default(),
+            free_slots: vec![PixelAABB {
                 pos: PixelPoint::new(0, 0),
                 bottom_right: PixelPoint::new(size.width, size.height),
-            },
-            raster_map: Default::default(),
-            free_slots: Default::default(),
+            }],
             dead_pixels: 0,
         });
         self.textures.len() - 1
@@ -144,7 +192,10 @@ impl TextureCache {
             .get_raster_data(raster.raster_cache_id)
             .id;
 
-        let tex_index = if let Some(i) = self.textures.iter().position(|t| t.room_for_raster(size))
+        let tex_index = if let Some(i) = self
+            .texture_info
+            .iter()
+            .position(|t| t.room_for_raster(size))
         {
             i
         } else {
@@ -162,7 +213,7 @@ impl TextureCache {
             )
         };
 
-        self.textures[tex_index].insert(id, size, raster.raster_cache_id);
+        self.texture_info[tex_index].insert(id, size, raster.raster_cache_id);
         self.raster_texture_map.insert(id, tex_index);
     }
 
@@ -172,7 +223,7 @@ impl TextureCache {
     }
 
     pub fn write_to_gpu(&mut self, queue: &mut wgpu::Queue) {
-        for t in self.textures.iter_mut() {
+        for (i, t) in self.texture_info.iter_mut().enumerate() {
             for (_, (raster_cache_id, aabb, written)) in t.raster_map.iter_mut() {
                 if !*written {
                     let size = self
@@ -184,7 +235,7 @@ impl TextureCache {
                     queue.write_texture(
                         wgpu::ImageCopyTexture {
                             aspect: wgpu::TextureAspect::All,
-                            texture: &t.texture,
+                            texture: &self.textures[i].0,
                             mip_level: 0,
                             origin: wgpu::Origin3d {
                                 x: aabb.pos.x,
@@ -220,7 +271,7 @@ impl TextureCache {
     /// Top left, bottom right
     /// If this panics, it means that RasterPipeline::update_texture_cache has failed
     pub fn texture_pos(&self, raster_id: u64) -> (Point, Point) {
-        let texture_cache = &self.textures[*self.raster_texture_map.get(&raster_id).unwrap()];
+        let texture_cache = &self.texture_info[*self.raster_texture_map.get(&raster_id).unwrap()];
         let (_, coords, _) = texture_cache.raster_map.get(&raster_id).unwrap();
         let size = texture_cache.size;
         coords.normalize(size)
@@ -237,10 +288,175 @@ impl TextureCache {
     }
 
     pub fn bind_group(&self, texture_index: usize) -> &wgpu::BindGroup {
-        &self.textures[texture_index].bind_group
+        &self.textures[texture_index].1
     }
 
     pub fn unmark(&mut self) {
         self.raster_cache.write().unwrap().unmark();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PackedTextureInfo;
+    use crate::{base_types::*, render::renderables::raster_cache::RasterCacheId};
+
+    #[test]
+    fn test_insert() {
+        let mut t1 = PackedTextureInfo {
+            size: PixelSize {
+                width: 200,
+                height: 200,
+            },
+            raster_map: Default::default(),
+            free_slots: vec![
+                PixelAABB {
+                    pos: PixelPoint::new(0, 0),
+                    bottom_right: PixelPoint::new(20, 100),
+                },
+                PixelAABB {
+                    pos: PixelPoint::new(0, 100),
+                    bottom_right: PixelPoint::new(200, 200),
+                },
+            ],
+            dead_pixels: 0,
+        };
+
+        t1.insert(
+            0,
+            PixelSize {
+                width: 50,
+                height: 50,
+            },
+            RasterCacheId::new(10),
+        );
+        /* The free slots now look like:
+        |--------------------------------------|
+        |   |                                  |
+        | f |                                  |
+        | r |                                  |
+        | e |          no free space           |
+        | e |                                  |
+        |   |                                  |
+        |--------------------------------------| (200, 100)
+        |        |                             |
+        |inserted|       new free 1            |
+        |        |                             |
+        |--------------------------------------| (200, 150)
+        |     (50, 150)                        |
+        |               new free 2             |
+        |                                      |
+        |--------------------------------------| (200, 200)
+
+         */
+        assert_eq!(t1.raster_map.len(), 1);
+        assert_eq!(
+            t1.raster_map[&0],
+            (
+                RasterCacheId::new(10),
+                PixelAABB {
+                    pos: PixelPoint::new(0, 100),
+                    bottom_right: PixelPoint::new(50, 150),
+                },
+                false
+            )
+        );
+        assert_eq!(t1.free_slots.len(), 3);
+        assert_eq!(
+            t1.free_slots[0],
+            PixelAABB {
+                pos: PixelPoint::new(0, 0),
+                bottom_right: PixelPoint::new(20, 100),
+            }
+        );
+        assert_eq!(
+            t1.free_slots[1],
+            PixelAABB {
+                pos: PixelPoint::new(50, 100),
+                bottom_right: PixelPoint::new(200, 150),
+            }
+        );
+        assert_eq!(
+            t1.free_slots[2],
+            PixelAABB {
+                pos: PixelPoint::new(0, 150),
+                bottom_right: PixelPoint::new(200, 200),
+            }
+        );
+
+        // Now perfectly fill in the last free slot
+        t1.insert(
+            1,
+            PixelSize {
+                width: 200,
+                height: 50,
+            },
+            RasterCacheId::new(11),
+        );
+        /* The free slots now look like:
+        |--------------------------------------|
+        |   |                                  |
+        | f |                                  |
+        | r |                                  |
+        | e |          no free space           |
+        | e |                                  |
+        |   |                                  |
+        |--------------------------------------| (200, 100)
+        |        |                             |
+        | used   |       free                  |
+        |        |                             |
+        |--------------------------------------| (200, 150)
+        |                                      |
+        |               used                   |
+        |                                      |
+        |--------------------------------------| (200, 200)
+
+         */
+        assert_eq!(t1.raster_map.len(), 2);
+        assert_eq!(t1.free_slots.len(), 2);
+        assert_eq!(
+            t1.free_slots[0],
+            PixelAABB {
+                pos: PixelPoint::new(0, 0),
+                bottom_right: PixelPoint::new(20, 100),
+            }
+        );
+        assert_eq!(
+            t1.free_slots[1],
+            PixelAABB {
+                pos: PixelPoint::new(50, 100),
+                bottom_right: PixelPoint::new(200, 150),
+            }
+        );
+    }
+
+    #[test]
+    fn test_room_for_raster() {
+        let t1 = PackedTextureInfo {
+            size: PixelSize {
+                width: 200,
+                height: 200,
+            },
+            raster_map: Default::default(),
+            free_slots: vec![
+                PixelAABB {
+                    pos: PixelPoint::new(0, 0),
+                    bottom_right: PixelPoint::new(20, 100),
+                },
+                PixelAABB {
+                    pos: PixelPoint::new(0, 100),
+                    bottom_right: PixelPoint::new(200, 200),
+                },
+            ],
+            dead_pixels: 0,
+        };
+        assert!(t1.room_for_raster(PixelSize {
+            width: 50,
+            height: 50
+        }));
+        assert!(!t1.room_for_raster(PixelSize {
+            width: 250,
+            height: 50
+        }));
     }
 }

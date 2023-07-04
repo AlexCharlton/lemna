@@ -5,6 +5,12 @@ use crate::PixelSize;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RasterCacheId(usize);
 
+impl RasterCacheId {
+    pub fn new(id: usize) -> Self {
+        Self(id)
+    }
+}
+
 pub type RasterId = u64;
 
 static RASTER_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);

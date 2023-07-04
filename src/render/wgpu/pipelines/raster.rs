@@ -149,7 +149,7 @@ impl RasterPipeline {
         // Draw rasters onto GPU texture cache
 
         let mut renderables = renderables.to_vec();
-        // Sort by height
+        // Sort by space
         renderables.sort_unstable_by_key(|r| {
             self.texture_cache
                 .raster_cache
@@ -157,7 +157,7 @@ impl RasterPipeline {
                 .unwrap()
                 .get_raster_data(r.0.raster_cache_id)
                 .size
-                .height;
+                .area();
         });
 
         for (renderable, _) in renderables.iter() {

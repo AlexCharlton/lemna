@@ -36,6 +36,12 @@ pub struct PixelSize {
     pub height: u32,
 }
 
+impl PixelSize {
+    pub fn area(&self) -> u32 {
+        self.width * self.height
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Scale {
@@ -397,6 +403,17 @@ impl PixelAABB {
 
     pub fn height(&self) -> u32 {
         self.bottom_right.y - self.pos.y
+    }
+
+    pub fn size(&self) -> PixelSize {
+        PixelSize {
+            width: self.width(),
+            height: self.height(),
+        }
+    }
+
+    pub fn area(&self) -> u32 {
+        self.size().area()
     }
 }
 
