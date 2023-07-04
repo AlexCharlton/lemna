@@ -28,7 +28,7 @@ use crate::window::Window;
 /// the next frame in the swapchain after resizing on certain platforms.
 /// Event handling happens on the same thread that the `current_window` is accessible from.
 pub struct UI<W: Window, R: Renderer, A: Component + Default + Send + Sync> {
-    pub renderer: Arc<RwLock<R>>,
+    pub renderer: Arc<RwLock<Option<R>>>,
     pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
     _draw_thread: JoinHandle<()>,
@@ -102,7 +102,7 @@ impl<
 
     fn render_thread(
         receiver: Receiver<()>,
-        renderer: Arc<RwLock<R>>,
+        renderer: Arc<RwLock<Option<R>>>,
         node: Arc<RwLock<Node>>,
         font_cache: Arc<RwLock<FontCache>>,
         physical_size: Arc<RwLock<PixelSize>>,
@@ -117,7 +117,7 @@ impl<
                     inst("UI::render");
                     // Pull out size so it gets pulled into the renderer lock
                     let size = *physical_size.read().unwrap();
-                    renderer.write().unwrap().render(
+                    renderer.write().unwrap().as_mut().unwrap().render(
                         &node.read().unwrap(),
                         size,
                         &font_cache.read().unwrap(),
@@ -132,7 +132,7 @@ impl<
 
     fn draw_thread(
         receiver: Receiver<()>,
-        renderer: Arc<RwLock<R>>,
+        renderer: Arc<RwLock<Option<R>>>,
         node: Arc<RwLock<Node>>,
         font_cache: Arc<RwLock<FontCache>>,
         logical_size: Arc<RwLock<PixelSize>>,
@@ -161,7 +161,7 @@ impl<
                     {
                         // We need to lock the renderer while we modify the node, so that we don't try to render it while doing so
                         // Since this will cause a deadlock
-                        let renderer = renderer.write().unwrap();
+                        let mut renderer = renderer.write().unwrap();
 
                         // We need to acquire a lock on the node once we `view` it, because we remove its state at this point
                         let mut old = node.write().unwrap();
@@ -175,7 +175,7 @@ impl<
 
                         inst("Node::render");
                         let do_render = new.render(
-                            renderer.caches(),
+                            renderer.as_mut().unwrap().caches(),
                             Some(&mut old),
                             font_cache.clone(),
                             scale_factor,
@@ -209,7 +209,7 @@ impl<
         let mut component = A::default();
         component.init();
 
-        let renderer = Arc::new(RwLock::new(R::new(&window)));
+        let renderer = Arc::new(RwLock::new(Some(R::new(&window))));
         let event_cache = EventCache::new(window.scale_factor());
         let window = Arc::new(RwLock::new(window));
         set_current_window(window.clone());
@@ -616,9 +616,9 @@ impl<
                 }
             },
             Input::Exit => {
-                // self.renderer = None;
-                // self.node = None;
                 clear_current_window();
+                let renderer = self.renderer.write().unwrap().take().unwrap();
+                drop(renderer);
             }
             Input::Menu(id) => {
                 let current_focus = self.event_cache.focus;
