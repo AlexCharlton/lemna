@@ -30,6 +30,8 @@ pub struct RasterCacheData {
     // TODO data should be an enum type that's either a static slice or a Vec
     pub data: RasterData,
     pub size: PixelSize,
+    /// Has this raster been altered?
+    pub dirty: bool,
     /// Rasters are unmarked at the start of a render pass and marked as each renderable renders to them
     /// Rasters that remain unmarked at the end of the pass are free to be claimed for new renderables
     marked: bool,
@@ -72,6 +74,16 @@ impl<'a> From<&'a RasterData> for &'a [u8] {
     }
 }
 
+impl RasterCacheData {
+    pub fn dirty(&mut self) {
+        self.dirty = true;
+    }
+
+    pub fn clean(&mut self) {
+        self.dirty = false;
+    }
+}
+
 impl RasterCache {
     pub fn new() -> Self {
         Default::default()
@@ -107,6 +119,7 @@ impl RasterCache {
                         data: RasterData::Slice(&[]),
                         id: 0,
                         marked: true,
+                        dirty: true,
                         size: PixelSize {
                             width: 0,
                             height: 0,
@@ -128,6 +141,7 @@ impl RasterCache {
             data: data.into(),
             id: new_raster_id(),
             marked: true,
+            dirty: true,
             size,
         };
     }

@@ -185,6 +185,7 @@ impl Component for Canvas {
             }
             CanvasUpdate::Update((point, pixel)) => {
                 if let Some(r) = raster.as_mut() {
+                    context.caches.raster_cache.write().unwrap().get_mut_raster_data(r.raster_cache_id).dirty();
                     match &mut context.caches.raster_cache.write().unwrap().get_mut_raster_data(r.raster_cache_id).data {
                         RasterData::Vec(ref mut v) => {
                             let i = ((point.x + (point.y * size.width)) * 4) as usize;

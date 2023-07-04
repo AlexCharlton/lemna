@@ -234,7 +234,14 @@ impl TextureCache {
     pub fn write_to_gpu(&mut self, queue: &mut wgpu::Queue) {
         for (i, t) in self.texture_info.iter_mut().enumerate() {
             for (_, (raster_cache_id, aabb, written, _)) in t.raster_map.iter_mut() {
-                if !*written {
+                if !*written
+                    || self
+                        .raster_cache
+                        .read()
+                        .unwrap()
+                        .get_raster_data(*raster_cache_id)
+                        .dirty
+                {
                     let size = self
                         .raster_cache
                         .read()
@@ -272,6 +279,11 @@ impl TextureCache {
                     );
 
                     *written = true;
+                    self.raster_cache
+                        .write()
+                        .unwrap()
+                        .get_mut_raster_data(*raster_cache_id)
+                        .clean();
                 }
             }
         }
