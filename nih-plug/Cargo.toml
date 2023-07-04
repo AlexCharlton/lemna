@@ -9,8 +9,8 @@ license = "MIT"
 standalone = ["nih_plug/standalone"]
 
 [dependencies]
-lemna-baseview = { version = "0.3.0", path = "../backends/baseview" }
-lemna = { version = "0.3.0", path = ".." }
+lemna-baseview = { version = "0.4", path = "../backends/baseview" }
+lemna = { version = "0.4", path = ".." }
 crossbeam-channel = "0.4"
 [dependencies.nih_plug]
 #path = "../../external/nih-plug"

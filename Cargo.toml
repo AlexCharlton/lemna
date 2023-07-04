@@ -1,6 +1,6 @@
 [package]
 name = "lemna"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "A Reactive UI framework for Rust"
 edition = "2021"
@@ -60,7 +60,7 @@ tinyfiledialogs = { version = "3.9", optional = true }
 
 [workspace.dependencies]
 raw-window-handle = "0.5"
-lemna-macros = { path = "./macros", version="0.3" }
+lemna-macros = { path = "./macros", version="0.4" }
 simplelog = "0.7"
 lyon = "0.15.6"
 ttf-noto-sans = "0.1"

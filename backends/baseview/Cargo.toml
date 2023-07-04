@@ -1,6 +1,6 @@
 [package]
 name = "lemna-baseview"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "Baseview windowing backend support for lemna"
 edition = "2021"
@@ -14,7 +14,7 @@ instrumented = ["lemna/instrumented"]
 [dependencies]
 arboard = "3.2"
 keyboard-types = "0.6"
-lemna = { path = "../../", version = "0.3" }
+lemna = { path = "../../", version = "0.4" }
 raw-window-handle = { workspace = true }
 crossbeam-channel = "0.4"
 

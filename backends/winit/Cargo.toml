@@ -1,6 +1,6 @@
 [package]
 name = "lemna-winit"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "winit windowing backend support for lemna"
 edition = "2021"
@@ -12,7 +12,7 @@ license = "MIT"
 instrumented = ["lemna/instrumented"]
 
 [dependencies]
-lemna = { path = "../../", version = "0.3" }
+lemna = { path = "../../", version = "0.4" }
 raw-window-handle = { workspace = true }
 winit = { version = "0.28" }
 

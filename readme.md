@@ -21,6 +21,7 @@ Features:
   - `Toggle`, a simple state-toggling button
   - `Text`, some text
   - `TextBox`, a box for entering text
+  - `Canvas`, for displaying raster images, including drawing to a blank canvas
   - `Selection`, a dropdown menu
   - `RoundedRect`, a stylable-rectangle
 - OpenIconic icons built-in
@@ -28,7 +29,6 @@ Features:
 - [nih-plug](https://github.com/robbert-vdh/nih-plug) support in the lemna-nih-plug package
 
 What's missing:
-- Raster (image) rendering support
 - More robust and more widgets (e.g. text selection support on `Text` widget)
 
 
