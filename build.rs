@@ -3,7 +3,6 @@ use std::path::Path;
 
 use glob::glob;
 
-
 fn main() -> Result<(), Box<dyn Error>> {
     if cfg!(feature = "docs_rs") {
         println!("Skipping build because we're running on docs.rs");
