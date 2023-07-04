@@ -74,7 +74,7 @@ pub fn create_pipeline_depth_stencil(
                         dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
                         operation: wgpu::BlendOperation::Add,
                     },
-                    alpha: wgpu::BlendComponent::REPLACE,
+                    alpha: wgpu::BlendComponent::OVER,
                 }),
                 write_mask: color_write_mask,
             })],
