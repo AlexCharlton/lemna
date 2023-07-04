@@ -844,7 +844,7 @@ mod tests {
 
         impl<M: 'static + fmt::Debug + Clone> Component for TestButton<M> {
             fn on_click(&mut self, event: &mut Event<event::Click>) {
-                println!("ON CLICK {}", &self.label);
+                // println!("ON CLICK {}", &self.label);
                 if let Some(msg) = &self.on_click {
                     event.emit(Box::new(msg.clone()));
                 }
