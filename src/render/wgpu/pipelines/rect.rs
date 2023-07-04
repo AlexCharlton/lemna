@@ -1,11 +1,11 @@
-use bytemuck::{cast_slice, Pod, Zeroable};
+use bytemuck::cast_slice;
 use log::info;
 use wgpu::{self, util::DeviceExt};
 
 use super::shared::{create_pipeline, VBDesc};
-use crate::base_types::{Point, AABB};
+use crate::base_types::AABB;
 use crate::render::next_power_of_2;
-use crate::render::renderables::rect::{Instance, Rect};
+use crate::render::renderables::rect::{Instance, Rect, Vertex};
 use crate::render::wgpu::context;
 
 pub struct RectPipeline {
@@ -16,26 +16,6 @@ pub struct RectPipeline {
     instance_data: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     num_instances: usize,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct Vertex {
-    pub pos: Point,
-}
-
-impl crate::render::wgpu::VBDesc for Vertex {
-    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &[wgpu::VertexAttribute {
-                format: wgpu::VertexFormat::Float32x2,
-                offset: 0,
-                shader_location: 0,
-            }],
-        }
-    }
 }
 
 impl RectPipeline {

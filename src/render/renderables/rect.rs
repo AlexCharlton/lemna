@@ -1,6 +1,26 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::base_types::{Color, Pos, Scale, AABB};
+use crate::base_types::{Color, Point, Pos, Scale, AABB};
+
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct Vertex {
+    pub pos: Point,
+}
+
+impl crate::render::wgpu::VBDesc for Vertex {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[wgpu::VertexAttribute {
+                format: wgpu::VertexFormat::Float32x2,
+                offset: 0,
+                shader_location: 0,
+            }],
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Pod, Zeroable, PartialEq)]

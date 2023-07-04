@@ -29,11 +29,17 @@ pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
 pub struct PixelSize {
     pub width: u32,
     pub height: u32,
+}
+
+impl PixelSize {
+    pub fn area(&self) -> u32 {
+        self.width * self.height
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
@@ -110,6 +116,28 @@ impl From<PixelSize> for Scale {
     }
 }
 
+#[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
+#[repr(C)]
+pub struct PixelPoint {
+    pub x: u32,
+    pub y: u32,
+}
+
+impl PixelPoint {
+    pub fn new(x: u32, y: u32) -> Self {
+        Self { x, y }
+    }
+}
+
+impl From<Point> for PixelPoint {
+    fn from(p: Point) -> Self {
+        Self {
+            x: p.x.round() as u32,
+            y: p.y.round() as u32,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Point {
@@ -118,6 +146,10 @@ pub struct Point {
 }
 
 impl Point {
+    pub fn new(x: f32, y: f32) -> Self {
+        Point { x, y }
+    }
+
     pub fn clamp(self, aabb: AABB) -> Self {
         Self {
             x: clamp(self.x, aabb.pos.x, aabb.bottom_right.x),
@@ -149,12 +181,6 @@ impl Hash for Point {
 impl Default for Point {
     fn default() -> Self {
         Self { x: 0.0, y: 0.0 }
-    }
-}
-
-impl Point {
-    pub fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
     }
 }
 
@@ -347,6 +373,47 @@ impl SubAssign for Pos {
             y: self.y - other.y,
             z: self.z - other.z,
         };
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+#[repr(C)]
+pub struct PixelAABB {
+    pub pos: PixelPoint,
+    pub bottom_right: PixelPoint,
+}
+
+impl PixelAABB {
+    pub fn normalize(&self, scale: PixelSize) -> (Point, Point) {
+        (
+            Point {
+                x: self.pos.x as f32 / scale.width as f32,
+                y: self.pos.y as f32 / scale.height as f32,
+            },
+            Point {
+                x: self.bottom_right.x as f32 / scale.width as f32,
+                y: self.bottom_right.y as f32 / scale.height as f32,
+            },
+        )
+    }
+
+    pub fn width(&self) -> u32 {
+        self.bottom_right.x - self.pos.x
+    }
+
+    pub fn height(&self) -> u32 {
+        self.bottom_right.y - self.pos.y
+    }
+
+    pub fn size(&self) -> PixelSize {
+        PixelSize {
+            width: self.width(),
+            height: self.height(),
+        }
+    }
+
+    pub fn area(&self) -> u32 {
+        self.size().area()
     }
 }
 
@@ -628,10 +695,6 @@ impl From<f32> for Color {
     }
 }
 
-fn u8_to_norm(x: u8) -> f32 {
-    x as f32 / 255.0
-}
-
 impl From<u32> for Color {
     fn from(c: u32) -> Self {
         let a = u8_to_norm(c as u8);
@@ -642,24 +705,22 @@ impl From<u32> for Color {
     }
 }
 
-#[macro_export]
-macro_rules! color {
-    ($r:expr, $g:expr, $b:expr) => {
-        $crate::Color {
-            r: $r as f32 / 255.0,
-            g: $g as f32 / 255.0,
-            b: $b as f32 / 255.0,
-            a: 1.0,
-        }
-    };
-    ($r:expr, $g:expr, $b:expr, $a:expr) => {
-        $crate::Color {
-            r: $r as f32 / 255.0,
-            g: $g as f32 / 255.0,
-            b: $b as f32 / 255.0,
-            a: $a as f32 / 255.0,
-        }
-    };
+impl From<Color> for [u8; 4] {
+    fn from(c: Color) -> Self {
+        [
+            norm_to_u8(c.r),
+            norm_to_u8(c.g),
+            norm_to_u8(c.b),
+            norm_to_u8(c.a),
+        ]
+    }
+}
+
+impl From<Color> for u32 {
+    fn from(c: Color) -> Self {
+        let [r, g, b, a]: [u8; 4] = c.into();
+        ((r as u32) << 24) + ((g as u32) << 16) + ((b as u32) << 8) + (a as u32)
+    }
 }
 
 impl From<Color> for [f32; 4] {
@@ -685,12 +746,40 @@ impl From<[f32; 3]> for Color {
     }
 }
 
+fn u8_to_norm(x: u8) -> f32 {
+    x as f32 / 255.0
+}
+
+fn norm_to_u8(x: f32) -> u8 {
+    (x * 255.0) as u8
+}
+
+#[macro_export]
+macro_rules! color {
+    ($r:expr, $g:expr, $b:expr) => {
+        $crate::Color {
+            r: $r as f32 / 255.0,
+            g: $g as f32 / 255.0,
+            b: $b as f32 / 255.0,
+            a: 1.0,
+        }
+    };
+    ($r:expr, $g:expr, $b:expr, $a:expr) => {
+        $crate::Color {
+            r: $r as f32 / 255.0,
+            g: $g as f32 / 255.0,
+            b: $b as f32 / 255.0,
+            a: $a as f32 / 255.0,
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_from() {
+    fn test_pos_from() {
         assert_eq!(
             Pos::from([1.0, 2.0, 3.0]),
             Pos {
@@ -699,5 +788,12 @@ mod tests {
                 z: 3.0
             }
         );
+    }
+
+    #[test]
+    fn test_color_from() {
+        // A float that is representable in 8 bits:
+        let c: Color = (0.49803921568).into();
+        assert_eq!(c, Into::<Color>::into(Into::<u32>::into(c)))
     }
 }

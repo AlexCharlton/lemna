@@ -76,12 +76,12 @@ impl Component for DropTarget {
         self.state_mut().active = false;
     }
 
-    fn on_drag_enter(&mut self, event: &mut Event<event::DragEnter>) {
+    fn on_drag_enter(&mut self, _event: &mut Event<event::DragEnter>) {
         self.state_mut().active = true;
         current_window().unwrap().set_drop_target_valid(true);
     }
 
-    fn on_drag_leave(&mut self, event: &mut Event<event::DragLeave>) {
+    fn on_drag_leave(&mut self, _event: &mut Event<event::DragLeave>) {
         self.state_mut().active = false;
         current_window().unwrap().set_drop_target_valid(false);
     }

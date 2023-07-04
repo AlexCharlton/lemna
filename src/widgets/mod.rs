@@ -1,6 +1,9 @@
 mod button;
 pub use button::Button;
 
+mod canvas;
+pub use canvas::Canvas;
+
 mod div;
 pub use div::{Div, HorizontalPosition, VerticalPosition};
 
