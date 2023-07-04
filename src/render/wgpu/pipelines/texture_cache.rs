@@ -31,8 +31,8 @@ pub struct TextureCache {
 #[derive(Debug)]
 pub struct PackedTextureInfo {
     size: PixelSize,
-    // Raster ID -> (RasterCacheId, AABB within this Texture, has this been written to GPU?)
-    raster_map: HashMap<RasterId, (RasterCacheId, PixelAABB, bool)>,
+    /// Raster ID -> (RasterCacheId, AABB within this Texture, has this been written to GPU?, has this been marked?)
+    raster_map: HashMap<RasterId, (RasterCacheId, PixelAABB, bool, bool)>,
     /// Unfilled areas of data
     free_slots: Vec<PixelAABB>,
     /// Number of pixels taken out of contention
@@ -106,7 +106,8 @@ impl PackedTextureInfo {
                 y: pos.y + size.height,
             },
         };
-        self.raster_map.insert(id, (raster_cache_id, aabb, false));
+        self.raster_map
+            .insert(id, (raster_cache_id, aabb, false, true));
     }
 }
 
@@ -179,18 +180,26 @@ impl TextureCache {
         texture_bind_group_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
     ) {
-        let size = self
-            .raster_cache
-            .read()
-            .unwrap()
-            .get_raster_data(raster.raster_cache_id)
-            .size;
         let id = self
             .raster_cache
             .read()
             .unwrap()
             .get_raster_data(raster.raster_cache_id)
             .id;
+
+        if let Some(i) = self.raster_texture_map.get(&id) {
+            if let Some(mut r) = self.texture_info[*i].raster_map.get_mut(&id) {
+                r.3 = true; // Mark it as used
+            }
+            // Raster is already here
+            return;
+        }
+        let size = self
+            .raster_cache
+            .read()
+            .unwrap()
+            .get_raster_data(raster.raster_cache_id)
+            .size;
 
         let tex_index = if let Some(i) = self
             .texture_info
@@ -224,7 +233,7 @@ impl TextureCache {
 
     pub fn write_to_gpu(&mut self, queue: &mut wgpu::Queue) {
         for (i, t) in self.texture_info.iter_mut().enumerate() {
-            for (_, (raster_cache_id, aabb, written)) in t.raster_map.iter_mut() {
+            for (_, (raster_cache_id, aabb, written, _)) in t.raster_map.iter_mut() {
                 if !*written {
                     let size = self
                         .raster_cache
@@ -272,7 +281,7 @@ impl TextureCache {
     /// If this panics, it means that RasterPipeline::update_texture_cache has failed
     pub fn texture_pos(&self, raster_id: u64) -> (Point, Point) {
         let texture_cache = &self.texture_info[*self.raster_texture_map.get(&raster_id).unwrap()];
-        let (_, coords, _) = texture_cache.raster_map.get(&raster_id).unwrap();
+        let (_, coords, _, _) = texture_cache.raster_map.get(&raster_id).unwrap();
         let size = texture_cache.size;
         coords.normalize(size)
     }
@@ -293,6 +302,23 @@ impl TextureCache {
 
     pub fn unmark(&mut self) {
         self.raster_cache.write().unwrap().unmark();
+        let mut unused: Vec<RasterId> = vec![];
+        for t in self.texture_info.iter_mut() {
+            for (id, r) in t.raster_map.iter_mut() {
+                if !r.3 {
+                    unused.push(*id);
+                } else {
+                    r.3 = false;
+                }
+            }
+        }
+
+        for id in unused.iter() {
+            // This texture is not used any more. Free it.
+            let ti = self.raster_texture_map.remove(id).unwrap();
+            let (_, aabb, _, _) = self.texture_info[ti].raster_map.remove(id).unwrap();
+            self.texture_info[ti].free_slots.push(aabb);
+        }
     }
 }
 
@@ -358,7 +384,8 @@ mod tests {
                     pos: PixelPoint::new(0, 100),
                     bottom_right: PixelPoint::new(50, 150),
                 },
-                false
+                false,
+                true
             )
         );
         assert_eq!(t1.free_slots.len(), 3);

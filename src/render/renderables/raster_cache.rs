@@ -19,11 +19,12 @@ fn new_raster_id() -> RasterId {
     RASTER_ID_ATOMIC.fetch_add(1, Ordering::SeqCst)
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RasterCache {
     rasters: Vec<RasterCacheData>,
 }
 
+#[derive(Debug)]
 pub struct RasterCacheData {
     pub(crate) id: RasterId,
     // TODO data should be an enum type that's either a static slice or a Vec
@@ -105,7 +106,7 @@ impl RasterCache {
                     self.rasters.push(RasterCacheData {
                         data: RasterData::Slice(&[]),
                         id: 0,
-                        marked: false,
+                        marked: true,
                         size: PixelSize {
                             width: 0,
                             height: 0,
@@ -126,7 +127,7 @@ impl RasterCache {
         self.rasters[raster_cache_id.0] = RasterCacheData {
             data: data.into(),
             id: new_raster_id(),
-            marked: false,
+            marked: true,
             size,
         };
     }

@@ -392,7 +392,7 @@ impl PixelAABB {
             },
             Point {
                 x: self.bottom_right.x as f32 / scale.width as f32,
-                y: self.bottom_right.x as f32 / scale.height as f32,
+                y: self.bottom_right.y as f32 / scale.height as f32,
             },
         )
     }

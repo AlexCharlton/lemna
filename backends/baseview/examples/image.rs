@@ -38,7 +38,20 @@ impl lemna::Component for App {
             )
             .push(node!(widgets::Canvas::new()
                 .set(&IMAGE.0[..IMAGE.1], IMAGE.2)
-                .scale(0.5))),
+                .scale(0.3)))
+            .push(node!(widgets::Canvas::new()
+                .set(&IMAGE.0[..IMAGE.1], IMAGE.2)
+                .scale(0.2)))
+            .push(node!(widgets::Canvas::new()
+                .set(&IMAGE.0[..IMAGE.1], IMAGE.2)
+                .scale(0.1)))
+            .push(node!(widgets::Canvas::new()
+                .set(&IMAGE.0[..IMAGE.1], IMAGE.2)
+                .scale(0.05)))
+            // Five of these images will force two textures to be allocated
+            .push(node!(widgets::Canvas::new()
+                .set(&IMAGE.0[..IMAGE.1], IMAGE.2)
+                .scale(0.02))),
         )
     }
 }
