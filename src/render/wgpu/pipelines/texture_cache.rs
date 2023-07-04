@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    num::NonZeroU32,
     sync::{Arc, RwLock},
 };
 
@@ -268,8 +267,8 @@ impl TextureCache {
                             .into(),
                         wgpu::ImageDataLayout {
                             offset: 0,
-                            bytes_per_row: NonZeroU32::new(size.width * 4),
-                            rows_per_image: NonZeroU32::new(size.height),
+                            bytes_per_row: Some(size.width * 4),
+                            rows_per_image: Some(size.height),
                         },
                         wgpu::Extent3d {
                             width: size.width,

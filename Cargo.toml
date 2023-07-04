@@ -29,7 +29,7 @@ docs_rs = []
 features = ["docs_rs"]
 
 [dependencies.wgpu]
-version = "0.15"
+version = "0.16"
 # path = "../external/wgpu-rs"
 features = ["spirv"]
 

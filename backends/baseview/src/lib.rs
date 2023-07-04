@@ -148,7 +148,7 @@ impl Window {
                     parent_channel: None,
                 }
             },
-        )
+        );
     }
 }
 

@@ -1,6 +1,5 @@
 use bytemuck::cast_slice;
 use log::info;
-use std::num::NonZeroU32;
 use wgpu;
 use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
@@ -288,8 +287,8 @@ impl TextPipeline {
                             data,
                             wgpu::ImageDataLayout {
                                 offset: 0,
-                                bytes_per_row: NonZeroU32::new(region.width()),
-                                rows_per_image: NonZeroU32::new(region.height()),
+                                bytes_per_row: Some(region.width()),
+                                rows_per_image: Some(region.height()),
                             },
                             wgpu::Extent3d {
                                 width: region.width(),
