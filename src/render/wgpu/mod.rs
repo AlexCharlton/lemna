@@ -370,6 +370,7 @@ impl super::Renderer for WGPURenderer {
                     self.text_pipeline.render(
                         &frame_renderables.texts,
                         &mut pass,
+                        &self.context.device,
                         num_texts,
                         false,
                     );
@@ -434,6 +435,7 @@ impl super::Renderer for WGPURenderer {
                     self.text_pipeline.render(
                         &frame_renderables.texts,
                         &mut msaa_pass,
+                        &self.context.device,
                         num_texts,
                         true,
                     );

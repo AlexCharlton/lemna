@@ -2,10 +2,11 @@ use bytemuck::cast_slice;
 use log::info;
 use std::num::NonZeroU32;
 use wgpu;
+use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
 use super::buffer_cache::BufferCache;
 use super::shared::{create_pipeline, VBDesc};
-use crate::base_types::AABB;
+use crate::base_types::{Pos, AABB};
 use crate::font_cache::FontCache;
 use crate::render::glyph_brush_draw_cache::{CachedBy, DrawCache};
 use crate::render::next_power_of_2;
@@ -154,10 +155,32 @@ impl TextPipeline {
         &'a mut self,
         renderables: &[(&'a Text, &'a AABB)],
         pass: &'b mut wgpu::RenderPass<'a>,
+        device: &'b wgpu::Device,
         instance_offset: usize,
         msaa: bool,
     ) {
-        // Draw the renderables
+        let debug = false;
+        if !debug {
+            pass.set_pipeline(if msaa {
+                &self.msaa_pipeline
+            } else {
+                &self.pipeline
+            });
+
+            pass.set_bind_group(1, &self.bind_group, &[]);
+
+            self.draw_renderables(renderables, pass, instance_offset);
+        } else {
+            self.debug_render(pass, device, msaa);
+        }
+    }
+
+    fn debug_render<'a: 'b, 'b>(
+        &'a mut self,
+        pass: &'b mut wgpu::RenderPass<'a>,
+        device: &'b wgpu::Device,
+        msaa: bool,
+    ) {
         pass.set_pipeline(if msaa {
             &self.msaa_pipeline
         } else {
@@ -165,68 +188,65 @@ impl TextPipeline {
         });
 
         pass.set_bind_group(1, &self.bind_group, &[]);
-        self.draw_renderables(renderables, pass, instance_offset);
 
-        // let vertex_data = vec![
-        //     Vertex {
-        //         pos: [0.0, 0.0].into(),
-        //         tex_pos: [0.0, 0.0].into(),
-        //     },
-        //     Vertex {
-        //         pos: [768.0, 0.0].into(),
-        //         tex_pos: [1.0, 0.0].into(),
-        //     },
-        //     Vertex {
-        //         pos: [0.0, 768.0].into(),
-        //         tex_pos: [0.0, 1.0].into(),
-        //     },
-        //     Vertex {
-        //         pos: [768.0, 768.0].into(),
-        //         tex_pos: [1.0, 1.0].into(),
-        //     },
-        // ];
+        let vertex_data = vec![
+            Vertex {
+                pos: [0.0, 0.0].into(),
+                tex_pos: [0.0, 0.0].into(),
+            },
+            Vertex {
+                pos: [768.0, 0.0].into(),
+                tex_pos: [1.0, 0.0].into(),
+            },
+            Vertex {
+                pos: [0.0, 768.0].into(),
+                tex_pos: [0.0, 1.0].into(),
+            },
+            Vertex {
+                pos: [768.0, 768.0].into(),
+                tex_pos: [1.0, 1.0].into(),
+            },
+        ];
 
-        // let index_data: [u16; 6] = [0, 1, 2, 2, 1, 3];
-        // self.buffer_cache.vertex_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: None,
-        //         contents: cast_slice(&vertex_data),
-        //         usage: wgpu::BufferUsages::VERTEX,
-        //     },
-        // );
+        let index_data: [u16; 6] = [0, 1, 2, 2, 1, 3];
+        self.buffer_cache.vertex_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: cast_slice(&vertex_data),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
 
-        // self.buffer_cache.index_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: None,
-        //         contents: cast_slice(&index_data),
-        //         usage: wgpu::BufferUsages::INDEX,
-        //     },
-        // );
+        self.buffer_cache.index_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: cast_slice(&index_data),
+                usage: wgpu::BufferUsages::INDEX,
+            });
 
-        // self.instance_data.push(Instance {
-        //     pos: Pos {
-        //         x: 100.0,
-        //         y: 70.0,
-        //         z: 100.0,
-        //     },
-        //     color: 0.0.into(),
-        // });
+        self.instance_data.push(Instance {
+            pos: Pos {
+                x: 100.0,
+                y: 70.0,
+                z: 100.0,
+            },
+            color: 0.0.into(),
+        });
 
-        // self.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        //         label: None,
-        //         contents: cast_slice(&self.instance_data),
-        //         usage: wgpu::BufferUsages::VERTEX,
-        //     });
+        self.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: cast_slice(&self.instance_data),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
-        // pass.set_pipeline(&self.pipeline);
-        // pass.set_bind_group(1, &self.bind_group, &[]);
-        // pass.set_vertex_buffer(
-        //     0,
-        //     self.buffer_cache.vertex_buffer.slice(..),
-        // );
-        // pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-        // pass.set_index_buffer(self.buffer_cache.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-        // pass.draw_indexed(0..6 as u32, 0, 0..1);
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(1, &self.bind_group, &[]);
+        pass.set_vertex_buffer(0, self.buffer_cache.vertex_buffer.slice(..));
+        pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
+        pass.set_index_buffer(
+            self.buffer_cache.index_buffer.slice(..),
+            wgpu::IndexFormat::Uint16,
+        );
+        pass.draw_indexed(0..6 as u32, 0, 0..1);
     }
 
     fn update_glyph_cache(
