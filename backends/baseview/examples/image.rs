@@ -62,7 +62,7 @@ fn main() {
         "An Image".to_string(),
         600,
         600,
-        true,
+        false, // Non-resizable
         baseview::WindowScalePolicy::SystemScaleFactor,
         vec![],
     );
