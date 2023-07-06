@@ -56,6 +56,7 @@ impl Canvas {
     /// You can call this when initializing a canvas and it won't overwrite any changes because after the first instance, the state will be replaced
     pub fn set<D: Into<RasterData>>(mut self, data: D, size: PixelSize) -> Self {
         self.reset(data, size);
+        self.dirty = false;
         self
     }
 
@@ -64,6 +65,7 @@ impl Canvas {
             .updates
             .push(CanvasUpdate::New((color.into(), size)));
         self.state_mut().size = size;
+        self.dirty = false;
         self
     }
 
