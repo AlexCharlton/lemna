@@ -603,6 +603,14 @@ impl<
                     }
                 }
                 Drag::End => {
+                    if self.event_cache.drag_target.is_some() {
+                        let mut leave_event = Event::new(event::DragLeave, &self.event_cache);
+                        self.handle_event_without_focus(
+                            Node::drag_leave,
+                            &mut leave_event,
+                            self.event_cache.drag_target,
+                        );
+                    }
                     self.event_cache.clear();
                 }
                 Drag::Drop(data) => {
