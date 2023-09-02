@@ -24,6 +24,7 @@ Features:
   - `Canvas`, for displaying raster images, including drawing to a blank canvas
   - `Selection`, a dropdown menu
   - `RoundedRect`, a stylable-rectangle
+  - `FileSelector`, a dialog for selecting files
 - OpenIconic icons built-in
 - wgpu rendering backend batches primitives together to use few calls out to wgpu (which makes it a lot faster than things that don't do this!)
 - [nih-plug](https://github.com/robbert-vdh/nih-plug) support in the lemna-nih-plug package
@@ -50,3 +51,19 @@ See `./backends/**/**examples` for other examples. Note that wx-rs presently has
 
 ## Practical Examples
 - [midi-m8](https://github.com/AlexCharlton/midi-m8/tree/master/plugin)
+
+## Dependencies
+Lemna should have very few runtime dependencies. Exceptions listed below.
+
+The `FileSelector` widget uses [tinyfiledialogs](https://sourceforge.net/projects/tinyfiledialogs/), which will call out to the following:
+```
+- On unix you need one of the following:
+  applescript, kdialog, zenity, matedialog, shellementary, qarma, yad,
+  python (2 or 3)/tkinter/python-dbus (optional), Xdialog
+  or curses dialogs (opens terminal if running without console).
+- One of those is already included on most (if not all) desktops.
+- In the absence of those it will use gdialog, gxmessage or whiptail
+  with a textinputbox.
+- If nothing is found, it switches to basic console input,
+  it opens a console if needed (requires xterm + bash).
+```
