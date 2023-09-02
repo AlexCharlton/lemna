@@ -55,6 +55,8 @@ See `./backends/**/**examples` for other examples. Note that wx-rs presently has
 ## Dependencies
 Lemna should have very few runtime dependencies. Exceptions listed below.
 
+Linux requires Vulkan libraries.
+
 The `FileSelector` widget uses [tinyfiledialogs](https://sourceforge.net/projects/tinyfiledialogs/), which will call out to the following:
 ```
 - On unix you need one of the following:
@@ -67,3 +69,5 @@ The `FileSelector` widget uses [tinyfiledialogs](https://sourceforge.net/project
 - If nothing is found, it switches to basic console input,
   it opens a console if needed (requires xterm + bash).
 ```
+
+When using wgpu's Vulkan backend (will be selected for Linux), debug builds will require the validation layer `VK_LAYER_KHRONOS_validation`.
