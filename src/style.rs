@@ -378,6 +378,9 @@ macro_rules! style {
 
 }
 
+// TODO we need some way to add more context to these errors, or otherwise prevent them from happening.
+// Right now, if you add the wrong type expected for a given style, the error message is terrible.
+
 // StyleVal Froms
 impl From<Color> for StyleVal {
     fn from(c: Color) -> Self {

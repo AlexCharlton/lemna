@@ -28,6 +28,13 @@ macro_rules! node {
             lemna_macros::static_id!()
         )
     };
+    ($component:expr, [ $( $tt:tt )* ], $key:expr) => {
+        node!(
+            $component,
+            $crate::lay!($($tt)*),
+            $key
+        )
+    };
     ($component:expr, $layout:expr $(,)*) => {
         node!($component, $layout, lemna_macros::static_id!())
     };
