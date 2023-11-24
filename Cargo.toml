@@ -67,6 +67,10 @@ simplelog = "0.7"
 lyon = "0.15.6"
 ttf-noto-sans = "0.1"
 
+[workspace.dependencies.baseview]
+git = "https://github.com/AlexCharlton/baseview.git"
+# path = "../../../external/baseview"
+
 [build-dependencies]
 glob = "0.3"
 shaderc = { version = "0.8", optional = true}

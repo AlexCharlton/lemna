@@ -9,6 +9,7 @@ license = "MIT"
 standalone = ["nih_plug/standalone"]
 
 [dependencies]
+baseview = { workspace = true }
 lemna-baseview = { version = "0.4", path = "../backends/baseview" }
 lemna = { version = "0.4", path = ".." }
 crossbeam-channel = "0.4"

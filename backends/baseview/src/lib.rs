@@ -9,7 +9,6 @@ use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
 
-pub extern crate baseview;
 pub type Message = Box<dyn Any + Send>;
 
 #[derive(Debug)]

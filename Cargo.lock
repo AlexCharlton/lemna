@@ -1869,6 +1869,7 @@ dependencies = [
 name = "lemna-nih-plug"
 version = "0.3.0"
 dependencies = [
+ "baseview",
  "crossbeam-channel 0.4.4",
  "lemna",
  "lemna-baseview",

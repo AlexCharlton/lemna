@@ -13,14 +13,11 @@ instrumented = ["lemna/instrumented"]
 
 [dependencies]
 arboard = "3.2"
+baseview = { workspace = true }
 keyboard-types = "0.6"
 lemna = { path = "../../", version = "0.4" }
 raw-window-handle = { workspace = true }
 crossbeam-channel = "0.4"
-
-[dependencies.baseview]
-git = "https://github.com/AlexCharlton/baseview.git"
-# path = "../../../external/baseview"
 
 [dev-dependencies]
 lazy_static = "1.4.0"

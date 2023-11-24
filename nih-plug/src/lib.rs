@@ -1,6 +1,6 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lemna::UI;
-use lemna_baseview::{self, baseview, Message, ParentMessage, Window};
+use lemna_baseview::{self, Message, ParentMessage, Window};
 use nih_plug::prelude::*;
 use std::{
     marker::PhantomData,
