@@ -182,7 +182,7 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
         }
     };
 
-    let mut i: Vec<_> = input.clone().into_iter().collect();
+    let mut i: Vec<_> = input.into_iter().collect();
     if let Some(TokenTree::Group(g)) = i.last() {
         let mut s = g.stream();
         let len = i.len();

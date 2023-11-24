@@ -1,6 +1,5 @@
 use std::fmt;
 
-use cgmath;
 use futures::executor::block_on;
 use wgpu::{self, util::DeviceExt};
 

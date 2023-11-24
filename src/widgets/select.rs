@@ -73,7 +73,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send 
             node!(super::Div::new(), lay!(direction: Direction::Column)).push(node!(SelectBox {
                 selection: self.selection.get(self.state_ref().selected).cloned(),
                 style_overrides: self.style_overrides.clone(),
-                class: self.class.clone(),
+                class: self.class,
             }));
         if self.state_ref().open {
             base = base.push(node!(
@@ -81,7 +81,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send 
                     selections: self.selection.clone(),
                     hovering: self.state_ref().hovering,
                     style_overrides: self.style_overrides.clone(),
-                    class: self.class.clone(),
+                    class: self.class,
                 },
                 lay!(position_type: PositionType::Absolute, z_index_increment: 1000.0),
                 1
@@ -149,9 +149,9 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
 
         let mut base = node!(
             super::RoundedRect {
-                background_color: background_color,
-                border_color: border_color,
-                border_width: border_width,
+                background_color,
+                border_color,
+                border_width,
                 radius: (radius, radius, radius, radius),
             },
             lay!(
@@ -259,7 +259,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
                     id: i,
                     selected: i == self.hovering,
                     style_overrides: self.style_overrides.clone(),
-                    class: self.class.clone(),
+                    class: self.class,
                 })
                 .key(i as u64),
             );

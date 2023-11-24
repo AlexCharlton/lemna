@@ -103,14 +103,14 @@ impl lemna::Window for Window {
     fn logical_size(&self) -> PixelSize {
         let size = self.winit_window.inner_size();
         PixelSize {
-            width: size.width as u32,
-            height: size.width as u32,
+            width: size.width,
+            height: size.width,
         }
     }
 
     fn physical_size(&self) -> PixelSize {
         // let size = self.winit_window.inner_size();
-        return self.logical_size(); // This should transform to device size
+        self.logical_size() // This should transform to device size
     }
 
     fn scale_factor(&self) -> f32 {

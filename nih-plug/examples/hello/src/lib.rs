@@ -83,7 +83,7 @@ impl Plugin for HelloPlugin {
             300,
             vec![],
             |_ctx, _ui| {},
-            || vec![],
+            Vec::new,
         )
     }
 }

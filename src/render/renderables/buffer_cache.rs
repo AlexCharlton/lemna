@@ -27,6 +27,12 @@ pub struct BufferCache<V, I> {
     pub index_data: Vec<I>,
 }
 
+impl<T: Default + Pod, I: Default + Pod> Default for BufferCache<T, I> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
     pub fn new() -> Self {
         Self {

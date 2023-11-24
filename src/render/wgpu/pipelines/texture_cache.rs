@@ -68,10 +68,10 @@ impl PackedTextureInfo {
             if Self::fits_into_slot(size, slot.size()) {
                 pos = slot.pos;
 
-                let mut remainder1 = slot.clone();
+                let mut remainder1 = *slot;
                 remainder1.pos.x += size.width;
                 remainder1.bottom_right.y = remainder1.pos.y + size.height;
-                let mut remainder2 = slot.clone();
+                let mut remainder2 = *slot;
                 remainder2.pos.y += size.height;
 
                 if !Self::dead_slot(remainder1) {

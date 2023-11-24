@@ -146,7 +146,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                     let logical_size = *logical_size.read().unwrap();
                     let scale_factor = *scale_factor.read().unwrap();
                     let mut new = Node::new(
-                        Box::new(A::default()),
+                        Box::<A>::default(),
                         0,
                         lay!(size: size!(logical_size.width as f32, logical_size.height as f32)),
                     );
@@ -302,7 +302,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         F: Fn(&mut Node, &mut Event<T>),
     {
         event.target = target;
-        handler(&mut *self.node_mut(), event);
+        handler(&mut self.node_mut(), event);
         self.handle_focus_or_blur(event);
         self.handle_dirty_event(event);
     }
@@ -316,7 +316,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         F: Fn(&mut Node, &mut Event<T>),
     {
         event.target = target;
-        handler(&mut *self.node_mut(), event);
+        handler(&mut self.node_mut(), event);
         self.handle_dirty_event(event);
     }
 
@@ -472,9 +472,8 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                     self.event_cache.drag_started = None;
                     self.event_cache.drag_button = None;
                     self.event_cache.mouse_up(*b);
-                } else
-                // Resolve click
-                if self.event_cache.is_mouse_button_held(*b) {
+                } else if self.event_cache.is_mouse_button_held(*b) {
+                    // Resolve click
                     self.event_cache.mouse_up(*b);
                     let event_current_node_id = if is_double_click {
                         let mut event = Event::new(event::DoubleClick(*b), &self.event_cache);
@@ -677,7 +676,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
 
     pub fn with_app_state<S, F>(&mut self, f: F)
     where
-        F: Fn(&mut S) -> (),
+        F: Fn(&mut S),
         S: 'static,
     {
         let mut node = self.node_mut();

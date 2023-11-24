@@ -45,7 +45,7 @@ impl RasterPipeline {
             if last_texture != texture_index {
                 pass.set_bind_group(
                     1,
-                    &self.texture_cache.bind_group(texture_index.unwrap()),
+                    self.texture_cache.bind_group(texture_index.unwrap()),
                     &[],
                 );
             }
@@ -157,12 +157,12 @@ impl RasterPipeline {
                 .unwrap()
                 .get_raster_data(r.0.raster_cache_id)
                 .size
-                .area();
+                .area()
         });
 
         for (renderable, _) in renderables.iter() {
             self.texture_cache
-                .insert(*renderable, device, &self.bind_group_layout, &self.sampler);
+                .insert(renderable, device, &self.bind_group_layout, &self.sampler);
         }
 
         let cache_invalid = self.texture_cache.repack();

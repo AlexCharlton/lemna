@@ -97,19 +97,16 @@ where
         for m in (self.on_param_change)().drain(..) {
             self.sender.send(ParentMessage::AppMessage(m)).unwrap();
         }
-        ()
     }
     fn param_modulation_changed(&self, _id: &str, _modulation_offset: f32) {
         for m in (self.on_param_change)().drain(..) {
             self.sender.send(ParentMessage::AppMessage(m)).unwrap();
         }
-        ()
     }
     fn param_values_changed(&self) {
         for m in (self.on_param_change)().drain(..) {
             self.sender.send(ParentMessage::AppMessage(m)).unwrap();
         }
-        ()
     }
 }
 

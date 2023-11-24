@@ -187,7 +187,7 @@ impl Component for RadioButtons {
                     ),
                     state: Some(Default::default()),
                     dirty: false,
-                    class: self.class.clone(),
+                    class: self.class,
                     style_overrides: self.style_overrides.clone(),
                 })
                 .key(j as u64),
@@ -266,8 +266,8 @@ impl Component for RadioButton {
                 } else {
                     background_color
                 },
-                border_color: border_color,
-                border_width: border_width,
+                border_color,
+                border_width,
                 radius: self.radius,
             },
             lay!(

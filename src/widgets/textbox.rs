@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::hash::Hash;
 use std::time::Instant;
 
@@ -101,7 +102,7 @@ impl Component for TextBox {
                 TextBoxText {
                     default_text: self.text.clone().unwrap_or(String::new()),
                     style_overrides: self.style_overrides.clone(),
-                    class: self.class.clone(),
+                    class: self.class,
                     state: None,
                     dirty: false,
                 },
@@ -304,15 +305,13 @@ impl TextBoxText {
 
     fn selection(&self) -> Option<(usize, usize)> {
         let pos = self.state_ref().cursor_pos;
-        self.state_ref().selection_from.and_then(|selection_from| {
-            if pos == selection_from {
-                None
-            } else if pos > selection_from {
-                Some((selection_from, pos))
-            } else {
-                Some((pos, selection_from))
-            }
-        })
+        self.state_ref()
+            .selection_from
+            .and_then(|selection_from| match pos.cmp(&selection_from) {
+                Ordering::Equal => None,
+                Ordering::Greater => Some((selection_from, pos)),
+                Ordering::Less => Some((pos, selection_from)),
+            })
     }
 
     fn position(&self, x: f32) -> usize {

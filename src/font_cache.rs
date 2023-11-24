@@ -62,7 +62,7 @@ impl FontCache {
     ) -> Vec<SectionGlyph> {
         // TODO: Should accept an AABB and a start pos within it.
         let scaled_size = base_size * scale * SIZE_SCALE;
-        let base_font = self.font_or_default(base_font.as_deref());
+        let base_font = self.font_or_default(base_font);
 
         let section_text: Vec<_> = text
             .iter()
@@ -98,7 +98,7 @@ impl FontCache {
         scaled_size: f32,
         glyphs: &[SectionGlyph],
     ) -> Vec<f32> {
-        let font_ref = self.font_or_default(font.as_deref());
+        let font_ref = self.font_or_default(font);
         let font = &self.fonts[font_ref.0];
 
         glyphs

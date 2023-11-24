@@ -181,10 +181,10 @@ impl Node {
             self.aabb = self.layout_result.into();
             self.aabb *= scale_factor;
             self.aabb = self.aabb.round();
-            self.inner_scale.as_mut().map(|s| {
+            if let Some(s) = self.inner_scale.as_mut() {
                 s.width = (s.width * scale_factor).round();
                 s.height = (s.height * scale_factor).round();
-            });
+            }
         }
         self.aabb.pos += parent_pos;
         self.aabb.bottom_right += parent_pos.into();
@@ -199,10 +199,10 @@ impl Node {
                     c.aabb = c.layout_result.into();
                     c.aabb *= scale_factor;
                     c.aabb = c.aabb.round();
-                    c.inner_scale.as_mut().map(|s| {
+                    if let Some(s) = c.inner_scale.as_mut() {
                         s.width = (s.width * scale_factor).round();
                         s.height = (s.height * scale_factor).round();
-                    });
+                    }
 
                     (&mut c.aabb, c.inner_scale, c.component.focus())
                 })
@@ -281,8 +281,8 @@ impl Node {
     }
 
     /// Return whether to redraw the screen
-    pub fn render<'a>(
-        &'a mut self,
+    pub fn render(
+        &mut self,
         caches: Caches,
         prev: Option<&mut Self>,
         font_cache: Arc<RwLock<FontCache>>,
@@ -493,7 +493,7 @@ impl Node {
         }
     }
 
-    pub fn get_target_from_stack(&mut self, target: &Vec<usize>) -> &mut Self {
+    pub fn get_target_from_stack(&mut self, target: &[usize]) -> &mut Self {
         let mut current = self;
         for t in target.iter() {
             current = &mut current.children[*t];

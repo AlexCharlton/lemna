@@ -245,7 +245,7 @@ impl TextPipeline {
             self.buffer_cache.index_buffer.slice(..),
             wgpu::IndexFormat::Uint16,
         );
-        pass.draw_indexed(0..6 as u32, 0, 0..1);
+        pass.draw_indexed(0..6_u32, 0, 0..1);
     }
 
     fn update_glyph_cache(

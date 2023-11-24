@@ -63,11 +63,7 @@ impl Dimension {
     }
 
     pub fn resolved(&self) -> bool {
-        if let Self::Px(_) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Self::Px(_))
     }
 
     fn maybe_resolve(&self, relative_to: &Self) -> Self {
@@ -101,11 +97,7 @@ impl Dimension {
     }
 
     fn is_pct(&self) -> bool {
-        if let Self::Pct(_) = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Self::Pct(_))
     }
 }
 

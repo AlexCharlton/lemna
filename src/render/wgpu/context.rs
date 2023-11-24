@@ -1,5 +1,4 @@
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
-use wgpu;
 
 use crate::PixelSize;
 

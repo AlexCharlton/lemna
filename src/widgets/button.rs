@@ -78,7 +78,7 @@ impl Component for Button {
                     background_color
                 },
                 border_color,
-                border_width: border_width as f32,
+                border_width,
                 radius: (radius, radius, radius, radius),
             },
             lay!(
