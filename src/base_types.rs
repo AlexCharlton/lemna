@@ -770,6 +770,32 @@ fn norm_to_u8(x: f32) -> u8 {
     (x * 255.0) as u8
 }
 
+/// 8 bit color constructor. Useful when defining static colors.
+///
+/// E.g.:
+/// ```
+/// pub const DARK_GRAY: Color = color!(0x16, 0x16, 0x16);
+/// ```
+#[macro_export]
+macro_rules! color {
+    ($r:expr, $g:expr, $b:expr) => {
+        $crate::Color {
+            r: $r as f32 / 255.0,
+            g: $g as f32 / 255.0,
+            b: $b as f32 / 255.0,
+            a: 1.0,
+        }
+    };
+    ($r:expr, $g:expr, $b:expr, $a:expr) => {
+        $crate::Color {
+            r: $r as f32 / 255.0,
+            g: $g as f32 / 255.0,
+            b: $b as f32 / 255.0,
+            a: $a as f32 / 255.0,
+        }
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
