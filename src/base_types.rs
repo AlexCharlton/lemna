@@ -774,6 +774,7 @@ fn norm_to_u8(x: f32) -> u8 {
 ///
 /// E.g.:
 /// ```
+/// use lemna::{color, Color};
 /// pub const DARK_GRAY: Color = color!(0x16, 0x16, 0x16);
 /// ```
 #[macro_export]
