@@ -167,7 +167,7 @@ impl lemna::Component for App {
 
     fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) {
         println!(
-            "The app got a key: {:?} (Modifiers: {:?})",
+            "The app got a key press: {:?} (Modifiers: {:?})",
             event.input.0, event.modifiers_held
         );
     }
@@ -236,6 +236,20 @@ pub struct EventReactor {
 }
 
 impl Component for EventReactor {
+    fn view(&self) -> Option<Node> {
+        Some(node!(widgets::Text::new(txt!(
+            "Try pressing some keys..."
+        )).style("h_alignment", style::HorizontalPosition::Center)
+          .style("color", Color::WHITE),
+         [
+             size_pct: [100],
+             margin: [10],
+             padding: [5],
+             cross_alignment: Center,
+             axis_alignment: Center,
+         ]))
+    }
+
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         Some(vec![Renderable::Rect(lemna::renderables::Rect::new(
             Pos::default(),
@@ -283,6 +297,15 @@ impl Component for EventReactor {
 
     fn on_text_entry(&mut self, event: &mut Event<event::TextEntry>) {
         println!("{} got a some text: {:?})", &self.name, event.input.0);
+    }
+
+    // Without this declaration, the widget would not get KeyDown events (unless it is focused)
+    fn register(&mut self) -> Vec<event::Register> {
+        vec![event::Register::KeyDown]
+    }
+
+    fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
+        println!("The EventReactor got a key down: {:?}", event.input.0);
     }
 }
 

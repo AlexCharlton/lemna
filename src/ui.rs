@@ -9,12 +9,12 @@ use log::info;
 
 use crate::base_types::*;
 use crate::component::Component;
-use crate::event::{self, Event, EventCache};
+use crate::event::{self, Event, EventCache, EventInput};
 use crate::font_cache::FontCache;
 use crate::input::*;
 use crate::instrumenting::*;
 use crate::layout::*;
-use crate::node::Node;
+use crate::node::{Node, Registration};
 use crate::render::Renderer;
 use crate::window::Window;
 
@@ -41,6 +41,7 @@ pub struct UI<W: Window, A: Component + Default + Send + Sync> {
     draw_channel: Sender<()>,
     node: Arc<RwLock<Node>>,
     phantom_app: PhantomData<A>,
+    registrations: Arc<RwLock<Vec<Registration>>>,
     scale_factor: Arc<RwLock<f32>>,
     physical_size: Arc<RwLock<PixelSize>>,
     logical_size: Arc<RwLock<PixelSize>>,
@@ -64,7 +65,7 @@ fn clear_immediate_focus() {
 }
 
 #[allow(dead_code)]
-pub(crate) fn focus_immediately<T>(event: &Event<T>) {
+pub(crate) fn focus_immediately<T: EventInput>(event: &Event<T>) {
     IMMEDIATE_FOCUS.with(|r| unsafe { *r.get().as_mut().unwrap() = event.current_node_id })
 }
 
@@ -137,6 +138,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         scale_factor: Arc<RwLock<f32>>,
         frame_dirty: Arc<RwLock<bool>>,
         node_dirty: Arc<RwLock<bool>>,
+        registrations: Arc<RwLock<Vec<Registration>>>,
         window: Arc<RwLock<W>>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
@@ -161,7 +163,9 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                         // We need to acquire a lock on the node once we `view` it, because we remove its state at this point
                         let mut old = node.write().unwrap();
                         inst("Node::view");
-                        new.view(Some(&mut old));
+                        let mut new_registrations: Vec<Registration> = vec![];
+                        new.view(Some(&mut old), &mut new_registrations);
+                        *registrations.write().unwrap() = new_registrations;
                         inst_end();
 
                         inst("Node::layout");
@@ -209,6 +213,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         let window = Arc::new(RwLock::new(window));
         set_current_window(window.clone());
 
+        // Root node
         let node = Arc::new(RwLock::new(Node::new(
             Box::new(component),
             0,
@@ -217,6 +222,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         let font_cache = Arc::new(RwLock::new(FontCache::default()));
         let frame_dirty = Arc::new(RwLock::new(false));
         let node_dirty = Arc::new(RwLock::new(true));
+        let registrations: Arc<RwLock<Vec<Registration>>> = Default::default();
 
         // Create a channel to speak to the renderer. Every time we send to this channel we want to trigger a render;
         let (render_channel, receiver) = unbounded::<()>();
@@ -240,6 +246,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             scale_factor.clone(),
             frame_dirty,
             node_dirty.clone(),
+            registrations.clone(),
             window.clone(),
         );
 
@@ -252,6 +259,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             window,
             node,
             phantom_app: PhantomData,
+            registrations,
             scale_factor,
             physical_size,
             logical_size,
@@ -280,7 +288,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         self.event_cache.focus = self.node.read().unwrap().id; // The root note gets focus
     }
 
-    fn handle_focus_or_blur<T>(&mut self, event: &Event<T>) {
+    fn handle_focus_or_blur<T: EventInput>(&mut self, event: &Event<T>) {
         if event.focus.is_none() {
             self.blur();
         } else if event.focus != Some(self.event_cache.focus) {
@@ -293,23 +301,28 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         }
     }
 
-    fn handle_dirty_event<T>(&mut self, event: &Event<T>) {
+    fn handle_dirty_event<T: EventInput>(&mut self, event: &Event<T>) {
         if event.dirty {
             *self.node_dirty.write().unwrap() = true
         }
     }
 
-    fn handle_event<T, F>(&mut self, handler: F, event: &mut Event<T>, target: Option<u64>)
-    where
+    fn handle_event<T: EventInput, F>(
+        &mut self,
+        handler: F,
+        event: &mut Event<T>,
+        target: Option<u64>,
+    ) where
         F: Fn(&mut Node, &mut Event<T>),
     {
         event.target = target;
+        event.registrations = self.registrations.read().unwrap().clone();
         handler(&mut self.node_mut(), event);
         self.handle_focus_or_blur(event);
         self.handle_dirty_event(event);
     }
 
-    fn handle_event_without_focus<T, F>(
+    fn handle_event_without_focus<T: EventInput, F>(
         &mut self,
         handler: F,
         event: &mut Event<T>,

@@ -15,7 +15,7 @@ pub const DRAG_THRESHOLD: f32 = 15.0; // px
 /// Note this is longer than DRAG_THRESHOLD
 pub const DRAG_CLICK_MAX_DIST: f32 = 30.0; // px
 
-pub struct Event<T> {
+pub struct Event<T: EventInput> {
     pub input: T,
     pub(crate) bubbles: bool,
     pub(crate) dirty: bool,
@@ -30,9 +30,10 @@ pub struct Event<T> {
     pub(crate) focus: Option<u64>,
     pub(crate) scale_factor: f32,
     pub(crate) messages: Vec<Message>,
+    pub(crate) registrations: Vec<crate::node::Registration>,
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for Event<T> {
+impl<T: EventInput> std::fmt::Debug for Event<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.debug_struct("Event")
             .field("input", &self.input)
@@ -52,61 +53,131 @@ impl<T: std::fmt::Debug> std::fmt::Debug for Event<T> {
     }
 }
 
+/// Types that can be Event inputs
+pub trait EventInput: std::fmt::Debug {
+    #[doc(hidden)]
+    // For internal use only
+    fn matching_registrations(&self, _: &[crate::node::Registration]) -> Vec<u64> {
+        vec![]
+    }
+}
+
 #[derive(Debug)]
 pub struct Focus;
+impl EventInput for Focus {}
 #[derive(Debug)]
 pub struct Blur;
+impl EventInput for Blur {}
 #[derive(Debug)]
 pub struct Tick;
+impl EventInput for Tick {}
 #[derive(Debug)]
 pub struct MouseMotion;
+impl EventInput for MouseMotion {}
 #[derive(Debug)]
 pub struct MouseDown(pub MouseButton);
+impl EventInput for MouseDown {}
 #[derive(Debug)]
 pub struct MouseUp(pub MouseButton);
+impl EventInput for MouseUp {}
 #[derive(Debug)]
 pub struct MouseEnter;
+impl EventInput for MouseEnter {}
 #[derive(Debug)]
 pub struct MouseLeave;
+impl EventInput for MouseLeave {}
 #[derive(Debug)]
 pub struct Click(pub MouseButton);
+impl EventInput for Click {}
 #[derive(Debug)]
 pub struct DoubleClick(pub MouseButton);
+impl EventInput for DoubleClick {}
 #[derive(Debug)]
 pub struct KeyDown(pub Key);
+impl EventInput for KeyDown {
+    fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
+        registrations
+            .iter()
+            .filter_map(|(r, node_id)| match r {
+                Register::KeyDown => Some(*node_id),
+                _ => None,
+            })
+            .collect()
+    }
+}
 #[derive(Debug)]
 pub struct KeyUp(pub Key);
+impl EventInput for KeyUp {
+    fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
+        registrations
+            .iter()
+            .filter_map(|(r, node_id)| match r {
+                Register::KeyUp => Some(*node_id),
+                _ => None,
+            })
+            .collect()
+    }
+}
 #[derive(Debug)]
 pub struct KeyPress(pub Key);
+impl EventInput for KeyPress {
+    fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
+        registrations
+            .iter()
+            .filter_map(|(r, node_id)| match r {
+                Register::KeyPress => Some(*node_id),
+                _ => None,
+            })
+            .collect()
+    }
+}
 #[derive(Debug)]
 pub struct TextEntry(pub String);
+impl EventInput for TextEntry {}
 #[derive(Debug, Copy, Clone)]
 pub struct Scroll {
     pub x: f32,
     pub y: f32,
 }
+impl EventInput for Scroll {}
 #[derive(Debug, Copy, Clone)]
 pub struct Drag {
     pub button: MouseButton,
     pub start_pos: Point,
 }
+impl EventInput for Drag {}
 #[derive(Debug)]
 pub struct DragStart(pub MouseButton);
+impl EventInput for DragStart {}
 #[derive(Debug, Copy, Clone)]
 pub struct DragEnd {
     pub button: MouseButton,
     pub start_pos: Point,
 }
+impl EventInput for DragEnd {}
 #[derive(Debug)]
 pub struct DragTarget;
+impl EventInput for DragTarget {}
 #[derive(Debug)]
 pub struct DragEnter(pub Vec<Data>);
+impl EventInput for DragEnter {}
 #[derive(Debug)]
 pub struct DragLeave;
+impl EventInput for DragLeave {}
 #[derive(Debug)]
 pub struct DragDrop(pub Data);
+impl EventInput for DragDrop {}
 #[derive(Debug)]
 pub struct MenuSelect(pub i32);
+impl EventInput for MenuSelect {}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Register {
+    KeyDown,
+    KeyUp,
+    KeyPress,
+    // Maybe TODO: Include Tick?
+}
 
 impl Scalable for Scroll {
     fn scale(self, scale_factor: f32) -> Self {
@@ -135,7 +206,7 @@ impl Scalable for DragEnd {
     }
 }
 
-impl<T> Event<T> {
+impl<T: EventInput> Event<T> {
     pub(crate) fn new(input: T, event_cache: &EventCache) -> Self {
         Self {
             input,
@@ -152,6 +223,7 @@ impl<T> Event<T> {
             over_subchild_n: None,
             scale_factor: event_cache.scale_factor,
             messages: vec![],
+            registrations: vec![],
         }
     }
 
@@ -209,6 +281,10 @@ impl<T> Event<T> {
         self.over_subchild_n
     }
 
+    pub(crate) fn matching_registrations(&self) -> Vec<u64> {
+        self.input.matching_registrations(&self.registrations)
+    }
+
     // Unclear if this needs to be exposed
     #[allow(dead_code)]
     pub(crate) fn focus_immediately(&self) {
@@ -216,7 +292,7 @@ impl<T> Event<T> {
     }
 }
 
-impl<T: Scalable + Copy> Event<T> {
+impl<T: Scalable + Copy + EventInput> Event<T> {
     pub fn input_unscaled(&self) -> T {
         self.input.unscale(self.scale_factor)
     }

@@ -59,6 +59,10 @@ pub trait Component: fmt::Debug {
         false
     }
 
+    fn register(&mut self) -> Vec<event::Register> {
+        vec![]
+    }
+
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.props_hash(hasher);
     }

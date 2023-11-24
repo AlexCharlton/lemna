@@ -5,12 +5,15 @@ use std::sync::{Arc, RwLock};
 
 use crate::base_types::*;
 use crate::component::*;
-use crate::event::{self, Event};
+use crate::event::{self, Event, EventInput};
 use crate::font_cache::FontCache;
 use crate::layout::*;
 use crate::render::{Caches, Renderable};
 
 static NODE_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);
+
+// (<Event that the node desires to receive>, <Node ID>)
+pub(crate) type Registration = (event::Register, u64);
 
 fn new_node_id() -> u64 {
     NODE_ID_ATOMIC.fetch_add(1, Ordering::SeqCst)
@@ -124,7 +127,11 @@ impl Node {
         self
     }
 
-    pub(crate) fn view(&mut self, mut prev: Option<&mut Self>) {
+    pub(crate) fn view(
+        &mut self,
+        mut prev: Option<&mut Self>,
+        registrations: &mut Vec<Registration>,
+    ) {
         // TODO: skip non-visible (out of frame) nodes
         // Set up state and props
         let mut hasher = ComponentHasher::new_with_keys(0, 0);
@@ -147,6 +154,15 @@ impl Node {
             self.props_hash = hasher.finish();
         }
 
+        registrations.append(
+            &mut self
+                .component
+                .register()
+                .drain(..)
+                .map(|r| (r, self.id))
+                .collect::<Vec<_>>(),
+        );
+
         // Create children
         if self.children.is_empty() {
             if let Some(child) = self.component.view() {
@@ -158,11 +174,14 @@ impl Node {
         if let Some(prev) = prev.as_mut() {
             let prev_children = &mut prev.children;
             for child in self.children.iter_mut() {
-                child.view(prev_children.iter_mut().find(|x| x.key == child.key))
+                child.view(
+                    prev_children.iter_mut().find(|x| x.key == child.key),
+                    registrations,
+                )
             }
         } else {
             for child in self.children.iter_mut() {
-                child.view(None)
+                child.view(None, registrations)
             }
         }
     }
@@ -375,7 +394,7 @@ impl Node {
     /// and pops off the `nodes_under` list when it handles that node. We repeat until there
     /// is nothing left in `nodes_under`. If an event handler has caused the event to stop bubbling,
     /// we can stop early.
-    fn handle_event_under_mouse<E>(
+    fn handle_event_under_mouse<E: EventInput>(
         &mut self,
         event: &mut Event<E>,
         handler: fn(&mut Self, &mut Event<E>),
@@ -386,7 +405,7 @@ impl Node {
         }
     }
 
-    fn _handle_event_under_mouse<E>(
+    fn _handle_event_under_mouse<E: EventInput>(
         &mut self,
         event: &mut Event<E>,
         handler: fn(&mut Self, &mut Event<E>),
@@ -441,7 +460,7 @@ impl Node {
         m
     }
 
-    fn nodes_under<E>(&self, event: &Event<E>) -> Vec<(u64, f32)> {
+    fn nodes_under<E: EventInput>(&self, event: &Event<E>) -> Vec<(u64, f32)> {
         let mut collector: Vec<(u64, f32)> = vec![];
 
         self._nodes_under(event, &mut collector);
@@ -450,7 +469,7 @@ impl Node {
         collector
     }
 
-    fn _nodes_under<E>(&self, event: &Event<E>, collector: &mut Vec<(u64, f32)>) {
+    fn _nodes_under<E: EventInput>(&self, event: &Event<E>, collector: &mut Vec<(u64, f32)>) {
         if self
             .component
             .is_mouse_over(event.mouse_position, self.aabb)
@@ -535,14 +554,36 @@ impl Node {
         }
     }
 
-    fn handle_targeted_event<E>(
+    fn handle_targeted_event<E: EventInput>(
         &mut self,
         event: &mut Event<E>,
         handler: fn(&mut Self, &mut Event<E>),
     ) {
-        if event.target.is_none() {
-            return;
+        match event.target {
+            Some(0) => {
+                // If the target is the root node, allow registration to accept the event
+                let matching_registrations = event.matching_registrations();
+                if matching_registrations.is_empty() {
+                    // Go ahead and send to the root, if there are no registrations
+                    self.handle_targeted_event_inner(event, handler)
+                } else {
+                    for node_id in event.matching_registrations().iter() {
+                        // We don't reset this event, since we want to carry forward any signals: dirty, focus
+                        event.target = Some(*node_id);
+                        self.handle_targeted_event_inner(event, handler);
+                    }
+                }
+            }
+            Some(_) => self.handle_targeted_event_inner(event, handler),
+            None => (),
         }
+    }
+
+    fn handle_targeted_event_inner<E: EventInput>(
+        &mut self,
+        event: &mut Event<E>,
+        handler: fn(&mut Self, &mut Event<E>),
+    ) {
         if let Some(mut stack) = self.get_target_stack(event.target.unwrap()) {
             let node = self.get_target_from_stack(&stack);
             event.current_node_id = Some(node.id);
@@ -1022,7 +1063,7 @@ mod tests {
         let renderer = TestRenderer {};
         let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
         let font_cache = Arc::new(RwLock::new(FontCache::default()));
-        n.view(None);
+        n.view(None, &mut vec![]);
         //n.layout();
         n.render(renderer.caches(), None, font_cache.clone(), 1.0);
         //println!("{:#?}", n);
@@ -1050,7 +1091,7 @@ mod tests {
         n.click(&mut event);
 
         let mut new_n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
-        new_n.view(Some(&mut n));
+        new_n.view(Some(&mut n), &mut vec![]);
         assert_eq!(n.id, new_n.id);
         assert_eq!(n.children[0].id, new_n.children[0].id);
 
@@ -1256,7 +1297,7 @@ mod tests {
             0,
             lay!(size: size!(300.0)),
         );
-        n.view(None);
+        n.view(None, &mut vec![]);
         n.layout(&m, &font_cache.read().unwrap(), 1.0);
 
         // Expect the inner_scale to be a real size
@@ -1274,5 +1315,55 @@ mod tests {
         // The rest have Frames
         assert_eq!(renderables[3].2.len(), 1);
         assert_eq!(renderables[8].2.len(), 1);
+    }
+
+    mod test_registration_app {
+        use super::*;
+
+        #[derive(Debug)]
+        pub struct Registerer {
+            registration: event::Register,
+        }
+
+        impl Component for Registerer {
+            fn register(&mut self) -> Vec<event::Register> {
+                vec![self.registration]
+            }
+        }
+
+        #[derive(Debug, Default)]
+        pub struct TestApp {}
+
+        impl Component for TestApp {
+            fn view(&self) -> Option<Node> {
+                Some(
+                    node!(Registerer {
+                        registration: event::Register::KeyDown
+                    })
+                    .push(node!(Registerer {
+                        registration: event::Register::KeyUp,
+                    }))
+                    .push(node!(Registerer {
+                        registration: event::Register::KeyPress,
+                    })),
+                )
+            }
+        }
+    }
+
+    #[test]
+    fn test_registration() {
+        let mut n = Node::new(
+            Box::new(test_registration_app::TestApp::default()),
+            0,
+            Layout::default(),
+        );
+
+        let mut registrations: Vec<(event::Register, u64)> = vec![];
+        n.view(None, &mut registrations);
+        assert_eq!(registrations.len(), 3);
+        assert_eq!(registrations[0].0, event::Register::KeyDown);
+        assert_eq!(registrations[1].0, event::Register::KeyUp);
+        assert_eq!(registrations[2].0, event::Register::KeyPress);
     }
 }
