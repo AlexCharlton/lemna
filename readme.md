@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/lemna)](https://crates.io/crates/lemna)
 [![Docs.rs](https://docs.rs/lemna/badge.svg)](https://docs.rs/lemna)
+[![CI](https://github.com/AlexCharlton/lemna/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexCharlton/lemna/actions/workflows/ci.yml)
 
 A Reactive UI framework for Rust
 
