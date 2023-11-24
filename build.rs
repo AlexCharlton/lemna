@@ -3,11 +3,14 @@ use std::path::Path;
 
 use glob::glob;
 
+#[cfg(feature = "docs_rs")]
 fn main() -> Result<(), Box<dyn Error>> {
-    if cfg!(feature = "docs_rs") {
-        println!("Skipping build because we're running on docs.rs");
-        return Ok(());
-    }
+    println!("Skipping build because we're running on docs.rs");
+    return Ok(());
+}
+
+#[cfg(not(feature = "docs_rs"))]
+fn main() -> Result<(), Box<dyn Error>> {
     let compiler = shaderc::Compiler::new().unwrap();
     let path = Path::new("./src/render/wgpu/pipelines/shaders");
 
