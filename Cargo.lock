@@ -2253,7 +2253,7 @@ dependencies = [
 [[package]]
 name = "nih_plug"
 version = "0.0.0"
-source = "git+https://github.com/AlexCharlton/nih-plug.git#3f7fde82ca391201920673790d0e9da954c57071"
+source = "git+https://github.com/AlexCharlton/nih-plug.git#aa3042ebf254dc60b3825a16d6ac4c09be1b5885"
 dependencies = [
  "anyhow",
  "anymap",
@@ -2290,7 +2290,7 @@ dependencies = [
 [[package]]
 name = "nih_plug_derive"
 version = "0.1.0"
-source = "git+https://github.com/AlexCharlton/nih-plug.git#3f7fde82ca391201920673790d0e9da954c57071"
+source = "git+https://github.com/AlexCharlton/nih-plug.git#aa3042ebf254dc60b3825a16d6ac4c09be1b5885"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4072,7 +4072,7 @@ dependencies = [
  "js-sys",
  "log",
  "naga",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "profiling",
  "raw-window-handle",
  "smallvec",
@@ -4097,7 +4097,7 @@ dependencies = [
  "codespan-reporting",
  "log",
  "naga",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "profiling",
  "raw-window-handle",
  "rustc-hash",
@@ -4136,7 +4136,7 @@ dependencies = [
  "metal",
  "naga",
  "objc",
- "parking_lot 0.12.1",
+ "parking_lot 0.11.2",
  "profiling",
  "range-alloc",
  "raw-window-handle",
