@@ -3,10 +3,9 @@ use std::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
-use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
 use crate::render::{renderables::shape::Shape, Renderable};
-use crate::style::{current_style, Styled};
+use crate::style::{current_style, HorizontalPosition, Styled};
 use crate::{node, txt, Node};
 use lemna_macros::{component, state_component_impl};
 
@@ -168,7 +167,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
                 .push(node!(super::Text::new(txt!(selection.to_string()))
                     .style("size", self.style_val("font_size").unwrap())
                     .style("color", self.style_val("text_color").unwrap())
-                    .style("h_alignment", HorizontalAlign::Center)
+                    .style("h_alignment", HorizontalPosition::Center)
                     .maybe_style("font", self.style_val("font"))))
                 .push(node!(
                     Caret { color: caret_color },
@@ -339,7 +338,7 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component fo
                 super::Text::new(txt!(self.selection.to_string()))
                     .style("size", self.style_val("font_size").unwrap())
                     .style("color", self.style_val("text_color").unwrap())
-                    .style("h_alignment", HorizontalAlign::Center)
+                    .style("h_alignment", HorizontalPosition::Center)
                     .maybe_style("font", self.style_val("font"))
             )),
         )

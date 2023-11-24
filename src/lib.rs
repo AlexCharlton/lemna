@@ -29,8 +29,7 @@ pub use node::*;
 pub mod component;
 pub use component::*;
 
-mod font_cache;
-pub use font_cache::{FontCache, HorizontalAlign, SectionText};
+pub mod font_cache;
 
 #[macro_use]
 pub mod style;
@@ -41,7 +40,6 @@ pub use ui::*;
 
 #[macro_use]
 pub mod widgets;
-pub use widgets::*;
 
 #[doc(hidden)]
 pub use lemna_macros;

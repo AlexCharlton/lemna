@@ -5,7 +5,7 @@ mod canvas;
 pub use canvas::Canvas;
 
 mod div;
-pub use div::{Div, HorizontalPosition, VerticalPosition};
+pub use div::Div;
 
 #[cfg(feature = "file-dialogs")]
 mod file_selector;
@@ -20,9 +20,8 @@ pub use rounded_rect::RoundedRect;
 mod select;
 pub use select::*;
 
-#[macro_use]
 mod text;
-pub use text::{Text, TextSegment};
+pub use text::Text;
 
 mod textbox;
 pub use textbox::{TextBox, TextBoxAction};

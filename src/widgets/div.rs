@@ -5,7 +5,7 @@ use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
 use crate::layout::*;
 use crate::render::{renderables::Rect, Renderable};
-use crate::style::{StyleVal, Styled};
+use crate::style::{HorizontalPosition, StyleVal, Styled, VerticalPosition};
 
 use lemna_macros::{component, state_component_impl};
 
@@ -22,24 +22,6 @@ pub struct DivState {
     x_bar_pressed: bool,
     drag_start_position: Point,
     scaled_scroll_bar_width: f32,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum VerticalPosition {
-    Bottom,
-    Top,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum HorizontalPosition {
-    Left,
-    Right,
-}
-
-impl Default for VerticalPosition {
-    fn default() -> Self {
-        Self::Bottom
-    }
 }
 
 #[component(State = "DivState", Styled = "Scroll", Internal)]

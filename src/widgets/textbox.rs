@@ -1,19 +1,17 @@
 use std::hash::Hash;
 use std::time::Instant;
 
-use glyph_brush_layout::ab_glyph::{Font, ScaleFont};
-
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
-use crate::font_cache::{FontCache, HorizontalAlign, SectionText};
+use crate::font_cache::{FontCache, TextSegment};
 use crate::input::Key;
 use crate::layout::ScrollPosition;
 use crate::render::{
     renderables::{Rect, Text},
     Renderable,
 };
-use crate::style::Styled;
+use crate::style::{HorizontalPosition, Styled};
 use crate::{node, Node};
 use lemna_macros::{component, state_component_impl};
 
@@ -743,27 +741,25 @@ impl Component for TextBoxText {
         if self.state_ref().dirty {
             let font = self.style_val("font").map(|p| p.str().to_string());
 
-            let font_size_px = font_size * super::Text::SIZE_SCALE * scale_factor;
-            let font_ref = font_cache.font_or_default(font.as_deref());
-            let font = &font_cache.fonts[font_ref.0];
-
             self.state_mut().glyphs = font_cache.layout_text(
-                &[SectionText {
-                    text: &self.state_ref().text,
-                    scale: font_size_px.into(),
-                    font_id: font_ref,
+                &[TextSegment {
+                    text: self.state_ref().text.clone(),
+                    size: font_size.into(),
+                    font: font.clone(),
                 }],
-                HorizontalAlign::Left,
+                font.as_deref(),
+                font_size,
+                scale_factor,
+                HorizontalPosition::Left,
                 (0.0, 0.0),
                 (f32::MAX, f32::MAX),
             );
 
-            let glyph_widths = self
-                .state_ref()
-                .glyphs
-                .iter()
-                .map(|g| font.as_scaled(font_size_px).h_advance(g.glyph.id))
-                .collect();
+            let glyph_widths = font_cache.glyph_widths(
+                font.as_deref(),
+                font_size * scale_factor,
+                &self.state_ref().glyphs,
+            );
             self.state_mut().glyph_widths = glyph_widths;
             self.state_mut().padding_offset_px = ((padding + border_width) * scale_factor).round();
 
@@ -778,14 +774,15 @@ impl Component for TextBoxText {
             + self.state_ref().padding_offset_px * 2.0;
         (
             Some(width / scale_factor),
-            Some(font_size * super::Text::SIZE_SCALE + padding * 2.0 + border_width * 2.0),
+            Some(font_size * crate::font_cache::SIZE_SCALE + padding * 2.0 + border_width * 2.0),
         )
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let cursor_z = 2.0;
         let text_z = 5.0;
-        let font_size: f32 = self.style_val("font_size").unwrap().f32() * super::Text::SIZE_SCALE;
+        let font_size: f32 =
+            self.style_val("font_size").unwrap().f32() * crate::font_cache::SIZE_SCALE;
         let text_color: Color = self.style_val("text_color").into();
         let cursor_color: Color = self.style_val("cursor_color").into();
         let selection_color: Color = self.style_val("selection_color").into();

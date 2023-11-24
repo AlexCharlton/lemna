@@ -1,7 +1,6 @@
 use crate::base_types::*;
 use crate::component::Component;
-use crate::font_cache::HorizontalAlign;
-use crate::style::Styled;
+use crate::style::{HorizontalPosition, Styled};
 use crate::{node, txt, Node};
 use lemna_macros::component;
 
@@ -45,7 +44,7 @@ impl Component for ToolTip {
             .push(node!(super::Text::new(txt!(self.tool_tip.clone()))
                 .style("size", self.style_val("font_size").unwrap())
                 .style("color", self.style_val("text_color").unwrap())
-                .style("h_alignment", HorizontalAlign::Left)
+                .style("h_alignment", HorizontalPosition::Left)
                 .maybe_style("font", self.style_val("font")))),
         )
     }

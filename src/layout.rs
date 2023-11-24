@@ -1,5 +1,5 @@
 //! [Flexbox](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_flexible_box_layout/Basic_concepts_of_flexbox)-like layout resolution.
-//! All [`Nodes`](lemna::Node) have a [`Layout`] attached, and this module is responsible for assigning a [`LayoutResult`] -- an absolution position and size --
+//! All [`Nodes`](crate::Node) have a [`Layout`] attached, and this module is responsible for assigning a [`LayoutResult`] -- an absolution position and size --
 //! to the Node, during the draw phase. All [`Layout`] creation functionality -- and thus the entire user-facing interface -- is exposed through the less-verbose [`lay!`] macro.
 use std::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 

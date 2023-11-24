@@ -1,10 +1,35 @@
 use std::collections::HashMap;
+use std::hash::Hash;
 use std::sync::{Mutex, OnceLock};
 
 use crate::base_types::*;
-use crate::font_cache::HorizontalAlign;
 use crate::layout::*;
-use crate::widgets::{HorizontalPosition, VerticalPosition};
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum VerticalPosition {
+    Bottom,
+    Center,
+    Top,
+}
+
+impl Default for VerticalPosition {
+    fn default() -> Self {
+        Self::Bottom
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum HorizontalPosition {
+    Left,
+    Center,
+    Right,
+}
+
+impl Default for HorizontalPosition {
+    fn default() -> Self {
+        Self::Right
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StyleVal {
@@ -15,7 +40,6 @@ pub enum StyleVal {
     Pos(Pos),
     Color(Color),
     Layout(Layout),
-    HorizontalAlign(HorizontalAlign),
     HorizontalPosition(HorizontalPosition),
     VerticalPosition(VerticalPosition),
     Float(f64),
@@ -239,7 +263,7 @@ impl Default for Style {
             (StyleKey::new("Text", "color", None), Color::BLACK.into()),
             (
                 StyleKey::new("Text", "h_alignment", None),
-                HorizontalAlign::Left.into(),
+                HorizontalPosition::Left.into(),
             ),
             // Scroll
             (StyleKey::new("Scroll", "x", None), false.into()),
@@ -529,19 +553,6 @@ impl From<Option<StyleVal>> for Layout {
         }
     }
 }
-impl From<HorizontalAlign> for StyleVal {
-    fn from(c: HorizontalAlign) -> Self {
-        Self::HorizontalAlign(c)
-    }
-}
-impl From<StyleVal> for HorizontalAlign {
-    fn from(v: StyleVal) -> Self {
-        match v {
-            StyleVal::HorizontalAlign(c) => c,
-            x => panic!("Tried to coerce {x:?} into a HorizontalAlign"),
-        }
-    }
-}
 impl From<VerticalPosition> for StyleVal {
     fn from(c: VerticalPosition) -> Self {
         Self::VerticalPosition(c)
@@ -659,10 +670,6 @@ impl StyleVal {
     }
 
     pub fn layout(self) -> Layout {
-        self.into()
-    }
-
-    pub fn horizontal_align(self) -> HorizontalAlign {
         self.into()
     }
 

@@ -3,12 +3,12 @@ use std::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
+use crate::font_cache::FontCache;
 use crate::input::MouseButton;
 use crate::render::{
     renderables::{raster::Raster, raster_cache::RasterData},
     Renderable,
 };
-use crate::FontCache;
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug)]
