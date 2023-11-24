@@ -21,8 +21,10 @@ use crate::window::Window;
 // This can become feature-dependant
 type ActiveRenderer = crate::render::wgpu::WGPURenderer;
 
-/// `UI` is the main struct that holds the `Window`, `Renderer` and `Node`s of an `App`.
-/// It handles events and drawing/rendering.
+/// `UI` is the main struct that holds the [`Window`], `Renderer` and [`Node`]s of an app.
+/// It handles events and drawing+rendering.
+/// You probably don't need to reference it directly, unless you're implementing a windowing backend.
+///
 /// Drawing (laying out `Nodes` and assembling their `Renderable`s) and rendering
 /// (painting the `Renderables` onto the `Window`'s frame) are performed in separate threads
 /// from the handling of events/render requests. This prevents hanging when handling events
