@@ -100,7 +100,7 @@ impl Component for TextBox {
             )
             .push(node!(
                 TextBoxText {
-                    default_text: self.text.clone().unwrap_or(String::new()),
+                    default_text: self.text.clone().unwrap_or_default(),
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                     state: None,

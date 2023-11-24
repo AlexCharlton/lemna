@@ -492,7 +492,7 @@ impl super::Renderer for WGPURenderer {
         inst_end();
 
         inst("WGPURenderer::render#submit_command_buffers");
-        self.context.queue.submit(command_buffers.into_iter());
+        self.context.queue.submit(command_buffers);
         output.present();
         inst_end();
     }

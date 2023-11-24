@@ -97,7 +97,7 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
         }
         i[len - 1] = TokenTree::Group(Group::new(g.delimiter(), s));
     }
-    let mut struct_def = TokenStream::from_iter(i.into_iter());
+    let mut struct_def = TokenStream::from_iter(i);
 
     // State impl
     let input = parse_macro_input!(input as syn::ItemStruct);
@@ -190,7 +190,7 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
         i[len - 1] = TokenTree::Group(Group::new(g.delimiter(), s));
     }
 
-    TokenStream::from_iter(i.into_iter())
+    TokenStream::from_iter(i)
 }
 
 /// Used by the `node` macro, to generate node keys.

@@ -734,8 +734,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
     type Item = (&'a Renderable, &'a AABB, Vec<ScrollFrame>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        while !self.queue.is_empty() {
-            let n = self.queue.pop().unwrap();
+        while let Some(n) = self.queue.pop() {
             if let Some(c) = &n.render_cache {
                 let i = self.i;
 
