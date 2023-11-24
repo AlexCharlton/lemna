@@ -187,7 +187,7 @@ impl TextureCache {
             .id;
 
         if let Some(i) = self.raster_texture_map.get(&id) {
-            if let Some(mut r) = self.texture_info[*i].raster_map.get_mut(&id) {
+            if let Some(r) = self.texture_info[*i].raster_map.get_mut(&id) {
                 r.3 = true; // Mark it as used
             }
             // Raster is already here
