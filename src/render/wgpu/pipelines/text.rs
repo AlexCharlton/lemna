@@ -12,7 +12,6 @@ use crate::render::next_power_of_2;
 use crate::render::renderables::text::{Instance, Text, Vertex};
 use crate::render::wgpu::context;
 
-pub use glyph_brush_layout::FontId;
 const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 1024;
 
 struct GlyphCache {
