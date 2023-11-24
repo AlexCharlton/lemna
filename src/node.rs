@@ -25,7 +25,7 @@ macro_rules! node {
         node!(
             $component,
             $crate::lay!($($tt)*),
-            lemna_macros::static_id!()
+            $crate::lemna_macros::static_id!()
         )
     };
     ($component:expr, [ $( $tt:tt )* ], $key:expr) => {
@@ -36,7 +36,7 @@ macro_rules! node {
         )
     };
     ($component:expr, $layout:expr $(,)*) => {
-        node!($component, $layout, lemna_macros::static_id!())
+        node!($component, $layout, $crate::lemna_macros::static_id!())
     };
     ($component:expr, $layout:expr, $key:expr) => {
         $crate::Node::new(Box::new($component), $key, $layout)

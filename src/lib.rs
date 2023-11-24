@@ -1,3 +1,5 @@
+#![doc = include_str!("doc.md")]
+
 pub mod instrumenting;
 
 #[macro_use]
@@ -6,7 +8,6 @@ pub use base_types::*;
 
 #[macro_use]
 pub mod layout;
-pub use layout::*;
 
 pub mod render;
 pub use render::Renderable;
@@ -36,13 +37,16 @@ pub mod style;
 pub use style::{set_current_style, Style, Styled};
 
 mod ui;
-pub use crate::ui::*;
+pub use ui::*;
 
 #[macro_use]
 pub mod widgets;
-pub use crate::widgets::*;
+pub use widgets::*;
 
-pub use lemna_macros::{self, component, state_component_impl};
+#[doc(hidden)]
+pub use lemna_macros;
+#[doc(inline)]
+pub use lemna_macros::{component, state_component_impl};
 
 #[cfg(feature = "open_iconic")]
 pub mod open_iconic;
