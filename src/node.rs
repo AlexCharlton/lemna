@@ -16,6 +16,7 @@ fn new_node_id() -> u64 {
     NODE_ID_ATOMIC.fetch_add(1, Ordering::SeqCst)
 }
 
+/// Constructor for [`Node`].
 #[macro_export]
 macro_rules! node {
     ($component:expr $(,)*) => {
@@ -123,7 +124,7 @@ impl Node {
         self
     }
 
-    pub fn view(&mut self, mut prev: Option<&mut Self>) {
+    pub(crate) fn view(&mut self, mut prev: Option<&mut Self>) {
         // TODO: skip non-visible (out of frame) nodes
         // Set up state and props
         let mut hasher = ComponentHasher::new_with_keys(0, 0);
@@ -268,7 +269,7 @@ impl Node {
         }
     }
 
-    pub fn layout(&mut self, _prev: &Self, font_cache: &FontCache, scale_factor: f32) {
+    pub(crate) fn layout(&mut self, _prev: &Self, font_cache: &FontCache, scale_factor: f32) {
         self.calculate_layout(font_cache, scale_factor);
         self.set_aabb(
             Pos::default(),
@@ -281,7 +282,7 @@ impl Node {
     }
 
     /// Return whether to redraw the screen
-    pub fn render(
+    pub(crate) fn render(
         &mut self,
         caches: Caches,
         prev: Option<&mut Self>,
@@ -344,15 +345,15 @@ impl Node {
         }
     }
 
-    pub fn scroll_x(&self) -> Option<f32> {
+    pub(crate) fn scroll_x(&self) -> Option<f32> {
         self.component.scroll_position().and_then(|p| p.x)
     }
 
-    pub fn scroll_y(&self) -> Option<f32> {
+    pub(crate) fn scroll_y(&self) -> Option<f32> {
         self.component.scroll_position().and_then(|p| p.y)
     }
 
-    pub fn scrollable(&self) -> bool {
+    pub(crate) fn scrollable(&self) -> bool {
         self.scroll_x().is_some() || self.scroll_y().is_some()
     }
 
@@ -475,25 +476,25 @@ impl Node {
         }
     }
 
-    pub fn get_target(&mut self, target: u64) -> Option<&mut Self> {
-        let mut stack: Vec<&mut Self> = vec![];
-        let mut current = self;
-        loop {
-            if current.id == target {
-                return Some(current);
-            }
-            if !current.children.is_empty() {
-                stack.append(&mut current.children.iter_mut().collect());
-            }
-            if stack.is_empty() {
-                return None;
-            } else {
-                current = stack.pop().unwrap();
-            }
-        }
-    }
+    // fn get_target(&mut self, target: u64) -> Option<&mut Self> {
+    //     let mut stack: Vec<&mut Self> = vec![];
+    //     let mut current = self;
+    //     loop {
+    //         if current.id == target {
+    //             return Some(current);
+    //         }
+    //         if !current.children.is_empty() {
+    //             stack.append(&mut current.children.iter_mut().collect());
+    //         }
+    //         if stack.is_empty() {
+    //             return None;
+    //         } else {
+    //             current = stack.pop().unwrap();
+    //         }
+    //     }
+    // }
 
-    pub fn get_target_from_stack(&mut self, target: &[usize]) -> &mut Self {
+    fn get_target_from_stack(&mut self, target: &[usize]) -> &mut Self {
         let mut current = self;
         for t in target.iter() {
             current = &mut current.children[*t];
@@ -501,7 +502,7 @@ impl Node {
         current
     }
 
-    pub fn get_target_stack(&self, target: u64) -> Option<Vec<usize>> {
+    pub(crate) fn get_target_stack(&self, target: u64) -> Option<Vec<usize>> {
         struct Frame<'a> {
             node: &'a Node,
             child: usize,
@@ -578,7 +579,7 @@ impl Node {
         }
     }
 
-    pub fn send_messages(
+    pub(crate) fn send_messages(
         &mut self,
         mut target_stack: Vec<usize>,
         messages: &mut Vec<Message>,
@@ -601,105 +602,105 @@ impl Node {
         }
     }
 
-    pub fn mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
+    pub(crate) fn mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
         self.handle_event_under_mouse(event, |node, e| {
             e.target = Some(node.id);
             node.component.on_mouse_motion(e)
         });
     }
 
-    pub fn scroll(&mut self, event: &mut Event<event::Scroll>) {
+    pub(crate) fn scroll(&mut self, event: &mut Event<event::Scroll>) {
         self.handle_event_under_mouse(event, |node, e| node.component.on_scroll(e));
     }
 
-    pub fn mouse_down(&mut self, event: &mut Event<event::MouseDown>) {
+    pub(crate) fn mouse_down(&mut self, event: &mut Event<event::MouseDown>) {
         self.handle_event_under_mouse(event, |node, e| node.component.on_mouse_down(e));
     }
 
-    pub fn mouse_up(&mut self, event: &mut Event<event::MouseUp>) {
+    pub(crate) fn mouse_up(&mut self, event: &mut Event<event::MouseUp>) {
         self.handle_event_under_mouse(event, |node, e| node.component.on_mouse_up(e));
     }
 
-    pub fn mouse_enter(&mut self, event: &mut Event<event::MouseEnter>) {
+    pub(crate) fn mouse_enter(&mut self, event: &mut Event<event::MouseEnter>) {
         self.handle_targeted_event(event, |node, e| node.component.on_mouse_enter(e));
     }
 
-    pub fn mouse_leave(&mut self, event: &mut Event<event::MouseLeave>) {
+    pub(crate) fn mouse_leave(&mut self, event: &mut Event<event::MouseLeave>) {
         self.handle_targeted_event(event, |node, e| node.component.on_mouse_leave(e));
     }
 
-    pub fn click(&mut self, event: &mut Event<event::Click>) {
+    pub(crate) fn click(&mut self, event: &mut Event<event::Click>) {
         self.handle_event_under_mouse(event, |node, e| node.component.on_click(e));
     }
 
-    pub fn double_click(&mut self, event: &mut Event<event::DoubleClick>) {
+    pub(crate) fn double_click(&mut self, event: &mut Event<event::DoubleClick>) {
         self.handle_event_under_mouse(event, |node, e| node.component.on_double_click(e));
     }
 
-    pub fn focus(&mut self, event: &mut Event<event::Focus>) {
+    pub(crate) fn focus(&mut self, event: &mut Event<event::Focus>) {
         self.handle_targeted_event(event, |node, e| node.component.on_focus(e));
     }
 
-    pub fn blur(&mut self, event: &mut Event<event::Blur>) {
+    pub(crate) fn blur(&mut self, event: &mut Event<event::Blur>) {
         self.handle_targeted_event(event, |node, e| node.component.on_blur(e));
     }
 
-    pub fn key_down(&mut self, event: &mut Event<event::KeyDown>) {
+    pub(crate) fn key_down(&mut self, event: &mut Event<event::KeyDown>) {
         self.handle_targeted_event(event, |node, e| node.component.on_key_down(e));
     }
 
-    pub fn key_up(&mut self, event: &mut Event<event::KeyUp>) {
+    pub(crate) fn key_up(&mut self, event: &mut Event<event::KeyUp>) {
         self.handle_targeted_event(event, |node, e| node.component.on_key_up(e));
     }
 
-    pub fn key_press(&mut self, event: &mut Event<event::KeyPress>) {
+    pub(crate) fn key_press(&mut self, event: &mut Event<event::KeyPress>) {
         self.handle_targeted_event(event, |node, e| node.component.on_key_press(e));
     }
 
-    pub fn text_entry(&mut self, event: &mut Event<event::TextEntry>) {
+    pub(crate) fn text_entry(&mut self, event: &mut Event<event::TextEntry>) {
         self.handle_targeted_event(event, |node, e| node.component.on_text_entry(e));
     }
 
-    pub fn drag(&mut self, event: &mut Event<event::Drag>) {
+    pub(crate) fn drag(&mut self, event: &mut Event<event::Drag>) {
         self.handle_targeted_event(event, |node, e| node.component.on_drag(e));
     }
 
-    pub fn drag_start(&mut self, event: &mut Event<event::DragStart>) {
+    pub(crate) fn drag_start(&mut self, event: &mut Event<event::DragStart>) {
         self.handle_event_under_mouse(event, |node, e| {
             e.target = Some(node.id);
             node.component.on_drag_start(e)
         });
     }
 
-    pub fn drag_end(&mut self, event: &mut Event<event::DragEnd>) {
+    pub(crate) fn drag_end(&mut self, event: &mut Event<event::DragEnd>) {
         self.handle_targeted_event(event, |node, e| node.component.on_drag_end(e));
     }
 
     // DND
-    pub fn drag_target(&mut self, event: &mut Event<event::DragTarget>) {
+    pub(crate) fn drag_target(&mut self, event: &mut Event<event::DragTarget>) {
         self.handle_event_under_mouse(event, |node, e| {
             e.target = Some(node.id);
             node.component.on_drag_target(e)
         });
     }
 
-    pub fn drag_enter(&mut self, event: &mut Event<event::DragEnter>) {
+    pub(crate) fn drag_enter(&mut self, event: &mut Event<event::DragEnter>) {
         self.handle_targeted_event(event, |node, e| node.component.on_drag_enter(e));
     }
 
-    pub fn drag_leave(&mut self, event: &mut Event<event::DragLeave>) {
+    pub(crate) fn drag_leave(&mut self, event: &mut Event<event::DragLeave>) {
         self.handle_targeted_event(event, |node, e| node.component.on_drag_leave(e));
     }
 
-    pub fn drag_drop(&mut self, event: &mut Event<event::DragDrop>) {
+    pub(crate) fn drag_drop(&mut self, event: &mut Event<event::DragDrop>) {
         self.handle_targeted_event(event, |node, e| node.component.on_drag_drop(e));
     }
 
-    pub fn menu_select(&mut self, event: &mut Event<event::MenuSelect>) {
+    pub(crate) fn menu_select(&mut self, event: &mut Event<event::MenuSelect>) {
         self.handle_targeted_event(event, |node, e| node.component.on_menu_select(e));
     }
 
-    pub fn tick(&mut self, event: &mut Event<event::Tick>) -> Vec<Message> {
+    pub(crate) fn tick(&mut self, event: &mut Event<event::Tick>) -> Vec<Message> {
         let mut m: Vec<Message> = vec![];
 
         for child in self.children.iter_mut() {
