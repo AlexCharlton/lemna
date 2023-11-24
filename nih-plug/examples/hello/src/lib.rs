@@ -11,9 +11,9 @@ impl lemna::Component for App {
         Some(
             node!(
                 widgets::Div::new(),
-                lay!(size: size_pct!(100.0), wrap: true,
-                     padding: rect!(10.0),
-                     axis_alignment: Alignment::Center, cross_alignment: Alignment::Center)
+                [size_pct: [100.0], wrap: true,
+                     padding: [10.0],
+                     axis_alignment: Center, cross_alignment: Center]
             )
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(1.0, 0.0, 0.0)),
@@ -77,7 +77,7 @@ impl Plugin for HelloPlugin {
     }
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        lemna_nih_plug::create_lemna_editor::<lemna::render::wgpu::WGPURenderer, App, _, _>(
+        lemna_nih_plug::create_lemna_editor::<lemna::WGPURenderer, App, _, _>(
             "Hello Lemna",
             400,
             300,

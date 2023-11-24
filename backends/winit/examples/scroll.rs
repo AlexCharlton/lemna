@@ -1,4 +1,4 @@
-use lemna::*;
+use lemna::{style::HorizontalPosition, widgets::*, *};
 
 #[derive(Debug, Default)]
 pub struct App {}
@@ -162,7 +162,7 @@ fn main() {
         ConfigBuilder::new().build(),
         std::fs::File::create("example.log").unwrap(),
     );
-    lemna_winit::Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
+    lemna_winit::Window::open_blocking::<lemna::WGPURenderer, App>(
         "Hello scroll!",
         800,
         600,

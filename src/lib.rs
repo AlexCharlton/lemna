@@ -9,30 +9,32 @@ pub use base_types::*;
 #[macro_use]
 pub mod layout;
 
-pub mod render;
-pub use render::Renderable;
+mod render;
+#[doc(inline)]
+pub use render::*;
 
 pub mod input;
-pub use input::Data;
 
 pub mod event;
-pub use event::*;
+#[doc(inline)]
+pub use event::Event;
 
-pub mod window;
+mod window;
 pub use window::*;
 
 #[macro_use]
-pub mod node;
+mod node;
 pub use node::*;
 
 #[macro_use]
-pub mod component;
+mod component;
 pub use component::*;
 
 pub mod font_cache;
 
 #[macro_use]
 pub mod style;
+#[doc(inline)]
 pub use style::{set_current_style, Style, Styled};
 
 mod ui;

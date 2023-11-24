@@ -414,7 +414,7 @@ impl TextBoxText {
     }
 
     fn paste(&mut self) -> bool {
-        if let Some(crate::input::Data::String(text)) =
+        if let Some(crate::Data::String(text)) =
             crate::current_window().and_then(|w| w.get_from_clipboard())
         {
             self.insert_text(&text);

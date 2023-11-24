@@ -1,22 +1,27 @@
+//! Requires feature "instrumented" to be active
+
 use std::cell::UnsafeCell;
 use std::time::Instant;
 
 #[cfg(feature = "instrumented")]
 use log::info;
 
+#[allow(dead_code)]
 type Inst = (String, Instant);
 
 thread_local!(
-    pub static INST_STACK: UnsafeCell<Vec<Inst>> = {
+    static INST_STACK: UnsafeCell<Vec<Inst>> = {
         UnsafeCell::new(vec![])
     }
 );
 
-pub fn inst_stack_push(name: &str, instant: Instant) {
+#[allow(dead_code)]
+fn inst_stack_push(name: &str, instant: Instant) {
     INST_STACK.with(|r| unsafe { r.get().as_mut().unwrap().push((name.to_string(), instant)) })
 }
 
-pub fn inst_stack_pop() -> Inst {
+#[allow(dead_code)]
+fn inst_stack_pop() -> Inst {
     INST_STACK.with(|r| unsafe { r.get().as_mut().unwrap().pop().unwrap() })
 }
 

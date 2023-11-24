@@ -5,7 +5,7 @@ use std::mem;
 use std::os::raw::c_void;
 
 use lemna::input::{Button, Input, Key, Motion, MouseButton};
-use lemna::{render::Renderer, Component, PixelSize, UI};
+use lemna::{Component, Data, PixelSize, Renderer, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -72,7 +72,7 @@ where
     }
 }
 
-impl<R, A> lemna::window::Window for Window<R, A>
+impl<R, A> lemna::Window for Window<R, A>
 where
     R: 'static,
     A: 'static,
@@ -89,11 +89,11 @@ where
         wx_rs::get_scale_factor()
     }
 
-    fn put_on_clipboard(&self, data: &lemna::input::Data) {
+    fn put_on_clipboard(&self, data: &Data) {
         unsafe { wx_rs::put_on_clipboard(mem::transmute(data)) }
     }
 
-    fn get_from_clipboard(&self) -> Option<lemna::input::Data> {
+    fn get_from_clipboard(&self) -> Option<Data> {
         unsafe { mem::transmute(wx_rs::get_from_clipboard()) }
     }
 

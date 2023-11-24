@@ -13,7 +13,7 @@ impl lemna::Component for App {
                      wrap: true,
                      padding: [10.0],
                      axis_alignment: Center,
-                     cross_alignment: Alignment::Center,
+                     cross_alignment: layout::Alignment::Center,
                 ]
             )
             .push(node!(
@@ -39,7 +39,7 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
+    Window::open_blocking::<lemna::WGPURenderer, App>(
         "Hello".to_string(),
         400,
         300,

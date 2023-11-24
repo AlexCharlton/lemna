@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::time::Instant;
 
 use super::base_types::*;
-use super::input::{Data, Key, MouseButton};
+use super::input::{Key, MouseButton};
 use crate::Message;
 
 /// How much time (ms) can elapse between clicks before it's no longer considered a double click

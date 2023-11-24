@@ -48,7 +48,7 @@ impl lemna::Component for App {
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::Rect;
+        use crate::renderables::Rect;
 
         Some(vec![Renderable::Rect(Rect::new(
             Pos::default(),
@@ -237,9 +237,11 @@ pub struct EventReactor {
 
 impl Component for EventReactor {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        Some(vec![Renderable::Rect(
-            lemna::render::renderables::Rect::new(Pos::default(), context.aabb.size(), Color::BLUE),
-        )])
+        Some(vec![Renderable::Rect(lemna::renderables::Rect::new(
+            Pos::default(),
+            context.aabb.size(),
+            Color::BLUE,
+        ))])
     }
 
     fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
@@ -287,7 +289,7 @@ impl Component for EventReactor {
 // App setup
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
+    Window::open_blocking::<lemna::WGPURenderer, App>(
         "Hello events".to_string(),
         800,
         600,

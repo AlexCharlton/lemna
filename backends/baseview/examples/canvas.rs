@@ -33,7 +33,7 @@ impl lemna::Component for App {
                      wrap: true,
                      padding: [10.0],
                      axis_alignment: Center,
-                     cross_alignment: Alignment::Center,
+                     cross_alignment: Center,
                 ]
             )
             .push(node!(widgets::Canvas::new()
@@ -51,7 +51,7 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
+    Window::open_blocking::<lemna::WGPURenderer, App>(
         "A Canvas".to_string(),
         600,
         600,

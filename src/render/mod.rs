@@ -6,12 +6,13 @@ use crate::font_cache::FontCache;
 use crate::node::Node;
 use crate::window::Window;
 
-pub mod glyph_brush_draw_cache;
+pub(crate) mod glyph_brush_draw_cache;
 pub mod renderables;
-pub mod wgpu;
+pub(crate) mod wgpu;
 
 use crate::render::renderables::buffer_cache::BufferCache;
 use crate::render::renderables::raster_cache::RasterCache;
+pub use crate::render::wgpu::WGPURenderer;
 pub use renderables::Renderable;
 
 #[derive(Clone)]

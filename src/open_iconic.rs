@@ -1,3 +1,5 @@
+//! Requires feature "open_iconic" to be active
+
 // Open Iconic
 // https://useiconic.com/open
 

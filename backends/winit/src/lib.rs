@@ -1,5 +1,5 @@
 use lemna::input::{Button, Input, Motion, MouseButton};
-use lemna::{render::Renderer, Component, PixelSize, UI};
+use lemna::{Component, PixelSize, Renderer, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -98,7 +98,7 @@ impl Window {
     }
 }
 
-impl lemna::window::Window for Window {
+impl lemna::Window for Window {
     // TODO: This isn't good
 
     fn logical_size(&self) -> PixelSize {

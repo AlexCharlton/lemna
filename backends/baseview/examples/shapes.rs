@@ -1,4 +1,4 @@
-use lemna::render::renderables::Shape;
+use lemna::renderables::Shape;
 use lemna::*;
 use lemna_baseview::Window;
 use lyon::path::Path;
@@ -82,7 +82,7 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
+    Window::open_blocking::<lemna::WGPURenderer, App>(
         "Hello shapes".to_string(),
         400,
         300,

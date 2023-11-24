@@ -3,6 +3,20 @@ use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
+use std::path::PathBuf;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Data {
+    String(String),
+    Filepath(PathBuf),
+    Custom(Vec<u8>),
+}
+
+impl From<&str> for Data {
+    fn from(s: &str) -> Data {
+        Data::String(s.to_string())
+    }
+}
 
 pub trait Scalable {
     // Logical to physical coordinates

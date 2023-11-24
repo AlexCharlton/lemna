@@ -1,4 +1,4 @@
-use lemna::*;
+use lemna::{style::HorizontalPosition, *};
 use lemna_baseview::Window;
 
 #[derive(Debug, Default)]
@@ -9,9 +9,9 @@ impl lemna::Component for App {
         Some(
             node!(
                 widgets::Div::new(),
-                lay!(size: size_pct!(100.0), wrap: true,
-                     padding: rect!(10.0),
-                     axis_alignment: Alignment::Center, cross_alignment: Alignment::Center)
+                [size_pct: [100.0], wrap: true,
+                 padding: [10.0],
+                 axis_alignment: Center, cross_alignment: Center]
             )
             .push(node!(DropTarget::new(), lay!(size: size!(100.0))))
             .push(node!(DragSource {}, lay!(size: size!(100.0)))),
@@ -67,7 +67,7 @@ impl Component for DropTarget {
                 ],
             )
             .push(node!(widgets::Text::new(txt!("Drag something onto me"))
-                .style("h_alignment", HorizontalAlign::Center))),
+                .style("h_alignment", HorizontalPosition::Center))),
         )
     }
 
@@ -110,7 +110,7 @@ impl Component for DragSource {
                 ],
             )
             .push(node!(widgets::Text::new(txt!("Drag from me"))
-                .style("h_alignment", HorizontalAlign::Center))),
+                .style("h_alignment", HorizontalPosition::Center))),
         )
     }
 
@@ -124,7 +124,7 @@ impl Component for DragSource {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
+    Window::open_blocking::<lemna::WGPURenderer, App>(
         "Hello".to_string(),
         400,
         300,

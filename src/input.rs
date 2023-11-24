@@ -1,17 +1,4 @@
-use std::path::PathBuf;
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Data {
-    String(String),
-    Filepath(PathBuf),
-    Custom(Vec<u8>),
-}
-
-impl From<&str> for Data {
-    fn from(s: &str) -> Data {
-        Data::String(s.to_string())
-    }
-}
+use crate::base_types::Data;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Motion {

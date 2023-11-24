@@ -4,9 +4,7 @@ use std::sync::{Arc, RwLock};
 
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
-use lemna::component::Component;
-use lemna::render::Renderer;
-use lemna::{Data, PixelSize, UI};
+use lemna::{Component, Data, PixelSize, Renderer, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -418,7 +416,7 @@ pub fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> 
     }
 }
 
-impl lemna::window::Window for Window {
+impl lemna::Window for Window {
     fn logical_size(&self) -> PixelSize {
         PixelSize {
             width: self.size.0,

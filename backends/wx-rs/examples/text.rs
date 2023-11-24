@@ -16,7 +16,7 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<lemna::render::wgpu::WGPURenderer, App>::open_blocking(
+    lemna_wx_rs::Window::<lemna::WGPURenderer, App>::open_blocking(
         "Hello events!",
         400,
         300,

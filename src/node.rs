@@ -356,7 +356,7 @@ impl Node {
         self.scroll_x().is_some() || self.scroll_y().is_some()
     }
 
-    pub fn iter_renderables(&self) -> NodeRenderableIterator<'_> {
+    pub(crate) fn iter_renderables(&self) -> NodeRenderableIterator<'_> {
         NodeRenderableIterator {
             queue: vec![self],
             current_frame: vec![],
@@ -721,9 +721,9 @@ impl Node {
     }
 }
 
-pub type ScrollFrame = AABB;
+pub(crate) type ScrollFrame = AABB;
 
-pub struct NodeRenderableIterator<'a> {
+pub(crate) struct NodeRenderableIterator<'a> {
     queue: Vec<&'a Node>,
     current_frame: Vec<ScrollFrame>,
     frame_queue: Vec<(&'a Node, Vec<ScrollFrame>)>,

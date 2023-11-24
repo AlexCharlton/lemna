@@ -1,4 +1,4 @@
-use lemna::*;
+use lemna::{style::HorizontalPosition, widgets::*, *};
 use lemna_baseview::Window;
 use simplelog::*;
 
@@ -164,7 +164,7 @@ fn main() {
         std::fs::File::create("example-scroll.log").unwrap(),
     );
 
-    Window::open_blocking::<lemna::render::wgpu::WGPURenderer, App>(
+    Window::open_blocking::<lemna::WGPURenderer, App>(
         "Hello scrolling".to_string(),
         800,
         600,
