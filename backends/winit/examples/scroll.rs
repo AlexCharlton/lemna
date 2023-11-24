@@ -162,12 +162,7 @@ fn main() {
         ConfigBuilder::new().build(),
         std::fs::File::create("example.log").unwrap(),
     );
-    lemna_winit::Window::open_blocking::<lemna::WGPURenderer, App>(
-        "Hello scroll!",
-        800,
-        600,
-        vec![],
-    );
+    lemna_winit::Window::open_blocking::<App>("Hello scroll!", 800, 600, vec![]);
 
     println!("bye");
 }

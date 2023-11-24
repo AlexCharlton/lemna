@@ -760,32 +760,14 @@ impl From<[f32; 3]> for Color {
     }
 }
 
+#[inline]
 fn u8_to_norm(x: u8) -> f32 {
     x as f32 / 255.0
 }
 
+#[inline]
 fn norm_to_u8(x: f32) -> u8 {
     (x * 255.0) as u8
-}
-
-#[macro_export]
-macro_rules! color {
-    ($r:expr, $g:expr, $b:expr) => {
-        $crate::Color {
-            r: $r as f32 / 255.0,
-            g: $g as f32 / 255.0,
-            b: $b as f32 / 255.0,
-            a: 1.0,
-        }
-    };
-    ($r:expr, $g:expr, $b:expr, $a:expr) => {
-        $crate::Color {
-            r: $r as f32 / 255.0,
-            g: $g as f32 / 255.0,
-            b: $b as f32 / 255.0,
-            a: $a as f32 / 255.0,
-        }
-    };
 }
 
 #[cfg(test)]

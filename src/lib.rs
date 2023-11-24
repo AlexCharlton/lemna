@@ -2,7 +2,6 @@
 
 pub mod instrumenting;
 
-#[macro_use]
 mod base_types;
 pub use base_types::*;
 

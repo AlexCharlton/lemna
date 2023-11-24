@@ -87,7 +87,7 @@ impl Plugin for ParamsPlugin {
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let app_params = self.params.clone();
-        lemna_nih_plug::create_lemna_editor::<lemna::WGPURenderer, App, _, _>(
+        lemna_nih_plug::create_lemna_editor::<App, _, _>(
             "Hello Lemna Params",
             400,
             300,

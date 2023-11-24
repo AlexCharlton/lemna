@@ -326,7 +326,7 @@ impl Component for EventReactor {
 // App setup
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<lemna::WGPURenderer, App>::open_blocking(
+    lemna_wx_rs::Window::<App>::open_blocking(
         "Hello events!",
         800,
         600,

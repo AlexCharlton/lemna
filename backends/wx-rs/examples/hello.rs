@@ -35,6 +35,6 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    lemna_wx_rs::Window::<lemna::WGPURenderer, App>::open_blocking("Hello!", 400, 300, vec![]);
+    lemna_wx_rs::Window::<App>::open_blocking("Hello!", 400, 300, vec![]);
     println!("bye");
 }

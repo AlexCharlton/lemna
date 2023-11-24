@@ -77,7 +77,7 @@ impl Plugin for HelloPlugin {
     }
 
     fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        lemna_nih_plug::create_lemna_editor::<lemna::WGPURenderer, App, _, _>(
+        lemna_nih_plug::create_lemna_editor::<App, _, _>(
             "Hello Lemna",
             400,
             300,

@@ -507,7 +507,7 @@ impl Component for TextBoxText {
             #[cfg(feature = "backend_wx_rs")]
             crate::input::MouseButton::Right => {
                 use wx_rs::{Menu, MenuEntry};
-                crate::focus_immediately(event);
+                event.focus_immediately();
 
                 if let Some(menu) = &self.state_ref().menu {
                     menu.popup();

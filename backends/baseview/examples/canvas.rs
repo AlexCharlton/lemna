@@ -51,7 +51,7 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::WGPURenderer, App>(
+    Window::open_blocking::<App>(
         "A Canvas".to_string(),
         600,
         600,

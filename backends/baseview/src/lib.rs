@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
-use lemna::{Component, Data, PixelSize, Renderer, UI};
+use lemna::{Component, Data, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -19,8 +19,8 @@ pub enum ParentMessage {
     AppMessage(Message),
 }
 
-struct BaseViewUI<R: Renderer, A: 'static + Component + Default + Send + Sync> {
-    ui: UI<Window, R, A>,
+struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
+    ui: UI<Window, A>,
     parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
 }
 
@@ -38,7 +38,7 @@ unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
 impl Window {
-    pub fn open_parented<P, R, A, B>(
+    pub fn open_parented<P, A, B>(
         parent: &P,
         title: String,
         width: u32,
@@ -50,9 +50,8 @@ impl Window {
     ) -> baseview::WindowHandle
     where
         P: HasRawWindowHandle,
-        R: Renderer + 'static,
         A: 'static + Component + Default + Send + Sync,
-        B: Fn(&mut UI<Window, R, A>) + 'static + Send,
+        B: Fn(&mut UI<Window, A>) + 'static + Send,
     {
         let drop_target_valid = Arc::new(RwLock::new(true));
         let drop_target_valid2 = drop_target_valid.clone();
@@ -67,7 +66,7 @@ impl Window {
                     *drop_target_valid2.read().unwrap()
                 })),
             },
-            move |window: &mut baseview::Window<'_>| -> BaseViewUI<R, A> {
+            move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
                 let scale_factor = match scale_policy {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                     baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
@@ -96,7 +95,7 @@ impl Window {
         )
     }
 
-    pub fn open_blocking<R, A>(
+    pub fn open_blocking<A>(
         title: String,
         width: u32,
         height: u32,
@@ -104,7 +103,6 @@ impl Window {
         scale_policy: baseview::WindowScalePolicy,
         mut fonts: Vec<(String, &'static [u8])>,
     ) where
-        R: Renderer + 'static,
         A: 'static + Component + Default + Send + Sync,
     {
         let drop_target_valid = Arc::new(RwLock::new(true));
@@ -119,7 +117,7 @@ impl Window {
                     *drop_target_valid2.read().unwrap()
                 })),
             },
-            move |window: &mut baseview::Window<'_>| -> BaseViewUI<R, A> {
+            move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
                 let scale_factor = match scale_policy {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                     baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
@@ -163,9 +161,7 @@ unsafe impl HasRawDisplayHandle for Window {
 }
 
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
-impl<R: 'static + Renderer, A: 'static + Component + Default + Send + Sync> baseview::WindowHandler
-    for BaseViewUI<R, A>
-{
+impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for BaseViewUI<A> {
     fn on_frame(&mut self, window: &mut baseview::Window) {
         if let Some(receiver) = &self.parent_channel {
             while let Ok(message) = receiver.try_recv() {
@@ -296,7 +292,7 @@ impl<R: 'static + Renderer, A: 'static + Component + Default + Send + Sync> base
 }
 
 use keyboard_types::Code;
-pub fn translate_key(key: Code) -> Button {
+fn translate_key(key: Code) -> Button {
     Button::Keyboard(match key {
         Code::Backspace => Key::Backspace,
         Code::Tab => Key::Tab,
@@ -405,7 +401,7 @@ pub fn translate_key(key: Code) -> Button {
     })
 }
 
-pub fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> {
+fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> {
     match button {
         baseview::MouseButton::Left => Some(Button::Mouse(MouseButton::Left)),
         baseview::MouseButton::Right => Some(Button::Mouse(MouseButton::Right)),
@@ -503,14 +499,14 @@ impl lemna::Window for Window {
     }
 }
 
-pub fn baseview_data_to_lemna(d: baseview::Data) -> Data {
+fn baseview_data_to_lemna(d: baseview::Data) -> Data {
     match d {
         baseview::Data::Filepath(p) => Data::Filepath(p),
         baseview::Data::String(s) => Data::String(s),
     }
 }
 
-pub fn lemna_data_to_baseview(d: Data) -> baseview::Data {
+fn lemna_data_to_baseview(d: Data) -> baseview::Data {
     match d {
         Data::Filepath(p) => baseview::Data::Filepath(p),
         Data::String(s) => baseview::Data::String(s),

@@ -12,7 +12,6 @@ pub(crate) mod wgpu;
 
 use crate::render::renderables::buffer_cache::BufferCache;
 use crate::render::renderables::raster_cache::RasterCache;
-pub use crate::render::wgpu::WGPURenderer;
 pub use renderables::Renderable;
 
 #[derive(Clone)]
@@ -23,7 +22,7 @@ pub struct Caches {
     pub raster_cache: Arc<RwLock<RasterCache>>,
 }
 
-pub trait Renderer: fmt::Debug + std::marker::Sized + Send + Sync {
+pub(crate) trait Renderer: fmt::Debug + std::marker::Sized + Send + Sync {
     fn new<W: Window>(window: &W) -> Self;
     fn render(&mut self, _node: &Node, _physical_size: PixelSize, _font_cache: &FontCache) {}
     fn caches(&self) -> Caches {

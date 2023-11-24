@@ -289,7 +289,7 @@ impl Component for EventReactor {
 // App setup
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::WGPURenderer, App>(
+    Window::open_blocking::<App>(
         "Hello events".to_string(),
         800,
         600,

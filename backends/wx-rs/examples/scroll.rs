@@ -161,7 +161,7 @@ fn main() {
         std::fs::File::create("example.log").unwrap(),
     );
 
-    lemna_wx_rs::Window::<lemna::WGPURenderer, App>::open_blocking(
+    lemna_wx_rs::Window::<App>::open_blocking(
         "Hello scroll!",
         800,
         600,

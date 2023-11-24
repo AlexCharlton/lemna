@@ -18,6 +18,9 @@ use crate::node::Node;
 use crate::render::Renderer;
 use crate::window::Window;
 
+// This can become feature-dependant
+type ActiveRenderer = crate::render::wgpu::WGPURenderer;
+
 /// `UI` is the main struct that holds the `Window`, `Renderer` and `Node`s of an `App`.
 /// It handles events and drawing/rendering.
 /// Drawing (laying out `Nodes` and assembling their `Renderable`s) and rendering
@@ -27,8 +30,8 @@ use crate::window::Window;
 /// itself is quite efficient, delays have been observed when fetching
 /// the next frame in the swapchain after resizing on certain platforms.
 /// Event handling happens on the same thread that the `current_window` is accessible from.
-pub struct UI<W: Window, R: Renderer, A: Component + Default + Send + Sync> {
-    pub renderer: Arc<RwLock<Option<R>>>,
+pub struct UI<W: Window, A: Component + Default + Send + Sync> {
+    pub renderer: Arc<RwLock<Option<ActiveRenderer>>>,
     pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
     _draw_thread: JoinHandle<()>,
@@ -58,7 +61,8 @@ fn clear_immediate_focus() {
     IMMEDIATE_FOCUS.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
 }
 
-pub fn focus_immediately<T>(event: &Event<T>) {
+#[allow(dead_code)]
+pub(crate) fn focus_immediately<T>(event: &Event<T>) {
     IMMEDIATE_FOCUS.with(|r| unsafe { *r.get().as_mut().unwrap() = event.current_node_id })
 }
 
@@ -82,16 +86,11 @@ fn clear_current_window() {
     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
 }
 
-pub fn set_current_window(window: Arc<RwLock<dyn Window>>) {
+fn set_current_window(window: Arc<RwLock<dyn Window>>) {
     CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
 }
 
-impl<
-        W: 'static + Window,
-        R: 'static + Renderer,
-        A: 'static + Component + Default + Send + Sync,
-    > UI<W, R, A>
-{
+impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, A> {
     fn node_ref(&self) -> RwLockReadGuard<'_, Node> {
         self.node.read().unwrap()
     }
@@ -102,15 +101,12 @@ impl<
 
     fn render_thread(
         receiver: Receiver<()>,
-        renderer: Arc<RwLock<Option<R>>>,
+        renderer: Arc<RwLock<Option<ActiveRenderer>>>,
         node: Arc<RwLock<Node>>,
         font_cache: Arc<RwLock<FontCache>>,
         physical_size: Arc<RwLock<PixelSize>>,
         frame_dirty: Arc<RwLock<bool>>,
-    ) -> JoinHandle<()>
-    where
-        R: Renderer,
-    {
+    ) -> JoinHandle<()> {
         thread::spawn(move || {
             for _ in receiver.iter() {
                 if *frame_dirty.read().unwrap() {
@@ -132,7 +128,7 @@ impl<
 
     fn draw_thread(
         receiver: Receiver<()>,
-        renderer: Arc<RwLock<Option<R>>>,
+        renderer: Arc<RwLock<Option<ActiveRenderer>>>,
         node: Arc<RwLock<Node>>,
         font_cache: Arc<RwLock<FontCache>>,
         logical_size: Arc<RwLock<PixelSize>>,
@@ -140,10 +136,7 @@ impl<
         frame_dirty: Arc<RwLock<bool>>,
         node_dirty: Arc<RwLock<bool>>,
         window: Arc<RwLock<W>>,
-    ) -> JoinHandle<()>
-    where
-        R: Renderer,
-    {
+    ) -> JoinHandle<()> {
         thread::spawn(move || {
             for _ in receiver.iter() {
                 if *node_dirty.read().unwrap() {
@@ -209,7 +202,7 @@ impl<
         let mut component = A::default();
         component.init();
 
-        let renderer = Arc::new(RwLock::new(Some(R::new(&window))));
+        let renderer = Arc::new(RwLock::new(Some(ActiveRenderer::new(&window))));
         let event_cache = EventCache::new(window.scale_factor());
         let window = Arc::new(RwLock::new(window));
         set_current_window(window.clone());

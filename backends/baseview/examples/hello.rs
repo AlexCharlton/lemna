@@ -39,7 +39,7 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<lemna::WGPURenderer, App>(
+    Window::open_blocking::<App>(
         "Hello".to_string(),
         400,
         300,

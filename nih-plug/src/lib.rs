@@ -10,22 +10,21 @@ use std::{
 pub extern crate nih_plug;
 
 #[derive(Clone)]
-struct LemnaEditor<R: lemna::Renderer, A: lemna::Component + Default + Send + Sync> {
+struct LemnaEditor<A: lemna::Component + Default + Send + Sync> {
     size: (u32, u32),
     title: String,
     fonts: Vec<(String, &'static [u8])>,
-    phantom_renderer: PhantomData<R>,
     phantom_app: PhantomData<A>,
     scale_factor: Arc<RwLock<Option<f32>>>,
     // Called when initializing the app
-    build: Arc<dyn Fn(Arc<dyn GuiContext>, &mut UI<Window, R, A>) + 'static + Send + Sync>,
+    build: Arc<dyn Fn(Arc<dyn GuiContext>, &mut UI<Window, A>) + 'static + Send + Sync>,
     on_param_change: Arc<dyn Fn() -> Vec<Message> + 'static + Send + Sync>,
     // Used to communicate with the baseview WindowHandler
     sender: Sender<ParentMessage>,
     receiver: Receiver<ParentMessage>,
 }
 
-pub fn create_lemna_editor<R, A, B, P>(
+pub fn create_lemna_editor<A, B, P>(
     title: &str,
     width: u32,
     height: u32,
@@ -34,20 +33,18 @@ pub fn create_lemna_editor<R, A, B, P>(
     on_param_change: P,
 ) -> Option<Box<dyn Editor>>
 where
-    R: lemna::Renderer + 'static + Send,
     A: 'static + lemna::Component + Default + Send + Sync,
-    B: Fn(Arc<dyn GuiContext>, &mut UI<Window, R, A>) + 'static + Send + Sync,
+    B: Fn(Arc<dyn GuiContext>, &mut UI<Window, A>) + 'static + Send + Sync,
     P: Fn() -> Vec<Message> + 'static + Send + Sync,
 {
     let (sender, receiver) = unbounded::<ParentMessage>();
 
-    Some(Box::new(LemnaEditor::<R, A> {
+    Some(Box::new(LemnaEditor::<A> {
         size: (width, height),
         title: title.to_string(),
         fonts,
         scale_factor: Arc::new(RwLock::new(None)),
         phantom_app: PhantomData,
-        phantom_renderer: PhantomData,
         build: Arc::new(build),
         on_param_change: Arc::new(on_param_change),
         sender,
@@ -55,9 +52,8 @@ where
     }))
 }
 
-impl<R, A> Editor for LemnaEditor<R, A>
+impl<A> Editor for LemnaEditor<A>
 where
-    R: lemna::Renderer + 'static + Send,
     A: 'static + lemna::Component + Default + Send + Sync,
 {
     fn spawn(
@@ -73,7 +69,7 @@ where
             self.sender.send(ParentMessage::AppMessage(m)).unwrap();
         }
 
-        let handle = lemna_baseview::Window::open_parented::<_, R, A, _>(
+        let handle = lemna_baseview::Window::open_parented::<_, A, _>(
             &parent,
             self.title.clone(),
             self.size.0,

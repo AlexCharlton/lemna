@@ -5,31 +5,29 @@ use std::mem;
 use std::os::raw::c_void;
 
 use lemna::input::{Button, Input, Key, Motion, MouseButton};
-use lemna::{Component, Data, PixelSize, Renderer, UI};
+use lemna::{Component, Data, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
 use wx_rs::{CursorType, EventType, WheelAxis};
 
-pub struct Window<R, A> {
+pub struct Window<A> {
     wx_rs_window: wx_rs::Window,
-    phantom_renderer: PhantomData<R>,
     phantom_app: PhantomData<A>,
 }
-unsafe impl<R, A> Send for Window<R, A> {}
-unsafe impl<R, A> Sync for Window<R, A> {}
+unsafe impl<A> Send for Window<A> {}
+unsafe impl<A> Sync for Window<A> {}
 
 thread_local!(
-    pub static UI: UnsafeCell<Box<dyn Any>> = UnsafeCell::new(Box::new(1))
+    static UI: UnsafeCell<Box<dyn Any>> = UnsafeCell::new(Box::new(1))
 );
 
-pub fn ui() -> &'static mut Box<dyn Any> {
+fn ui() -> &'static mut Box<dyn Any> {
     UI.with(|r| unsafe { r.get().as_mut().unwrap() })
 }
 
-impl<R, A> Window<R, A>
+impl<A> Window<A>
 where
-    R: Renderer + 'static,
     A: 'static + Component + Default + Send + Sync,
 {
     pub fn open_blocking(
@@ -39,10 +37,9 @@ where
         mut fonts: Vec<(String, &'static [u8])>,
     ) {
         wx_rs::init_app(title, width, height);
-        let mut ui: UI<Window<R, A>, R, A> = UI::new(Window::<R, A> {
+        let mut ui: UI<Window<A>, A> = UI::new(Window::<A> {
             wx_rs_window: wx_rs::Window::new(),
             phantom_app: PhantomData,
-            phantom_renderer: PhantomData,
         });
         for (name, data) in fonts.drain(..) {
             ui.add_font(name, data);
@@ -59,22 +56,21 @@ where
     }
 
     extern "C" fn render() {
-        let ui = ui().downcast_mut::<UI<Window<R, A>, R, A>>().unwrap();
+        let ui = ui().downcast_mut::<UI<Window<A>, A>>().unwrap();
         ui.draw();
         ui.render();
     }
 
     extern "C" fn handle_event(event: *const c_void) {
-        let ui = ui().downcast_mut::<UI<Window<R, A>, R, A>>().unwrap();
+        let ui = ui().downcast_mut::<UI<Window<A>, A>>().unwrap();
         for input in event_to_input(event).iter() {
             ui.handle_input(input);
         }
     }
 }
 
-impl<R, A> lemna::Window for Window<R, A>
+impl<A> lemna::Window for Window<A>
 where
-    R: 'static,
     A: 'static,
 {
     fn logical_size(&self) -> PixelSize {
@@ -121,19 +117,19 @@ where
     }
 }
 
-unsafe impl<R, A> HasRawWindowHandle for Window<R, A> {
+unsafe impl<A> HasRawWindowHandle for Window<A> {
     fn raw_window_handle(&self) -> RawWindowHandle {
         self.wx_rs_window.raw_window_handle()
     }
 }
 
-unsafe impl<R, A> HasRawDisplayHandle for Window<R, A> {
+unsafe impl<A> HasRawDisplayHandle for Window<A> {
     fn raw_display_handle(&self) -> RawDisplayHandle {
         self.wx_rs_window.raw_display_handle()
     }
 }
 
-pub fn event_to_input(event: *const c_void) -> Vec<Input> {
+fn event_to_input(event: *const c_void) -> Vec<Input> {
     match wx_rs::get_event_type(event) {
         EventType::MouseLeftDown => vec![Input::Press(Button::Mouse(MouseButton::Left))],
         EventType::MouseLeftUp => vec![Input::Release(Button::Mouse(MouseButton::Left))],
@@ -218,7 +214,7 @@ pub fn event_to_input(event: *const c_void) -> Vec<Input> {
     }
 }
 
-pub fn event_to_key(event: *const c_void) -> Key {
+fn event_to_key(event: *const c_void) -> Key {
     match wx_rs::get_event_key(event) {
         8 => Key::Backspace,
         9 => Key::Tab,

@@ -164,7 +164,7 @@ fn main() {
         std::fs::File::create("example-scroll.log").unwrap(),
     );
 
-    Window::open_blocking::<lemna::WGPURenderer, App>(
+    Window::open_blocking::<App>(
         "Hello scrolling".to_string(),
         800,
         600,

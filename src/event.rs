@@ -208,6 +208,12 @@ impl<T> Event<T> {
     pub fn over_subchild_n(&self) -> Option<usize> {
         self.over_subchild_n
     }
+
+    // Unclear if this needs to be exposed
+    #[allow(dead_code)]
+    pub(crate) fn focus_immediately(&self) {
+        crate::focus_immediately(self)
+    }
 }
 
 impl<T: Scalable + Copy> Event<T> {

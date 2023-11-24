@@ -1,5 +1,5 @@
 use lemna::input::{Button, Input, Motion, MouseButton};
-use lemna::{Component, PixelSize, Renderer, UI};
+use lemna::{Component, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -17,13 +17,12 @@ unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
 impl Window {
-    pub fn open_blocking<R, A>(
+    pub fn open_blocking<A>(
         title: &str,
         width: u32,
         height: u32,
         mut fonts: Vec<(String, &'static [u8])>,
     ) where
-        R: Renderer + 'static,
         A: 'static + Component + Default + Send + Sync,
     {
         let event_loop = EventLoop::new();
@@ -32,7 +31,7 @@ impl Window {
             .with_inner_size(LogicalSize::new(width as f32, height as f32))
             .build(&event_loop)
             .unwrap();
-        let mut ui: UI<Window, R, A> = UI::new(Window {
+        let mut ui: UI<Window, A> = UI::new(Window {
             winit_window: window,
         });
         for (name, data) in fonts.drain(..) {
