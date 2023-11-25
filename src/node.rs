@@ -154,15 +154,6 @@ impl Node {
             self.props_hash = hasher.finish();
         }
 
-        registrations.append(
-            &mut self
-                .component
-                .register()
-                .drain(..)
-                .map(|r| (r, self.id))
-                .collect::<Vec<_>>(),
-        );
-
         // Create children
         if self.children.is_empty() {
             if let Some(child) = self.component.view() {
@@ -184,6 +175,16 @@ impl Node {
                 child.view(None, registrations)
             }
         }
+
+        // Children's registrations come first, so they can prevent bubbling
+        registrations.append(
+            &mut self
+                .component
+                .register()
+                .drain(..)
+                .map(|r| (r, self.id))
+                .collect::<Vec<_>>(),
+        );
     }
 
     fn set_aabb(
@@ -571,6 +572,9 @@ impl Node {
                         // We don't reset this event, since we want to carry forward any signals: dirty, focus
                         event.target = Some(*node_id);
                         self.handle_targeted_event_inner(event, handler);
+                        if !event.bubbles {
+                            break;
+                        }
                     }
                 }
             }
@@ -1362,8 +1366,8 @@ mod tests {
         let mut registrations: Vec<(event::Register, u64)> = vec![];
         n.view(None, &mut registrations);
         assert_eq!(registrations.len(), 3);
-        assert_eq!(registrations[0].0, event::Register::KeyDown);
-        assert_eq!(registrations[1].0, event::Register::KeyUp);
-        assert_eq!(registrations[2].0, event::Register::KeyPress);
+        assert_eq!(registrations[0].0, event::Register::KeyUp);
+        assert_eq!(registrations[1].0, event::Register::KeyPress);
+        assert_eq!(registrations[2].0, event::Register::KeyDown);
     }
 }
