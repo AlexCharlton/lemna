@@ -14,12 +14,18 @@ use crate::render::renderables::BufferCache;
 use crate::render::renderables::RasterCache;
 pub use renderables::Renderable;
 
+/// The caches used by the Renderer. Passed to [`Component#render`][crate::Component#render] in a [`RenderContext`][crate::RenderContext].
 #[derive(Clone, Default)]
 pub struct Caches {
+    /// Cache for shape renderable data
     pub shape_buffer: Arc<RwLock<BufferCache<renderables::shape::Vertex, u16>>>,
+    /// Cache for text renderable data
     pub text_buffer: Arc<RwLock<BufferCache<renderables::text::Vertex, u16>>>,
+    /// Cache for image renderable data
     pub image_buffer: Arc<RwLock<BufferCache<renderables::raster::Vertex, u16>>>,
+    /// Cache for raster data
     pub raster: Arc<RwLock<RasterCache>>,
+    /// Font cache
     pub font: Arc<RwLock<FontCache>>,
 }
 
@@ -39,7 +45,8 @@ pub(crate) trait Renderer: fmt::Debug + std::marker::Sized + Send + Sync {
     }
 }
 
-pub fn next_power_of_2(n: usize) -> usize {
+/// Given an integer, return the next power of 2.
+pub(crate) fn next_power_of_2(n: usize) -> usize {
     let mut n = n - 1;
     n |= n >> 1;
     n |= n >> 2;

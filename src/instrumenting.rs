@@ -1,4 +1,6 @@
-//! Requires feature "instrumented" to be active
+//! Capture stack traces and log performance of an app. Requires feature "instrumented" to be active.
+//!
+//! TODO
 
 use std::cell::UnsafeCell;
 use std::time::Instant;

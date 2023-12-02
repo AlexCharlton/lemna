@@ -19,6 +19,8 @@ fn new_node_id() -> u64 {
 }
 
 /// Constructor for [`Node`].
+///
+/// TODO
 #[macro_export]
 macro_rules! node {
     ($component:expr $(,)*) => {
@@ -46,6 +48,9 @@ macro_rules! node {
     };
 }
 
+/// An instance of a [`Component`] situated within the app. Construct with the [`node`] macro.
+///
+/// TODO more
 pub struct Node {
     pub(crate) id: u64,
     pub(crate) component: Box<dyn Component + Send + Sync>,

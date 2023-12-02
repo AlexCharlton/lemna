@@ -1,3 +1,6 @@
+//! Dynamic styling of Components.
+//!
+//! TODO
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Mutex, OnceLock};
@@ -72,6 +75,7 @@ impl StyleKey {
 type StyleMap = HashMap<StyleKey, StyleVal>;
 type StyleOverrideMap = HashMap<&'static str, StyleVal>;
 
+/// A map between things to be styled ([`StyleKey`]s) and the style values ([`StyleVal`]s).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Style(StyleMap);
 #[derive(Clone, Default, Debug)]
@@ -314,15 +318,21 @@ pub fn current_style(component: &'static str, parameter_name: &'static str) -> O
         .style(component, parameter_name)
 }
 
-pub fn get_current_style(k: StyleKey) -> Option<StyleVal> {
+fn get_current_style(k: StyleKey) -> Option<StyleVal> {
     _current_style().lock().unwrap().get(k)
 }
 
+/// Implemented by the [`component`][macro@crate::component] attribute macro, for "Styled" Components.
 pub trait Styled: Sized {
+    #[doc(hidden)]
     fn name() -> &'static str;
+    #[doc(hidden)]
     fn class(&self) -> Option<&'static str>;
+    #[doc(hidden)]
     fn class_mut(&mut self) -> &mut Option<&'static str>;
+    #[doc(hidden)]
     fn style_overrides(&self) -> &StyleOverride;
+    #[doc(hidden)]
     fn style_overrides_mut(&mut self) -> &mut StyleOverride;
 
     fn with_class(mut self, class: &'static str) -> Self {
@@ -342,6 +352,7 @@ pub trait Styled: Sized {
         self
     }
 
+    #[doc(hidden)]
     fn style_key(&self, parameter_name: &'static str, class: Option<&'static str>) -> StyleKey {
         StyleKey {
             struct_name: Self::name(),

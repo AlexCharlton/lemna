@@ -31,6 +31,7 @@ macro_rules! msg {
 pub struct RenderContext {
     /// The `AABB` that contains the given [`Component`] instance.
     pub aabb: AABB,
+    /// For scrollable Components (Components that return a `Some` value for [`#scroll_position`][Component#scroll_position]), this is the size of the child Nodes.
     pub inner_scale: Option<Scale>,
     /// The caches used by the renderer.
     pub caches: Caches,
@@ -46,6 +47,7 @@ pub trait Component: fmt::Debug {
 
     fn new_props(&mut self) {}
 
+    /// Called when a child Node has emitted a [`Message`].
     fn update(&mut self, msg: Message) -> Vec<Message> {
         vec![msg]
     }
@@ -58,14 +60,17 @@ pub trait Component: fmt::Debug {
         None
     }
 
+    /// Implemented by the `component` attribute macro
     #[doc(hidden)]
     fn replace_state(&mut self, _other: State) {}
 
+    /// Implemented by the `component` attribute macro
     #[doc(hidden)]
     fn take_state(&mut self) -> Option<State> {
         None
     }
 
+    /// Implemented by the `component` attribute macro
     #[doc(hidden)]
     fn is_dirty(&mut self) -> bool {
         false
@@ -101,14 +106,9 @@ pub trait Component: fmt::Debug {
         (None, None)
     }
 
-    /// Give component full control over its own AABB
+    /// Give the Component full control over its own [`AABB`]. When this returns `true`, [`#set_aabb`][Component#set_aabb] will be called while drawing a given Node.
     fn full_control(&self) -> bool {
         false
-    }
-
-    /// Called when the child of a full control Node
-    fn focus(&self) -> Option<Point> {
-        None
     }
 
     fn set_aabb(
@@ -121,11 +121,20 @@ pub trait Component: fmt::Debug {
     ) {
     }
 
-    // Scrollable containers
+    /// Called when the child of a full control Node
+    fn focus(&self) -> Option<Point> {
+        None
+    }
+
+    /// Return a `Some` value to make the Component considered scrollable. Return the current amount that the Component is scrolled by.
+    ///
+    /// The children of scrollable nodes are rendered in the position dictated by this response, and occluded by [`#frame_bounds`][Component#frame_bounds].
     fn scroll_position(&self) -> Option<ScrollPosition> {
         None
     }
 
+    /// Should only be overridden by scrollable containers. Used to limit the bounds of the scrollable area.
+    /// Should return an [`AABB`] that is inside the bounds of the input `aabb` which belongs to the current Node. `inner_scale` is the size of its child Nodes.
     fn frame_bounds(&self, aabb: AABB, _inner_scale: Option<Scale>) -> AABB {
         aabb
     }

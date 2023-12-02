@@ -1,4 +1,5 @@
-//! Requires feature "open_iconic" to be active
+//! Icons.
+//! Requires feature "open_iconic" to be active.
 
 // Open Iconic
 // https://useiconic.com/open
@@ -25,8 +26,16 @@
 //     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //     THE SOFTWARE.
 
+/// The [Open Iconic](https://icon-sets.iconify.design/oi/) font, to be loaded into the [`FontCache`][crate::font_cache::FontCache].
 pub const ICONS: &[u8] = include_bytes!("../assets/open-iconic.ttf");
 
+/// [Open Iconic](https://icon-sets.iconify.design/oi/) code points.
+///
+/// Use with the [`txt`][crate::txt] macro to create a [`TextSegment`][crate::font_cache::TextSegment] containing an icon. E.g.:
+/// ```
+/// # use lemna::*;
+/// let text = txt!((Icon::Check, "open iconic", 10.0));
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub enum Icon {
     AccountLogin = 0xe000,

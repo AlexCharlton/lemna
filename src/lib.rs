@@ -34,7 +34,7 @@ pub mod font_cache;
 #[macro_use]
 pub mod style;
 #[doc(inline)]
-pub use style::{set_current_style, Style, Styled};
+pub use style::{Style, Styled};
 
 mod ui;
 pub use ui::*;

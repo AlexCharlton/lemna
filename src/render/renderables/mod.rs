@@ -1,3 +1,5 @@
+//! The interface used by [`Component#render`][crate::Component#render].
+
 mod buffer_cache;
 pub mod raster;
 mod raster_cache;
@@ -12,6 +14,7 @@ pub use rect::Rect;
 pub use shape::Shape;
 pub use text::Text;
 
+/// The type returned by [`Component#render`][crate::Component#render], which contains the data required to render a Component (along with the [`Caches`][super::Caches]).
 #[derive(Debug, PartialEq)]
 pub enum Renderable {
     Rect(Rect),

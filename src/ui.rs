@@ -73,6 +73,7 @@ thread_local!(
     }
 );
 
+/// Return a reference to the current [`Window`]. Will only return a `Some` value when called during event handling.
 pub fn current_window<'a>() -> Option<RwLockReadGuard<'a, dyn Window>> {
     CURRENT_WINDOW.with(|r| unsafe {
         r.get()

@@ -1,3 +1,6 @@
+//! The [`FontCache`] is where fonts are stored, and where text layout happens.
+//!
+//! TODO
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 

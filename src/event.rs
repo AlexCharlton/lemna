@@ -1,3 +1,5 @@
+//! Types that relate to event handling.
+
 use std::collections::HashSet;
 use std::time::Instant;
 
@@ -5,21 +7,25 @@ use super::base_types::*;
 use super::input::{Key, MouseButton};
 use crate::Message;
 
-/// How much time (ms) can elapse between clicks before it's no longer considered a double click
+/// How much time (ms) can elapse between clicks before it's no longer considered a double click.
 pub const DOUBLE_CLICK_INTERVAL_MS: u128 = 500; // ms
-/// How much mouse travel (px) is allowed before it's no longer considered a double click
+/// How much mouse travel (px) is allowed before it's no longer considered a double click.
 pub const DOUBLE_CLICK_MAX_DIST: f32 = 10.0; // px
-/// How much distance (px) is required before we start a drag event
+/// How much distance (px) is required before we start a drag event.
 pub const DRAG_THRESHOLD: f32 = 15.0; // px
-/// How much mouse travel (px) is allowed until we'll no longer send a click event
-/// Note this is longer than DRAG_THRESHOLD
+/// How much mouse travel (px) is allowed until we'll no longer send a click event.
+///
+/// Note that this is longer than [`DRAG_THRESHOLD`].
 pub const DRAG_CLICK_MAX_DIST: f32 = 30.0; // px
 
+/// The contextual data that is sent to a [`Component`][crate::Component]'s `on_EVENT` methods.
 pub struct Event<T: EventInput> {
+    /// The event-specific [`EventInput`]
     pub input: T,
     pub(crate) bubbles: bool,
     pub(crate) dirty: bool,
     pub(crate) mouse_position: Point,
+    /// What keyboard modifiers (Shift, Alt, Ctr, Meta) were held when this event was fired.
     pub modifiers_held: ModifiersHeld,
     pub(crate) current_node_id: Option<u64>,
     pub(crate) current_aabb: Option<AABB>,
@@ -53,7 +59,7 @@ impl<T: EventInput> std::fmt::Debug for Event<T> {
     }
 }
 
-/// Types that can be Event inputs
+/// Types that can be an [`Event::input`].
 pub trait EventInput: std::fmt::Debug {
     #[doc(hidden)]
     // For internal use only
@@ -62,38 +68,74 @@ pub trait EventInput: std::fmt::Debug {
     }
 }
 
+/// [`EventInput`] type for focus events.
 #[derive(Debug)]
 pub struct Focus;
 impl EventInput for Focus {}
+
+/// [`EventInput`] type for blur events.
 #[derive(Debug)]
 pub struct Blur;
 impl EventInput for Blur {}
+
+/// [`EventInput`] type for tick events.
 #[derive(Debug)]
 pub struct Tick;
 impl EventInput for Tick {}
+
+/// [`EventInput`] type for mouse motion events.
 #[derive(Debug)]
 pub struct MouseMotion;
 impl EventInput for MouseMotion {}
+
+/// [`EventInput`] type for mouse down events.
 #[derive(Debug)]
-pub struct MouseDown(pub MouseButton);
+pub struct MouseDown(
+    /// The [`MouseButton`] pressed.
+    pub MouseButton,
+);
 impl EventInput for MouseDown {}
+
+/// [`EventInput`] type for mouse up events.
 #[derive(Debug)]
-pub struct MouseUp(pub MouseButton);
+pub struct MouseUp(
+    /// The [`MouseButton`] released.
+    pub MouseButton,
+);
 impl EventInput for MouseUp {}
+
+/// [`EventInput`] type for mouse enter events.
 #[derive(Debug)]
 pub struct MouseEnter;
 impl EventInput for MouseEnter {}
+
+/// [`EventInput`] type for mouse leave events.
 #[derive(Debug)]
 pub struct MouseLeave;
 impl EventInput for MouseLeave {}
+
+/// [`EventInput`] type for mouse click events.
 #[derive(Debug)]
-pub struct Click(pub MouseButton);
+pub struct Click(
+    /// The [`MouseButton`] clicked.
+    pub MouseButton,
+);
 impl EventInput for Click {}
+
+/// [`EventInput`] type for mouse double click events.
 #[derive(Debug)]
-pub struct DoubleClick(pub MouseButton);
+pub struct DoubleClick(
+    ///  The [`MouseButton`] clicked.
+    pub MouseButton,
+);
 impl EventInput for DoubleClick {}
+
+/// [`EventInput`] type for key down events.
 #[derive(Debug)]
-pub struct KeyDown(pub Key);
+pub struct KeyDown(
+    /// The [`Key`] pressed.
+    pub Key,
+);
 impl EventInput for KeyDown {
     fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
         registrations
@@ -105,8 +147,13 @@ impl EventInput for KeyDown {
             .collect()
     }
 }
+
+/// [`EventInput`] type for key up events.
 #[derive(Debug)]
-pub struct KeyUp(pub Key);
+pub struct KeyUp(
+    /// The [`Key`] released.
+    pub Key,
+);
 impl EventInput for KeyUp {
     fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
         registrations
@@ -118,8 +165,13 @@ impl EventInput for KeyUp {
             .collect()
     }
 }
+
+/// [`EventInput`] type for key press (up and down) events.
 #[derive(Debug)]
-pub struct KeyPress(pub Key);
+pub struct KeyPress(
+    /// The [`Key`] pressed.
+    pub Key,
+);
 impl EventInput for KeyPress {
     fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
         registrations
@@ -131,46 +183,85 @@ impl EventInput for KeyPress {
             .collect()
     }
 }
+
+/// [`EventInput`] type for text entry events.
 #[derive(Debug)]
-pub struct TextEntry(pub String);
+pub struct TextEntry(
+    /// The string entered.
+    pub String,
+);
 impl EventInput for TextEntry {}
+
+/// [`EventInput`] type for scroll events.
 #[derive(Debug, Copy, Clone)]
 pub struct Scroll {
+    /// Amount scrolled along the x axis.
     pub x: f32,
+    /// Amount scrolled along the y axis.
     pub y: f32,
 }
 impl EventInput for Scroll {}
+
+/// [`EventInput`] type for drag events.
 #[derive(Debug, Copy, Clone)]
 pub struct Drag {
+    /// The mouse button that initiated the drag.
     pub button: MouseButton,
+    /// The logical start position of the drag.
     pub start_pos: Point,
 }
 impl EventInput for Drag {}
+
+/// [`EventInput`] type for drag start events.
 #[derive(Debug)]
-pub struct DragStart(pub MouseButton);
+pub struct DragStart(
+    /// The [`MouseButton`] that initiated the drag.
+    pub MouseButton,
+);
 impl EventInput for DragStart {}
+
+/// [`EventInput`] type for drag end events.
 #[derive(Debug, Copy, Clone)]
 pub struct DragEnd {
+    /// The mouse button that initiated the drag.
     pub button: MouseButton,
+    /// The logical start position of the drag.
     pub start_pos: Point,
 }
 impl EventInput for DragEnd {}
+
+/// [`EventInput`] type for drag target events.
 #[derive(Debug)]
 pub struct DragTarget;
 impl EventInput for DragTarget {}
+
+/// [`EventInput`] type for drag enter events.
 #[derive(Debug)]
-pub struct DragEnter(pub Vec<Data>);
+pub struct DragEnter(
+    /// The [`Data`] being dragged.
+    pub Vec<Data>,
+);
 impl EventInput for DragEnter {}
+
+/// [`EventInput`] type for drag leave events.
 #[derive(Debug)]
 pub struct DragLeave;
 impl EventInput for DragLeave {}
+
+/// [`EventInput`] type for drag drop events.
 #[derive(Debug)]
-pub struct DragDrop(pub Data);
+pub struct DragDrop(
+    /// The [`Data`] being dragged.
+    pub Data,
+);
 impl EventInput for DragDrop {}
+
+#[doc(hidden)]
 #[derive(Debug)]
 pub struct MenuSelect(pub i32);
 impl EventInput for MenuSelect {}
 
+/// Returned by [`Component#register`][crate::Component#register].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Register {
     KeyDown,
@@ -227,14 +318,20 @@ impl<T: EventInput> Event<T> {
         }
     }
 
+    /// Set the current Node to be "focused".
+    /// This will cause it to receive [`Blur`], [`KeyDown`], [`KeyUp`], [`KeyPress`], [`TextEntry`], [`Drag`], and [`DragEnd`] events.
+    ///
+    /// Note that any other Nodes may also request focus.
     pub fn focus(&mut self) {
         self.focus = self.current_node_id;
     }
 
+    /// Remove focus from this node, if applicable.
     pub fn blur(&mut self) {
         self.focus = None;
     }
 
+    /// Prevent this Event from being sent to one of the parent Nodes of the current one.
     pub fn stop_bubbling(&mut self) {
         self.bubbles = false;
     }
@@ -243,40 +340,54 @@ impl<T: EventInput> Event<T> {
         self.dirty = true;
     }
 
+    /// Send the [`Message`] to the parent Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#update] method.
     pub fn emit(&mut self, msg: Message) {
         self.messages.push(msg);
     }
 
+    /// Return the [`AABB`] of the current Node, in physical coordinates.
     pub fn current_physical_aabb(&self) -> AABB {
         self.current_aabb.unwrap()
     }
 
+    /// Return the [`AABB`] of the current Node, in logical coordinates.
     pub fn current_logical_aabb(&self) -> AABB {
         self.current_aabb.unwrap().unscale(self.scale_factor)
     }
 
+    /// For scrollable [`Component`s][crate::Component], returns the size of the children of the current Node.
     pub fn current_inner_scale(&self) -> Option<Scale> {
         self.current_inner_scale
     }
 
+    /// The current absolutely mouse position, in physical coordinates.
     pub fn physical_mouse_position(&self) -> Point {
         self.mouse_position
     }
 
+    /// The current absolutely mouse position, in logical coordinates.
     pub fn logical_mouse_position(&self) -> Point {
         self.mouse_position.unscale(self.scale_factor)
     }
 
+    /// The current mouse position relative to this Node's AABB, in physical coordinates.
     pub fn relative_physical_position(&self) -> Point {
         let pos = self.current_aabb.unwrap().pos;
         self.mouse_position - Point { x: pos.x, y: pos.y }
     }
 
+    /// The current mouse position relative to this Node's AABB, in logical coordinates.
     pub fn relative_logical_position(&self) -> Point {
         let pos = self.current_aabb.unwrap().pos;
         (self.mouse_position - Point { x: pos.x, y: pos.y }).unscale(self.scale_factor)
     }
 
+    /// Returns which child of this Node the mouse is over, if any.
+    pub fn over_child_n(&self) -> Option<usize> {
+        self.over_child_n
+    }
+
+    /// Returns which child of the child of this Node the mouse is over, if any.
     pub fn over_subchild_n(&self) -> Option<usize> {
         self.over_subchild_n
     }
@@ -292,43 +403,51 @@ impl<T: EventInput> Event<T> {
     }
 }
 
-impl<T: Scalable + Copy + EventInput> Event<T> {
-    pub fn input_unscaled(&self) -> T {
-        self.input.unscale(self.scale_factor)
-    }
-}
+// impl<T: Scalable + Copy + EventInput> Event<T> {
+//     pub fn input_unscaled(&self) -> T {
+//         self.input.unscale(self.scale_factor)
+//     }
+// }
 
 impl Event<Drag> {
+    /// The distance dragged, in physical coordinates.
     pub fn physical_delta(&self) -> Point {
         self.mouse_position - self.input.start_pos
     }
 
+    /// The distance dragged, in logical coordinates.
     pub fn logical_delta(&self) -> Point {
         self.physical_delta().unscale(self.scale_factor)
     }
 
+    /// The distance dragged, but clamped to the current Node's [`AABB`], in physical coordinates.
     pub fn bounded_physical_delta(&self) -> Point {
         self.mouse_position.clamp(self.current_physical_aabb()) - self.input.start_pos
     }
 
+    /// The distance dragged, but clamped to the current Node's [`AABB`], in logical coordinates.
     pub fn bounded_logical_delta(&self) -> Point {
         self.bounded_physical_delta().unscale(self.scale_factor)
     }
 }
 
 impl Event<DragEnd> {
+    /// The distance dragged, in physical coordinates.
     pub fn physical_delta(&self) -> Point {
         self.mouse_position - self.input.start_pos
     }
 
+    /// The distance dragged, in logical coordinates.
     pub fn logical_delta(&self) -> Point {
         self.physical_delta().unscale(self.scale_factor)
     }
 
+    /// The distance dragged, but clamped to the current Node's [`AABB`], in physical coordinates.
     pub fn bounded_physical_delta(&self) -> Point {
         self.mouse_position.clamp(self.current_physical_aabb()) - self.input.start_pos
     }
 
+    /// The distance dragged, but clamped to the current Node's [`AABB`], in logical coordinates.
     pub fn bounded_logical_delta(&self) -> Point {
         self.bounded_physical_delta().unscale(self.scale_factor)
     }
@@ -343,6 +462,7 @@ pub(crate) struct MouseButtonsHeld {
     pub aux2: bool,
 }
 
+/// The keyboard modifiers that are held down while an [`Event`] is fired.
 #[derive(Debug, Default, Copy, Clone)]
 pub struct ModifiersHeld {
     pub shift: bool,
@@ -351,6 +471,7 @@ pub struct ModifiersHeld {
     pub meta: bool,
 }
 
+/// Points are all logical positions.
 pub(crate) struct EventCache {
     pub focus: u64,
     pub keys_held: HashSet<Key>,

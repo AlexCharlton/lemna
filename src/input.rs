@@ -1,3 +1,5 @@
+//! Types that relate to user inputs.
+
 use crate::base_types::Data;
 
 #[derive(Copy, Clone, Debug, PartialEq)]

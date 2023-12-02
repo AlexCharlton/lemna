@@ -1,3 +1,5 @@
+//! Built-in Components.
+
 mod button;
 pub use button::Button;
 
