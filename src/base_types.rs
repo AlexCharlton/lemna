@@ -5,11 +5,12 @@ use std::mem;
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
 use std::path::PathBuf;
 
+/// Data that can be shared between processes, e.g. by the Clipboard or Drag and Drop.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     String(String),
     Filepath(PathBuf),
-    Custom(Vec<u8>),
+    // Custom(Vec<u8>),
 }
 
 impl From<&str> for Data {
@@ -18,6 +19,7 @@ impl From<&str> for Data {
     }
 }
 
+/// An object that can be scaled by a scale factor. This is used to adjust the size of things to the scale factor used by the user's monitor.
 pub trait Scalable {
     // Logical to physical coordinates
     fn scale(self, _scale_factor: f32) -> Self;
@@ -31,6 +33,7 @@ pub trait Scalable {
     }
 }
 
+/// Clamp the input `x` between `min` and `max`.
 pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
     if min > max {
         panic!("`min` should not be greater than `max`");
@@ -43,6 +46,7 @@ pub fn clamp(x: f32, min: f32, max: f32) -> f32 {
     }
 }
 
+/// The size of something, in pixels.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
 pub struct PixelSize {
@@ -51,12 +55,19 @@ pub struct PixelSize {
 }
 
 impl PixelSize {
+    /// Constructor
+    pub fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+
+    /// Calculate the area in pixels.
     pub fn area(&self) -> u32 {
         self.width * self.height
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
+/// Two dimensional scale factor, used by `[renderables::Rect]`.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Scale {
     pub width: f32,
@@ -70,15 +81,6 @@ impl Hash for Scale {
     }
 }
 
-impl Default for Scale {
-    fn default() -> Self {
-        Self {
-            width: 0.0,
-            height: 0.0,
-        }
-    }
-}
-
 impl Scalable for Scale {
     fn scale(self, scale_factor: f32) -> Self {
         Self {
@@ -89,6 +91,7 @@ impl Scalable for Scale {
 }
 
 impl Scale {
+    /// Constructor
     pub fn new(width: f32, height: f32) -> Self {
         Self { width, height }
     }
@@ -130,6 +133,7 @@ impl From<PixelSize> for Scale {
     }
 }
 
+/// An `(x, y)` coordinate, in pixels.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
 pub struct PixelPoint {
@@ -138,6 +142,7 @@ pub struct PixelPoint {
 }
 
 impl PixelPoint {
+    /// Constructor
     pub fn new(x: u32, y: u32) -> Self {
         Self { x, y }
     }
@@ -152,7 +157,8 @@ impl From<Point> for PixelPoint {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
+/// An `(x, y)` coordinate.
+#[derive(Debug, Default, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Point {
     pub x: f32,
@@ -161,9 +167,11 @@ pub struct Point {
 
 impl Point {
     pub fn new(x: f32, y: f32) -> Self {
+        /// Constructor
         Point { x, y }
     }
 
+    /// Clamp the point to be within the bounds of the [`AABB`].
     pub fn clamp(self, aabb: AABB) -> Self {
         Self {
             x: clamp(self.x, aabb.pos.x, aabb.bottom_right.x),
@@ -171,6 +179,7 @@ impl Point {
         }
     }
 
+    /// The distance between two points.
     pub fn dist(self, p2: Point) -> f32 {
         ((self.x - p2.x).powf(2.0) + (self.y - p2.y).powf(2.0)).sqrt()
     }
@@ -189,12 +198,6 @@ impl Hash for Point {
     fn hash<H: Hasher>(&self, state: &mut H) {
         (self.x as i32).hash(state);
         (self.y as i32).hash(state);
-    }
-}
-
-impl Default for Point {
-    fn default() -> Self {
-        Self { x: 0.0, y: 0.0 }
     }
 }
 
@@ -270,6 +273,7 @@ impl SubAssign for Point {
     }
 }
 
+/// A Position coordinate `(x, y, z)`. The `z` dimension refers to the [z-index](https://developer.mozilla.org/en-US/docs/Web/CSS/z-index).
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Pos {
@@ -333,10 +337,12 @@ impl Scalable for Pos {
 }
 
 impl Pos {
+    /// Constructor
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
     }
 
+    /// Apply [`round`](std::f32#round) to all elements.
     pub fn round(&self) -> Self {
         Self {
             x: self.x.round(),
@@ -390,9 +396,10 @@ impl SubAssign for Pos {
     }
 }
 
+/// An Axis-Aligned Bounding Box, in pixels.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 #[repr(C)]
-pub struct PixelAABB {
+pub(crate) struct PixelAABB {
     pub pos: PixelPoint,
     pub bottom_right: PixelPoint,
 }
@@ -431,15 +438,18 @@ impl PixelAABB {
     }
 }
 
+/// An [Axis-Aligned Bounding Box](https://en.wikipedia.org/wiki/Minimum_bounding_box). Used by some of the advanced [`Component`](crate::Component) methods, including [`render`](crate::Component#render).
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 #[repr(C)]
 pub struct AABB {
-    pub pos: Pos,
     /// Top left + z
+    pub pos: Pos,
+    /// Bottom right
     pub bottom_right: Point,
 }
 
 impl AABB {
+    /// Construct from a [`Pos`] (top left + z) and [`Scale`].
     pub fn new(pos: Pos, size: Scale) -> Self {
         Self {
             pos,
@@ -465,6 +475,7 @@ impl AABB {
         }
     }
 
+    /// Is the AABB under the given [`Point`]?
     pub fn is_under(&self, p: Point) -> bool {
         p.x >= self.pos.x
             && p.x <= self.bottom_right.x
@@ -472,6 +483,7 @@ impl AABB {
             && p.y <= self.bottom_right.y
     }
 
+    /// Mutate `self`, translating by `(x, y)`.
     pub fn translate_mut(&mut self, x: f32, y: f32) {
         self.pos.x += x;
         self.bottom_right.x += x;
@@ -479,6 +491,7 @@ impl AABB {
         self.bottom_right.y += y;
     }
 
+    /// Mutate `self`, setting the top left to `(x, y)`.
     pub fn set_top_left_mut(&mut self, x: f32, y: f32) {
         let w = self.width();
         let h = self.height();
@@ -488,11 +501,13 @@ impl AABB {
         self.bottom_right.y = y + h;
     }
 
+    /// Mutate `self`, setting width and height to `(w, h)`, maintaining the top left position.
     pub fn set_scale_mut(&mut self, w: f32, h: f32) {
         self.bottom_right.x = self.pos.x + w;
         self.bottom_right.y = self.pos.y + h;
     }
 
+    /// Mutate `self`, applying [`round`](std::f32#round) to all `(x, y)` elements.
     pub fn round_mut(&mut self) {
         self.pos.x = self.pos.x.round();
         self.pos.y = self.pos.y.round();
@@ -500,6 +515,7 @@ impl AABB {
         self.bottom_right.y = self.bottom_right.y.round();
     }
 
+    /// Translating by `(x, y)`.
     pub fn translate(self, x: f32, y: f32) -> Self {
         Self {
             pos: Pos::new(self.pos.x + x, self.pos.y + y, self.pos.z),
@@ -507,6 +523,7 @@ impl AABB {
         }
     }
 
+    /// Set the top left to `(x, y)`.
     pub fn set_top_left(self, x: f32, y: f32) -> Self {
         Self {
             pos: Pos::new(x, y, self.pos.z),
@@ -514,6 +531,7 @@ impl AABB {
         }
     }
 
+    /// Set the width and height to `(w, h)`, maintaining the top left position.
     pub fn set_scale(self, w: f32, h: f32) -> Self {
         Self {
             pos: self.pos,
@@ -521,6 +539,7 @@ impl AABB {
         }
     }
 
+    /// Apply [`round`](std::f32#round) to all `(x, y)` elements.
     pub fn round(self) -> Self {
         Self {
             pos: Pos::new(self.pos.x.round(), self.pos.y.round(), self.pos.z),
@@ -528,6 +547,7 @@ impl AABB {
         }
     }
 
+    /// Move the top left to `(x: 0.0, y: 0.0, z: 0.0)`, but maintain the width and height.
     pub fn to_origin(self) -> Self {
         Self {
             pos: Pos::default(),
@@ -591,12 +611,17 @@ impl Div<f32> for AABB {
     }
 }
 
+/// RGBA color struct, used for styling and rendering. Values are normalized (0.0--1.0) floating point.
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Color {
+    /// Red
     pub r: f32,
+    /// Green
     pub g: f32,
+    /// Blue
     pub b: f32,
+    /// Alpha
     pub a: f32,
 }
 
@@ -688,28 +713,73 @@ impl Color {
         a: 1.0,
     };
 
+    /// RGBA constructor.
     pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
 
+    /// RGB constructor, with `A = 1.0`.
     pub fn rgb(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b, a: 1.0 }
     }
 }
 
 impl From<[f32; 4]> for Color {
+    /// Converts an array of four floats `[R, G, B, A]` into a color with values `{r: R, g: G, b: B, a: A}`
     fn from(c: [f32; 4]) -> Self {
         unsafe { mem::transmute(c) }
     }
 }
 
+impl From<&[f32; 4]> for Color {
+    /// Converts a slice of four floats `[R, G, B, A]` into a color with values `{r: R, g: G, b: B, a: A}`
+    fn from(c: &[f32; 4]) -> Self {
+        unsafe { mem::transmute(*c) }
+    }
+}
+
+impl From<[f32; 3]> for Color {
+    /// Converts an array of three floats `[R, G, B]` into a color with values `{r: R, g: G, b: B, a: 1.0}`
+    fn from(c: [f32; 3]) -> Self {
+        Self {
+            r: c[0],
+            g: c[1],
+            b: c[2],
+            a: 1.0,
+        }
+    }
+}
+
+impl From<&[f32; 3]> for Color {
+    /// Converts a slice of three floats `[R, G, B]` into a color with values `{r: R, g: G, b: B, a: 1.0}`
+    fn from(c: &[f32; 3]) -> Self {
+        Self {
+            r: c[0],
+            g: c[1],
+            b: c[2],
+            a: 1.0,
+        }
+    }
+}
+impl From<[u8; 3]> for Color {
+    /// 8bit color conversion, e.g. `[0xRR, 0xGG, 0xBB].into()`
+    fn from(c: [u8; 3]) -> Self {
+        let b = u8_to_norm(c[2]);
+        let g = u8_to_norm(c[1]);
+        let r = u8_to_norm(c[0]);
+        Color::new(r, g, b, 1.0)
+    }
+}
+
 impl From<f32> for Color {
+    /// Converts a single float `C` into a color with values `{r: C, g: C, b: C, a: 1.0}`
     fn from(c: f32) -> Self {
         Color::rgb(c, c, c)
     }
 }
 
 impl From<u32> for Color {
+    /// Treats an int as a packed 8-bit RGBA value, allowing you to write `0xRRGGBBAA.into()`
     fn from(c: u32) -> Self {
         let a = u8_to_norm(c as u8);
         let b = u8_to_norm((c >> 8) as u8);
@@ -720,6 +790,7 @@ impl From<u32> for Color {
 }
 
 impl From<Color> for [u8; 4] {
+    /// Converts a Color into an array of 8bit ints: `[0xRR, 0xGG, 0xBB, 0xAA]`
     fn from(c: Color) -> Self {
         [
             norm_to_u8(c.r),
@@ -730,7 +801,15 @@ impl From<Color> for [u8; 4] {
     }
 }
 
+impl From<Color> for [u8; 3] {
+    /// 8bit color conversion, with alpha assumed to be `0xFF`. E.g. `[0xRR, 0xGG, 0xBB].into()`
+    fn from(c: Color) -> Self {
+        [norm_to_u8(c.r), norm_to_u8(c.g), norm_to_u8(c.b)]
+    }
+}
+
 impl From<Color> for u32 {
+    /// Converts a Color into a packed 8-bit RGBA value.
     fn from(c: Color) -> Self {
         let [r, g, b, a]: [u8; 4] = c.into();
         ((r as u32) << 24) + ((g as u32) << 16) + ((b as u32) << 8) + (a as u32)
@@ -738,25 +817,9 @@ impl From<Color> for u32 {
 }
 
 impl From<Color> for [f32; 4] {
+    /// Converts a Color into an array of floats `[R, G, B, A]`.
     fn from(c: Color) -> Self {
         unsafe { mem::transmute(c) }
-    }
-}
-
-impl From<&[f32; 4]> for Color {
-    fn from(c: &[f32; 4]) -> Self {
-        unsafe { mem::transmute(*c) }
-    }
-}
-
-impl From<[f32; 3]> for Color {
-    fn from(c: [f32; 3]) -> Self {
-        Self {
-            r: c[0],
-            g: c[1],
-            b: c[2],
-            a: 1.0,
-        }
     }
 }
 
@@ -770,7 +833,9 @@ fn norm_to_u8(x: f32) -> u8 {
     (x * 255.0) as u8
 }
 
-/// 8 bit color constructor. Useful when defining static colors.
+/// 8 bit [`Color`] constructor. Useful when defining static colors.
+///
+/// Has two forms, (R, G, B) and (R, G, B, A), where the former assumes an alpha of `0xFF`.
 ///
 /// E.g.:
 /// ```

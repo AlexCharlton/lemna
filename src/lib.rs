@@ -50,3 +50,6 @@ pub use lemna_macros::{component, state_component_impl};
 #[cfg(feature = "open_iconic")]
 pub mod open_iconic;
 pub use open_iconic::Icon;
+
+/// Used to construct the geometry used by [`renderables::Shape`].
+pub extern crate lyon;
