@@ -26,3 +26,7 @@ lyon = { workspace = true }
 png = "0.17.9"
 simplelog = { workspace = true }
 ttf-noto-sans = { workspace = true }
+
+[[example]]
+name = "tut1"
+path = "examples/tutorial/ex1.rs"

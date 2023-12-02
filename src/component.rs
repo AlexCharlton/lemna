@@ -20,6 +20,7 @@ pub type State = Box<dyn Any>;
 /// [`AHasher`] is used, since it makes it easier to create reproducible hashes.
 pub type ComponentHasher = AHasher;
 
+/// Wrap the input in a [`Box#new`][Box#new]. Convenience for [`Message`] creation.
 #[macro_export]
 macro_rules! msg {
     ($e:expr) => {

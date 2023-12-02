@@ -10,7 +10,9 @@ license = "MIT"
 keywords = ["ui", "gui"]
 
 [workspace]
-members = ["macros", "backends/baseview", "backends/winit",
+members = ["macros",
+           "backends/baseview",
+           # "backends/winit",
            # "backends/wx-rs",
            "nih-plug", "nih-plug/xtask",
            "nih-plug/examples/hello",
@@ -26,9 +28,10 @@ shaders = ["shaderc"] # You should always include this. It's only a feature so t
 msaa_shapes = []
 open_iconic = []
 docs_rs = []
+docs=["embed-doc-image"]
 
 [package.metadata.docs.rs]
-features = ["docs_rs"]
+features = ["docs_rs", "docs"]
 no-default-features = true
 
 [dependencies.wgpu]
@@ -60,6 +63,7 @@ rayon = "1.3"
 # Features
 superluminal-perf = { version = "0.1", optional = true }
 tinyfiledialogs = { version = "3.9", optional = true }
+embed-doc-image = { version = "0.1", optional = true }
 
 [workspace.dependencies]
 raw-window-handle = "0.5"

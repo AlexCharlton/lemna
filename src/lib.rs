@@ -1,4 +1,16 @@
-#![doc = include_str!("doc.md")]
+//! This is the documentation for the lemna crate. See the [readme](https://github.com/AlexCharlton/lemna) for a feature breakdown as well as usage instructions.
+//!
+#![cfg_attr(feature = "docs",
+            cfg_attr(all(),
+                     doc = ::embed_doc_image::embed_image!("tut1", "docs/images/tut1.png"),
+            ))]
+#![cfg_attr(
+    not(feature = "docs"),
+    doc = "**Doc images not enabled**. Compile with feature `doc-images` and Rust version >= 1.54 \
+           to enable."
+)]
+//!
+#![doc = include_str!("../docs/tutorial.md")]
 
 pub mod instrumenting;
 
@@ -53,3 +65,46 @@ pub use open_iconic::Icon;
 
 /// Used to construct the geometry used by [`renderables::Shape`].
 pub extern crate lyon;
+
+// Test stub window
+#[cfg(feature = "docs")]
+pub mod lemna_baseview {
+    use super::*;
+    pub struct Window {}
+
+    impl Window {
+        pub fn open_blocking<A>(_options: WindowOptions)
+        where
+            A: 'static + Component + Default + Send + Sync,
+        {
+            let app = A::default();
+            let mut node = Node::new(Box::new(app), 0, layout::Layout::default());
+            let mut registrations: Vec<(event::Register, u64)> = vec![];
+            node.view(None, &mut registrations);
+        }
+    }
+
+    pub struct WindowOptions {}
+
+    impl WindowOptions {
+        pub fn new<T: Into<String>>(_title: T, _dims: (u32, u32)) -> Self {
+            Self {}
+        }
+
+        pub fn scale_factor(self, _scale: f32) -> Self {
+            self
+        }
+
+        pub fn system_scale_factor(self) -> Self {
+            self
+        }
+
+        pub fn fonts(self, mut _fonts: Vec<(String, &'static [u8])>) -> Self {
+            self
+        }
+
+        pub fn resizable(self, _resizable: bool) -> Self {
+            self
+        }
+    }
+}

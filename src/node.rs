@@ -48,9 +48,9 @@ macro_rules! node {
     };
 }
 
-/// An instance of a [`Component`] situated within the app. Construct with the [`node`] macro.
+/// An instance of a [`Component`] situated within the app, along with a [`Layout`]. Construct with the [`node`] macro.
 ///
-/// TODO more
+/// TODO
 pub struct Node {
     pub(crate) id: u64,
     pub(crate) component: Box<dyn Component + Send + Sync>,
@@ -103,6 +103,7 @@ fn expand_aabb(a: &mut AABB, b: AABB) {
 }
 
 impl Node {
+    /// Constructor. In most cases it will be more convenient to use the [`node`] macro, which calls this method.
     pub fn new(component: Box<dyn Component + Send + Sync>, key: u64, layout: Layout) -> Self {
         Self {
             id: 0,
@@ -121,11 +122,13 @@ impl Node {
         }
     }
 
+    /// Add a Node to the children of the current one, returns itself. Can be chained.
     pub fn push(mut self, node: Self) -> Self {
         self.children.push(node);
         self
     }
 
+    /// Set the key of the current Node, returns itself.
     pub fn key(mut self, key: u64) -> Self {
         self.key = key;
         self
