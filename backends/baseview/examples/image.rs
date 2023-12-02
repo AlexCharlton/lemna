@@ -1,6 +1,5 @@
 use lazy_static::lazy_static;
 use lemna::*;
-use lemna_baseview::Window;
 use png;
 
 lazy_static! {
@@ -58,13 +57,8 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<App>(
-        "An Image".to_string(),
-        600,
-        600,
-        false, // Non-resizable
-        baseview::WindowScalePolicy::SystemScaleFactor,
-        vec![],
+    lemna_baseview::Window::open_blocking::<App>(
+        lemna_baseview::WindowOptions::new("An Image", (600, 600)).resizable(false),
     );
     println!("bye");
 }

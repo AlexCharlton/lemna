@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use lemna::*;
-use lemna_baseview::Window;
 use ttf_noto_sans;
 
 #[derive(Debug)]
@@ -312,16 +311,13 @@ impl Component for EventReactor {
 // App setup
 fn main() {
     println!("hello");
-    Window::open_blocking::<App>(
-        "Hello events".to_string(),
-        800,
-        600,
-        false,
-        baseview::WindowScalePolicy::SystemScaleFactor,
-        vec![
-            ("noto sans regular".to_string(), ttf_noto_sans::REGULAR),
-            ("open iconic".to_string(), open_iconic::ICONS),
-        ],
+    lemna_baseview::Window::open_blocking::<App>(
+        lemna_baseview::WindowOptions::new("Hello Events", (800, 600))
+            .resizable(false)
+            .fonts(vec![
+                ("noto sans regular".to_string(), ttf_noto_sans::REGULAR),
+                ("open iconic".to_string(), open_iconic::ICONS),
+            ]),
     );
     println!("bye");
 }

@@ -1,10 +1,9 @@
 use lemna::*;
-use lemna_baseview::Window;
 
 #[derive(Debug, Default)]
 pub struct App {}
 
-impl lemna::Component for App {
+impl Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -39,14 +38,9 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<App>(
-        "Hello".to_string(),
-        400,
-        300,
-        true,
-        baseview::WindowScalePolicy::SystemScaleFactor,
-        vec![],
-    );
-
+    lemna_baseview::Window::open_blocking::<App>(lemna_baseview::WindowOptions::new(
+        "Hello",
+        (400, 300),
+    ));
     println!("bye");
 }

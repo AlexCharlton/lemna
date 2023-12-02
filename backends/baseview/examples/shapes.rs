@@ -1,6 +1,5 @@
 use lemna::renderables::Shape;
 use lemna::*;
-use lemna_baseview::Window;
 use lyon::path::Path;
 use lyon::tessellation::math as lyon_math;
 
@@ -45,7 +44,7 @@ impl lemna::Component for App {
             [0.0, 0.0, 0.0].into(),
             4.0,
             0.0,
-            &mut context.caches.shape_buffer_cache.write().unwrap(),
+            &mut context.caches.shape_buffer.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(0) {
                 Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,
@@ -58,7 +57,7 @@ impl lemna::Component for App {
             [1.0, 1.0, 1.0].into(),
             0.0,
             0.0,
-            &mut context.caches.shape_buffer_cache.write().unwrap(),
+            &mut context.caches.shape_buffer.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(1) {
                 Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,
@@ -69,7 +68,7 @@ impl lemna::Component for App {
             [0.0, 1.0, 0.0].into(),
             6.0,
             0.0,
-            &mut context.caches.shape_buffer_cache.write().unwrap(),
+            &mut context.caches.shape_buffer.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(2) {
                 Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,
@@ -82,14 +81,8 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<App>(
-        "Hello shapes".to_string(),
-        400,
-        300,
-        false,
-        baseview::WindowScalePolicy::SystemScaleFactor,
-        vec![],
+    lemna_baseview::Window::open_blocking::<App>(
+        lemna_baseview::WindowOptions::new("Hello Shapes", (400, 300)).resizable(false),
     );
-
     println!("bye");
 }

@@ -9,6 +9,9 @@ use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
 
+mod window_options;
+pub use window_options::WindowOptions;
+
 pub type Message = Box<dyn Any + Send>;
 
 #[derive(Debug)]
@@ -37,13 +40,10 @@ unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
 impl Window {
+    /// Open as a child of another window. `options.resizable` will not do anything.
     pub fn open_parented<P, A, B>(
         parent: &P,
-        title: String,
-        width: u32,
-        height: u32,
-        scale_policy: baseview::WindowScalePolicy,
-        mut fonts: Vec<(String, &'static [u8])>,
+        mut options: WindowOptions,
         build: B,
         parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
     ) -> baseview::WindowHandle
@@ -57,29 +57,29 @@ impl Window {
         baseview::Window::open_parented(
             parent,
             baseview::WindowOpenOptions {
-                title,
-                size: baseview::Size::new(width.into(), height.into()),
-                scale: scale_policy,
+                title: options.title,
+                size: baseview::Size::new(options.width.into(), options.height.into()),
+                scale: options.scale_policy,
                 resizable: false,
                 drop_target_valid: Some(Box::new(move || -> bool {
                     *drop_target_valid2.read().unwrap()
                 })),
             },
             move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
-                let scale_factor = match scale_policy {
+                let scale_factor = match options.scale_policy {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                     baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
                 } as f32;
                 let mut ui = UI::new(Self {
                     handle: window.raw_window_handle(),
                     display_handle: window.raw_display_handle(),
-                    size: (width, height),
+                    size: (options.width, options.height),
                     scale_factor,
-                    scale_policy,
+                    scale_policy: options.scale_policy,
                     baseview_window: None,
                     drop_target_valid,
                 });
-                for (name, data) in fonts.drain(..) {
+                for (name, data) in options.fonts.drain(..) {
                     ui.add_font(name, data);
                 }
                 build(&mut ui);
@@ -94,43 +94,37 @@ impl Window {
         )
     }
 
-    pub fn open_blocking<A>(
-        title: String,
-        width: u32,
-        height: u32,
-        resizable: bool,
-        scale_policy: baseview::WindowScalePolicy,
-        mut fonts: Vec<(String, &'static [u8])>,
-    ) where
+    pub fn open_blocking<A>(mut options: WindowOptions)
+    where
         A: 'static + Component + Default + Send + Sync,
     {
         let drop_target_valid = Arc::new(RwLock::new(true));
         let drop_target_valid2 = drop_target_valid.clone();
         baseview::Window::open_blocking(
             baseview::WindowOpenOptions {
-                title,
-                size: baseview::Size::new(width.into(), height.into()),
-                scale: scale_policy,
-                resizable,
+                title: options.title,
+                size: baseview::Size::new(options.width.into(), options.height.into()),
+                scale: options.scale_policy,
+                resizable: options.resizable,
                 drop_target_valid: Some(Box::new(move || -> bool {
                     *drop_target_valid2.read().unwrap()
                 })),
             },
             move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
-                let scale_factor = match scale_policy {
+                let scale_factor = match options.scale_policy {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                     baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
                 } as f32;
                 let mut ui = UI::new(Self {
                     handle: window.raw_window_handle(),
                     display_handle: window.raw_display_handle(),
-                    size: (width, height),
+                    size: (options.width, options.height),
                     scale_factor,
-                    scale_policy,
+                    scale_policy: options.scale_policy,
                     baseview_window: None,
                     drop_target_valid,
                 });
-                for (name, data) in fonts.drain(..) {
+                for (name, data) in options.fonts.drain(..) {
                     ui.add_font(name, data);
                 }
                 // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor

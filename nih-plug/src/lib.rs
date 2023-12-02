@@ -8,12 +8,11 @@ use std::{
 };
 
 pub extern crate nih_plug;
+pub use lemna_baseview::WindowOptions;
 
 #[derive(Clone)]
 struct LemnaEditor<A: lemna::Component + Default + Send + Sync> {
-    size: (u32, u32),
-    title: String,
-    fonts: Vec<(String, &'static [u8])>,
+    window_options: WindowOptions,
     phantom_app: PhantomData<A>,
     scale_factor: Arc<RwLock<Option<f32>>>,
     // Called when initializing the app
@@ -25,10 +24,7 @@ struct LemnaEditor<A: lemna::Component + Default + Send + Sync> {
 }
 
 pub fn create_lemna_editor<A, B, P>(
-    title: &str,
-    width: u32,
-    height: u32,
-    fonts: Vec<(String, &'static [u8])>,
+    options: WindowOptions,
     build: B,
     on_param_change: P,
 ) -> Option<Box<dyn Editor>>
@@ -40,9 +36,7 @@ where
     let (sender, receiver) = unbounded::<ParentMessage>();
 
     Some(Box::new(LemnaEditor::<A> {
-        size: (width, height),
-        title: title.to_string(),
-        fonts,
+        window_options: options,
         scale_factor: Arc::new(RwLock::new(None)),
         phantom_app: PhantomData,
         build: Arc::new(build),
@@ -69,17 +63,16 @@ where
             self.sender.send(ParentMessage::AppMessage(m)).unwrap();
         }
 
+        let mut options = self.window_options.clone();
+        options = if let Some(factor) = *self.scale_factor.read().unwrap() {
+            options.scale_factor(factor)
+        } else {
+            options.system_scale_factor()
+        };
+
         let handle = lemna_baseview::Window::open_parented::<_, A, _>(
             &parent,
-            self.title.clone(),
-            self.size.0,
-            self.size.1,
-            self.scale_factor
-                .read()
-                .unwrap()
-                .map(|factor| baseview::WindowScalePolicy::ScaleFactor(factor as f64))
-                .unwrap_or(baseview::WindowScalePolicy::SystemScaleFactor),
-            self.fonts.clone(),
+            options,
             move |ui| (build)(context.clone(), ui),
             Some(self.receiver.clone()),
         );
@@ -87,7 +80,7 @@ where
     }
 
     fn size(&self) -> (u32, u32) {
-        self.size
+        (self.window_options.width, self.window_options.height)
     }
     fn set_scale_factor(&self, factor: f32) -> bool {
         *self.scale_factor.write().unwrap() = Some(factor);

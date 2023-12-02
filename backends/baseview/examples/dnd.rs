@@ -1,5 +1,4 @@
 use lemna::{style::HorizontalPosition, *};
-use lemna_baseview::Window;
 
 #[derive(Debug, Default)]
 pub struct App {}
@@ -124,14 +123,13 @@ impl Component for DragSource {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<App>(
-        "Hello".to_string(),
-        400,
-        300,
-        false,
-        baseview::WindowScalePolicy::SystemScaleFactor,
-        vec![("noto sans regular".to_string(), ttf_noto_sans::REGULAR)],
+    lemna_baseview::Window::open_blocking::<App>(
+        lemna_baseview::WindowOptions::new("Hello DND", (400, 300))
+            .resizable(false)
+            .fonts(vec![(
+                "noto sans regular".to_string(),
+                ttf_noto_sans::REGULAR,
+            )]),
     );
-
     println!("bye");
 }

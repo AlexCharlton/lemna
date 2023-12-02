@@ -1,5 +1,4 @@
 use lemna::{style::HorizontalPosition, widgets::*, *};
-use lemna_baseview::Window;
 use simplelog::*;
 
 #[derive(Debug, Default)]
@@ -163,14 +162,8 @@ fn main() {
         ConfigBuilder::new().build(),
         std::fs::File::create("example-scroll.log").unwrap(),
     );
-
-    Window::open_blocking::<App>(
-        "Hello scrolling".to_string(),
-        800,
-        600,
-        false,
-        baseview::WindowScalePolicy::SystemScaleFactor,
-        vec![],
+    lemna_baseview::Window::open_blocking::<App>(
+        lemna_baseview::WindowOptions::new("Hello Scrolling", (800, 600)).resizable(false),
     );
     println!("bye");
 }

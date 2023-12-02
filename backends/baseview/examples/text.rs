@@ -1,5 +1,4 @@
 use lemna::*;
-use lemna_baseview::Window;
 use ttf_noto_sans;
 
 #[derive(Debug, Default)]
@@ -24,13 +23,11 @@ impl lemna::Component for App {
 
 fn main() {
     println!("hello");
-    Window::open_blocking::<App>(
-        "Hello text".to_string(),
-        400,
-        300,
-        true,
-        baseview::WindowScalePolicy::SystemScaleFactor,
-        vec![("noto sans regular".to_string(), ttf_noto_sans::REGULAR)],
+    lemna_baseview::Window::open_blocking::<App>(
+        lemna_baseview::WindowOptions::new("Hello Text", (400, 300)).fonts(vec![(
+            "noto sans regular".to_string(),
+            ttf_noto_sans::REGULAR,
+        )]),
     );
     println!("bye");
 }
