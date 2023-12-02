@@ -4,10 +4,10 @@ use std::sync::{Arc, RwLock};
 use wgpu;
 
 use crate::render::next_power_of_2;
-use crate::render::renderables::buffer_cache::{BufferCacheId, BufferChunk};
+use crate::render::renderables::{BufferCacheId, BufferChunk};
 
 pub struct BufferCache<V, I> {
-    pub cache: Arc<RwLock<crate::render::renderables::buffer_cache::BufferCache<V, I>>>,
+    pub cache: Arc<RwLock<crate::render::renderables::BufferCache<V, I>>>,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
     vertex_buffer_len: usize,
@@ -16,9 +16,7 @@ pub struct BufferCache<V, I> {
 
 impl<T: Default + Pod, I: Default + Pod> BufferCache<T, I> {
     pub fn new(device: &wgpu::Device) -> Self {
-        let cache = Arc::new(RwLock::new(
-            crate::render::renderables::buffer_cache::BufferCache::new(),
-        ));
+        let cache = Arc::new(RwLock::new(crate::render::renderables::BufferCache::new()));
         let initial_buffer_size = 32;
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,

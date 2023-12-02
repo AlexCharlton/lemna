@@ -131,7 +131,7 @@ impl Component for Text {
         let bounds = context.aabb.size();
         let size: f32 = self.style_val("size").unwrap().f32();
 
-        let glyphs = context.font_cache.read().unwrap().layout_text(
+        let glyphs = context.caches.font.read().unwrap().layout_text(
             &self.text,
             font.as_deref(),
             size,
@@ -155,7 +155,7 @@ impl Component for Text {
                 glyphs,
                 Pos::default(),
                 color,
-                &mut context.caches.text_buffer_cache.write().unwrap(),
+                &mut context.caches.text_buffer.write().unwrap(),
                 context.prev_state.and_then(|v| match v.get(0) {
                     Some(Renderable::Text(r)) => Some(r.buffer_id),
                     _ => None,

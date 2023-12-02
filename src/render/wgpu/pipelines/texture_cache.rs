@@ -6,10 +6,7 @@ use std::{
 use crate::{
     render::{
         next_power_of_2,
-        renderables::{
-            raster_cache::{RasterCache, RasterCacheId, RasterId},
-            Raster,
-        },
+        renderables::{Raster, RasterCache, RasterCacheId, RasterId},
     },
     PixelAABB, PixelPoint, PixelSize, Point,
 };
@@ -336,7 +333,7 @@ impl TextureCache {
 #[cfg(test)]
 mod tests {
     use super::PackedTextureInfo;
-    use crate::{base_types::*, render::renderables::raster_cache::RasterCacheId};
+    use crate::{base_types::*, render::renderables::RasterCacheId};
 
     #[test]
     fn test_insert() {

@@ -509,6 +509,5 @@ fn lemna_data_to_baseview(d: Data) -> baseview::Data {
     match d {
         Data::Filepath(p) => baseview::Data::Filepath(p),
         Data::String(s) => baseview::Data::String(s),
-        _ => unimplemented!(),
     }
 }

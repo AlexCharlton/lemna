@@ -11,7 +11,7 @@ impl RasterCacheId {
     }
 }
 
-pub type RasterId = u64;
+pub(crate) type RasterId = u64;
 
 static RASTER_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);
 
@@ -27,7 +27,6 @@ pub struct RasterCache {
 #[derive(Debug)]
 pub struct RasterCacheData {
     pub(crate) id: RasterId,
-    // TODO data should be an enum type that's either a static slice or a Vec
     pub data: RasterData,
     pub size: PixelSize,
     /// Has this raster been altered?

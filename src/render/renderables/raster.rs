@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
-use super::buffer_cache::{BufferCache, BufferCacheId};
-use super::raster_cache::{RasterCache, RasterCacheId, RasterData};
+use super::{BufferCache, BufferCacheId};
+use super::{RasterCache, RasterCacheId, RasterData};
 use crate::base_types::{Point, Pos, AABB};
 use crate::PixelSize;
 

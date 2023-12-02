@@ -1,3 +1,5 @@
+use std::sync::{Arc, RwLock};
+
 use bytemuck::cast_slice;
 use log::info;
 use wgpu;
@@ -56,6 +58,7 @@ pub struct TextPipeline {
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
     pub(crate) buffer_cache: BufferCache<Vertex, u16>,
+    pub(crate) font_cache: Arc<RwLock<FontCache>>,
     glyph_cache: GlyphCache,
     instance_data: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
@@ -124,9 +127,8 @@ impl TextPipeline {
         renderables: &[(&'a Text, &'a AABB)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
-        font_cache: &FontCache,
     ) {
-        let cache_invalid = self.update_glyph_cache(renderables, device, queue, font_cache);
+        let cache_invalid = self.update_glyph_cache(renderables, device, queue);
 
         self.instance_data.clear();
         // Update CPU buffers if changed
@@ -252,7 +254,6 @@ impl TextPipeline {
         renderables: &[(&Text, &AABB)],
         device: &wgpu::Device,
         queue: &mut wgpu::Queue,
-        font_cache: &FontCache,
     ) -> bool {
         // Draw glyphs onto GPU texture cache
         let mut cache_invalid = false;
@@ -269,9 +270,9 @@ impl TextPipeline {
 
             let cache_result = {
                 let texture = &self.glyph_cache.texture;
-                self.glyph_cache
-                    .glyph_cache
-                    .cache_queued(&font_cache.fonts, |region, data| {
+                self.glyph_cache.glyph_cache.cache_queued(
+                    &self.font_cache.read().unwrap().fonts,
+                    |region, data| {
                         queue.write_texture(
                             wgpu::ImageCopyTexture {
                                 aspect: wgpu::TextureAspect::All,
@@ -295,7 +296,8 @@ impl TextPipeline {
                                 depth_or_array_layers: 1,
                             },
                         );
-                    })
+                    },
+                )
             };
             match cache_result {
                 Ok(CachedBy::Adding) => (),
@@ -431,6 +433,7 @@ impl TextPipeline {
         Self {
             buffer_cache: BufferCache::new(&context.device),
             glyph_cache: GlyphCache::new(texture, DEFAULT_TEXTURE_CACHE_SIZE),
+            font_cache: Default::default(),
             instance_data: vec![],
             instance_buffer,
             num_instances,

@@ -805,7 +805,7 @@ impl Component for TextBoxText {
                     z: text_z,
                 },
                 text_color,
-                &mut context.caches.text_buffer_cache.write().unwrap(),
+                &mut context.caches.text_buffer.write().unwrap(),
                 context.prev_state.and_then(|v| match v.get(0) {
                     Some(Renderable::Text(r)) => Some(r.buffer_id),
                     _ => None,

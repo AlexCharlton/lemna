@@ -66,7 +66,7 @@ impl PixelSize {
     }
 }
 
-/// Two dimensional scale factor, used by `[renderables::Rect]`.
+/// Two dimensional scale factor, used by [`renderables::Rect`][crate::renderables::Rect].
 #[derive(Debug, Default, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Scale {
@@ -166,8 +166,8 @@ pub struct Point {
 }
 
 impl Point {
+    /// Constructor
     pub fn new(x: f32, y: f32) -> Self {
-        /// Constructor
         Point { x, y }
     }
 

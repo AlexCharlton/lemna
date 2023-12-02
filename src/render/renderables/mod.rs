@@ -1,11 +1,13 @@
-pub mod buffer_cache;
+mod buffer_cache;
 pub mod raster;
-pub mod raster_cache;
+mod raster_cache;
 pub mod rect;
 pub mod shape;
 pub mod text;
 
+pub use buffer_cache::*;
 pub use raster::Raster;
+pub use raster_cache::*;
 pub use rect::Rect;
 pub use shape::Shape;
 pub use text::Text;

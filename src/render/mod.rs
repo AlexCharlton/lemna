@@ -10,28 +10,32 @@ pub(crate) mod glyph_brush_draw_cache;
 pub mod renderables;
 pub(crate) mod wgpu;
 
-use crate::render::renderables::buffer_cache::BufferCache;
-use crate::render::renderables::raster_cache::RasterCache;
+use crate::render::renderables::BufferCache;
+use crate::render::renderables::RasterCache;
 pub use renderables::Renderable;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Caches {
-    pub shape_buffer_cache: Arc<RwLock<BufferCache<renderables::shape::Vertex, u16>>>,
-    pub text_buffer_cache: Arc<RwLock<BufferCache<renderables::text::Vertex, u16>>>,
-    pub image_buffer_cache: Arc<RwLock<BufferCache<renderables::raster::Vertex, u16>>>,
-    pub raster_cache: Arc<RwLock<RasterCache>>,
+    pub shape_buffer: Arc<RwLock<BufferCache<renderables::shape::Vertex, u16>>>,
+    pub text_buffer: Arc<RwLock<BufferCache<renderables::text::Vertex, u16>>>,
+    pub image_buffer: Arc<RwLock<BufferCache<renderables::raster::Vertex, u16>>>,
+    pub raster: Arc<RwLock<RasterCache>>,
+    pub font: Arc<RwLock<FontCache>>,
 }
 
 pub(crate) trait Renderer: fmt::Debug + std::marker::Sized + Send + Sync {
     fn new<W: Window>(window: &W) -> Self;
-    fn render(&mut self, _node: &Node, _physical_size: PixelSize, _font_cache: &FontCache) {}
+    fn render(&mut self, _node: &Node, _physical_size: PixelSize) {}
+    /// This default is provided for tests, it should be overridden
     fn caches(&self) -> Caches {
-        Caches {
-            shape_buffer_cache: Arc::new(RwLock::new(BufferCache::new())),
-            text_buffer_cache: Arc::new(RwLock::new(BufferCache::new())),
-            image_buffer_cache: Arc::new(RwLock::new(BufferCache::new())),
-            raster_cache: Arc::new(RwLock::new(RasterCache::new())),
-        }
+        Default::default()
+        // Caches {
+        //     shape_buffer: Arc::new(RwLock::new(BufferCache::new())),
+        //     text_buffer: Arc::new(RwLock::new(BufferCache::new())),
+        //     image_buffer: Arc::new(RwLock::new(BufferCache::new())),
+        //     raster: Arc::new(RwLock::new(RasterCache::new())),
+        //     font: Default
+        // }
     }
 }
 

@@ -98,7 +98,7 @@ impl Component for RoundedRect {
             self.border_color,
             self.border_width * 0.5,
             0.0,
-            &mut context.caches.shape_buffer_cache.write().unwrap(),
+            &mut context.caches.shape_buffer.write().unwrap(),
             context.prev_state.as_ref().and_then(|v| match v.get(0) {
                 Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,

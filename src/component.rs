@@ -1,6 +1,5 @@
 use std::any::Any;
 use std::fmt;
-use std::sync::{Arc, RwLock};
 
 use ahash::AHasher;
 
@@ -11,9 +10,14 @@ use crate::layout::*;
 use crate::node::Node;
 use crate::render::{Caches, Renderable};
 
+/// A `Box<dyn Any>` type, used to convey information from a [`Component`] to one of its parent nodes.
 pub type Message = Box<dyn Any>;
+#[doc(hidden)]
+// Only used by `replace_state` and `take_state`, which are not meant to be implemented by the user.
 pub type State = Box<dyn Any>;
-// AHasher makes it easier to make reproducible hashes
+/// A concrete implementor of [`std::hash::Hasher`], used by [`Component#props_hash`][Component#props_hash] and [`#render_hash`][Component#render_hash].
+///
+/// [`AHasher`] is used, since it makes it easier to create reproducible hashes.
 pub type ComponentHasher = AHasher;
 
 #[macro_export]
@@ -23,15 +27,20 @@ macro_rules! msg {
     };
 }
 
+/// Passed to [`Component#render`][Component#render], with context required for rendering.
 pub struct RenderContext {
+    /// The `AABB` that contains the given [`Component`] instance.
     pub aabb: AABB,
     pub inner_scale: Option<Scale>,
+    /// The caches used by the renderer.
     pub caches: Caches,
+    /// The value previously returned by [`Component#render`][Component#render] of the given instance.
     pub prev_state: Option<Vec<Renderable>>,
-    pub font_cache: Arc<RwLock<FontCache>>,
+    /// The scale factor of the current monitor. Renderables should be scaled by this value.
     pub scale_factor: f32,
 }
 
+/// The primary interface of Lemna. Components are the -- optionally stateful -- elements that are drawn on a window that a user interacts with.
 pub trait Component: fmt::Debug {
     fn init(&mut self) {}
 
@@ -49,12 +58,15 @@ pub trait Component: fmt::Debug {
         None
     }
 
+    #[doc(hidden)]
     fn replace_state(&mut self, _other: State) {}
 
+    #[doc(hidden)]
     fn take_state(&mut self) -> Option<State> {
         None
     }
 
+    #[doc(hidden)]
     fn is_dirty(&mut self) -> bool {
         false
     }

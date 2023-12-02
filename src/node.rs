@@ -1,7 +1,6 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, RwLock};
 
 use crate::base_types::*;
 use crate::component::*;
@@ -306,7 +305,6 @@ impl Node {
         &mut self,
         caches: Caches,
         prev: Option<&mut Self>,
-        font_cache: Arc<RwLock<FontCache>>,
         scale_factor: f32,
     ) -> bool {
         // TODO: skip non-visible nodes
@@ -324,7 +322,6 @@ impl Node {
                     inner_scale: self.inner_scale,
                     caches: caches.clone(),
                     prev_state: prev.render_cache.take(),
-                    font_cache: font_cache.clone(),
                     scale_factor,
                 };
                 self.render_cache = self.component.render(context);
@@ -338,7 +335,6 @@ impl Node {
                 ret |= child.render(
                     caches.clone(),
                     prev_children.iter_mut().find(|x| x.key == child.key),
-                    font_cache.clone(),
                     scale_factor,
                 )
             }
@@ -350,7 +346,6 @@ impl Node {
                 inner_scale: self.inner_scale,
                 caches: caches.clone(),
                 prev_state: None,
-                font_cache: font_cache.clone(),
                 scale_factor,
             };
             self.render_cache = self.component.render(context);
@@ -358,7 +353,7 @@ impl Node {
             self.render_hash = hasher.finish();
 
             for child in self.children.iter_mut() {
-                child.render(caches.clone(), None, font_cache.clone(), scale_factor);
+                child.render(caches.clone(), None, scale_factor);
             }
 
             true
@@ -1066,10 +1061,9 @@ mod tests {
     fn test_caching() {
         let renderer = TestRenderer {};
         let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
-        let font_cache = Arc::new(RwLock::new(FontCache::default()));
         n.view(None, &mut vec![]);
         //n.layout();
-        n.render(renderer.caches(), None, font_cache.clone(), 1.0);
+        n.render(renderer.caches(), None, 1.0);
         //println!("{:#?}", n);
         assert_eq!(
             n.render_cache,
@@ -1100,7 +1094,7 @@ mod tests {
         assert_eq!(n.children[0].id, new_n.children[0].id);
 
         //new_n.layout();
-        new_n.render(renderer.caches(), Some(&mut n), font_cache.clone(), 1.0);
+        new_n.render(renderer.caches(), Some(&mut n), 1.0);
         //println!("{:#?}", new_n);
         assert_eq!(
             new_n.render_cache,
@@ -1290,7 +1284,6 @@ mod tests {
     #[test]
     fn test_scroll() {
         let renderer = TestRenderer {};
-        let font_cache = Arc::new(RwLock::new(FontCache::default()));
         let m = Node::new(
             Box::new(test_scroll_app::TestApp::default()),
             0,
@@ -1302,7 +1295,7 @@ mod tests {
             lay!(size: size!(300.0)),
         );
         n.view(None, &mut vec![]);
-        n.layout(&m, &font_cache.read().unwrap(), 1.0);
+        n.layout(&m, &renderer.caches().font.read().unwrap(), 1.0);
 
         // Expect the inner_scale to be a real size
         let scroll_node = &mut n.children[0].children[0];
@@ -1310,7 +1303,7 @@ mod tests {
         assert_eq!(scroll_node.inner_scale.unwrap(), [200.0, 150.0].into());
 
         // Expect renderables to be laid out in the right order, with the correct Frames
-        n.render(renderer.caches(), None, font_cache.clone(), 1.0);
+        n.render(renderer.caches(), None, 1.0);
         let renderables = n.iter_renderables().collect::<Vec<_>>();
         assert_eq!(renderables.len(), 9);
         // First three (App, Top Div, Scroll Div) do not have Frames

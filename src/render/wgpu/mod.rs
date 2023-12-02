@@ -6,7 +6,6 @@ use wgpu::{self, util::DeviceExt};
 mod context;
 
 use crate::base_types::{PixelSize, AABB};
-use crate::font_cache::FontCache;
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
 use crate::render::{renderables::*, Caches};
@@ -133,7 +132,7 @@ impl super::Renderer for WGPURenderer {
         }
     }
 
-    fn render(&mut self, node: &Node, physical_size: PixelSize, font_cache: &FontCache) {
+    fn render(&mut self, node: &Node, physical_size: PixelSize) {
         inst("WGPURenderer::render#get_current_texture");
         let was_resized = self.do_resize(physical_size);
         let output = match self.context.surface.get_current_texture() {
@@ -154,7 +153,7 @@ impl super::Renderer for WGPURenderer {
             evt("WGPURenderer::was_resized");
             self.update_ubo(physical_size);
             output.present();
-            self.render(node, physical_size, font_cache);
+            self.render(node, physical_size);
             return;
         }
 
@@ -250,7 +249,6 @@ impl super::Renderer for WGPURenderer {
                 .collect::<Vec<(&Text, &AABB)>>(),
             &self.context.device,
             &mut self.context.queue,
-            font_cache,
         );
         {
             // We have a three step process for rasters
@@ -499,10 +497,11 @@ impl super::Renderer for WGPURenderer {
 
     fn caches(&self) -> Caches {
         Caches {
-            shape_buffer_cache: self.shape_pipeline.buffer_cache.cache.clone(),
-            text_buffer_cache: self.text_pipeline.buffer_cache.cache.clone(),
-            image_buffer_cache: self.raster_pipeline.buffer_cache.cache.clone(),
-            raster_cache: self.raster_pipeline.texture_cache.raster_cache.clone(),
+            shape_buffer: self.shape_pipeline.buffer_cache.cache.clone(),
+            text_buffer: self.text_pipeline.buffer_cache.cache.clone(),
+            image_buffer: self.raster_pipeline.buffer_cache.cache.clone(),
+            raster: self.raster_pipeline.texture_cache.raster_cache.clone(),
+            font: self.text_pipeline.font_cache.clone(),
         }
     }
 }

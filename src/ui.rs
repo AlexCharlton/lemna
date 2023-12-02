@@ -10,7 +10,6 @@ use log::info;
 use crate::base_types::*;
 use crate::component::Component;
 use crate::event::{self, Event, EventCache, EventInput};
-use crate::font_cache::FontCache;
 use crate::input::*;
 use crate::instrumenting::*;
 use crate::layout::*;
@@ -46,7 +45,6 @@ pub struct UI<W: Window, A: Component + Default + Send + Sync> {
     physical_size: Arc<RwLock<PixelSize>>,
     logical_size: Arc<RwLock<PixelSize>>,
     event_cache: EventCache,
-    font_cache: Arc<RwLock<FontCache>>,
     node_dirty: Arc<RwLock<bool>>,
 }
 
@@ -106,7 +104,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         receiver: Receiver<()>,
         renderer: Arc<RwLock<Option<ActiveRenderer>>>,
         node: Arc<RwLock<Node>>,
-        font_cache: Arc<RwLock<FontCache>>,
         physical_size: Arc<RwLock<PixelSize>>,
         frame_dirty: Arc<RwLock<bool>>,
     ) -> JoinHandle<()> {
@@ -116,11 +113,12 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                     inst("UI::render");
                     // Pull out size so it gets pulled into the renderer lock
                     let size = *physical_size.read().unwrap();
-                    renderer.write().unwrap().as_mut().unwrap().render(
-                        &node.read().unwrap(),
-                        size,
-                        &font_cache.read().unwrap(),
-                    );
+                    renderer
+                        .write()
+                        .unwrap()
+                        .as_mut()
+                        .unwrap()
+                        .render(&node.read().unwrap(), size);
                     *frame_dirty.write().unwrap() = false;
                     // println!("rendered");
                     inst_end();
@@ -133,7 +131,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         receiver: Receiver<()>,
         renderer: Arc<RwLock<Option<ActiveRenderer>>>,
         node: Arc<RwLock<Node>>,
-        font_cache: Arc<RwLock<FontCache>>,
         logical_size: Arc<RwLock<PixelSize>>,
         scale_factor: Arc<RwLock<f32>>,
         frame_dirty: Arc<RwLock<bool>>,
@@ -168,17 +165,13 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                         *registrations.write().unwrap() = new_registrations;
                         inst_end();
 
+                        let caches = renderer.as_mut().unwrap().caches();
                         inst("Node::layout");
-                        new.layout(&old, &font_cache.read().unwrap(), scale_factor);
+                        new.layout(&old, &caches.font.read().unwrap(), scale_factor);
                         inst_end();
 
                         inst("Node::render");
-                        let do_render = new.render(
-                            renderer.as_mut().unwrap().caches(),
-                            Some(&mut old),
-                            font_cache.clone(),
-                            scale_factor,
-                        );
+                        let do_render = new.render(caches, Some(&mut old), scale_factor);
                         inst_end();
 
                         *old = new;
@@ -219,7 +212,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             0,
             Layout::default(),
         )));
-        let font_cache = Arc::new(RwLock::new(FontCache::default()));
         let frame_dirty = Arc::new(RwLock::new(false));
         let node_dirty = Arc::new(RwLock::new(true));
         let registrations: Arc<RwLock<Vec<Registration>>> = Default::default();
@@ -230,7 +222,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             receiver,
             renderer.clone(),
             node.clone(),
-            font_cache.clone(),
             physical_size.clone(),
             frame_dirty.clone(),
         );
@@ -241,7 +232,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             receiver,
             renderer.clone(),
             node.clone(),
-            font_cache.clone(),
             logical_size.clone(),
             scale_factor.clone(),
             frame_dirty,
@@ -264,7 +254,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             physical_size,
             logical_size,
             event_cache,
-            font_cache,
             node_dirty,
         };
         inst_end();
@@ -678,7 +667,16 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
     }
 
     pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
-        self.font_cache.write().unwrap().add_font(name, bytes);
+        self.renderer
+            .read()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .caches()
+            .font
+            .write()
+            .unwrap()
+            .add_font(name, bytes);
     }
 
     pub fn set_dirty(&mut self) {
