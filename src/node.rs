@@ -20,7 +20,33 @@ fn new_node_id() -> u64 {
 
 /// Constructor for [`Node`].
 ///
-/// TODO
+/// There a 5 ways to call `node`:
+///
+/// - With just a [`Component`] instance:
+///```ignore
+/// node!(COMPONENT)
+///```
+///
+/// - With a Component, and -- in square braces -- arguments that will be passed to [`lay!`][crate::lay].
+///```ignore
+/// node!(COMPONENT, [LAY_MACRO_ARGS])
+///```
+///
+/// - With a Component, arguments for [`lay!`][crate::lay], and a [`key`][Node#key].
+///```ignore
+/// node!(COMPONENT, [LAY_MACRO_ARGS], KEY)
+///```
+///
+/// - With a Component, and a [`Layout`].
+///```ignore
+/// node!(COMPONENT, LAYOUT)
+///```
+///
+/// - With a Component, a [`Layout`], and a [`key`][Node#key].
+///```ignore
+/// node!(COMPONENT, LAYOUT, KEY)
+///```
+/// All five call [`Node#new`][Node#new] and wrap the [`Component`] in a [`Box::new`][Box#new].
 #[macro_export]
 macro_rules! node {
     ($component:expr $(,)*) => {
@@ -50,7 +76,7 @@ macro_rules! node {
 
 /// An instance of a [`Component`] situated within the app, along with a [`Layout`]. Construct with the [`node`] macro.
 ///
-/// TODO
+/// When combined together, `Node`s form a graph that represents the application: the graph is responsible for handling events, it knows how to render itself, and it holds all of the required state. See the [tutorial][crate] for an explanation of how to use Nodes to create an application.
 pub struct Node {
     pub(crate) id: u64,
     pub(crate) component: Box<dyn Component + Send + Sync>,
@@ -128,7 +154,7 @@ impl Node {
         self
     }
 
-    /// Set the key of the current Node, returns itself.
+    /// Set the key of the current Node, returns itself. `key` must be set on Nodes that are part of a dynamically-generated list of Nodes, pushed to some parent. The key should be unique within that set of child nodes, and it should be stable for the lifetime of the Node. This is used to associate state between the previously generated Node graph and a newly generated one.
     pub fn key(mut self, key: u64) -> Self {
         self.key = key;
         self

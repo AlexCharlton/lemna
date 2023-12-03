@@ -16,7 +16,6 @@ pub type Message = Box<dyn Any + Send>;
 
 #[derive(Debug)]
 pub enum ParentMessage {
-    Dirty,
     Resize,
     AppMessage(Message),
 }
@@ -159,12 +158,8 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
         if let Some(receiver) = &self.parent_channel {
             while let Ok(message) = receiver.try_recv() {
                 match message {
-                    ParentMessage::Dirty => {
-                        self.ui.set_dirty();
-                    }
                     ParentMessage::AppMessage(m) => {
                         self.ui.update(m);
-                        self.ui.set_dirty();
                     }
                     ParentMessage::Resize => {
                         let size = self.ui.window.read().unwrap().size;

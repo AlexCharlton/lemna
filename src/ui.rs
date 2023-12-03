@@ -24,15 +24,15 @@ type ActiveRenderer = crate::render::wgpu::WGPURenderer;
 /// It handles events and drawing+rendering.
 /// You probably don't need to reference it directly, unless you're implementing a windowing backend.
 ///
-/// Drawing (laying out `Nodes` and assembling their `Renderable`s) and rendering
+/// Drawing (laying out [`Node`]s and assembling their [`Renderable`][crate::renderables::Renderable]s) and rendering
 /// (painting the `Renderables` onto the `Window`'s frame) are performed in separate threads
 /// from the handling of events/render requests. This prevents hanging when handling events
 /// which could otherwise happen if rendering takes a while. Even though the wgpu rendering pipeline
 /// itself is quite efficient, delays have been observed when fetching
 /// the next frame in the swapchain after resizing on certain platforms.
-/// Event handling happens on the same thread that the `current_window` is accessible from.
+/// Event handling happens on the same thread that the [`current_window`] is accessible from.
 pub struct UI<W: Window, A: Component + Default + Send + Sync> {
-    pub renderer: Arc<RwLock<Option<ActiveRenderer>>>,
+    renderer: Arc<RwLock<Option<ActiveRenderer>>>,
     pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
     _draw_thread: JoinHandle<()>,
@@ -189,6 +189,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         })
     }
 
+    /// Create a new `UI`, given a [`Window`].
     pub fn new(window: W) -> Self {
         let scale_factor = Arc::new(RwLock::new(window.scale_factor()));
         // dbg!(scale_factor);
@@ -261,10 +262,25 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         n
     }
 
+    /// Signal to the draw thread that it may be time to draw a redraw the app.
+    /// This performs three actions:
+    /// - View, which calls [`view`][Component#view] on the root Component and then recursively across the children of the returned Node, thus recreating the Node graph. This does a number of sub tasks:
+    ///   - State is transferred from the old graph to the new one, where possible. Some new Nodes will not have existed in the old graph.
+    ///   - For net new Nodes (not present in the old graph), [`init`][Component#init] is called, and then a hash of input values is computed with [`props_hash`][Component#props_hash].
+    ///   - For Nodes that existed in the old graph, [`props_hash`][Component#props_hash] is called on the new Component. If the new hash is not equal to the old one, then [`new_props`][Component#new_props] is called.
+    ///   - [`register`][Component#register] is also called on all Nodes.
+    /// - Layout, which calculates the positions and sizes all of the Nodes in the graph. See [`layout`][crate::layout] for how it interacts with the [`Component`] interface.
+    /// - Render Nodes, which generates new [`Renderable`][crate::renderables::Renderable]s for each Node, or else recycles the previously generated ones. [`render_hash`][Component#render_hash] is called and compared to the old value -- if any -- to decide whether or not [`render`][Component#render] needs to be called.
+    ///
+    /// A draw will only occur if an event was handled that resulted in [`state_mut`][crate::state_component_impl] being called.
     pub fn draw(&mut self) {
         self.draw_channel.send(()).unwrap();
     }
 
+    /// Signal to the render thread that it may be time to render a frame.
+    /// A render will only occur if the draw thread has marked `frame_dirty` as true,
+    /// which it will do after drawing. This thread does not interact with the user-facing API,
+    /// just the [`Renderable`][crate::renderables::Renderable]s generated during [`draw`][UI#draw].
     pub fn render(&mut self) {
         self.render_channel.send(()).unwrap();
     }
@@ -325,6 +341,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         self.handle_dirty_event(event);
     }
 
+    /// Handle [`Input`]s coming from the [`Window`] backend.
     pub fn handle_input(&mut self, input: &Input) {
         inst("UI::handle_input");
         // if self.node.is_none() || self.renderer.is_none() {
@@ -667,6 +684,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         inst_end();
     }
 
+    /// Add a font to the [`crate::font_cache::FontCache`].
     pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
         self.renderer
             .read()
@@ -680,15 +698,15 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             .add_font(name, bytes);
     }
 
-    pub fn set_dirty(&mut self) {
-        *self.node_dirty.write().unwrap() = true
-    }
-
+    /// Sends `msg` to the root Node of the application.
     pub fn update(&mut self, msg: crate::Message) {
         self.node_mut().component.update(msg);
+        let dirty = self.node_mut().component.is_dirty();
+        *self.node_dirty.write().unwrap() = dirty;
     }
 
-    pub fn with_app_state<S, F>(&mut self, f: F)
+    /// Calls [`state_mut`][crate::state_component_impl] on the root Node of the application.
+    pub fn state_mut<S, F>(&mut self, f: F)
     where
         F: Fn(&mut S),
         S: 'static,

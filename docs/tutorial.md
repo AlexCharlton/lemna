@@ -27,15 +27,14 @@ fn main() {
     ));
 }
 ```
-_Example: tut1_
-
-This example defines a struct called `App` and makes it a [`Component`], which is the central Lemna interface. There's no special meaning to the name "App", it's just a convention for the top level Component in your application.
+This example defines a struct called `App` and makes it a [`Component`], which is the central Lemna interface. There's no special meaning to the name "App", it's just a convention for the top-level or "root" Component in your application. And the only special thing about a root Component is that it must implement [`std::default::Default`].
 
 We define the `view` method of `App` to return a [`Node`], which is constructed with the [`node!`][macro@node] macro. Our Node contains another `Component` named [`Div`][widgets::Div], which is named after the [HTML element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/div). We set the `Div`'s background to the hex color `0xFF00FFFF` (a.k.a. magenta), and give it a width and height of 100 pixels.
 
 Then, in our `main` function, we open a window that contains our `App`. The result looks like this:
 
 ![Example 1][tut1]
+<br />_Example: tut1_
 
 The rest of the tutorial will explain in a lot more detail what the deal is with Components and Nodes, and how you use them to create fully interactive applications.
 
@@ -48,10 +47,14 @@ Replacing the name of the example with the name provided.
 
 You'll notice that the example lives in the `lemna-baseview` project. This's because Lemna is designed to be able to run in any "backend" that implements the [`Window`] trait. Backends handle opening a window, receiving events like mouse clicks, and other interactions with your OS's window manager. `lemna-baseview` uses a (forked) [baseview](https://github.com/AlexCharlton/baseview) backend, and it's by far the most functional backend today.
 
-Since all of our examples use more or less the same `main` function, we will elide it in the future unless there's a reason not to. Any time we define a `main` function it's then used the all in the succeeding examples until it's again redefined. You can find all tutorial examples [here](https://github.com/AlexCharlton/lemna/tree/main/backends/baseview/examples/tutorial).
+Since all of our examples use more or less the same `main` function, we will elide it in the future unless there's a reason not to. Any time we define a `main` function it's then used in all the succeeding examples until it's again redefined. You can find all tutorial examples [here](https://github.com/AlexCharlton/lemna/tree/main/backends/baseview/examples/tutorial).
 
-## An introduction to Components
-TODO: overview of features
+## An introduction to Components and Nodes
+Individually, a [`Component`] can do a couple of neat things: They can draw to the screen, and handle any events that gets passed their way. But it's when you combine them with other Components that things really start to cook.
+
+In Lemna, you never create a `Component` on its own, you always attach it to a [`Node`]. `Node`s hold an instance of a `Component` as well as a [`Layout`][layout::Layout], which tells Lemna where to position this `Component` instance. The [`view`][Component#view] method of a `Component` is used to define what `Node`s it will create. You can also [`push`][Node#push] a `Node` onto another (as long as it's holding a "container" `Component`). You can `push` as many "child" nodes onto a `Node` as you like. In doing so, you construct the graph that represents your application.
+
+Let's see what this looks like with an example. Here we have an App that isn't too different from the first, but we're defining a new `Component` called `BlueBorder`. A `BlueBorder` `Node` will wrap any of its child `Nodes` in a blue `Div`. The `Div` has a `padding` of 10 pixels specified, so our "border" will be 10 pixels wide.
 
 ```
 use lemna::{widgets::*, *};
@@ -66,6 +69,9 @@ impl Component for BlueBorder {
         ))
     }
 
+    // This Component is a "container". Children get pushed onto the index specified.
+    // In this case, any Nodes pushed onto a `BlueBorder` will get added to the
+    // child at index `0`. That's the `Div` that is returned by `view`.
     fn container(&self) -> Option<Vec<usize>> {
         Some(vec![0])
     }
@@ -77,16 +83,29 @@ impl Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(Div::new())
-                .push(node!(BlueBorder {}).push(node!(Div::new().bg(Color::RED), [size: [100]])))
-                .push(node!(BlueBorder {}).push(node!(Div::new().bg(Color::GREEN), [size: [100]]))),
+              .push(node!(BlueBorder {})
+                      .push(node!(Div::new().bg(Color::RED), [size: [100]])))
+              .push(node!(BlueBorder {})
+                      .push(node!(Div::new().bg(Color::GREEN), [size: [100]]))),
         )
     }
 }
 
 ```
-_Example: tut2_
 
-Nodes are combined via calls to a Component's [`#view`][Component#view] method to form the graph that is a given application.
+When we run it, it looks like this:
+
+![Example 2][tut2]
+<br />_Example: tut2_
+
+The graph of Nodes that gets created by this application looks like this:
+
+![The Nodes created by the example][nodes]
+<br />_The graph of Nodes that are constructed by the previous example. We've colored Nodes that were instantiated by the `App` in green, while Nodes instantiated by `BlueBorder` are blue._
+
+When Lemna needs to update a running app, it calls [`view`][Component#view] on the root `Node` (`App`). Lemna then calls `view` on all of the children of the `Node`s returned by the root, and then recursively continues calling `view` on _their_ children. In other words, it creates a fresh graph with every update. For this reason, you should never do anything too computationally expensive in the `view` method. We'll talk about where you can do that sort of computation later.
+
+You can probably tell that this makes `view` a very important method for `Component`s. Almost all of the `Component`s you define will output `Node`s through that `view` method. The only `Component`s that don't are either pure "containers" -- `Components` designed specifically to hold child `Nodes`, like `BlueBorder` as well as `Div` -- or they're leaf `Nodes` that draw to the window using the [`render`][Component#render] method, which we'll also discuss later.
 
 ## Layouts -- Positioning Components relative to each other
 
@@ -94,7 +113,7 @@ Nodes are combined via calls to a Component's [`#view`][Component#view] method t
 TODO: Create a component that handles events and passes messages back to the app
 
 ## Creating stateful Components
-TODO: Create an app where you click on a button and it randomizes how many boxes are displayed
+TODO: Create an app where you click on a button and it randomizes how many boxes are displayed. This will also illustrate [`key`][Node#key].
 
 ## Widgets: Built-in Components
 

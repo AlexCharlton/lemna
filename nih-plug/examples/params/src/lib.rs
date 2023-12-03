@@ -90,7 +90,7 @@ impl Plugin for ParamsPlugin {
         lemna_nih_plug::create_lemna_editor::<App, _, _>(
             lemna_nih_plug::WindowOptions::new("Hello Lemna Params", (400, 300)),
             move |_ctx, ui| {
-                ui.with_app_state::<AppState, _>(|s| s.params = app_params.clone());
+                ui.state_mut::<AppState, _>(|s| s.params = app_params.clone());
             },
             || vec![msg!(())], // Trigger an update, the message doesn't matter
         )

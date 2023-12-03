@@ -1,6 +1,6 @@
 //! Dynamic styling of Components.
 //!
-//! TODO
+#![doc = include_str!("../docs/styling.md")]
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Mutex, OnceLock};

@@ -3,6 +3,8 @@
 #![cfg_attr(feature = "docs",
             cfg_attr(all(),
                      doc = ::embed_doc_image::embed_image!("tut1", "docs/images/tut1.png"),
+                     doc = ::embed_doc_image::embed_image!("tut2", "docs/images/tut2.png"),
+                     doc = ::embed_doc_image::embed_image!("nodes", "docs/images/tutorial-nodes.svg"),
             ))]
 #![cfg_attr(
     not(feature = "docs"),
@@ -68,6 +70,7 @@ pub extern crate lyon;
 
 // Test stub window
 #[cfg(feature = "docs")]
+#[doc(hidden)]
 pub mod lemna_baseview {
     use super::*;
     pub struct Window {}

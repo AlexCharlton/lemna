@@ -44,11 +44,13 @@ pub struct RenderContext {
 
 /// The primary interface of Lemna. Components are the -- optionally stateful -- elements that are drawn on a window that a user interacts with.
 pub trait Component: fmt::Debug {
+    /// Called when a Node is first instantiated. Any computations (particularly expensive ones) that aren't related to [viewing][Component#view] or [rendering][Component#render] should be made here or in [`new_props`][Component#new_props].
     fn init(&mut self) {}
 
+    /// Called during the View phase any time [`props_hash`][#props_hash] generates a new value relative to the Node's previous incarnation.
     fn new_props(&mut self) {}
 
-    /// Called when a child Node has emitted a [`Message`].
+    /// Called when a descendant Node has emitted a [`Message`] via [`Event#emit`][Event#emit].
     fn update(&mut self, msg: Message) -> Vec<Message> {
         vec![msg]
     }
@@ -90,6 +92,9 @@ pub trait Component: fmt::Debug {
         vec![]
     }
 
+    /// Called to determine whether anything about the Component that will effect rendering has changed. If a Node's `render_hash` differs from the `render_hash` is previous incarnation had created, then [`render`][Component#Render] will be called.
+    ///
+    /// Defaults to [`props_hash`][Component#props_hash].
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.props_hash(hasher);
     }
