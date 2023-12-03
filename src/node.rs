@@ -164,6 +164,8 @@ impl Node {
         // Create children
         if let Some(mut child) = self.component.view() {
             if let Some(indexes) = self.component.container() {
+                // Pull out the children that were pushed onto this node, since we need to moves
+                // them to the correct position.
                 let mut container_children = vec![];
                 container_children.append(&mut self.children);
                 if indexes.is_empty() {
@@ -171,6 +173,7 @@ impl Node {
                     self.children.push(child);
                     self.children.append(&mut container_children);
                 } else {
+                    // Find the subchild to push the container_children onto
                     assert_eq!(indexes[0], 0, "The first index returned by Component#container must be 0, since #view can only return one Node.");
                     let mut dest = &mut child;
                     for i in indexes[1..].iter() {

@@ -63,7 +63,7 @@ pub trait Component: fmt::Debug {
 
     /// Some Components are designed to have others embedded in them. If you don't return anything from the `#view` method, then you can [`Node#push`][crate::Node#push] children onto the Node of Container.
     /// Otherwise, if you return a `Some` value from both `#view` and this method, then the value returned here is the index into the child node that [`Node#push`][crate::Node#push] will push children into.
-    /// For instance `Some(vec![0, 1])` will cause children to be attached to second child of the first Node returned by `view`. A Node with that index _must_ exist after the call to this Component's `view`A. In other words, it cannot be a Node that's created by a child's `#view` method.
+    /// For instance `Some(vec![0, 1])` will cause children to be attached to second child of the first Node returned by `view`. A Node with that index _must_ exist after the call to this Component's `view`. In other words, it cannot be the index of a Node that's created by a child's `#view` method.
     ///
     /// `Some(vec![])` will attach children to the root of this container's node, after the one returned by `view`, if any.
     fn container(&self) -> Option<Vec<usize>> {
