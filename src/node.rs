@@ -162,9 +162,29 @@ impl Node {
         }
 
         // Create children
-        if self.children.is_empty() {
-            if let Some(child) = self.component.view() {
-                self.children.push(child)
+        if let Some(mut child) = self.component.view() {
+            if let Some(indexes) = self.component.container() {
+                let mut container_children = vec![];
+                container_children.append(&mut self.children);
+                if indexes.is_empty() {
+                    // Push onto the root
+                    self.children.push(child);
+                    self.children.append(&mut container_children);
+                } else {
+                    assert_eq!(indexes[0], 0, "The first index returned by Component#container must be 0, since #view can only return one Node.");
+                    let mut dest = &mut child;
+                    for i in indexes[1..].iter() {
+                        dest = &mut dest.children[*i];
+                    }
+                    dest.children.append(&mut container_children);
+                    self.children.push(child);
+                }
+            } else {
+                if !self.children.is_empty() {
+                    panic!("Tried to add a child to a non-container node: {:?}", self);
+                }
+
+                self.children.push(child);
             }
         }
 
