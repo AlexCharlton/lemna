@@ -10,7 +10,7 @@ use crate::layout::*;
 use crate::node::Node;
 use crate::render::{Caches, Renderable};
 
-/// A `Box<dyn Any>` type, used to convey information from a [`Component`] to one of its parent nodes.
+/// A `Box<dyn Any>` type, used to convey information from a [`Component`] to one of its parent nodes. Passed to [`Event#emit`][Event#emit].
 pub type Message = Box<dyn Any>;
 #[doc(hidden)]
 // Only used by `replace_state` and `take_state`, which are not meant to be implemented by the user.
@@ -44,24 +44,35 @@ pub struct RenderContext {
 
 /// The primary interface of Lemna. Components are the -- optionally stateful -- elements that are drawn on a window that a user interacts with.
 pub trait Component: fmt::Debug {
+    fn view(&self) -> Option<Node> {
+        None
+    }
+
     /// Called when a Node is first instantiated. Any computations (particularly expensive ones) that aren't related to [viewing][Component#view] or [rendering][Component#render] should be made here or in [`new_props`][Component#new_props].
     fn init(&mut self) {}
 
-    /// Called during the View phase any time [`props_hash`][#props_hash] generates a new value relative to the Node's previous incarnation.
+    /// Called during the View phase any time [`props_hash`][Component#props_hash] generates a new value relative to the Node's previous incarnation.
     fn new_props(&mut self) {}
 
-    /// Called when a descendant Node has emitted a [`Message`] via [`Event#emit`][Event#emit].
+    /// Called when a child Node has emitted a [`Message`] via [`Event#emit`][Event#emit], or if a child has passed on a `Message` from one of its descendants. The return value will be passed to the `update` of a Component's parent Node.
+    ///
+    /// By default this forwards any incoming Messages, returning `vec![msg]`.
     fn update(&mut self, msg: Message) -> Vec<Message> {
         vec![msg]
-    }
-
-    fn view(&self) -> Option<Node> {
-        None
     }
 
     fn render(&mut self, _context: RenderContext) -> Option<Vec<Renderable>> {
         None
     }
+
+    /// Called to determine whether anything about the Component that will effect rendering has changed. If a Node's `render_hash` differs from the `render_hash` is previous incarnation had created, then [`render`][Component#Render] will be called.
+    ///
+    /// Defaults to [`props_hash`][Component#props_hash].
+    fn render_hash(&self, hasher: &mut ComponentHasher) {
+        self.props_hash(hasher);
+    }
+
+    fn props_hash(&self, _hasher: &mut ComponentHasher) {}
 
     /// Some Components are designed to have others embedded in them. If you don't return anything from the `#view` method, then you can [`Node#push`][crate::Node#push] children onto the Node of Container.
     /// Otherwise, if you return a `Some` value from both `#view` and this method, then the value returned here is the index into the child node that [`Node#push`][crate::Node#push] will push children into.
@@ -91,15 +102,6 @@ pub trait Component: fmt::Debug {
     fn register(&mut self) -> Vec<event::Register> {
         vec![]
     }
-
-    /// Called to determine whether anything about the Component that will effect rendering has changed. If a Node's `render_hash` differs from the `render_hash` is previous incarnation had created, then [`render`][Component#Render] will be called.
-    ///
-    /// Defaults to [`props_hash`][Component#props_hash].
-    fn render_hash(&self, hasher: &mut ComponentHasher) {
-        self.props_hash(hasher);
-    }
-
-    fn props_hash(&self, _hasher: &mut ComponentHasher) {}
 
     fn is_mouse_over(&self, mouse_position: Point, aabb: AABB) -> bool {
         aabb.is_under(mouse_position)

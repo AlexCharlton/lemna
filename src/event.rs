@@ -326,12 +326,12 @@ impl<T: EventInput> Event<T> {
         self.focus = self.current_node_id;
     }
 
-    /// Remove focus from this node, if applicable.
+    /// Remove focus from this Node, if applicable.
     pub fn blur(&mut self) {
         self.focus = None;
     }
 
-    /// Prevent this Event from being sent to one of the parent Nodes of the current one.
+    /// Prevent this Event from being sent to one of the ancestor Nodes of the current one.
     pub fn stop_bubbling(&mut self) {
         self.bubbles = false;
     }
@@ -340,7 +340,7 @@ impl<T: EventInput> Event<T> {
         self.dirty = true;
     }
 
-    /// Send the [`Message`] to the parent Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#update] method.
+    /// Send the [`Message`] to the ancestor Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#update] method.
     pub fn emit(&mut self, msg: Message) {
         self.messages.push(msg);
     }

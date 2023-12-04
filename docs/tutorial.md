@@ -107,6 +107,16 @@ When Lemna needs to update a running app, it calls [`view`][Component#view] on t
 
 You can probably tell that this makes `view` a very important method for `Component`s. Almost all of the `Component`s you define will output `Node`s through that `view` method. The only `Component`s that don't are either pure "containers" -- `Components` designed specifically to hold child `Nodes`, like `BlueBorder` as well as `Div` -- or they're leaf `Nodes` that draw to the window using the [`render`][Component#render] method, which we'll also discuss later.
 
+⚠️ _We'll often talk about `Component`s and `Node`s interchangeably, because of their 1:1 relationship with one another. For instance, we said above that we call [`view`][Component#view] on a `Node`, but we really meant, "we call [`view`][Component#view] on the `Component` instance that belongs to the `Node`."_
+
+
+We'll end this section by illustrating how we refer to the relationships between Nodes in our application. If we consider a single `BlueBorder` Node, we name its relationships thusly:
+
+![The relationships between Nodes created by the example][relationships]
+
+
+We'll use this language throughout the documentation.
+
 ## Layouts -- Positioning Components relative to each other
 
 ## Intro to handling Events

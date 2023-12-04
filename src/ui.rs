@@ -698,25 +698,30 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             .add_font(name, bytes);
     }
 
-    /// Sends `msg` to the root Node of the application.
+    /// Calls [`Component#update`][Component#update] with `msg` on the root Node of the application.
     pub fn update(&mut self, msg: crate::Message) {
         self.node_mut().component.update(msg);
         let dirty = self.node_mut().component.is_dirty();
         *self.node_dirty.write().unwrap() = dirty;
     }
 
-    /// Calls [`state_mut`][crate::state_component_impl] on the root Node of the application.
+    /// Calls the equivalent of [`state_mut`][crate::state_component_impl] on the root Node of the application, and passes it as an arg to given closure `f`.
     pub fn state_mut<S, F>(&mut self, f: F)
     where
         F: Fn(&mut S),
         S: 'static,
     {
-        let mut node = self.node_mut();
-        if let Some(mut state) = node.component.take_state() {
-            if let Some(s) = state.as_mut().downcast_mut::<S>() {
-                f(s);
+        let mut dirty = false;
+        {
+            let mut node = self.node_mut();
+            if let Some(mut state) = node.component.take_state() {
+                if let Some(s) = state.as_mut().downcast_mut::<S>() {
+                    f(s);
+                }
+                node.component.replace_state(state);
+                dirty = true;
             }
-            node.component.replace_state(state);
         }
+        *self.node_dirty.write().unwrap() = dirty;
     }
 }

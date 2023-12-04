@@ -5,6 +5,7 @@
                      doc = ::embed_doc_image::embed_image!("tut1", "docs/images/tut1.png"),
                      doc = ::embed_doc_image::embed_image!("tut2", "docs/images/tut2.png"),
                      doc = ::embed_doc_image::embed_image!("nodes", "docs/images/tutorial-nodes.svg"),
+                     doc = ::embed_doc_image::embed_image!("relationships", "docs/images/tutorial-relationships.svg"),
             ))]
 #![cfg_attr(
     not(feature = "docs"),
