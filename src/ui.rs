@@ -698,11 +698,10 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             .add_font(name, bytes);
     }
 
-    /// Calls [`Component#update`][Component#update] with `msg` on the root Node of the application.
+    /// Calls [`Component#update`][Component#update] with `msg` on the root Node of the application. This will always trigger a redraw.
     pub fn update(&mut self, msg: crate::Message) {
         self.node_mut().component.update(msg);
-        let dirty = self.node_mut().component.is_dirty();
-        *self.node_dirty.write().unwrap() = dirty;
+        *self.node_dirty.write().unwrap() = true;
     }
 
     /// Calls the equivalent of [`state_mut`][crate::state_component_impl] on the root Node of the application, and passes it as an arg to given closure `f`.

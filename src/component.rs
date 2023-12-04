@@ -43,6 +43,8 @@ pub struct RenderContext {
 }
 
 /// The primary interface of Lemna. Components are the -- optionally stateful -- elements that are drawn on a window that a user interacts with.
+///
+/// Implementing methods are optional, since defaults are provided for all. Provided methods will either do nothing -- returning an empty value like `None`, `vec![]`, or false where the signature has a return value -- or else the default behavior will be noted.
 pub trait Component: fmt::Debug {
     fn view(&self) -> Option<Node> {
         None
@@ -152,6 +154,8 @@ pub trait Component: fmt::Debug {
 
     /// Should only be overridden by scrollable containers. Used to limit the bounds of the scrollable area.
     /// Should return an [`AABB`] that is inside the bounds of the input `aabb` which belongs to the current Node. `inner_scale` is the size of its child Nodes.
+    ///
+    /// By default this returns `aabb`.
     fn frame_bounds(&self, aabb: AABB, _inner_scale: Option<Scale>) -> AABB {
         aabb
     }
