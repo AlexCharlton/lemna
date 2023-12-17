@@ -86,7 +86,6 @@ impl Component for Text {
             size,
             scale,
             HorizontalPosition::Left,
-            (0.0, 0.0),
             (
                 width.or(max_width).unwrap_or(std::f32::MAX) * scale,
                 height.or(max_height).unwrap_or(std::f32::MAX) * scale,
@@ -137,14 +136,6 @@ impl Component for Text {
             size,
             context.scale_factor,
             h_alignment,
-            (
-                match h_alignment {
-                    HorizontalPosition::Left => 0.0,
-                    HorizontalPosition::Center => bounds.width / 2.0,
-                    HorizontalPosition::Right => bounds.width,
-                },
-                0.0,
-            ),
             (bounds.width, bounds.height),
         );
 

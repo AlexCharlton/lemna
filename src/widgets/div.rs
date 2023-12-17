@@ -94,7 +94,7 @@ impl Component for Div {
             let mut scroll_position = self.state_ref().scroll_position;
             let mut scrolled = false;
             let size = event.current_physical_aabb().size();
-            let inner_scale = event.current_inner_scale.unwrap();
+            let inner_scale = event.current_inner_scale().unwrap();
 
             if self.y_scrollable() {
                 if event.input.y > 0.0 {
@@ -194,7 +194,7 @@ impl Component for Div {
         if self.scrollable() {
             let start_position = self.state_ref().drag_start_position;
             let size = event.current_physical_aabb().size();
-            let inner_scale = event.current_inner_scale.unwrap();
+            let inner_scale = event.current_inner_scale().unwrap();
             let mut scroll_position = self.state_ref().scroll_position;
 
             if self.state_ref().y_bar_pressed {

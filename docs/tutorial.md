@@ -47,12 +47,12 @@ Replacing the name of the example with the name provided.
 
 You'll notice that the example lives in the `lemna-baseview` project. This's because Lemna is designed to be able to run in any "backend" that implements the [`Window`] trait. Backends handle opening a window, receiving events like mouse clicks, and other interactions with your OS's window manager. `lemna-baseview` uses a (forked) [baseview](https://github.com/AlexCharlton/baseview) backend, and it's by far the most functional backend today.
 
-Since all of our examples use more or less the same `main` function, we will elide it in the future unless there's a reason not to. Any time we define a `main` function it's then used in all the succeeding examples until it's again redefined. You can find all tutorial examples [here](https://github.com/AlexCharlton/lemna/tree/main/backends/baseview/examples/tutorial).
+Since all of our examples use more or less the same `main` function, we will elide it in the future unless there's a reason not to. **Any time we define a `main` function it's then used in all the succeeding examples until it's again redefined.** You can find all tutorial examples [here](https://github.com/AlexCharlton/lemna/tree/main/backends/baseview/examples/tutorial).
 
 ## An introduction to Components and Nodes
 Individually, a [`Component`] can do a couple of neat things: They can draw to the screen, and handle any events that gets passed their way. But it's when you combine them with other Components that things really start to cook.
 
-In Lemna, you never create a `Component` on its own, you always attach it to a [`Node`]. `Node`s hold an instance of a `Component` as well as a [`Layout`][layout::Layout], which tells Lemna where to position this `Component` instance. The [`view`][Component#view] method of a `Component` is used to define what `Node`s it will create. You can also [`push`][Node#push] a `Node` onto another (as long as it's holding a "container" `Component`). You can `push` as many "child" nodes onto a `Node` as you like. In doing so, you construct the graph that represents your application.
+In Lemna, you never create a `Component` on its own, you always attach it to a [`Node`]. `Node`s hold an instance of a `Component` as well as a [`Layout`][layout::Layout], which tells Lemna where to position this `Component` instance. The [`view`][Component#view] method of a `Component` is used to define what child `Node` it will create. You can also [`push`][Node#push] a child `Node` onto another (as long as it's a Node holding a ["container"][Component#container] Component). You can [`push`][Node#push] as many child nodes onto a `Node` as you like. In doing so, you construct the graph that represents your application.
 
 Let's see what this looks like with an example. Here we have an App that isn't too different from the first, but we're defining a new `Component` called `BlueBorder`. A `BlueBorder` `Node` will wrap any of its child `Nodes` in a blue `Div`. The `Div` has a `padding` of 10 pixels specified, so our "border" will be 10 pixels wide.
 
@@ -62,6 +62,7 @@ use lemna::{widgets::*, *};
 #[derive(Debug)]
 pub struct BlueBorder {}
 impl Component for BlueBorder {
+    // `BlueBorder` creates a blue `Div` child Node
     fn view(&self) -> Option<Node> {
         Some(node!(
             Div::new().bg(Color::BLUE),
@@ -105,7 +106,7 @@ The graph of Nodes that gets created by this application looks like this:
 
 When Lemna needs to update a running app, it calls [`view`][Component#view] on the root `Node` (`App`). Lemna then calls `view` on all of the children of the `Node`s returned by the root, and then recursively continues calling `view` on _their_ children. In other words, it creates a fresh graph with every update. For this reason, you should never do anything too computationally expensive in the `view` method. We'll talk about where you can do that sort of computation later.
 
-You can probably tell that this makes `view` a very important method for `Component`s. Almost all of the `Component`s you define will output `Node`s through that `view` method. The only `Component`s that don't are either pure "containers" -- `Components` designed specifically to hold child `Nodes`, like `BlueBorder` as well as `Div` -- or they're leaf `Nodes` that draw to the window using the [`render`][Component#render] method, which we'll also discuss later.
+You can probably tell that this makes `view` a very important method for `Component`s. Almost all of the Components you define will output Nodes through that `view` method. The only Components that don't are either pure "containers" -- `Component`s designed specifically to hold child `Node`s that get `push`ed onto them, like `BlueBorder` as well as `Div` -- or they're leaf Nodes that draw to the window using the [`render`][Component#render] method, which we'll also discuss later.
 
 ⚠️ _We'll often talk about `Component`s and `Node`s interchangeably, because of their 1:1 relationship with one another. For instance, we said above that we call [`view`][Component#view] on a `Node`, but we really meant, "we call [`view`][Component#view] on the `Component` instance that belongs to the `Node`."_
 

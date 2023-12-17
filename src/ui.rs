@@ -684,7 +684,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         inst_end();
     }
 
-    /// Add a font to the [`crate::font_cache::FontCache`].
+    /// Add a font to the [`font_cache::FontCache`][crate::font_cache::FontCache]. The name provided is the name used to reference the font in a [`TextSegment`][crate::font_cache::TextSegment]. `bytes` are the bytes of a OpenType font, which must be held in static memory.
     pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
         self.renderer
             .read()

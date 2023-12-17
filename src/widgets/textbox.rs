@@ -750,13 +750,13 @@ impl Component for TextBoxText {
                 font_size,
                 scale_factor,
                 HorizontalPosition::Left,
-                (0.0, 0.0),
                 (f32::MAX, f32::MAX),
             );
 
             let glyph_widths = font_cache.glyph_widths(
                 font.as_deref(),
-                font_size * scale_factor,
+                font_size,
+                scale_factor,
                 &self.state_ref().glyphs,
             );
             self.state_mut().glyph_widths = glyph_widths;

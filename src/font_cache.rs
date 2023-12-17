@@ -1,6 +1,11 @@
 //! The [`FontCache`] is where fonts are stored, and where text layout happens.
 //!
-//! TODO
+//! Adding fonts to the `FontCache` is done via [`UI#add_font`][crate::UI#add_font], and window backends may include hooks to add fonts on application load.
+//!
+//! The `FontCache` is exposed to users so that you can lay out text (i.e. when you're not using a Component that lays out text for you, like [`widgets::Text`][crate::widgets::Text]) via the [`Caches`][crate::Caches] referenced by the [`RenderContext`][crate::RenderContext] which gets passed to [`Component#render`][crate::Component#render].
+//!
+//! The text-layout interface uses a slice of [`TextSegment`]s as a Component-agnostic way of representing text. A `TextSegment` stores a text string, and optionally a font size and font name (defaults will be used otherwise). In this way, we can lay out text in a variety of types and sizes. [`txt`][crate::txt] is provided as a convenient way of creating `TextSegment`s.
+
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
@@ -11,12 +16,13 @@ use glyph_brush_layout::{
 
 type Fonts = Vec<FontRef<'static>>;
 
-/// Output by [`FontCache::layout_text`], and an input to [`Text::new`](crate::render::renderables::text::Text::new). Useful for text-rendering widgets to cache.
+/// Output by [`FontCache::layout_text`], and an input to [`Text::new`](crate::render::renderables::text::Text::new). Useful for text-rendering widgets to cache in their state, so that they don't need to be recomputed unless necessary.
 pub type SectionGlyph = glyph_brush_layout::SectionGlyph;
 
-/// Value by which fonts are scaled. 12 px fonts render at scale 18 px for some reason.
+/// Value by which fonts are scaled. 12 px fonts render at scale 18 px for some reason. Useful if you need to compute the line height: it will be `<font_size> * SIZE_SCALE` in logical size, and `<font_size> * SIZE_SCALE * <scale_factor>` in physical pixels.
 pub const SIZE_SCALE: f32 = 1.5;
 
+/// Stores fonts, and provides text layout functionality to Components who render.
 #[derive(Default)]
 pub struct FontCache {
     pub(crate) fonts: Fonts,
@@ -47,37 +53,50 @@ impl FontCache {
     }
 
     /// bytes is an OpenType font
-    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
+    pub(crate) fn add_font(&mut self, name: String, bytes: &'static [u8]) {
         let i = self.fonts.len();
         self.fonts.push(FontRef::try_from_slice(bytes).unwrap());
         self.font_names.insert(name, i);
     }
 
+    /// Given a set of [`TextSegment`]s, create [`SectionGlyph`]s, which are then used by the [`Text`][crate::renderables::Text] renderable.
+    ///
+    /// `base_font` and `base_size` are provided as fallbacks for when a `TextSegment` does not specify a font or size. `scale_factor` is the display scale factor. `alignment` dictates how the text is aligned, and `bounds` sets the maximum width and height.
     pub fn layout_text(
         &self,
         text: &[TextSegment],
         base_font: Option<&str>,
         base_size: f32,
-        scale: f32,
+        scale_factor: f32,
         alignment: HorizontalPosition,
-        pos: (f32, f32),
         bounds: (f32, f32),
     ) -> Vec<SectionGlyph> {
         // TODO: Should accept an AABB and a start pos within it.
-        let scaled_size = base_size * scale * SIZE_SCALE;
+        let scaled_size = base_size * scale_factor * SIZE_SCALE;
         let base_font = self.font_or_default(base_font);
 
         let section_text: Vec<_> = text
             .iter()
             .map(|TextSegment { text, size, font }| SectionText {
                 text,
-                scale: size.map_or(scaled_size, |s| s * scale * SIZE_SCALE).into(),
+                scale: size
+                    .map_or(scaled_size, |s| s * scale_factor * SIZE_SCALE)
+                    .into(),
                 font_id: font
                     .as_ref()
                     .and_then(|f| self.font(f))
                     .unwrap_or(base_font),
             })
             .collect();
+
+        let screen_position = (
+            match alignment {
+                HorizontalPosition::Left => 0.0,
+                HorizontalPosition::Center => bounds.0 / 2.0,
+                HorizontalPosition::Right => bounds.0,
+            },
+            0.0,
+        );
 
         glyph_brush_layout::Layout::default()
             .h_align(match alignment {
@@ -88,17 +107,19 @@ impl FontCache {
             .calculate_glyphs(
                 &self.fonts,
                 &SectionGeometry {
-                    screen_position: pos,
+                    screen_position,
                     bounds,
                 },
                 &section_text,
             )
     }
 
+    /// Given a slice of [`SectionGlyph`]s (which would have been returned by [`#layout_text`][FontCache#layout_text]), and a known **fixed** `font` and `font_size`, return the width of each glyph. This is useful if you need to e.g. render a cursor between characters as in [`TextBox`][crate::widgets::TextBox].
     pub fn glyph_widths(
         &self,
         font: Option<&str>,
-        scaled_size: f32,
+        font_size: f32,
+        scale_factor: f32,
         glyphs: &[SectionGlyph],
     ) -> Vec<f32> {
         let font_ref = self.font_or_default(font);
@@ -107,17 +128,23 @@ impl FontCache {
         glyphs
             .iter()
             .map(|g| {
-                font.as_scaled(scaled_size * SIZE_SCALE)
+                font.as_scaled(font_size * scale_factor * SIZE_SCALE)
                     .h_advance(g.glyph.id)
             })
             .collect()
     }
 }
 
+/// Used by [`FontCache#layout_text`][FontCache#layout_text] as an input. Accordingly, it is also commonly used as the input to Components that display text, e.g. [`widgets::Text`][crate::widgets::Text] and [`widgets::Button`][crate::widgets::Button].
+///
+/// [`txt`][crate::txt] is provided as a convenient constructor, but you can also use `into` from a `&str` or `String`, e.g. `"some text".into()`.
 #[derive(Debug, Clone)]
 pub struct TextSegment {
+    /// The text to be laid out.
     pub text: String,
+    /// An optional size. A default will be selected if `None`.
     pub size: Option<f32>,
+    /// An optional font name. A default will be selected if `None`.
     pub font: Option<String>,
 }
 
@@ -144,6 +171,17 @@ impl From<crate::open_iconic::Icon> for TextSegment {
     }
 }
 
+/// Convenience constructor for a `Vec` of [`TextSegment`]s.
+///
+/// `txt` accepts a variable number of arguments. Each argument can come in one of four forms:
+/// - `"text"`: A value that is `Into<String>`.
+/// - `("text", "font_name")`: A text string, and a font name, both must be `Into<String>`.
+/// - `("text", "font_name", 12.0)`: A text string, a font name, and an `f32` font size.
+/// - `("text", None, 12.0)`: A text string and a font size.
+///
+/// If no font name or size is given, defaults are assumed.
+///
+/// This lets you mix different text styles, e.g.: `txt!("Hello", ("world", "Helvetica Bold", 22.0), "!")`
 #[macro_export]
 macro_rules! txt {
     // split_comma taken from: https://gist.github.com/kyleheadley/c2f64e24c14e45b1e39ee664059bd86f
