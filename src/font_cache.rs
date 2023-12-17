@@ -181,7 +181,12 @@ impl From<crate::open_iconic::Icon> for TextSegment {
 ///
 /// If no font name or size is given, defaults are assumed.
 ///
-/// This lets you mix different text styles, e.g.: `txt!("Hello", ("world", "Helvetica Bold", 22.0), "!")`
+/// This lets you mix different text styles, e.g.:
+/// ```
+/// # use lemna::*;
+/// let text = txt!("Hello", ("world", "Helvetica Bold", 22.0), "!");
+/// ```
+
 #[macro_export]
 macro_rules! txt {
     // split_comma taken from: https://gist.github.com/kyleheadley/c2f64e24c14e45b1e39ee664059bd86f

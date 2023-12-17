@@ -8,6 +8,10 @@ use syn::{self, parse_macro_input, Lit, Meta, MetaNameValue, NestedMeta};
 
 static ID_COUNTER: CounterU64 = CounterU64::new(0);
 
+/// TODO
+///
+/// Assumes the `style` module is in scope, when using the `Styled` attribute.
+///
 /// e.g. `#[component(State = "ButtonState", Styled)]`
 /// e.g. `#[component(State = "StateType", Styled = "ComponentNameOverride")]`
 #[proc_macro_attribute]
@@ -65,13 +69,13 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
     let style_override_ref = if is_internal {
         quote! { crate::style::StyleOverride }
     } else {
-        quote! { lemna::style::StyleOverride }
+        quote! { style::StyleOverride }
     };
 
     let styled_ref = if is_internal {
         quote! { crate::style::Styled }
     } else {
-        quote! { lemna::style::Styled }
+        quote! { style::Styled }
     };
 
     // Add in fields
@@ -155,6 +159,7 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
     struct_def
 }
 
+/// TODO
 #[proc_macro_attribute]
 pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = parse_macro_input!(attr as syn::AttributeArgs);
