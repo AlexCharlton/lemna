@@ -1,8 +1,8 @@
 //! The [`FontCache`] is where fonts are stored, and where text layout happens.
 //!
-//! Adding fonts to the `FontCache` is done via [`UI#add_font`][crate::UI#add_font], and window backends may include hooks to add fonts on application load.
+//! Adding fonts to the `FontCache` is done via [`UI#add_font`][crate::UI#method.add_font], and window backends may include hooks to add fonts on application load.
 //!
-//! The `FontCache` is exposed to users so that you can lay out text (i.e. when you're not using a Component that lays out text for you, like [`widgets::Text`][crate::widgets::Text]) via the [`Caches`][crate::Caches] referenced by the [`RenderContext`][crate::RenderContext] which gets passed to [`Component#render`][crate::Component#render].
+//! The `FontCache` is exposed to users so that you can lay out text (i.e. when you're not using a Component that lays out text for you, like [`widgets::Text`][crate::widgets::Text]) via the [`Caches`][crate::Caches] referenced by the [`RenderContext`][crate::RenderContext] which gets passed to [`Component#render`][crate::Component#method.render].
 //!
 //! The text-layout interface uses a slice of [`TextSegment`]s as a Component-agnostic way of representing text. A `TextSegment` stores a text string, and optionally a font size and font name (defaults will be used otherwise). In this way, we can lay out text in a variety of types and sizes. [`txt`][crate::txt] is provided as a convenient way of creating `TextSegment`s.
 
@@ -114,7 +114,7 @@ impl FontCache {
             )
     }
 
-    /// Given a slice of [`SectionGlyph`]s (which would have been returned by [`#layout_text`][FontCache#layout_text]), and a known **fixed** `font` and `font_size`, return the width of each glyph. This is useful if you need to e.g. render a cursor between characters as in [`TextBox`][crate::widgets::TextBox].
+    /// Given a slice of [`SectionGlyph`]s (which would have been returned by [`#layout_text`][FontCache#method.layout_text]), and a known **fixed** `font` and `font_size`, return the width of each glyph. This is useful if you need to e.g. render a cursor between characters as in [`TextBox`][crate::widgets::TextBox].
     pub fn glyph_widths(
         &self,
         font: Option<&str>,
@@ -135,7 +135,7 @@ impl FontCache {
     }
 }
 
-/// Used by [`FontCache#layout_text`][FontCache#layout_text] as an input. Accordingly, it is also commonly used as the input to Components that display text, e.g. [`widgets::Text`][crate::widgets::Text] and [`widgets::Button`][crate::widgets::Button].
+/// Used by [`FontCache#layout_text`][FontCache#method.layout_text] as an input. Accordingly, it is also commonly used as the input to Components that display text, e.g. [`widgets::Text`][crate::widgets::Text] and [`widgets::Button`][crate::widgets::Button].
 ///
 /// [`txt`][crate::txt] is provided as a convenient constructor, but you can also use `into` from a `&str` or `String`, e.g. `"some text".into()`.
 #[derive(Debug, Clone)]

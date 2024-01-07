@@ -261,7 +261,7 @@ impl EventInput for DragDrop {}
 pub struct MenuSelect(pub i32);
 impl EventInput for MenuSelect {}
 
-/// Returned by [`Component#register`][crate::Component#register].
+/// Returned by [`Component#register`][crate::Component#method.register].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Register {
     KeyDown,
@@ -340,7 +340,7 @@ impl<T: EventInput> Event<T> {
         self.dirty = true;
     }
 
-    /// Send the [`Message`] to the ancestor Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#update] method.
+    /// Send the [`Message`] to the ancestor Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#method.update] method.
     pub fn emit(&mut self, msg: Message) {
         self.messages.push(msg);
     }

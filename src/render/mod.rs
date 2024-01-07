@@ -14,7 +14,7 @@ use crate::render::renderables::BufferCache;
 use crate::render::renderables::RasterCache;
 pub use renderables::Renderable;
 
-/// The caches used by the Renderer. Passed to [`Component#render`][crate::Component#render] in a [`RenderContext`][crate::RenderContext].
+/// The caches used by the Renderer. Passed to [`Component#render`][crate::Component#method.render] in a [`RenderContext`][crate::RenderContext].
 #[derive(Clone, Default)]
 pub struct Caches {
     /// Cache for shape renderable data

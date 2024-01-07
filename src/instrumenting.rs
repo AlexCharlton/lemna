@@ -1,6 +1,8 @@
 //! Capture stack traces and log performance of an app. Requires feature "instrumented" to be active.
 //!
-//! TODO
+//! Traces are captured in the format used by <https://superluminal.eu/>. Logs are output using [log], which can be set up with any of many loggers.
+//!
+//! Lemna itself outputs spans relating to key phases, such as event handling, drawing, and rendering.
 
 use std::cell::UnsafeCell;
 use std::time::Instant;
@@ -35,6 +37,7 @@ pub fn inst(name: &str) {
     inst_stack_push(name, now);
 }
 
+/// Start an instrumented span with the given name.
 #[cfg(not(feature = "instrumented"))]
 pub fn inst(_name: &str) {}
 
@@ -51,6 +54,7 @@ pub fn inst_end() {
     );
 }
 
+/// Ends the last instrumentation span that was started, logging the time it took.
 #[cfg(not(feature = "instrumented"))]
 pub fn inst_end() {}
 
@@ -60,5 +64,6 @@ pub fn evt(name: &str) {
     info!("{:?} {}", now, name);
 }
 
+/// Log an event with the given name.
 #[cfg(not(feature = "instrumented"))]
 pub fn evt(_name: &str) {}

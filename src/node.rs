@@ -32,7 +32,7 @@ fn new_node_id() -> u64 {
 /// node!(COMPONENT, [LAY_MACRO_ARGS])
 ///```
 ///
-/// - With a Component, arguments for [`lay!`][crate::lay], and a [`key`][Node#key].
+/// - With a Component, arguments for [`lay!`][crate::lay], and a [`key`][Node#method.key].
 ///```ignore
 /// node!(COMPONENT, [LAY_MACRO_ARGS], KEY)
 ///```
@@ -42,11 +42,11 @@ fn new_node_id() -> u64 {
 /// node!(COMPONENT, LAYOUT)
 ///```
 ///
-/// - With a Component, a [`Layout`], and a [`key`][Node#key].
+/// - With a Component, a [`Layout`], and a [`key`][Node#method.key].
 ///```ignore
 /// node!(COMPONENT, LAYOUT, KEY)
 ///```
-/// All five call [`Node#new`][Node#new] and wrap the [`Component`] in a [`Box::new`][Box#new].
+/// All five call [`Node#new`][Node#method.new] and wrap the [`Component`] in a [`Box::new`][Box#method.new].
 #[macro_export]
 macro_rules! node {
     ($component:expr $(,)*) => {

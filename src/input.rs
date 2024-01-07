@@ -1,13 +1,17 @@
 //! Types that relate to user inputs.
+//!
+//! These are most typically interacted with through event-handling methods of [`Component`][crate::Component]. For instance [`#on_click`][crate::Component#method.on_click] receives an `Event<Click>`. A [`Click`][crate::event::Click], holds a [`MouseButton`] input type. If the user cares what kind of click they are reacting to, they need to match this input to the desired mouse button.
 
 use crate::base_types::Data;
 
+/// Mouse movement or scrolling
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Motion {
     Mouse { x: f32, y: f32 },
     Scroll { x: f32, y: f32 },
 }
 
+/// A keyboard key
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Key {
     Unknown,
@@ -222,6 +226,7 @@ pub enum Key {
     RMeta,
 }
 
+/// Mouse buttons
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MouseButton {
     Left,
@@ -231,12 +236,14 @@ pub enum MouseButton {
     Aux2,
 }
 
+/// Mouse or keyboard button
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Button {
     Keyboard(Key),
     Mouse(MouseButton),
 }
 
+/// Drag and drop inputs
 #[derive(Clone, Debug, PartialEq)]
 pub enum Drag {
     Start(Data),
@@ -245,6 +252,7 @@ pub enum Drag {
     Drop(Data),
 }
 
+/// All of the inputs that lemna reacts to. Should only be needed by windows backend implementations.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Input {
     Press(Button),

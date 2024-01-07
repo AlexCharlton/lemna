@@ -264,13 +264,13 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
 
     /// Signal to the draw thread that it may be time to draw a redraw the app.
     /// This performs three actions:
-    /// - View, which calls [`view`][Component#view] on the root Component and then recursively across the children of the returned Node, thus recreating the Node graph. This does a number of sub tasks:
+    /// - View, which calls [`view`][Component#method.view] on the root Component and then recursively across the children of the returned Node, thus recreating the Node graph. This does a number of sub tasks:
     ///   - State is transferred from the old graph to the new one, where possible. Some new Nodes will not have existed in the old graph.
-    ///   - For net new Nodes (not present in the old graph), [`init`][Component#init] is called, and then a hash of input values is computed with [`props_hash`][Component#props_hash].
-    ///   - For Nodes that existed in the old graph, [`props_hash`][Component#props_hash] is called on the new Component. If the new hash is not equal to the old one, then [`new_props`][Component#new_props] is called.
-    ///   - [`register`][Component#register] is also called on all Nodes.
+    ///   - For net new Nodes (not present in the old graph), [`init`][Component#method.init] is called, and then a hash of input values is computed with [`props_hash`][Component#method.props_hash].
+    ///   - For Nodes that existed in the old graph, [`props_hash`][Component#method.props_hash] is called on the new Component. If the new hash is not equal to the old one, then [`new_props`][Component#method.new_props] is called.
+    ///   - [`register`][Component#method.register] is also called on all Nodes.
     /// - Layout, which calculates the positions and sizes all of the Nodes in the graph. See [`layout`][crate::layout] for how it interacts with the [`Component`] interface.
-    /// - Render Nodes, which generates new [`Renderable`][crate::renderables::Renderable]s for each Node, or else recycles the previously generated ones. [`render_hash`][Component#render_hash] is called and compared to the old value -- if any -- to decide whether or not [`render`][Component#render] needs to be called.
+    /// - Render Nodes, which generates new [`Renderable`][crate::renderables::Renderable]s for each Node, or else recycles the previously generated ones. [`render_hash`][Component#method.render_hash] is called and compared to the old value -- if any -- to decide whether or not [`render`][Component#method.render] needs to be called.
     ///
     /// A draw will only occur if an event was handled that resulted in [`state_mut`][crate::state_component_impl] being called.
     pub fn draw(&mut self) {
@@ -280,7 +280,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
     /// Signal to the render thread that it may be time to render a frame.
     /// A render will only occur if the draw thread has marked `frame_dirty` as true,
     /// which it will do after drawing. This thread does not interact with the user-facing API,
-    /// just the [`Renderable`][crate::renderables::Renderable]s generated during [`draw`][UI#draw].
+    /// just the [`Renderable`][crate::renderables::Renderable]s generated during [`draw`][UI#method.draw].
     pub fn render(&mut self) {
         self.render_channel.send(()).unwrap();
     }
@@ -698,7 +698,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             .add_font(name, bytes);
     }
 
-    /// Calls [`Component#update`][Component#update] with `msg` on the root Node of the application. This will always trigger a redraw.
+    /// Calls [`Component#update`][Component#method.update] with `msg` on the root Node of the application. This will always trigger a redraw.
     pub fn update(&mut self, msg: crate::Message) {
         self.node_mut().component.update(msg);
         *self.node_dirty.write().unwrap() = true;
