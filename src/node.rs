@@ -535,10 +535,11 @@ impl Node {
             self.component.frame_bounds(self.aabb, self.inner_scale),
         );
 
+        if self.scrollable() && !is_mouse_over {
+            return;
+        }
+
         for child in self.children.iter() {
-            if self.scrollable() && !is_mouse_over {
-                continue;
-            }
             if child
                 .component
                 .is_mouse_maybe_over(event.mouse_position, child.inclusive_aabb)
