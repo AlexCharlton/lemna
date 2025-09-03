@@ -1,5 +1,4 @@
 use lemna::{style::HorizontalPosition, widgets::*, *};
-use simplelog::*;
 
 #[derive(Debug, Default)]
 pub struct App {}
@@ -156,6 +155,8 @@ impl lemna::Component for App {
 
 // App setup
 fn main() {
+    use simplelog::*;
+
     println!("hello");
     let _ = WriteLogger::init(
         LevelFilter::Info,

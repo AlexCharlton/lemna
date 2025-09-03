@@ -11,6 +11,7 @@ pub use div::Div;
 
 #[cfg(feature = "file-dialogs")]
 mod file_selector;
+#[cfg(feature = "file-dialogs")]
 pub use file_selector::*;
 
 mod radio_buttons;

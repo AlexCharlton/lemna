@@ -3,32 +3,36 @@ name = "lemna"
 version = "0.4.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "A Reactive UI framework for Rust"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/AlexCharlton/lemna"
 documentation = "https://docs.rs/lemna"
 license = "MIT"
 keywords = ["ui", "gui"]
 
 [workspace]
-members = ["macros",
-           "backends/baseview",
-           # "backends/winit",
-           # "backends/wx-rs",
-           "nih-plug", "nih-plug/xtask",
-           "nih-plug/examples/hello",
-           "nih-plug/examples/params",
-          ]
+members = [
+    "macros",
+    "backends/baseview",
+    # "backends/winit",
+    # "backends/wx-rs",
+    "nih-plug",
+    "nih-plug/xtask",
+    "nih-plug/examples/hello",
+    "nih-plug/examples/params",
+]
 
 [features]
-default = ["msaa_shapes", "open_iconic", "file-dialogs", "shaders"]
+default = ["file-dialogs", "msaa_shapes", "open_iconic", "shaders"]
 
 instrumented = ["superluminal-perf"]
 file-dialogs = ["tinyfiledialogs"]
-shaders = ["shaderc"] # You should always include this. It's only a feature so that we can remove it for docs.rs
+shaders = [
+    "shaderc",
+] # You should always include this. It's only a feature so that we can remove it for docs.rs
 msaa_shapes = []
 open_iconic = []
 docs_rs = []
-docs=["embed-doc-image"]
+docs = ["embed-doc-image"]
 
 [package.metadata.docs.rs]
 features = ["docs_rs", "docs"]
@@ -67,8 +71,8 @@ embed-doc-image = { version = "0.1", optional = true }
 
 [workspace.dependencies]
 raw-window-handle = "0.5"
-lemna-macros = { path = "./macros", version="0.4" }
-simplelog = "0.7"
+lemna-macros = { path = "./macros", version = "0.4" }
+simplelog = "0.12"
 lyon = "0.15.6"
 ttf-noto-sans = "0.1"
 
@@ -78,7 +82,9 @@ git = "https://github.com/AlexCharlton/baseview.git"
 
 [build-dependencies]
 glob = "0.3"
-shaderc = { version = "0.8", optional = true}
+shaderc = { version = "0.10", optional = true, features = [
+    "prefer-static-linking",
+] }
 
 # [patch.crates-io]
 # objc = { path="../external/rust-objc" }

@@ -143,7 +143,7 @@ struct GlyphTexInfo {
     tex_coords: Rectangle<u32>,
     /// Used to calculate the bounds/texture pixel location for a similar glyph.
     ///
-    /// Each ordinate is calculated: `(bounds_ord - positon_ord) / g.scale`
+    /// Each ordinate is calculated: `(bounds_ord - position_ord) / g.scale`
     bounds_minus_position_over_scale: Rect,
 }
 
@@ -648,7 +648,7 @@ impl DrawCache {
 
                 // divide glyphs into texture rows where a matching glyph texture
                 // already exists & glyphs where new textures must be cached
-                for (font_id, ref glyph) in &self.queue {
+                for (font_id, glyph) in &self.queue {
                     let glyph_info = self.lossy_info_for(*font_id, glyph);
                     if let Some((row, ..)) = self.all_glyphs.get(&glyph_info) {
                         in_use_rows.insert(*row);
@@ -872,23 +872,25 @@ impl DrawCache {
                             let to_main = to_main.clone();
                             let local = worker_qs.pop().unwrap();
 
-                            rayon::spawn(move || loop {
-                                let task = local.pop().or_else(|| {
-                                    std::iter::repeat_with(|| {
-                                        rasterize_queue.steal_batch_and_pop(&local).or_else(|| {
-                                            stealers.iter().map(|s| s.steal()).collect()
+                            rayon::spawn(move || {
+                                loop {
+                                    let task = local.pop().or_else(|| {
+                                        std::iter::repeat_with(|| {
+                                            rasterize_queue.steal_batch_and_pop(&local).or_else(
+                                                || stealers.iter().map(|s| s.steal()).collect(),
+                                            )
                                         })
-                                    })
-                                    .find(|s| !s.is_retry())
-                                    .and_then(|s| s.success())
-                                });
+                                        .find(|s| !s.is_retry())
+                                        .and_then(|s| s.success())
+                                    });
 
-                                match task {
-                                    Some((tex_coords, glyph)) => {
-                                        let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
-                                        to_main.send((tex_coords, pixels)).unwrap();
+                                    match task {
+                                        Some((tex_coords, glyph)) => {
+                                            let pixels = draw_glyph(tex_coords, &glyph, pad_glyphs);
+                                            to_main.send((tex_coords, pixels)).unwrap();
+                                        }
+                                        None => break,
                                     }
-                                    None => break,
                                 }
                             });
                         }
@@ -1002,7 +1004,7 @@ impl DrawCache {
     /// glyph that is deemed close enough to the requested glyph as specified by
     /// the cache tolerance parameters.
     ///
-    /// A sucessful result is `Some` if the glyph is not an empty glyph (no
+    /// A successful result is `Some` if the glyph is not an empty glyph (no
     /// shape, and thus no rect to return).
     ///
     /// Ensure that `font_id` matches the `font_id` that was passed to

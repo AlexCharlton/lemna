@@ -72,3 +72,19 @@ The `FileSelector` widget uses [tinyfiledialogs](https://sourceforge.net/project
 ```
 
 When using wgpu's Vulkan backend (will be selected for Linux), debug builds will require the validation layer `VK_LAYER_KHRONOS_validation`.
+
+### Build deps
+[shaderc](https://crates.io/crates/shaderc) requires CMake, git, Python, and [ninja](https://github.com/ninja-build/ninja) on Windows to be built from source. Steps it took for me to build on Windows:
+```
+$ git clone https://github.com/google/shaderc
+$ cd shaderc
+$ ./utils/git-sync-deps
+$ mkdir build
+$ cd build
+$ cmake -G "Visual Studio 17 2022" -A x64 ..
+$ cmake --build . --config Release
+```
+
+Then set the environment variable `SHADERC_LIB_DIR = "/path/to/shaderc/build/libshaderc/Release"
+
+It's easier, however, to just run cargo from a MSVS shell. Just make sure python an ninja (`pip install ninja`) are installed.

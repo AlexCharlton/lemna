@@ -6,8 +6,8 @@ use crate::event;
 use crate::font_cache::FontCache;
 use crate::input::MouseButton;
 use crate::render::{
-    renderables::{raster::Raster, RasterData},
     Renderable,
+    renderables::{RasterData, raster::Raster},
 };
 use lemna_macros::{component, state_component_impl};
 
@@ -195,7 +195,7 @@ impl Component for Canvas {
                 if let Some(r) = raster.as_mut() {
                     context.caches.raster.write().unwrap().get_mut_raster_data(r.raster_cache_id).dirty();
                     match &mut context.caches.raster.write().unwrap().get_mut_raster_data(r.raster_cache_id).data {
-                        RasterData::Vec(ref mut v) => {
+                        RasterData::Vec(v) => {
                             let i = ((point.x + (point.y * size.width)) * 4) as usize;
                             if i < v.len() {
                                 v[i] = pixel[0];

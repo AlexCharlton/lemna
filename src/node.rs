@@ -179,7 +179,7 @@ impl Node {
 
             if self.props_hash != prev.props_hash {
                 self.component.new_props();
-            } // Maybe TODO: If nodes were clonable, it could make sense to clone them here rather than create them with `view`
+            } // Maybe TODO: If nodes were cloneable, it could make sense to clone them here rather than create them with `view`
         } else {
             self.id = new_node_id();
             self.component.init();
@@ -200,7 +200,10 @@ impl Node {
                     self.children.append(&mut container_children);
                 } else {
                     // Find the subchild to push the container_children onto
-                    assert_eq!(indexes[0], 0, "The first index returned by Component#container must be 0, since #view can only return one Node.");
+                    assert_eq!(
+                        indexes[0], 0,
+                        "The first index returned by Component#container must be 0, since #view can only return one Node."
+                    );
                     let mut dest = &mut child;
                     for i in indexes[1..].iter() {
                         dest = &mut dest.children[*i];
@@ -974,11 +977,13 @@ mod tests {
     mod widget {
         use super::*;
         #[derive(Debug)]
+        #[allow(dead_code)]
         pub struct Widget {
             pub prop: usize,
             pub state: Option<WidgetState>,
         }
         #[derive(Debug)]
+        #[allow(dead_code)]
         pub struct WidgetState {
             pub bar: usize,
         }
