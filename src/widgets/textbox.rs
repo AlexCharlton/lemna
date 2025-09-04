@@ -9,11 +9,11 @@ use crate::font_cache::{FontCache, TextSegment};
 use crate::input::Key;
 use crate::layout::ScrollPosition;
 use crate::render::{
-    renderables::{Rect, Text},
     Renderable,
+    renderables::{Rect, Text},
 };
 use crate::style::{HorizontalPosition, Styled};
-use crate::{node, Node};
+use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
 const CURSOR_BLINK_PERIOD: u128 = 500; // millis
@@ -249,23 +249,7 @@ impl Component for TextBoxContainer {
     }
 }
 
-#[cfg(feature = "backend_wx_rs")]
 #[derive(Debug)]
-struct TextBoxTextState {
-    focused: bool,
-    text: String,
-    cursor_pos: usize,
-    selection_from: Option<usize>,
-    activated_at: Instant,
-    cursor_visible: bool,
-    glyphs: Vec<crate::font_cache::SectionGlyph>,
-    glyph_widths: Vec<f32>,
-    padding_offset_px: f32,
-    dirty: bool,
-    menu: Option<wx_rs::Menu<TextBoxAction>>,
-}
-#[derive(Debug)]
-#[cfg(not(feature = "backend_wx_rs"))]
 struct TextBoxTextState {
     focused: bool,
     text: String,
@@ -298,8 +282,6 @@ impl TextBoxText {
             glyph_widths: vec![],
             padding_offset_px: 0.0,
             dirty: true,
-            #[cfg(feature = "backend_wx_rs")]
-            menu: None,
         });
     }
 
@@ -503,42 +485,11 @@ impl Component for TextBoxText {
                     self.state_mut().cursor_pos = new_pos;
                 }
             }
-            #[cfg(feature = "backend_wx_rs")]
-            crate::input::MouseButton::Right => {
-                use wx_rs::{Menu, MenuEntry};
-                event.focus_immediately();
-
-                if let Some(menu) = &self.state_ref().menu {
-                    menu.popup();
-                } else {
-                    let menu = Menu::new(None)
-                        .push_entry(MenuEntry::new(TextBoxAction::Cut, "&Cut".to_string()))
-                        .push_entry(MenuEntry::new(TextBoxAction::Copy, "&Copy".to_string()))
-                        .push_entry(MenuEntry::new(TextBoxAction::Paste, "&Paste".to_string()));
-                    self.state_mut().menu = Some(menu);
-                    self.state_ref().menu.as_ref().unwrap().popup();
-                }
-            }
             _ => (),
         }
 
         event.stop_bubbling();
         event.focus();
-    }
-
-    #[cfg(feature = "backend_wx_rs")]
-    fn on_menu_select(&mut self, event: &mut event::Event<event::MenuSelect>) {
-        if let Some(action) = self
-            .state_ref()
-            .menu
-            .as_ref()
-            .and_then(|menu| menu.get_entry_from_event_id(event.input.0))
-        {
-            event.stop_bubbling();
-            for message in self.handle_action(action).drain(..) {
-                event.emit(message);
-            }
-        }
     }
 
     fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {

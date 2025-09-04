@@ -13,8 +13,7 @@ keywords = ["ui", "gui"]
 members = [
     "macros",
     "backends/baseview",
-    # "backends/winit",
-    # "backends/wx-rs",
+    "backends/winit",
     "nih-plug",
     "nih-plug/xtask",
     "nih-plug/examples/hello",
