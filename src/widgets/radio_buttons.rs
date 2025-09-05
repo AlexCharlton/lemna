@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::fmt;
 use core::hash::Hash;
-use std::time::Instant;
+use crate::time::Instant;
 
 use super::ToolTip;
 use crate::base_types::*;

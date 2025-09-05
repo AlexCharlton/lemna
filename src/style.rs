@@ -4,14 +4,17 @@
 
 extern crate alloc;
 
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
 use ahash::HashMap;
 use core::hash::Hash;
-use std::sync::{Mutex, OnceLock};
+use embassy_sync::once_lock::OnceLock;
 
 use crate::base_types::*;
 use crate::layout::*;
+
+type RwLock<T> =
+    embassy_sync::rwlock::RwLock<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, T>;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum VerticalPosition {
@@ -307,24 +310,21 @@ impl Default for Style {
     }
 }
 
-fn _current_style() -> &'static Mutex<Style> {
-    static CURRENT_STYLE: OnceLock<Mutex<Style>> = OnceLock::new();
-    CURRENT_STYLE.get_or_init(|| Mutex::new(Style::new()))
+fn _current_style() -> &'static RwLock<Style> {
+    static CURRENT_STYLE: OnceLock<RwLock<Style>> = OnceLock::new();
+    CURRENT_STYLE.get_or_init(|| RwLock::new(Style::new()))
 }
 
 pub fn set_current_style(s: Style) {
-    *_current_style().lock().unwrap() = s;
+    *embassy_futures::block_on(_current_style().write()) = s;
 }
 
 pub fn current_style(component: &'static str, parameter_name: &'static str) -> Option<StyleVal> {
-    _current_style()
-        .lock()
-        .unwrap()
-        .style(component, parameter_name)
+    embassy_futures::block_on(_current_style().read()).style(component, parameter_name)
 }
 
 fn get_current_style(k: StyleKey) -> Option<StyleVal> {
-    _current_style().lock().unwrap().get(k)
+    embassy_futures::block_on(_current_style().read()).get(k)
 }
 
 /// Implemented by the [`component`][macro@crate::component] attribute macro, for "Styled" Components.

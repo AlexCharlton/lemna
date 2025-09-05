@@ -1,9 +1,9 @@
 //! Types that relate to event handling.
 extern crate alloc;
 
+use crate::time::Instant;
 use alloc::{string::String, vec, vec::Vec};
 use core::fmt;
-use std::time::Instant;
 
 use ahash::HashSet;
 
@@ -12,7 +12,7 @@ use super::input::{Key, MouseButton};
 use crate::Message;
 
 /// How much time (ms) can elapse between clicks before it's no longer considered a double click.
-pub const DOUBLE_CLICK_INTERVAL_MS: u128 = 500; // ms
+pub const DOUBLE_CLICK_INTERVAL_MS: i64 = 500; // ms
 /// How much mouse travel (px) is allowed before it's no longer considered a double click.
 pub const DOUBLE_CLICK_MAX_DIST: f32 = 10.0; // px
 /// How much distance (px) is required before we start a drag event.
@@ -260,11 +260,6 @@ pub struct DragDrop(
 );
 impl EventInput for DragDrop {}
 
-#[doc(hidden)]
-#[derive(Debug)]
-pub struct MenuSelect(pub i32);
-impl EventInput for MenuSelect {}
-
 /// Returned by [`Component#register`][crate::Component#method.register].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Register {
@@ -399,19 +394,7 @@ impl<T: EventInput> Event<T> {
     pub(crate) fn matching_registrations(&self) -> Vec<u64> {
         self.input.matching_registrations(&self.registrations)
     }
-
-    // Unclear if this needs to be exposed
-    #[allow(dead_code)]
-    pub(crate) fn focus_immediately(&self) {
-        crate::focus_immediately(self)
-    }
 }
-
-// impl<T: Scalable + Copy + EventInput> Event<T> {
-//     pub fn input_unscaled(&self) -> T {
-//         self.input.unscale(self.scale_factor)
-//     }
-// }
 
 impl Event<Drag> {
     /// The distance dragged, in physical coordinates.

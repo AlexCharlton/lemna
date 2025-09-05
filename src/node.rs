@@ -366,7 +366,7 @@ impl Node {
     /// Return whether to redraw the screen
     pub(crate) fn render(
         &mut self,
-        caches: Caches,
+        caches: &mut Caches,
         prev: Option<&mut Self>,
         scale_factor: f32,
     ) -> bool {
@@ -383,7 +383,7 @@ impl Node {
                 let context = RenderContext {
                     aabb: self.aabb,
                     inner_scale: self.inner_scale,
-                    caches: caches.clone(),
+                    caches,
                     prev_state: prev.render_cache.take(),
                     scale_factor,
                 };
@@ -396,7 +396,7 @@ impl Node {
             let prev_children = &mut prev.children;
             for child in self.children.iter_mut() {
                 ret |= child.render(
-                    caches.clone(),
+                    caches,
                     prev_children.iter_mut().find(|x| x.key == child.key),
                     scale_factor,
                 )
@@ -407,7 +407,7 @@ impl Node {
             let context = RenderContext {
                 aabb: self.aabb,
                 inner_scale: self.inner_scale,
-                caches: caches.clone(),
+                caches: caches,
                 prev_state: None,
                 scale_factor,
             };
@@ -416,7 +416,7 @@ impl Node {
             self.render_hash = hasher.finish();
 
             for child in self.children.iter_mut() {
-                child.render(caches.clone(), None, scale_factor);
+                child.render(caches, None, scale_factor);
             }
 
             true
@@ -683,6 +683,7 @@ impl Node {
         }
     }
 
+    // TODO: Use me
     pub(crate) fn send_messages(
         &mut self,
         mut target_stack: Vec<usize>,
@@ -798,10 +799,6 @@ impl Node {
 
     pub(crate) fn drag_drop(&mut self, event: &mut Event<event::DragDrop>) {
         self.handle_targeted_event(event, |node, e| node.component.on_drag_drop(e));
-    }
-
-    pub(crate) fn menu_select(&mut self, event: &mut Event<event::MenuSelect>) {
-        self.handle_targeted_event(event, |node, e| node.component.on_menu_select(e));
     }
 
     pub(crate) fn tick(&mut self, event: &mut Event<event::Tick>) -> Vec<Message> {

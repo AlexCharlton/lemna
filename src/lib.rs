@@ -55,6 +55,8 @@ pub mod style;
 #[doc(inline)]
 pub use style::{Style, Styled};
 
+pub mod time;
+
 mod ui;
 pub use ui::*;
 

@@ -7,7 +7,7 @@
 #[cfg(feature = "instrumented")]
 use core::cell::UnsafeCell;
 #[cfg(feature = "instrumented")]
-use std::time::Instant;
+use crate::time::Instant;
 
 #[cfg(feature = "instrumented")]
 use log::info;

@@ -1,7 +1,7 @@
 extern crate alloc;
 
+use crate::time::Instant;
 use alloc::{boxed::Box, string::String, vec::Vec};
-use std::time::Instant;
 
 use super::ToolTip;
 use crate::base_types::*;
@@ -123,6 +123,7 @@ impl Component for Button {
 
     fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
         self.state_mut().hover = true;
+        #[cfg(feature = "std")]
         if let Some(w) = crate::current_window() {
             w.set_cursor("PointingHand");
         }
@@ -130,6 +131,7 @@ impl Component for Button {
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         *self.state_mut() = ButtonState::default();
+        #[cfg(feature = "std")]
         if let Some(w) = crate::current_window() {
             w.unset_cursor();
         }

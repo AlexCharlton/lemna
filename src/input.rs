@@ -265,7 +265,6 @@ pub enum Input {
     Motion(Motion),
     Text(String),
     Focus(bool),
-    Menu(i32),
     MouseLeaveWindow,
     MouseEnterWindow,
     Timer,

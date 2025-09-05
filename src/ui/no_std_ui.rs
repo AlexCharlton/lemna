@@ -1,0 +1,94 @@
+extern crate alloc;
+
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use core::marker::PhantomData;
+
+use crate::base_types::PixelSize;
+use crate::component::Component;
+use crate::event::EventCache;
+use crate::layout::Layout;
+use crate::node::{Node, Registration};
+use crate::render::{Caches, Renderer};
+
+pub struct UI<A: Component + Default> {
+    node: Node,
+    phantom_app: PhantomData<A>,
+    renderer: Renderer,
+    size: PixelSize,
+    caches: Caches,
+    registrations: Vec<Registration>,
+    node_dirty: bool,
+    frame_dirty: bool,
+    event_cache: EventCache,
+}
+
+impl<A: Component + Default + Send + Sync + 'static> super::LemnaUI for UI<A> {
+    fn with_node<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut Node) -> R,
+    {
+        f(&mut self.node)
+    }
+
+    fn set_node_dirty(&mut self, dirty: bool) {
+        self.node_dirty = dirty;
+    }
+
+    fn registrations(&self) -> Vec<Registration> {
+        self.registrations.clone()
+    }
+
+    fn draw(&mut self) {
+        if self.node_dirty {
+            self.node_dirty = false;
+            let size = self.size;
+            let mut new = Node::new(
+                Box::<A>::default(),
+                0,
+                lay!(size: size!(size.width as f32, size.height as f32)),
+            );
+            let mut new_registrations: Vec<Registration> = vec![];
+            new.view(Some(&mut self.node), &mut new_registrations);
+            self.registrations = new_registrations;
+
+            new.layout(&self.node, &self.caches.font, 1.0);
+            // TODO: Do something with do_render?
+            let _do_render = new.render(&mut self.caches, Some(&mut self.node), 1.0);
+            self.node = new;
+            self.frame_dirty = true;
+        }
+    }
+
+    fn render(&mut self) {
+        if self.frame_dirty {
+            self.renderer.render(&self.node, &self.caches, self.size);
+            self.frame_dirty = false;
+        }
+    }
+
+    fn add_font(&mut self, name: String, bytes: &'static [u8]) {
+        self.caches.font.add_font(name, bytes);
+    }
+
+    fn event_cache(&mut self) -> &mut EventCache {
+        &mut self.event_cache
+    }
+}
+
+impl<A: Component + Default + Send + Sync + 'static> UI<A> {
+    pub fn new(size: PixelSize) -> Self {
+        let mut component = A::default();
+        component.init();
+        Self {
+            node: Node::new(Box::new(component), 0, Layout::default()),
+            phantom_app: PhantomData,
+            size,
+            renderer: Renderer::new(),
+            caches: Caches::default(),
+            registrations: vec![],
+            node_dirty: true,
+            frame_dirty: false,
+            event_cache: EventCache::new(1.0),
+        }
+    }
+}

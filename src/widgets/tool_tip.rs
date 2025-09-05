@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
 use crate::base_types::*;
 use crate::component::Component;
@@ -17,7 +17,7 @@ pub struct ToolTip {
 impl ToolTip {
     const MAX_WIDTH: f32 = 300.0;
     pub(crate) const MOUSE_OFFSET: Point = Point { x: 14.0, y: 0.0 };
-    pub(crate) const DELAY: u128 = 1000; // millis
+    pub(crate) const DELAY: i64 = 1000; // millis
 
     pub fn new(tool_tip: String) -> Self {
         Self {

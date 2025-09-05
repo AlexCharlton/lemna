@@ -32,13 +32,13 @@ macro_rules! msg {
 }
 
 /// Passed to [`Component#render`][Component#method.render], with context required for rendering.
-pub struct RenderContext {
+pub struct RenderContext<'a> {
     /// The `AABB` that contains the given [`Component`] instance.
     pub aabb: AABB,
     /// For scrollable Components (Components that return a `Some` value for [`#scroll_position`][Component#method.scroll_position]), this is the size of the child Nodes.
     pub inner_scale: Option<Scale>,
     /// The caches used by the renderer.
-    pub caches: Caches,
+    pub caches: &'a mut Caches,
     /// The value previously returned by [`Component#render`][Component#method.render] of the given instance.
     pub prev_state: Option<Vec<Renderable>>,
     /// The scale factor of the current monitor. Renderables should be scaled by this value.
@@ -237,6 +237,4 @@ pub trait Component: fmt::Debug {
     fn on_drag_leave(&mut self, _event: &mut Event<event::DragLeave>) {}
     /// Handle a drag and drop event dropping onto this component.
     fn on_drag_drop(&mut self, _event: &mut Event<event::DragDrop>) {}
-    #[doc(hidden)]
-    fn on_menu_select(&mut self, _event: &mut Event<event::MenuSelect>) {}
 }

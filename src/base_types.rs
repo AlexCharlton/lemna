@@ -1,5 +1,5 @@
 extern crate alloc;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 
 use bytemuck::{Pod, Zeroable};
 use core::hash::{Hash, Hasher};

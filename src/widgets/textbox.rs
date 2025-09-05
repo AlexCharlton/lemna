@@ -2,9 +2,9 @@ extern crate alloc;
 
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 
+use crate::time::Instant;
 use core::cmp::Ordering;
 use core::hash::Hash;
-use std::time::Instant;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
@@ -20,7 +20,7 @@ use crate::style::{HorizontalPosition, Styled};
 use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
-const CURSOR_BLINK_PERIOD: u128 = 500; // millis
+const CURSOR_BLINK_PERIOD: i64 = 500; // millis
 
 #[derive(Debug)]
 enum TextBoxMessage {
@@ -375,6 +375,7 @@ impl TextBoxText {
         }) + self.state_ref().padding_offset_px
     }
 
+    #[cfg(feature = "std")]
     fn cut(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
             if let Some(w) = crate::current_window() {
@@ -387,6 +388,7 @@ impl TextBoxText {
         }
     }
 
+    #[cfg(feature = "std")]
     fn copy(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
             if let Some(w) = crate::current_window() {
@@ -398,6 +400,7 @@ impl TextBoxText {
         }
     }
 
+    #[cfg(feature = "std")]
     fn paste(&mut self) -> bool {
         if let Some(crate::Data::String(text)) =
             crate::current_window().and_then(|w| w.get_from_clipboard())
@@ -409,6 +412,7 @@ impl TextBoxText {
         }
     }
 
+    #[cfg(feature = "std")]
     fn handle_action(&mut self, action: TextBoxAction) -> Vec<Message> {
         match action {
             TextBoxAction::Cut => {
@@ -446,8 +450,12 @@ impl Component for TextBoxText {
     }
 
     fn update(&mut self, message: Message) -> Vec<Message> {
-        if let Some(action) = message.downcast_ref::<TextBoxAction>() {
-            self.handle_action(*action)
+        if cfg!(feature = "std") {
+            if let Some(action) = message.downcast_ref::<TextBoxAction>() {
+                self.handle_action(*action)
+            } else {
+                vec![]
+            }
         } else {
             vec![]
         }
