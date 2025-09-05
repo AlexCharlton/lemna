@@ -3,7 +3,10 @@
 //! to the Node, during the draw phase. All [`Layout`] creation functionality -- and thus the entire user-facing interface -- is exposed through the less-verbose [`lay!`][crate::lay] macro.
 //!
 #![doc = include_str!("../docs/layout.md")]
-use std::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
+extern crate alloc;
+use alloc::{string::String, vec, vec::Vec};
+
+use core::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ScrollPosition {
@@ -28,8 +31,8 @@ pub enum Dimension {
     Pct(f64),
 }
 
-impl std::fmt::Debug for Dimension {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for Dimension {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             Self::Auto => write!(f, "Auto"),
             Self::Px(x) => write!(f, "{} px", x),
@@ -183,8 +186,8 @@ pub struct Size {
     pub height: Dimension,
 }
 
-impl std::fmt::Debug for Size {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for Size {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(f, "Size[{:?}, {:?}]", self.width, self.height)
     }
 }
@@ -275,8 +278,8 @@ pub struct Rect {
     pub bottom: Dimension,
 }
 
-impl std::fmt::Debug for Rect {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for Rect {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(
             f,
             "Rect[l:{:?}, r:{:?}, t:{:?}, b:{:?}]",
@@ -620,7 +623,7 @@ impl super::node::Node {
             }
 
             if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                println!(
+                log::debug!(
                     "{} Resolving child position of {} - Basing off child.layout.size {:?}, child.layout_result.size {:?}, inner_size {:?})",
                     if final_pass {
                         "Final pass"
@@ -826,7 +829,7 @@ impl super::node::Node {
                 }
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                    println!(
+                    log::debug!(
                         "Setting relative position of {} to {:#?} - Basing off ...",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
@@ -848,7 +851,13 @@ impl super::node::Node {
 
                 // TODO: More of these
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                    println!("Setting absolute position of {} to {:#?} - Basing off explicit position ({:#?}), parent size ({:#?}))", child.layout.debug.as_ref().unwrap(), &child.layout_result.position, &child.layout.position, &size);
+                    log::debug!(
+                        "Setting absolute position of {} to {:#?} - Basing off explicit position ({:#?}), parent size ({:#?}))",
+                        child.layout.debug.as_ref().unwrap(),
+                        &child.layout_result.position,
+                        &child.layout.position,
+                        &size
+                    );
                 }
             }
         }
@@ -921,7 +930,7 @@ impl super::node::Node {
                 elements_positioned_in_row += 1;
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                    println!(
+                    log::debug!(
                         "Resolved aligned position of {} to {:#?} - Basing off ...)",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position
@@ -1002,7 +1011,7 @@ impl super::node::Node {
             inner_size.height = Dimension::Auto;
         };
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
-            println!(
+            log::debug!(
                 "{} Laying out {} in bounds {:?} with a resulting inner size {:?}: {:#?}",
                 if final_pass {
                     "Final pass"
@@ -1022,7 +1031,7 @@ impl super::node::Node {
         self.set_inner_scale(children_size);
 
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
-            println!(
+            log::debug!(
                 "{} Layout result of {}: {:?}",
                 if final_pass {
                     "Final pass"
@@ -1683,6 +1692,7 @@ mod tests {
     use super::*;
     use crate::node;
     use crate::widgets::Div;
+    use alloc::boxed::Box;
 
     #[test]
     fn test_empty() {

@@ -21,49 +21,62 @@ members = [
 ]
 
 [features]
-default = ["file-dialogs", "msaa_shapes", "open_iconic", "shaders"]
+default = ["file-dialogs", "msaa_shapes", "open_iconic", "wgpu"]
 
-instrumented = ["superluminal-perf"]
-file-dialogs = ["tinyfiledialogs"]
+std = [
+    "ab_glyph",
+    "crossbeam-deque",
+    "crossbeam-channel",
+    "linked-hash-map",
+    "lyon",
+    "raw-window-handle",
+    "rayon",
+    "rustc-hash",
+    "wgpu",
+]
+wgpu = ["dep:wgpu", "shaders", "std"]
+instrumented = ["superluminal-perf", "std"]
+file-dialogs = ["tinyfiledialogs", "std"]
 shaders = [
     "shaderc",
-] # You should always include this. It's only a feature so that we can remove it for docs.rs
-msaa_shapes = []
+    "std",
+] # This is a feature so that we can remove it for docs.rs. Does not to be directly included in downstream crates.
+msaa_shapes = ["std"]
 open_iconic = []
 docs_rs = []
 docs = ["embed-doc-image"]
 
 [package.metadata.docs.rs]
-features = ["docs_rs", "docs"]
-no-default-features = true
+features = ["docs_rs", "docs", "std"]
+default-features = false
 
 [dependencies.wgpu]
 version = "0.16"
 # path = "../external/wgpu-rs"
 features = ["spirv"]
+optional = true
 
 [dependencies]
 lemna-macros = { workspace = true }
-ahash = "0.3.2"
+ahash = "0.8"
 bytemuck = { version = "1.4", features = ["derive"] }
 cgmath = "0.17.0"
 futures = "0.3.4"
 glyph_brush_layout = "0.2"
 log = "0.4"
-lyon = { workspace = true }
-raw-window-handle = { workspace = true }
+lyon = { workspace = true, optional = true }
+raw-window-handle = { workspace = true, optional = true }
 serde = { version = "1.0", features = ["derive"] }
-simplelog = { workspace = true }
 
 # For glyph_brush_draw_cache
-ab_glyph = "0.2.2"
-linked-hash-map = "0.5"
-rustc-hash = "1"
-crossbeam-deque = "0.7"
-crossbeam-channel = "0.4.2"
-rayon = "1.3"
+ab_glyph = { version = "0.2.2", optional = true }
+linked-hash-map = { version = "0.5", optional = true }
+rustc-hash = { version = "1", optional = true }
+crossbeam-deque = { version = "0.7", optional = true }
+crossbeam-channel = { version = "0.4.2", optional = true }
+rayon = { version = "1.3", optional = true }
 
-# Features
+# Feature-dependent dependencies
 superluminal-perf = { version = "0.1", optional = true }
 tinyfiledialogs = { version = "3.9", optional = true }
 embed-doc-image = { version = "0.1", optional = true }
@@ -77,7 +90,7 @@ ttf-noto-sans = "0.1"
 
 [workspace.dependencies.baseview]
 git = "https://github.com/AlexCharlton/baseview.git"
-# path = "../../../external/baseview"
+# path = "../external/baseview"
 
 [build-dependencies]
 glob = "0.3"

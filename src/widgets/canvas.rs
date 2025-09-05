@@ -1,4 +1,7 @@
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
@@ -34,8 +37,8 @@ pub struct Canvas {
     on_draw: Option<Box<dyn Fn(PixelPoint) -> Vec<(PixelPoint, [u8; 4])> + Send + Sync>>,
 }
 
-impl std::fmt::Debug for Canvas {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for Canvas {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("Canvas")
             .field("scale", &self.scale)
             .field("state", &self.state)

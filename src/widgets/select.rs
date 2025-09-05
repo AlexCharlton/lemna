@@ -1,12 +1,15 @@
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
+use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::layout::*;
-use crate::render::{renderables::shape::Shape, Renderable};
-use crate::style::{current_style, HorizontalPosition, Styled};
-use crate::{node, txt, Node};
+use crate::render::{Renderable, renderables::shape::Shape};
+use crate::style::{HorizontalPosition, Styled, current_style};
+use crate::{Node, node, txt};
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug)]
@@ -37,8 +40,8 @@ where
     on_change: Option<Box<dyn Fn(usize, &M) -> Message + Send + Sync>>,
 }
 
-impl<M: std::fmt::Debug + Send + Sync> std::fmt::Debug for Select<M> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<M: core::fmt::Debug + Send + Sync> core::fmt::Debug for Select<M> {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("Select")
             .field("selection", &self.selection)
             .finish()
@@ -65,7 +68,7 @@ impl<M: ToString + Send + Sync> Select<M> {
 }
 
 #[state_component_impl(SelectState)]
-impl<M: 'static + std::fmt::Debug + Clone + ToString + std::fmt::Display + Send + Sync> Component
+impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Send + Sync> Component
     for Select<M>
 {
     fn view(&self) -> Option<Node> {
@@ -137,7 +140,7 @@ struct SelectBox<M> {
     selection: Option<M>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M> {
+impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M> {
     fn view(&self) -> Option<Node> {
         let padding: f64 = self.style_val("padding").unwrap().into();
         let radius: f32 = self.style_val("radius").unwrap().f32();
@@ -164,11 +167,13 @@ impl<M: 'static + std::fmt::Debug + Clone + ToString> Component for SelectBox<M>
         );
         if let Some(selection) = self.selection.as_ref() {
             base = base
-                .push(node!(super::Text::new(txt!(selection.to_string()))
-                    .style("size", self.style_val("font_size").unwrap())
-                    .style("color", self.style_val("text_color").unwrap())
-                    .style("h_alignment", HorizontalPosition::Center)
-                    .maybe_style("font", self.style_val("font"))))
+                .push(node!(
+                    super::Text::new(txt!(selection.to_string()))
+                        .style("size", self.style_val("font_size").unwrap())
+                        .style("color", self.style_val("text_color").unwrap())
+                        .style("h_alignment", HorizontalPosition::Center)
+                        .maybe_style("font", self.style_val("font"))
+                ))
                 .push(node!(
                     Caret { color: caret_color },
                     lay!(
@@ -201,10 +206,11 @@ struct Caret {
     color: Color,
 }
 
-use lyon::path::Path;
-use lyon::tessellation::math as lyon_math;
 impl Component for Caret {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        use lyon::path::Path;
+        use lyon::tessellation::math as lyon_math;
+
         let scale = 1.0;
 
         let mut path_builder = Path::builder();
@@ -244,7 +250,7 @@ where
     hovering: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectList<M> {
+impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectList<M> {
     fn view(&self) -> Option<Node> {
         let background_color: Color = self.style_val("background_color").into();
 
@@ -323,7 +329,7 @@ where
     selected: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectEntry<M> {
+impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectEntry<M> {
     fn view(&self) -> Option<Node> {
         let padding: f64 = self.style_val("padding").unwrap().into();
         let highlight_color: Color = self.style_val("highlight_color").into();

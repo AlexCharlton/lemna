@@ -1,3 +1,6 @@
+extern crate alloc;
+
+use alloc::{boxed::Box, string::String, vec::Vec};
 use std::time::Instant;
 
 use super::ToolTip;
@@ -7,7 +10,7 @@ use crate::event;
 use crate::font_cache::TextSegment;
 use crate::layout::*;
 use crate::style::{HorizontalPosition, Styled};
-use crate::{node, Node};
+use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug, Default)]
@@ -25,8 +28,8 @@ pub struct Button {
     pub tool_tip: Option<String>,
 }
 
-impl std::fmt::Debug for Button {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for Button {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("Button")
             .field("label", &self.label)
             .finish()
@@ -89,11 +92,13 @@ impl Component for Button {
                 axis_alignment: crate::layout::Alignment::Center,
             )
         )
-        .push(node!(super::Text::new(self.label.clone())
-            .style("size", self.style_val("font_size").unwrap())
-            .style("color", self.style_val("text_color").unwrap())
-            .style("h_alignment", HorizontalPosition::Center)
-            .maybe_style("font", self.style_val("font"))));
+        .push(node!(
+            super::Text::new(self.label.clone())
+                .style("size", self.style_val("font_size").unwrap())
+                .style("color", self.style_val("text_color").unwrap())
+                .style("h_alignment", HorizontalPosition::Center)
+                .maybe_style("font", self.style_val("font"))
+        ));
 
         if let (Some(p), Some(tt)) = (self.state_ref().tool_tip_open, self.tool_tip.as_ref()) {
             base = base.push(node!(

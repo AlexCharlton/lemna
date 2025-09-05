@@ -4,27 +4,31 @@
 //!
 //! Lemna itself outputs spans relating to key phases, such as event handling, drawing, and rendering.
 
-use std::cell::UnsafeCell;
+#[cfg(feature = "instrumented")]
+use core::cell::UnsafeCell;
+#[cfg(feature = "instrumented")]
 use std::time::Instant;
 
 #[cfg(feature = "instrumented")]
 use log::info;
 
+#[cfg(feature = "instrumented")]
 #[allow(dead_code)]
 type Inst = (String, Instant);
 
+#[cfg(feature = "instrumented")]
 thread_local!(
     static INST_STACK: UnsafeCell<Vec<Inst>> = {
         UnsafeCell::new(vec![])
     }
 );
 
-#[allow(dead_code)]
+#[cfg(feature = "instrumented")]
 fn inst_stack_push(name: &str, instant: Instant) {
     INST_STACK.with(|r| unsafe { r.get().as_mut().unwrap().push((name.to_string(), instant)) })
 }
 
-#[allow(dead_code)]
+#[cfg(feature = "instrumented")]
 fn inst_stack_pop() -> Inst {
     INST_STACK.with(|r| unsafe { r.get().as_mut().unwrap().pop().unwrap() })
 }

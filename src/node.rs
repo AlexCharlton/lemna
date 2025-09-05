@@ -1,6 +1,9 @@
-use std::fmt;
-use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicU64, Ordering};
+extern crate alloc;
+
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::fmt;
+use core::hash::{Hash, Hasher};
+use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::base_types::*;
 use crate::component::*;
@@ -167,7 +170,7 @@ impl Node {
     ) {
         // TODO: skip non-visible (out of frame) nodes
         // Set up state and props
-        let mut hasher = ComponentHasher::new_with_keys(0, 0);
+        let mut hasher = ComponentHasher::default();
         if let Some(prev) = &mut prev {
             self.id = prev.id;
             if let Some(state) = prev.component.take_state() {
@@ -368,7 +371,7 @@ impl Node {
         scale_factor: f32,
     ) -> bool {
         // TODO: skip non-visible nodes
-        let mut hasher = ComponentHasher::new_with_keys(0, 0);
+        let mut hasher = ComponentHasher::default();
         if let Some(prev) = prev {
             let mut ret = false;
             self.component.render_hash(&mut hasher);
@@ -872,7 +875,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use crate::render::{Renderable, Renderer};

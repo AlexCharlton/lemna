@@ -1,4 +1,7 @@
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{vec, vec::Vec};
+use core::hash::Hash;
 
 use lyon::tessellation;
 use lyon::tessellation::basic_shapes;
@@ -7,8 +10,8 @@ use lyon::tessellation::math as lyon_math;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::render::{
-    renderables::shape::{self, Shape},
     Renderable,
+    renderables::shape::{self, Shape},
 };
 
 #[derive(Debug)]

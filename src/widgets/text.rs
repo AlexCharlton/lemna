@@ -1,9 +1,12 @@
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::font_cache::{FontCache, TextSegment};
-use crate::render::{renderables::text, Renderable};
+use crate::render::{Renderable, renderables::text};
 use crate::style::{HorizontalPosition, Styled};
 use lemna_macros::{component, state_component_impl};
 
@@ -87,8 +90,8 @@ impl Component for Text {
             scale,
             HorizontalPosition::Left,
             (
-                width.or(max_width).unwrap_or(std::f32::MAX) * scale,
-                height.or(max_height).unwrap_or(std::f32::MAX) * scale,
+                width.or(max_width).unwrap_or(core::f32::MAX) * scale,
+                height.or(max_height).unwrap_or(core::f32::MAX) * scale,
             ),
         );
         let output = if let Some(last_glyph) = glyphs.last() {

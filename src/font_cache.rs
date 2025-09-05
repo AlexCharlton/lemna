@@ -5,13 +5,12 @@
 //! The `FontCache` is exposed to users so that you can lay out text (i.e. when you're not using a Component that lays out text for you, like [`widgets::Text`][crate::widgets::Text]) via the [`Caches`][crate::Caches] referenced by the [`RenderContext`][crate::RenderContext] which gets passed to [`Component#render`][crate::Component#method.render].
 //!
 //! The text-layout interface uses a slice of [`TextSegment`]s as a Component-agnostic way of representing text. A `TextSegment` stores a text string, and optionally a font size and font name (defaults will be used otherwise). In this way, we can lay out text in a variety of types and sizes. [`txt`][crate::txt] is provided as a convenient way of creating `TextSegment`s.
-
-use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
+use ahash::HashMap;
+use core::hash::{Hash, Hasher};
 
 use crate::style::HorizontalPosition;
 use glyph_brush_layout::{
-    ab_glyph::*, FontId, GlyphPositioner, HorizontalAlign, SectionGeometry, SectionText,
+    FontId, GlyphPositioner, HorizontalAlign, SectionGeometry, SectionText, ab_glyph::*,
 };
 
 type Fonts = Vec<FontRef<'static>>;
@@ -196,19 +195,19 @@ macro_rules! txt {
         txt![@split_comma ($($first)*) () () <= $($item)*]
 
     };
-    // give inital params and initial inner items in every group
+    // give initial params and initial inner items in every group
     {@split_comma  ($($first:tt)*) ($($every:tt)*) <= $($item:tt)*} => {
         txt![@split_comma ($($first)*) ($($every)*) ($($every)*) <= $($item)*]
 
     };
     // KEYWORD line
-    // on non-final seperator, stash the accumulator and restart it
+    // on non-final separator, stash the accumulator and restart it
     {@split_comma  ($($first:tt)*) ($($every:tt)*) ($($current:tt)*) <= , $($item:tt)+} => {
         txt![@split_comma ($($first)* ($($current)*)) ($($every)*) ($($every)*) <= $($item)*]
 
     };
     // KEYWORD line
-    // ignore final seperator, run the function
+    // ignore final separator, run the function
     {@split_comma  ($($first:tt)*) ($($every:tt)*) ($($current:tt)+) <= , } => {
         txt![@txt_seg $($first)* ($($current)*)]
 

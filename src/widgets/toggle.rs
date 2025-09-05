@@ -1,12 +1,15 @@
-use std::fmt;
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::fmt;
+use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::render::{
-    renderables::shape::{self, Shape},
     Renderable,
+    renderables::shape::{self, Shape},
 };
 use crate::style::Styled;
 use lemna_macros::{component, state_component_impl};

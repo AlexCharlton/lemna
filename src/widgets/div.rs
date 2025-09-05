@@ -1,10 +1,13 @@
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
 use crate::layout::*;
-use crate::render::{renderables::Rect, Renderable};
+use crate::render::{Renderable, renderables::Rect};
 use crate::style::{HorizontalPosition, StyleVal, Styled, VerticalPosition};
 
 use lemna_macros::{component, state_component_impl};

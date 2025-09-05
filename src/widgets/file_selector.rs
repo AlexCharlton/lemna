@@ -13,8 +13,8 @@ pub struct FileSelector {
     pub on_select: Option<Box<dyn Fn(Option<PathBuf>) -> Message + Send + Sync>>,
 }
 
-impl std::fmt::Debug for FileSelector {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for FileSelector {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("FileSelector")
             .field("title", &self.title)
             .field("default_path", &self.default_path)

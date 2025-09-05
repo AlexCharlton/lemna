@@ -1,7 +1,11 @@
+extern crate alloc;
+
+use alloc::{boxed::Box, string::String, vec::Vec};
+
 use crate::base_types::*;
 use crate::component::Component;
 use crate::style::{HorizontalPosition, Styled};
-use crate::{node, txt, Node};
+use crate::{Node, node, txt};
 use lemna_macros::component;
 
 #[component(Styled, Internal)]
@@ -41,11 +45,13 @@ impl Component for ToolTip {
                     max_size: size!(ToolTip::MAX_WIDTH, Auto),
                 )
             )
-            .push(node!(super::Text::new(txt!(self.tool_tip.clone()))
-                .style("size", self.style_val("font_size").unwrap())
-                .style("color", self.style_val("text_color").unwrap())
-                .style("h_alignment", HorizontalPosition::Left)
-                .maybe_style("font", self.style_val("font")))),
+            .push(node!(
+                super::Text::new(txt!(self.tool_tip.clone()))
+                    .style("size", self.style_val("font_size").unwrap())
+                    .style("color", self.style_val("text_color").unwrap())
+                    .style("h_alignment", HorizontalPosition::Left)
+                    .maybe_style("font", self.style_val("font"))
+            )),
         )
     }
 

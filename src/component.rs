@@ -1,5 +1,8 @@
-use std::any::Any;
-use std::fmt;
+extern crate alloc;
+
+use alloc::{boxed::Box, vec, vec::Vec};
+use core::any::Any;
+use core::fmt;
 
 use ahash::AHasher;
 
@@ -15,7 +18,7 @@ pub type Message = Box<dyn Any>;
 #[doc(hidden)]
 // Only used by `replace_state` and `take_state`, which are not meant to be implemented by the user.
 pub type State = Box<dyn Any>;
-/// A concrete implementor of [`std::hash::Hasher`], used by [`Component#props_hash`][Component#method.props_hash] and [`#render_hash`][Component#method.render_hash].
+/// A concrete implementor of [`core::hash::Hasher`], used by [`Component#props_hash`][Component#method.props_hash] and [`#render_hash`][Component#method.render_hash].
 ///
 /// [`AHasher`] is used, since it makes it easier to create reproducible hashes.
 pub type ComponentHasher = AHasher;
@@ -84,7 +87,7 @@ pub trait Component: fmt::Debug {
         self.props_hash(hasher);
     }
 
-    /// Called to determine whether the inputs to the Component have changed, and thus whether [`#new_props`][Component#method.new_props] should be called. Mutate the `hasher` (you will almost certainly want to import the [`std::hash::Hash`] trait, to make this method available on implementing types).
+    /// Called to determine whether the inputs to the Component have changed, and thus whether [`#new_props`][Component#method.new_props] should be called. Mutate the `hasher` (you will almost certainly want to import the [`core::hash::Hash`] trait, to make this method available on implementing types).
     ///
     /// There's no need to implement this method unless `new_props` is also implemented, or if it is the desired value for [`#render_hash`][Component#method.render_hash].
     fn props_hash(&self, _hasher: &mut ComponentHasher) {}

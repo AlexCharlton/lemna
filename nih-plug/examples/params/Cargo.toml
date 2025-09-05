@@ -8,7 +8,10 @@ version = "0.0.0"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-lemna = { path = "../../../", default-features = false, features = ["msaa_shapes", "open_iconic"] }
+lemna = { path = "../../../", default-features = false, features = [
+    "msaa_shapes",
+    "open_iconic",
+] }
 lemna-macros = { path = "../../../macros/" }
 lemna-nih-plug = { path = "../../../nih-plug/", features = ["standalone"] }
-log = { version = "0.4", features = ["max_level_warn", "release_max_level_error"] }
+log = { version = "0.4", features = ["max_level_warn"] }

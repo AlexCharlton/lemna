@@ -1,7 +1,11 @@
 //! Types that relate to event handling.
+extern crate alloc;
 
-use std::collections::HashSet;
+use alloc::{string::String, vec, vec::Vec};
+use core::fmt;
 use std::time::Instant;
+
+use ahash::HashSet;
 
 use super::base_types::*;
 use super::input::{Key, MouseButton};
@@ -39,8 +43,8 @@ pub struct Event<T: EventInput> {
     pub(crate) registrations: Vec<crate::node::Registration>,
 }
 
-impl<T: EventInput> std::fmt::Debug for Event<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<T: EventInput> fmt::Debug for Event<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Event")
             .field("input", &self.input)
             .field("bubbles", &self.bubbles)
@@ -60,7 +64,7 @@ impl<T: EventInput> std::fmt::Debug for Event<T> {
 }
 
 /// Types that can be an [`Event::input`].
-pub trait EventInput: std::fmt::Debug {
+pub trait EventInput: fmt::Debug {
     #[doc(hidden)]
     // For internal use only
     fn matching_registrations(&self, _: &[crate::node::Registration]) -> Vec<u64> {
@@ -491,8 +495,8 @@ pub(crate) struct EventCache {
     pub drag_data: Vec<Data>,
 }
 
-impl std::fmt::Debug for EventCache {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Debug for EventCache {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("EventCache")
             .field("focus", &self.focus)
             .field("keys_held", &self.keys_held)

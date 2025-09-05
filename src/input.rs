@@ -2,6 +2,10 @@
 //!
 //! These are most typically interacted with through event-handling methods of [`Component`][crate::Component]. For instance [`#on_click`][crate::Component#method.on_click] receives an `Event<Click>`. A [`Click`][crate::event::Click], holds a [`MouseButton`] input type. If the user cares what kind of click they are reacting to, they need to match this input to the desired mouse button.
 
+extern crate alloc;
+
+use alloc::string::String;
+
 use crate::base_types::Data;
 
 /// Mouse movement or scrolling

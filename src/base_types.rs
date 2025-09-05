@@ -1,15 +1,18 @@
+extern crate alloc;
+use alloc::string::String;
+
 use bytemuck::{Pod, Zeroable};
+use core::hash::{Hash, Hasher};
+use core::mem;
+use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
-use std::mem;
-use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
-use std::path::PathBuf;
 
 /// Data that can be shared between processes, e.g. by the Clipboard or Drag and Drop.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     String(String),
-    Filepath(PathBuf),
+    #[cfg(feature = "std")]
+    Filepath(std::path::PathBuf),
     // Custom(Vec<u8>),
 }
 

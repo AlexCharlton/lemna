@@ -15,7 +15,7 @@ instrumented = ["lemna/instrumented"]
 arboard = "3.2"
 baseview = { workspace = true }
 keyboard-types = "0.6"
-lemna = { path = "../../", version = "0.4" }
+lemna = { path = "../../", version = "0.4", features = ["std", "file-dialogs"] }
 raw-window-handle = { workspace = true }
 crossbeam-channel = "0.4"
 

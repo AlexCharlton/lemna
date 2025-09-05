@@ -8,9 +8,7 @@ use syn::{self, parse_macro_input, Lit, Meta, MetaNameValue, NestedMeta};
 
 static ID_COUNTER: CounterU64 = CounterU64::new(0);
 
-/// TODO
-///
-/// Assumes the `style` module is in scope, when using the `Styled` attribute.
+/// TODO document
 ///
 /// e.g. `#[component(State = "ButtonState", Styled)]`
 /// e.g. `#[component(State = "StateType", Styled = "ComponentNameOverride")]`
@@ -69,13 +67,13 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
     let style_override_ref = if is_internal {
         quote! { crate::style::StyleOverride }
     } else {
-        quote! { style::StyleOverride }
+        quote! { lemna::style::StyleOverride }
     };
 
     let styled_ref = if is_internal {
         quote! { crate::style::Styled }
     } else {
-        quote! { style::Styled }
+        quote! { lemna::style::Styled }
     };
 
     // Add in fields
@@ -114,12 +112,12 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
                 #[allow(dead_code)]
                 fn state_mut(&mut self) -> &mut #state {
                     self.dirty = true;
-                    self.state.as_mut().expect(&format!("Expected state to exist"))
+                    self.state.as_mut().expect("Expected state to exist")
                 }
 
                 #[allow(dead_code)]
                 fn state_ref(&self) -> & #state {
-                    self.state.as_ref().expect(&format!("Expected state to exist"))
+                    self.state.as_ref().expect("Expected state to exist")
                 }
             }
         );
@@ -159,20 +157,20 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
     struct_def
 }
 
-/// TODO
+/// TODO document
 #[proc_macro_attribute]
 pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStream {
     let attr = parse_macro_input!(attr as syn::AttributeArgs);
     let state_type = attr.first().unwrap();
 
     let expanded = quote! {
-        fn replace_state(&mut self, other_state: Box<dyn std::any::Any>) {
+        fn replace_state(&mut self, other_state: Box<dyn core::any::Any>) {
             if let Ok(s) = other_state.downcast::<#state_type>() {
                 self.state = Some(*s);
             }
         }
 
-        fn take_state(&mut self) -> Option<Box<dyn std::any::Any>> {
+        fn take_state(&mut self) -> Option<Box<dyn core::any::Any>> {
             if let Some(s) = self.state.take() {
                 Some(Box::new(s))
             } else {

@@ -1,5 +1,9 @@
-use std::cmp::Ordering;
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
+
+use core::cmp::Ordering;
+use core::hash::Hash;
 use std::time::Instant;
 
 use crate::base_types::*;
@@ -46,8 +50,8 @@ pub struct TextBox {
     on_focus: Option<Box<dyn Fn() -> Message + Send + Sync>>,
 }
 
-impl std::fmt::Debug for TextBox {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Debug for TextBox {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         f.debug_struct("TextBox").field("text", &self.text).finish()
     }
 }

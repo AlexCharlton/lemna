@@ -14,6 +14,8 @@
 )]
 //!
 #![doc = include_str!("../docs/tutorial.md")]
+// If the `std` feature is not enabled, set no_std
+#![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod instrumenting;
 
@@ -33,7 +35,9 @@ pub mod event;
 #[doc(inline)]
 pub use event::Event;
 
+#[cfg(feature = "std")]
 mod window;
+#[cfg(feature = "std")]
 pub use window::*;
 
 #[macro_use]
@@ -64,9 +68,11 @@ pub use lemna_macros::{component, state_component_impl};
 
 #[cfg(feature = "open_iconic")]
 pub mod open_iconic;
+#[cfg(feature = "open_iconic")]
 pub use open_iconic::Icon;
 
 /// Used to construct the geometry used by [`renderables::Shape`].
+#[cfg(feature = "std")]
 pub extern crate lyon;
 
 // Test stub window

@@ -1,8 +1,13 @@
 //! Dynamic styling of Components.
 //!
 #![doc = include_str!("../docs/styling.md")]
-use std::collections::HashMap;
-use std::hash::Hash;
+
+extern crate alloc;
+
+use alloc::string::String;
+
+use ahash::HashMap;
+use core::hash::Hash;
 use std::sync::{Mutex, OnceLock};
 
 use crate::base_types::*;
@@ -121,7 +126,7 @@ impl Style {
 
 impl Default for Style {
     fn default() -> Self {
-        let map = StyleMap::from([
+        let map = StyleMap::from_iter([
             // Button
             (
                 StyleKey::new("Button", "text_color", None),
@@ -416,7 +421,7 @@ macro_rules! style {
 // TODO we need some way to add more context to these errors, or otherwise prevent them from happening.
 // Right now, if you add the wrong type expected for a given style, the error message is terrible.
 
-// StyleVal Froms
+// StyleVal From impls
 impl From<Color> for StyleVal {
     fn from(c: Color) -> Self {
         Self::Color(c)

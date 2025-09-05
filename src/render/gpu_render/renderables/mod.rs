@@ -1,6 +1,6 @@
 //! The interface used by [`Component#render`][crate::Component#method.render].
 //!
-#![doc = include_str!("../../../docs/renderables.md")]
+#![doc = include_str!("../../../../docs/renderables.md")]
 
 mod buffer_cache;
 pub mod raster;

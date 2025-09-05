@@ -1,5 +1,8 @@
-use std::fmt;
-use std::hash::Hash;
+extern crate alloc;
+
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use core::fmt;
+use core::hash::Hash;
 use std::time::Instant;
 
 use super::ToolTip;
@@ -9,7 +12,7 @@ use crate::event;
 use crate::font_cache::TextSegment;
 use crate::layout::*;
 use crate::style::{HorizontalPosition, Styled};
-use crate::{node, Node};
+use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
 #[component(Styled = "RadioButton", Internal)]
@@ -93,7 +96,10 @@ impl RadioButtons {
 
     pub fn tool_tips(mut self, t: Vec<String>) -> Self {
         if t.len() != self.buttons.len() {
-            panic!("RadioButtons tool_tips must have an equal length as there are buttons. Got {:?} tool_tips but {:?} buttons", t, &self.buttons);
+            panic!(
+                "RadioButtons tool_tips must have an equal length as there are buttons. Got {:?} tool_tips but {:?} buttons",
+                t, &self.buttons
+            );
         }
         self.tool_tips = Some(t);
         self
@@ -277,11 +283,13 @@ impl Component for RadioButton {
                 axis_alignment: crate::layout::Alignment::Center
             )
         )
-        .push(node!(super::Text::new(self.label.clone())
-            .style("size", self.style_val("font_size").unwrap())
-            .style("color", self.style_val("text_color").unwrap())
-            .style("h_alignment", HorizontalPosition::Center)
-            .maybe_style("font", self.style_val("font"))));
+        .push(node!(
+            super::Text::new(self.label.clone())
+                .style("size", self.style_val("font_size").unwrap())
+                .style("color", self.style_val("text_color").unwrap())
+                .style("h_alignment", HorizontalPosition::Center)
+                .maybe_style("font", self.style_val("font"))
+        ));
 
         if let (Some(p), Some(tt)) = (self.state_ref().tool_tip_open, self.tool_tip.as_ref()) {
             base = base.push(node!(
