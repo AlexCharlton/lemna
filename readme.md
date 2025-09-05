@@ -33,6 +33,7 @@ Features:
 What's missing:
 - More robust and more widgets (e.g. text selection support on `Text` widget)
 - "scroll to" functionality
+  - Use signals?
 
 
 ## Running
@@ -53,10 +54,6 @@ See `./backends/**/**examples` for other examples. Note that wx-rs presently has
 
 ## Embedded
 - Make current Renderable gpu-specific, create a new 2d renderable
-- Should events be user-definable?
-  - on_message(`Event<Message>`) perhaps, letting ancestors pass messages to descendants.
-    - Would need some event method that lets a component target its descendants
-  - Could be used to scroll containers
 
 ## Practical Examples
 - [midi-m8](https://github.com/AlexCharlton/midi-m8/tree/master/plugin)

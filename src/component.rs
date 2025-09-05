@@ -221,6 +221,8 @@ pub trait Component: fmt::Debug {
     /// Handle tick events, which occur regularly on a short interval
     /// (window backend dependent). This can be used to create animated effects.
     fn on_tick(&mut self, _event: &mut Event<event::Tick>) {}
+    /// Handle signal events. These events are used to send messages from the App root to other components.
+    fn on_signal(&mut self, _event: &mut Event<event::Signal>) {}
     /// Handle key down events. These events will only be sent if this component is focused or the [`Component#register`][crate::Component#method.register] method returns [`Register::KeyDown`][crate::event::Register].
     fn on_key_down(&mut self, _event: &mut Event<event::KeyDown>) {}
     /// Handle key up events. These events will only be sent if this component is focused or the [`Component#register`][crate::Component#method.register] method returns [`Register::KeyUp`][crate::event::Register].

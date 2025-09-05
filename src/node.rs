@@ -683,28 +683,8 @@ impl Node {
         }
     }
 
-    // TODO: Use me
-    pub(crate) fn send_messages(
-        &mut self,
-        mut target_stack: Vec<usize>,
-        messages: &mut Vec<Message>,
-    ) -> bool {
-        let mut dirty = false;
-        loop {
-            let node = self.get_target_from_stack(&target_stack);
-            let mut next_messages: Vec<Message> = vec![];
-            for message in messages.drain(..) {
-                next_messages.append(&mut node.component.update(message));
-                if node.component.is_dirty() {
-                    dirty = true;
-                }
-            }
-            if next_messages.is_empty() || target_stack.is_empty() {
-                return dirty;
-            }
-            *messages = next_messages;
-            target_stack.pop();
-        }
+    pub(crate) fn signal(&mut self, event: &mut Event<event::Signal>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_signal(e));
     }
 
     pub(crate) fn mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {

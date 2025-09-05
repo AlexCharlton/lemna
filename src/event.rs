@@ -269,6 +269,19 @@ pub enum Register {
     // Maybe TODO: Include Tick?
 }
 
+/// [`EventInput`] type for signal events.
+pub struct Signal {
+    /// The [`Message`] being sent.
+    pub msg: Message,
+}
+impl EventInput for Signal {}
+
+impl fmt::Debug for Signal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("Message").finish()
+    }
+}
+
 impl Scalable for Scroll {
     fn scale(self, scale_factor: f32) -> Self {
         Self {

@@ -65,6 +65,13 @@ pub(crate) trait LemnaUI {
         self.set_node_dirty(dirty);
     }
 
+    fn signal(&mut self, msg: crate::Message, target: u64) {
+        let mut signal_event = Event::new(event::Signal { msg }, self.event_cache());
+        signal_event.target = Some(target);
+        self.with_node(|node| node.signal(&mut signal_event));
+        self.handle_dirty_event(&signal_event);
+    }
+
     fn blur(&mut self) {
         let mut blur_event = Event::new(event::Blur, self.event_cache());
         blur_event.target = Some(self.event_cache().focus);
@@ -434,6 +441,11 @@ impl<W: crate::window::Window, A: Component + Default + Send + Sync + 'static> U
     pub fn handle_input(&mut self, input: &Input) {
         LemnaUI::handle_input(self, input)
     }
+
+    /// Send a signal to the application.
+    pub fn signal(&mut self, msg: crate::Message, target: u64) {
+        LemnaUI::signal(self, msg, target)
+    }
 }
 
 #[cfg(not(feature = "std"))]
@@ -470,5 +482,10 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
     /// Handle input events.
     pub fn handle_input(&mut self, input: &Input) {
         LemnaUI::handle_input(self, input)
+    }
+
+    /// Send a signal to the application.
+    pub fn signal(&mut self, msg: crate::Message, target: u64) {
+        LemnaUI::signal(self, msg, target)
     }
 }

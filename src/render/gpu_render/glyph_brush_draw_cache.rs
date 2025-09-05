@@ -902,24 +902,6 @@ fn draw_glyph_onto_buffer(
     }
 }
 
-#[inline]
-fn draw_glyph(tex_coords: Rectangle<u32>, glyph: &OutlinedGlyph, pad_glyphs: bool) -> ByteArray2d {
-    let mut pixels = ByteArray2d::zeros(tex_coords.height() as usize, tex_coords.width() as usize);
-    if pad_glyphs {
-        glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round() as u8;
-            // `+ 1` accounts for top/left glyph padding
-            pixels[(y as usize + 1, x as usize + 1)] = v;
-        });
-    } else {
-        glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round() as u8;
-            pixels[(y as usize, x as usize)] = v;
-        });
-    }
-    pixels
-}
-
 /// A rectangle, with top-left corner at min, and bottom-right corner at max.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Rectangle<N> {
