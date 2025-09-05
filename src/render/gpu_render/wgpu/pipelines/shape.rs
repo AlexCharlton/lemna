@@ -3,10 +3,13 @@ use log::info;
 use wgpu;
 
 use super::buffer_cache::BufferCache;
-use super::shared::{create_pipeline, VBDesc};
+use super::shared::{VBDesc, create_pipeline};
 use crate::base_types::AABB;
 use crate::render::next_power_of_2;
-use crate::render::renderables::shape::{Instance, Shape, Vertex};
+use crate::render::renderables::{
+    self,
+    shape::{Instance, Shape, Vertex},
+};
 use crate::render::wgpu::context;
 
 pub struct ShapePipeline {
@@ -19,20 +22,19 @@ pub struct ShapePipeline {
 }
 
 impl ShapePipeline {
-    pub(crate) fn unmark_buffer_cache(&mut self) {
-        self.buffer_cache.unmark();
-    }
-
     fn draw_renderables<'a: 'b, 'b>(
         &'a self,
         renderables: &[(&'a Shape, &'a AABB)],
         pass: &'b mut wgpu::RenderPass<'a>,
+        renderable_buffer_cache: &'a renderables::BufferCache<Vertex, u16>,
         msaa: bool,
         instance_offset: usize,
     ) {
         let mut i = 0;
         for (renderable, _) in renderables.iter() {
-            let (vertex_chunk, index_chunk) = self.buffer_cache.get_chunks(renderable.buffer_id);
+            let (vertex_chunk, index_chunk) = self
+                .buffer_cache
+                .get_chunks(renderable.buffer_id, renderable_buffer_cache);
 
             pass.set_vertex_buffer(
                 0,
@@ -91,20 +93,24 @@ impl ShapePipeline {
         renderables: &[(&'a Shape, &'a AABB)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
+        renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
     ) {
         self.instance_data.clear();
 
         let mut cache_changed = false;
         for (renderable, aabb) in renderables {
             self.instance_data
-                .extend(renderable.render(aabb, &mut self.buffer_cache.cache.write().unwrap()));
-            let (vertex_chunk, _) = self.buffer_cache.get_chunks(renderable.buffer_id);
+                .extend(renderable.render(aabb, renderable_buffer_cache));
+            let (vertex_chunk, _) = self
+                .buffer_cache
+                .get_chunks(renderable.buffer_id, renderable_buffer_cache);
             cache_changed |= !vertex_chunk.filled;
             // Maybe TODO: Only write chunks that have changed (combining contiguous changes?)
         }
 
         if cache_changed {
-            self.buffer_cache.sync_buffers(device, queue);
+            self.buffer_cache
+                .sync_buffers(device, queue, renderable_buffer_cache);
         }
 
         queue.write_buffer(&self.instance_buffer, 0, cast_slice(&self.instance_data));
@@ -114,6 +120,7 @@ impl ShapePipeline {
         &'a mut self,
         renderables: &[(&'a Shape, &'a AABB)],
         pass: &'b mut wgpu::RenderPass<'a>,
+        renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
         instance_offset: usize,
         msaa: bool,
     ) {
@@ -122,7 +129,13 @@ impl ShapePipeline {
         } else {
             &self.pipeline
         });
-        self.draw_renderables(renderables, pass, msaa, instance_offset);
+        self.draw_renderables(
+            renderables,
+            pass,
+            renderable_buffer_cache,
+            msaa,
+            instance_offset,
+        );
     }
 
     pub fn new(

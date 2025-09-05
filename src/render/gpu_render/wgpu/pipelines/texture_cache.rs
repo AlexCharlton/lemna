@@ -1,14 +1,11 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::collections::HashMap;
 
 use crate::{
+    PixelAABB, PixelPoint, PixelSize, Point,
     render::{
         next_power_of_2,
         renderables::{Raster, RasterCache, RasterCacheId, RasterId},
     },
-    PixelAABB, PixelPoint, PixelSize, Point,
 };
 use wgpu;
 
@@ -16,7 +13,6 @@ const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 2048;
 const MIN_SLOT_DIM: u32 = 4; // px
 
 pub struct TextureCache {
-    pub raster_cache: Arc<RwLock<RasterCache>>,
     /// We separate textures from texture_info so we can test the latter
     pub textures: Vec<(wgpu::Texture, wgpu::BindGroup)>,
     pub texture_info: Vec<PackedTextureInfo>,
@@ -110,7 +106,6 @@ impl PackedTextureInfo {
 impl TextureCache {
     pub fn new() -> Self {
         Self {
-            raster_cache: Arc::new(RwLock::new(RasterCache::new())),
             raster_texture_map: HashMap::new(),
             textures: vec![],
             texture_info: vec![],
@@ -175,13 +170,9 @@ impl TextureCache {
         device: &wgpu::Device,
         texture_bind_group_layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
+        raster_cache: &RasterCache,
     ) {
-        let id = self
-            .raster_cache
-            .read()
-            .unwrap()
-            .get_raster_data(raster.raster_cache_id)
-            .id;
+        let id = raster_cache.get_raster_data(raster.raster_cache_id).id;
 
         if let Some(i) = self.raster_texture_map.get(&id) {
             if let Some(r) = self.texture_info[*i].raster_map.get_mut(&id) {
@@ -190,12 +181,7 @@ impl TextureCache {
             // Raster is already here
             return;
         }
-        let size = self
-            .raster_cache
-            .read()
-            .unwrap()
-            .get_raster_data(raster.raster_cache_id)
-            .size;
+        let size = raster_cache.get_raster_data(raster.raster_cache_id).size;
 
         let tex_index = if let Some(i) = self
             .texture_info
@@ -227,23 +213,11 @@ impl TextureCache {
         false
     }
 
-    pub fn write_to_gpu(&mut self, queue: &mut wgpu::Queue) {
+    pub fn write_to_gpu(&mut self, queue: &mut wgpu::Queue, raster_cache: &mut RasterCache) {
         for (i, t) in self.texture_info.iter_mut().enumerate() {
             for (_, (raster_cache_id, aabb, written, _)) in t.raster_map.iter_mut() {
-                if !*written
-                    || self
-                        .raster_cache
-                        .read()
-                        .unwrap()
-                        .get_raster_data(*raster_cache_id)
-                        .dirty
-                {
-                    let size = self
-                        .raster_cache
-                        .read()
-                        .unwrap()
-                        .get_raster_data(*raster_cache_id)
-                        .size;
+                if !*written || raster_cache.get_raster_data(*raster_cache_id).dirty {
+                    let size = raster_cache.get_raster_data(*raster_cache_id).size;
                     queue.write_texture(
                         wgpu::ImageCopyTexture {
                             aspect: wgpu::TextureAspect::All,
@@ -255,13 +229,7 @@ impl TextureCache {
                                 z: 0,
                             },
                         },
-                        (&self
-                            .raster_cache
-                            .read()
-                            .unwrap()
-                            .get_raster_data(*raster_cache_id)
-                            .data)
-                            .into(),
+                        (&raster_cache.get_raster_data(*raster_cache_id).data).into(),
                         wgpu::ImageDataLayout {
                             offset: 0,
                             bytes_per_row: Some(size.width * 4),
@@ -275,11 +243,7 @@ impl TextureCache {
                     );
 
                     *written = true;
-                    self.raster_cache
-                        .write()
-                        .unwrap()
-                        .get_mut_raster_data(*raster_cache_id)
-                        .clean();
+                    raster_cache.get_mut_raster_data(*raster_cache_id).clean();
                 }
             }
         }
@@ -294,13 +258,12 @@ impl TextureCache {
         coords.normalize(size)
     }
 
-    pub fn texture_index(&self, raster_cache_id: RasterCacheId) -> Option<usize> {
-        let raster_id = self
-            .raster_cache
-            .read()
-            .unwrap()
-            .get_raster_data(raster_cache_id)
-            .id;
+    pub fn texture_index(
+        &self,
+        raster_cache_id: RasterCacheId,
+        raster_cache: &RasterCache,
+    ) -> Option<usize> {
+        let raster_id = raster_cache.get_raster_data(raster_cache_id).id;
         self.raster_texture_map.get(&raster_id).copied()
     }
 
@@ -309,7 +272,6 @@ impl TextureCache {
     }
 
     pub fn unmark(&mut self) {
-        self.raster_cache.write().unwrap().unmark();
         let mut unused: Vec<RasterId> = vec![];
         for t in self.texture_info.iter_mut() {
             for (id, r) in t.raster_map.iter_mut() {

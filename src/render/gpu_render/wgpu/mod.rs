@@ -5,17 +5,17 @@ use wgpu::{self, util::DeviceExt};
 
 mod context;
 
-use crate::base_types::{PixelSize, AABB};
+use crate::base_types::{AABB, PixelSize};
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
-use crate::render::{renderables::*, Caches};
+use crate::render::{Caches, renderables::*};
 use crate::window::Window;
 
 pub mod pipelines;
 pub use pipelines::shared::VBDesc;
 use pipelines::{
-    msaa::MSAAPipeline, stencil::StencilPipeline, RasterPipeline, RectPipeline, ShapePipeline,
-    TextPipeline,
+    RasterPipeline, RectPipeline, ShapePipeline, TextPipeline, msaa::MSAAPipeline,
+    stencil::StencilPipeline,
 };
 
 #[repr(C)]
@@ -132,7 +132,7 @@ impl super::Renderer for WGPURenderer {
         }
     }
 
-    fn render(&mut self, node: &Node, physical_size: PixelSize) {
+    fn render(&mut self, node: &Node, caches: &mut Caches, physical_size: PixelSize) {
         inst("WGPURenderer::render#get_current_texture");
         let was_resized = self.do_resize(physical_size);
         let output = match self.context.surface.get_current_texture() {
@@ -153,7 +153,7 @@ impl super::Renderer for WGPURenderer {
             evt("WGPURenderer::was_resized");
             self.update_ubo(physical_size);
             output.present();
-            self.render(node, physical_size);
+            self.render(node, caches, physical_size);
             return;
         }
 
@@ -161,9 +161,11 @@ impl super::Renderer for WGPURenderer {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        self.text_pipeline.unmark_buffer_cache();
-        self.shape_pipeline.unmark_buffer_cache();
         self.raster_pipeline.unmark_cache();
+        caches.shape_buffer.unmark();
+        caches.image_buffer.unmark();
+        caches.text_buffer.unmark();
+        caches.raster.unmark();
 
         inst("WGPURenderer::render#collect_frames");
         let mut frames = vec![FrameRenderables::default()];
@@ -241,6 +243,7 @@ impl super::Renderer for WGPURenderer {
                 .collect::<Vec<(&Shape, &AABB)>>(),
             &self.context.device,
             &mut self.context.queue,
+            &mut caches.shape_buffer,
         );
         self.text_pipeline.fill_buffers(
             &frames
@@ -249,6 +252,8 @@ impl super::Renderer for WGPURenderer {
                 .collect::<Vec<(&Text, &AABB)>>(),
             &self.context.device,
             &mut self.context.queue,
+            &caches.font,
+            &mut caches.text_buffer,
         );
         {
             // We have a three step process for rasters
@@ -263,13 +268,14 @@ impl super::Renderer for WGPURenderer {
                     .collect::<Vec<(&Raster, &AABB)>>(),
                 &self.context.device,
                 &mut self.context.queue,
+                &mut caches.raster,
             );
 
             for frame_renderables in frames.iter_mut() {
                 frame_renderables.rasters.sort_unstable_by_key(|r| {
                     self.raster_pipeline
                         .texture_cache
-                        .texture_index(r.0.raster_cache_id)
+                        .texture_index(r.0.raster_cache_id, &caches.raster)
                 });
             }
 
@@ -280,6 +286,7 @@ impl super::Renderer for WGPURenderer {
                     .collect::<Vec<(&Raster, &AABB)>>(),
                 &self.context.device,
                 &mut self.context.queue,
+                &mut caches.raster,
                 cache_invalid,
             );
         }
@@ -354,13 +361,18 @@ impl super::Renderer for WGPURenderer {
                     self.shape_pipeline.render(
                         &frame_renderables.shapes,
                         &mut pass,
+                        &mut caches.shape_buffer,
                         num_shapes,
                         false,
                     );
                 }
                 if !frame_renderables.rasters.is_empty() {
-                    self.raster_pipeline
-                        .render(&frame_renderables.rasters, &mut pass, num_rasters);
+                    self.raster_pipeline.render(
+                        &frame_renderables.rasters,
+                        &mut pass,
+                        &mut caches.raster,
+                        num_rasters,
+                    );
                 }
                 // Text comes last because of transparency
                 if !frame_renderables.texts.is_empty() {
@@ -368,6 +380,7 @@ impl super::Renderer for WGPURenderer {
                         &frame_renderables.texts,
                         &mut pass,
                         &self.context.device,
+                        &mut caches.text_buffer,
                         num_texts,
                         false,
                     );
@@ -433,6 +446,7 @@ impl super::Renderer for WGPURenderer {
                         &frame_renderables.texts,
                         &mut msaa_pass,
                         &self.context.device,
+                        &mut caches.text_buffer,
                         num_texts,
                         true,
                     );
@@ -443,6 +457,7 @@ impl super::Renderer for WGPURenderer {
                     self.shape_pipeline.render(
                         &frame_renderables.shapes,
                         &mut msaa_pass,
+                        &mut caches.shape_buffer,
                         num_shapes,
                         true,
                     );
@@ -493,16 +508,6 @@ impl super::Renderer for WGPURenderer {
         self.context.queue.submit(command_buffers);
         output.present();
         inst_end();
-    }
-
-    fn caches(&self) -> Caches {
-        Caches {
-            shape_buffer: self.shape_pipeline.buffer_cache.cache.clone(),
-            text_buffer: self.text_pipeline.buffer_cache.cache.clone(),
-            image_buffer: self.raster_pipeline.buffer_cache.cache.clone(),
-            raster: self.raster_pipeline.texture_cache.raster_cache.clone(),
-            font: self.text_pipeline.font_cache.clone(),
-        }
     }
 }
 

@@ -170,8 +170,8 @@ impl Component for Canvas {
                 raster = Some(Raster::new(
                     data,
                     size,
-                    &mut context.caches.image_buffer.write().unwrap(),
-                    &mut context.caches.raster.write().unwrap(),
+                    &mut context.caches.image_buffer,
+                    &mut context.caches.raster,
                     raster.as_ref().map(|r| r.buffer_id),
                     raster.as_ref().map(|r| r.raster_cache_id),
                 ));
@@ -188,16 +188,16 @@ impl Component for Canvas {
                 raster = Some(Raster::new(
                     data.into(),
                     size,
-                    &mut context.caches.image_buffer.write().unwrap(),
-                    &mut context.caches.raster.write().unwrap(),
+                    &mut context.caches.image_buffer,
+                    &mut context.caches.raster,
                     raster.as_ref().map(|r| r.buffer_id),
                     raster.as_ref().map(|r| r.raster_cache_id),
                 ));
             }
             CanvasUpdate::Update((point, pixel)) => {
                 if let Some(r) = raster.as_mut() {
-                    context.caches.raster.write().unwrap().get_mut_raster_data(r.raster_cache_id).dirty();
-                    match &mut context.caches.raster.write().unwrap().get_mut_raster_data(r.raster_cache_id).data {
+                    context.caches.raster.get_mut_raster_data(r.raster_cache_id).dirty();
+                    match &mut context.caches.raster.get_mut_raster_data(r.raster_cache_id).data {
                         RasterData::Vec(v) => {
                             let i = ((point.x + (point.y * size.width)) * 4) as usize;
                             if i < v.len() {

@@ -1122,11 +1122,11 @@ mod tests {
 
     #[test]
     fn test_caching() {
-        let renderer = TestRenderer {};
+        let mut caches = Caches::default();
         let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
         n.view(None, &mut vec![]);
         //n.layout();
-        n.render(renderer.caches(), None, 1.0);
+        n.render(&mut caches, None, 1.0);
         //println!("{:#?}", n);
         assert_eq!(
             n.render_cache,
@@ -1157,7 +1157,7 @@ mod tests {
         assert_eq!(n.children[0].id, new_n.children[0].id);
 
         //new_n.layout();
-        new_n.render(renderer.caches(), Some(&mut n), 1.0);
+        new_n.render(&mut caches, Some(&mut n), 1.0);
         //println!("{:#?}", new_n);
         assert_eq!(
             new_n.render_cache,
@@ -1346,7 +1346,7 @@ mod tests {
 
     #[test]
     fn test_scroll() {
-        let renderer = TestRenderer {};
+        let mut caches = Caches::default();
         let m = Node::new(
             Box::new(test_scroll_app::TestApp::default()),
             0,
@@ -1358,7 +1358,7 @@ mod tests {
             lay!(size: size!(300.0)),
         );
         n.view(None, &mut vec![]);
-        n.layout(&m, &renderer.caches().font.read().unwrap(), 1.0);
+        n.layout(&m, &caches.font, 1.0);
 
         // Expect the inner_scale to be a real size
         let scroll_node = &mut n.children[0].children[0];
@@ -1366,7 +1366,7 @@ mod tests {
         assert_eq!(scroll_node.inner_scale.unwrap(), [200.0, 150.0].into());
 
         // Expect renderables to be laid out in the right order, with the correct Frames
-        n.render(renderer.caches(), None, 1.0);
+        n.render(&mut caches, None, 1.0);
         let renderables = n.iter_renderables().collect::<Vec<_>>();
         assert_eq!(renderables.len(), 9);
         // First three (App, Top Div, Scroll Div) do not have Frames

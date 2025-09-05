@@ -1,17 +1,18 @@
-use std::sync::{Arc, RwLock};
-
 use bytemuck::cast_slice;
 use log::info;
 use wgpu;
 use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
 use super::buffer_cache::BufferCache;
-use super::shared::{create_pipeline, VBDesc};
-use crate::base_types::{Pos, AABB};
+use super::shared::{VBDesc, create_pipeline};
+use crate::base_types::{AABB, Pos};
 use crate::font_cache::FontCache;
 use crate::render::glyph_brush_draw_cache::{CachedBy, DrawCache};
 use crate::render::next_power_of_2;
-use crate::render::renderables::text::{Instance, Text, Vertex};
+use crate::render::renderables::{
+    self,
+    text::{Instance, Text, Vertex},
+};
 use crate::render::wgpu::context;
 
 const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 1024;
@@ -57,8 +58,7 @@ pub struct TextPipeline {
     bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
-    pub(crate) buffer_cache: BufferCache<Vertex, u16>,
-    pub(crate) font_cache: Arc<RwLock<FontCache>>,
+    buffer_cache: BufferCache<Vertex, u16>,
     glyph_cache: GlyphCache,
     instance_data: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
@@ -66,20 +66,19 @@ pub struct TextPipeline {
 }
 
 impl TextPipeline {
-    pub(crate) fn unmark_buffer_cache(&mut self) {
-        self.buffer_cache.unmark();
-    }
-
     fn draw_renderables<'a: 'b, 'b>(
         &'a self,
         renderables: &[(&'a Text, &'a AABB)],
         pass: &'b mut wgpu::RenderPass<'a>,
+        renderable_buffer_cache: &'a renderables::BufferCache<Vertex, u16>,
         instance_offset: usize,
     ) {
         // We construct our instance data in the same order of our renderables,
         // so `i` can be used to index into the instance_data
         for (i, (renderable, _)) in renderables.iter().enumerate() {
-            let (vertex_chunk, index_chunk) = self.buffer_cache.get_chunks(renderable.buffer_id);
+            let (vertex_chunk, index_chunk) = self
+                .buffer_cache
+                .get_chunks(renderable.buffer_id, renderable_buffer_cache);
 
             pass.set_vertex_buffer(
                 0,
@@ -127,8 +126,10 @@ impl TextPipeline {
         renderables: &[(&'a Text, &'a AABB)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
+        font_cache: &FontCache,
+        renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
     ) {
-        let cache_invalid = self.update_glyph_cache(renderables, device, queue);
+        let cache_invalid = self.update_glyph_cache(renderables, device, queue, font_cache);
 
         self.instance_data.clear();
         // Update CPU buffers if changed
@@ -136,7 +137,7 @@ impl TextPipeline {
         for (renderable, aabb) in renderables.iter() {
             cache_changed |= renderable.render(
                 aabb,
-                &mut self.buffer_cache.cache.write().unwrap(),
+                renderable_buffer_cache,
                 &self.glyph_cache.glyph_cache,
                 &mut self.instance_data,
                 cache_invalid,
@@ -145,7 +146,8 @@ impl TextPipeline {
 
         // Update GPU buffers
         if cache_changed {
-            self.buffer_cache.sync_buffers(device, queue);
+            self.buffer_cache
+                .sync_buffers(device, queue, renderable_buffer_cache);
         }
 
         queue.write_buffer(&self.instance_buffer, 0, cast_slice(&self.instance_data));
@@ -156,6 +158,7 @@ impl TextPipeline {
         renderables: &[(&'a Text, &'a AABB)],
         pass: &'b mut wgpu::RenderPass<'a>,
         device: &'b wgpu::Device,
+        renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
         instance_offset: usize,
         msaa: bool,
     ) {
@@ -169,7 +172,7 @@ impl TextPipeline {
 
             pass.set_bind_group(1, &self.bind_group, &[]);
 
-            self.draw_renderables(renderables, pass, instance_offset);
+            self.draw_renderables(renderables, pass, renderable_buffer_cache, instance_offset);
         } else {
             self.debug_render(pass, device, msaa);
         }
@@ -254,6 +257,7 @@ impl TextPipeline {
         renderables: &[(&Text, &AABB)],
         device: &wgpu::Device,
         queue: &mut wgpu::Queue,
+        font_cache: &FontCache,
     ) -> bool {
         // Draw glyphs onto GPU texture cache
         let mut cache_invalid = false;
@@ -270,9 +274,9 @@ impl TextPipeline {
 
             let cache_result = {
                 let texture = &self.glyph_cache.texture;
-                self.glyph_cache.glyph_cache.cache_queued(
-                    &self.font_cache.read().unwrap().fonts,
-                    |region, data| {
+                self.glyph_cache
+                    .glyph_cache
+                    .cache_queued(&font_cache.fonts, |region, data| {
                         queue.write_texture(
                             wgpu::ImageCopyTexture {
                                 aspect: wgpu::TextureAspect::All,
@@ -296,8 +300,7 @@ impl TextPipeline {
                                 depth_or_array_layers: 1,
                             },
                         );
-                    },
-                )
+                    })
             };
             match cache_result {
                 Ok(CachedBy::Adding) => (),
@@ -433,7 +436,6 @@ impl TextPipeline {
         Self {
             buffer_cache: BufferCache::new(&context.device),
             glyph_cache: GlyphCache::new(texture, DEFAULT_TEXTURE_CACHE_SIZE),
-            font_cache: Default::default(),
             instance_data: vec![],
             instance_buffer,
             num_instances,

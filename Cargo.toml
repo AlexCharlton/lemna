@@ -34,6 +34,7 @@ std = [
     "rustc-hash",
     "wgpu",
     "embassy-sync/std",
+    "critical-section/std",
 ]
 wgpu = ["dep:wgpu", "shaders", "std"]
 instrumented = ["superluminal-perf", "std"]
@@ -62,6 +63,7 @@ lemna-macros = { workspace = true }
 ahash = "0.8"
 bytemuck = { version = "1.4", features = ["derive"] }
 cgmath = "0.17.0"
+critical-section = { version = "1" }
 embassy-futures = "0.1"
 embassy-sync = "0.7"
 futures = "0.3.4"

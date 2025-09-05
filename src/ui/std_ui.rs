@@ -12,7 +12,7 @@ use crate::event::EventCache;
 use crate::instrumenting::*;
 use crate::layout::*;
 use crate::node::{Node, Registration};
-use crate::render::Renderer;
+use crate::render::{Caches, Renderer};
 use crate::window::Window;
 
 // This can become feature-dependant
@@ -31,6 +31,7 @@ type ActiveRenderer = crate::render::wgpu::WGPURenderer;
 /// Event handling happens on the same thread that the [`current_window`] is accessible from.
 pub struct UI<W: Window, A: Component + Default + Send + Sync> {
     renderer: Arc<RwLock<Option<ActiveRenderer>>>,
+    caches: Arc<RwLock<Caches>>,
     pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
     _draw_thread: JoinHandle<()>,
@@ -97,16 +98,7 @@ impl<W: Window, A: 'static + Component + Default + Send + Sync> super::LemnaUI f
 
     /// Add a font to the [`font_cache::FontCache`][crate::font_cache::FontCache]. The name provided is the name used to reference the font in a [`TextSegment`][crate::font_cache::TextSegment]. `bytes` are the bytes of a OpenType font, which must be held in static memory.
     fn add_font(&mut self, name: String, bytes: &'static [u8]) {
-        self.renderer
-            .read()
-            .unwrap()
-            .as_ref()
-            .unwrap()
-            .caches()
-            .font
-            .write()
-            .unwrap()
-            .add_font(name, bytes);
+        self.caches.write().unwrap().font.add_font(name, bytes);
     }
 
     fn resize(&mut self) {
@@ -139,7 +131,7 @@ impl<W: Window, A: 'static + Component + Default + Send + Sync> super::LemnaUI f
     }
 
     fn registrations(&self) -> Vec<Registration> {
-        *self.registrations.read().unwrap().clone()
+        self.registrations.read().unwrap().clone()
     }
 
     fn with_node<F, R>(&mut self, f: F) -> R
@@ -180,12 +172,14 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         let frame_dirty = Arc::new(RwLock::new(false));
         let node_dirty = Arc::new(RwLock::new(true));
         let registrations: Arc<RwLock<Vec<Registration>>> = Default::default();
+        let caches = Arc::new(RwLock::new(Caches::default()));
 
         // Create a channel to speak to the renderer. Every time we send to this channel we want to trigger a render;
         let (render_channel, receiver) = unbounded::<()>();
         let render_thread = Self::render_thread(
             receiver,
             renderer.clone(),
+            caches.clone(),
             node.clone(),
             physical_size.clone(),
             frame_dirty.clone(),
@@ -195,7 +189,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         let (draw_channel, receiver) = unbounded::<()>();
         let draw_thread = Self::draw_thread(
             receiver,
-            renderer.clone(),
+            caches.clone(),
             node.clone(),
             logical_size.clone(),
             scale_factor.clone(),
@@ -207,6 +201,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
 
         let n = Self {
             renderer,
+            caches,
             render_channel,
             _render_thread: render_thread,
             draw_channel,
@@ -228,6 +223,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
     fn render_thread(
         receiver: Receiver<()>,
         renderer: Arc<RwLock<Option<ActiveRenderer>>>,
+        caches: Arc<RwLock<Caches>>,
         node: Arc<RwLock<Node>>,
         physical_size: Arc<RwLock<PixelSize>>,
         frame_dirty: Arc<RwLock<bool>>,
@@ -238,12 +234,12 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                     inst("UI::render");
                     // Pull out size so it gets pulled into the renderer lock
                     let size = *physical_size.read().unwrap();
-                    renderer
-                        .write()
-                        .unwrap()
-                        .as_mut()
-                        .unwrap()
-                        .render(&node.read().unwrap(), size);
+                    let mut caches = caches.write().unwrap();
+                    renderer.write().unwrap().as_mut().unwrap().render(
+                        &node.read().unwrap(),
+                        &mut caches,
+                        size,
+                    );
                     *frame_dirty.write().unwrap() = false;
                     // println!("rendered");
                     inst_end();
@@ -254,7 +250,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
 
     fn draw_thread(
         receiver: Receiver<()>,
-        renderer: Arc<RwLock<Option<ActiveRenderer>>>,
+        caches: Arc<RwLock<Caches>>,
         node: Arc<RwLock<Node>>,
         logical_size: Arc<RwLock<PixelSize>>,
         scale_factor: Arc<RwLock<f32>>,
@@ -278,9 +274,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                     );
 
                     {
-                        // We need to lock the renderer while we modify the node, so that we don't try to render it while doing so
-                        // Since this will cause a deadlock
-                        let mut renderer = renderer.write().unwrap();
+                        let mut caches = caches.write().unwrap();
 
                         // We need to acquire a lock on the node once we `view` it, because we remove its state at this point
                         let mut old = node.write().unwrap();
@@ -290,13 +284,12 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                         *registrations.write().unwrap() = new_registrations;
                         inst_end();
 
-                        let caches = renderer.as_mut().unwrap().caches();
                         inst("Node::layout");
-                        new.layout(&old, &caches.font.read().unwrap(), scale_factor);
+                        new.layout(&old, &caches.font, scale_factor);
                         inst_end();
 
                         inst("Node::render");
-                        let do_render = new.render(caches, Some(&mut old), scale_factor);
+                        let do_render = new.render(&mut caches, Some(&mut old), scale_factor);
                         inst_end();
 
                         *old = new;
