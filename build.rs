@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     use std::path::Path;
 
     let compiler = shaderc::Compiler::new().unwrap();
-    let path = Path::new("./src/render/wgpu/pipelines/shaders");
+    let path = Path::new("./src/render/gpu_render/wgpu/pipelines/shaders");
 
     for file_path in glob(&format!("{}/*.[vf][er][ra][tg]", path.display()))
         .unwrap()
