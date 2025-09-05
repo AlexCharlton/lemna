@@ -29,8 +29,6 @@ impl GlyphCache {
             .dimensions(size, size)
             .scale_tolerance(0.2)
             .position_tolerance(0.2)
-            .multithread(false)
-            .cpu_cache(true)
             .build();
 
         Self {
@@ -45,8 +43,6 @@ impl GlyphCache {
             .dimensions(size, size)
             .scale_tolerance(0.2)
             .position_tolerance(0.2)
-            .multithread(false)
-            .cpu_cache(true)
             .build();
         self.texture = texture;
     }
