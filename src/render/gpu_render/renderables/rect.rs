@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::base_types::{Color, Point, Pos, Scale, AABB};
+use crate::base_types::{AABB, Color, Point, Pos, Scale};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]

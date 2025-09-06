@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable};
 
 use super::{BufferCache, BufferCacheId};
-use crate::base_types::{Color, Point, Pos, AABB};
+use crate::base_types::{AABB, Color, Point, Pos};
 use crate::font_cache::SectionGlyph;
 use crate::render::glyph_brush_draw_cache::DrawCache;
 

@@ -1,9 +1,9 @@
 extern crate alloc;
 
+use crate::time::Instant;
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::fmt;
 use core::hash::Hash;
-use crate::time::Instant;
 
 use super::ToolTip;
 use crate::base_types::*;
@@ -129,10 +129,10 @@ impl Component for RadioButtons {
                     len
                 }
             }
-            Direction::Row => (len + limit - 1) / limit,
+            Direction::Row => len.div_ceil(limit),
         };
         let n_columns = match self.direction {
-            Direction::Column => (len + limit - 1) / limit,
+            Direction::Column => len.div_ceil(limit),
             Direction::Row => {
                 if len > limit {
                     limit

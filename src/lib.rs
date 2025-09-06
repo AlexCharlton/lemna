@@ -72,7 +72,7 @@ pub mod open_iconic;
 pub use open_iconic::Icon;
 
 /// Used to construct the geometry used by [`renderables::Shape`].
-#[cfg(feature = "std")]
+#[cfg(feature = "wgpu_renderer")]
 pub extern crate lyon;
 
 // Test stub window

@@ -45,7 +45,7 @@ impl lemna::Component for App {
             4.0,
             0.0,
             &mut context.caches.shape_buffer,
-            context.prev_state.as_ref().and_then(|v| match v.get(0) {
+            context.prev_state.as_ref().and_then(|v| match v.first() {
                 Some(Renderable::Shape(r)) => Some(r.buffer_id),
                 _ => None,
             }),

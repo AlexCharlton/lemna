@@ -185,9 +185,7 @@ unsafe impl HasRawDisplayHandle for Window {
 }
 
 thread_local!(
-    static CURRENT_WINDOW: UnsafeCell<Option<&'static mut baseview::Window<'static>>> = {
-        UnsafeCell::new(None)
-    }
+    static CURRENT_WINDOW: UnsafeCell<Option<&'static mut baseview::Window<'static>>> = const { UnsafeCell::new(None) }
 );
 
 /// Return a reference to the current [`Window`]. Will only return a `Some` value when called during event handling.

@@ -42,17 +42,17 @@ impl FontCache {
     }
 
     fn font_or_default(&self, name: Option<&str>) -> FontId {
-        if let Some(name) = name {
-            if let Some(i) = self.font_names.get(name) {
-                return FontId(*i);
-            }
+        if let Some(name) = name
+            && let Some(i) = self.font_names.get(name)
+        {
+            return FontId(*i);
         }
 
         self.default_font()
     }
 
     fn default_font(&self) -> FontId {
-        if self.fonts.first().is_some() {
+        if !self.fonts.is_empty() {
             FontId(0)
         } else {
             panic!("Expected at least one default font to be present")
@@ -193,7 +193,6 @@ impl From<crate::open_iconic::Icon> for TextSegment {
 /// # use lemna::*;
 /// let text = txt!("Hello", ("world", "Helvetica Bold", 22.0), "!");
 /// ```
-
 #[macro_export]
 macro_rules! txt {
     // split_comma taken from: https://gist.github.com/kyleheadley/c2f64e24c14e45b1e39ee664059bd86f

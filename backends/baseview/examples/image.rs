@@ -1,6 +1,5 @@
 use lazy_static::lazy_static;
 use lemna::*;
-use png;
 
 lazy_static! {
     static ref IMAGE: (Vec<u8>, usize, PixelSize) = {

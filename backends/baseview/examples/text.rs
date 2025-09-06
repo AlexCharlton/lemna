@@ -1,5 +1,4 @@
 use lemna::*;
-use ttf_noto_sans;
 
 #[derive(Debug, Default)]
 pub struct App {}

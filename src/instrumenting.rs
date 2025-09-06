@@ -5,9 +5,9 @@
 //! Lemna itself outputs spans relating to key phases, such as event handling, drawing, and rendering.
 
 #[cfg(feature = "instrumented")]
-use core::cell::UnsafeCell;
-#[cfg(feature = "instrumented")]
 use crate::time::Instant;
+#[cfg(feature = "instrumented")]
+use core::cell::UnsafeCell;
 
 #[cfg(feature = "instrumented")]
 use log::info;

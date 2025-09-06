@@ -9,7 +9,7 @@ use lyon::tessellation::geometry_builder::VertexBuffers;
 use lyon::tessellation::math as lyon_math;
 
 use super::{BufferCache, BufferCacheId};
-use crate::base_types::{Color, Point, Pos, AABB};
+use crate::base_types::{AABB, Color, Point, Pos};
 
 pub type ShapeGeometry = VertexBuffers<Vertex, u16>;
 pub const TOLERANCE: f32 = 0.2;

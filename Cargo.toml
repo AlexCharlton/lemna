@@ -23,14 +23,18 @@ members = [
 [features]
 default = ["file-dialogs", "msaa_shapes", "open_iconic", "wgpu_renderer"]
 
-std = ["embassy-sync/std", "critical-section/std", "crossbeam-channel"]
+std = [
+    "embassy-sync/std",
+    "critical-section/std",
+    "crossbeam-channel",
+    "raw-window-handle",
+]
 wgpu_renderer = [
     "dep:wgpu",
     "shaders",
     "ab_glyph",
     "linked-hash-map",
     "lyon",
-    "raw-window-handle",
     "std",
 ]
 cpu_renderer = []

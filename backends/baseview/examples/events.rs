@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use lemna::*;
-use ttf_noto_sans;
 
 #[derive(Debug)]
 pub struct AppState {

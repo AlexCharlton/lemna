@@ -146,8 +146,8 @@ impl Node {
             layout_result: Default::default(),
             children: vec![],
             render_cache: None,
-            props_hash: u64::max_value(),
-            render_hash: u64::max_value(),
+            props_hash: u64::MAX,
+            render_hash: u64::MAX,
         }
     }
 
@@ -407,12 +407,14 @@ impl Node {
             let context = RenderContext {
                 aabb: self.aabb,
                 inner_scale: self.inner_scale,
-                caches: caches,
+                caches,
                 prev_state: None,
                 scale_factor,
             };
             self.render_cache = self.component.render(context);
             self.component.render_hash(&mut hasher);
+            self.aabb.size().hash(&mut hasher);
+            self.inner_scale.hash(&mut hasher);
             self.render_hash = hasher.finish();
 
             for child in self.children.iter_mut() {
@@ -938,6 +940,10 @@ mod tests {
                 }
             }
 
+            fn render_hash(&self, hasher: &mut ComponentHasher) {
+                self.label.hash(hasher);
+            }
+
             fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
                 Some(vec![Renderable::Inc {
                     repr: self.label.clone(),
@@ -1053,9 +1059,9 @@ mod tests {
             }
 
             fn view(&self) -> Option<Node> {
-                let foo = self.state.as_ref().unwrap().foo;
+                let foo_val = self.state.as_ref().unwrap().foo;
                 Some(container(0).push(Node::new(
-                    Box::new(widget::Widget::new(foo)),
+                    Box::new(widget::Widget::new(foo_val)),
                     0,
                     Layout::default(),
                 )))

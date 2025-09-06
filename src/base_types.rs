@@ -884,7 +884,7 @@ mod tests {
     #[test]
     fn test_color_from() {
         // A float that is representable in 8 bits:
-        let c: Color = (0.49803921568).into();
+        let c: Color = 0.498_039_22.into();
         assert_eq!(c, Into::<Color>::into(Into::<u32>::into(c)))
     }
 }

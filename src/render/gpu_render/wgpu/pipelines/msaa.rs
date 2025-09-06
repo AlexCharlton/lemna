@@ -1,7 +1,7 @@
-use bytemuck::{cast_slice, Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, cast_slice};
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{create_pipeline_depth_stencil, VBDesc};
+use super::shared::{VBDesc, create_pipeline_depth_stencil};
 use crate::base_types::Point;
 use crate::render::wgpu::context;
 

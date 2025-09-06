@@ -67,15 +67,21 @@ mod window {
     }
 
     pub fn set_cursor(cursor_type: &str) {
-        current_window().as_ref().map(|w| w.set_cursor(cursor_type));
+        if let Some(w) = current_window().as_ref() {
+            w.set_cursor(cursor_type)
+        }
     }
 
     pub fn unset_cursor() {
-        current_window().as_ref().map(|w| w.unset_cursor());
+        if let Some(w) = current_window().as_ref() {
+            w.unset_cursor()
+        }
     }
 
     pub fn put_on_clipboard(data: &Data) {
-        current_window().as_ref().map(|w| w.put_on_clipboard(data));
+        if let Some(w) = current_window().as_ref() {
+            w.put_on_clipboard(data)
+        }
     }
 
     pub fn get_from_clipboard() -> Option<Data> {
@@ -85,13 +91,15 @@ mod window {
     }
 
     pub fn start_drag(data: Data) {
-        current_window().as_ref().map(|w| w.start_drag(data));
+        if let Some(w) = current_window().as_ref() {
+            w.start_drag(data)
+        }
     }
 
     pub fn set_drop_target_valid(valid: bool) {
-        current_window()
-            .as_ref()
-            .map(|w| w.set_drop_target_valid(valid));
+        if let Some(w) = current_window().as_ref() {
+            w.set_drop_target_valid(valid)
+        }
     }
 }
 pub use window::*;

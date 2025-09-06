@@ -41,4 +41,5 @@ jobs:
             -A clippy::unnecessary_unwrap \
             -A clippy::too_many_arguments \
             -A clippy::large_enum_variant \
-            -A clippy::single_match
+            -A clippy::single_match \
+            -A clippy::needless_doctest_main

@@ -90,8 +90,8 @@ impl Component for Text {
             scale,
             HorizontalPosition::Left,
             (
-                width.or(max_width).unwrap_or(core::f32::MAX) * scale,
-                height.or(max_height).unwrap_or(core::f32::MAX) * scale,
+                width.or(max_width).unwrap_or(f32::MAX) * scale,
+                height.or(max_height).unwrap_or(f32::MAX) * scale,
             ),
         );
         let output = if let Some(last_glyph) = glyphs.last() {
@@ -153,7 +153,7 @@ impl Component for Text {
                 Pos::default(),
                 color,
                 &mut context.caches.text_buffer,
-                context.prev_state.and_then(|v| match v.get(0) {
+                context.prev_state.and_then(|v| match v.first() {
                     Some(Renderable::Text(r)) => Some(r.buffer_id),
                     _ => None,
                 }),

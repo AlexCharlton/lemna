@@ -2,7 +2,7 @@ use bytemuck::cast_slice;
 use log::info;
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{create_pipeline, VBDesc};
+use super::shared::{VBDesc, create_pipeline};
 use crate::base_types::AABB;
 use crate::render::next_power_of_2;
 use crate::render::renderables::rect::{Instance, Rect, Vertex};
