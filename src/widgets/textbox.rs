@@ -1,6 +1,11 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 
 use crate::time::Instant;
 use core::cmp::Ordering;
@@ -375,12 +380,9 @@ impl TextBoxText {
         }) + self.state_ref().padding_offset_px
     }
 
-    #[cfg(feature = "std")]
     fn cut(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            if let Some(w) = crate::current_window() {
-                w.put_on_clipboard(&self.state_ref().text[a..b].into())
-            }
+            crate::put_on_clipboard(&self.state_ref().text[a..b].into());
             self.insert_text("");
             true
         } else {
@@ -388,23 +390,17 @@ impl TextBoxText {
         }
     }
 
-    #[cfg(feature = "std")]
     fn copy(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            if let Some(w) = crate::current_window() {
-                w.put_on_clipboard(&self.state_ref().text[a..b].into())
-            }
+            crate::put_on_clipboard(&self.state_ref().text[a..b].into());
             true
         } else {
             false
         }
     }
 
-    #[cfg(feature = "std")]
     fn paste(&mut self) -> bool {
-        if let Some(crate::Data::String(text)) =
-            crate::current_window().and_then(|w| w.get_from_clipboard())
-        {
+        if let Some(crate::Data::String(text)) = crate::get_from_clipboard() {
             self.insert_text(&text);
             true
         } else {
@@ -412,7 +408,6 @@ impl TextBoxText {
         }
     }
 
-    #[cfg(feature = "std")]
     fn handle_action(&mut self, action: TextBoxAction) -> Vec<Message> {
         match action {
             TextBoxAction::Cut => {
@@ -450,12 +445,8 @@ impl Component for TextBoxText {
     }
 
     fn update(&mut self, message: Message) -> Vec<Message> {
-        if cfg!(feature = "std") {
-            if let Some(action) = message.downcast_ref::<TextBoxAction>() {
-                self.handle_action(*action)
-            } else {
-                vec![]
-            }
+        if let Some(action) = message.downcast_ref::<TextBoxAction>() {
+            self.handle_action(*action)
         } else {
             vec![]
         }
@@ -466,15 +457,11 @@ impl Component for TextBoxText {
     }
 
     fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
-        if let Some(w) = crate::current_window() {
-            w.set_cursor("Ibeam")
-        }
+        crate::set_cursor("Ibeam");
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
-        if let Some(w) = crate::current_window() {
-            w.unset_cursor()
-        }
+        crate::unset_cursor();
     }
 
     fn on_tick(&mut self, _event: &mut event::Event<event::Tick>) {

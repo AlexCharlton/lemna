@@ -123,18 +123,12 @@ impl Component for Button {
 
     fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
         self.state_mut().hover = true;
-        #[cfg(feature = "std")]
-        if let Some(w) = crate::current_window() {
-            w.set_cursor("PointingHand");
-        }
+        crate::set_cursor("PointingHand");
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         *self.state_mut() = ButtonState::default();
-        #[cfg(feature = "std")]
-        if let Some(w) = crate::current_window() {
-            w.unset_cursor();
-        }
+        crate::unset_cursor();
     }
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {

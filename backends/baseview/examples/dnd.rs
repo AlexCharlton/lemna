@@ -23,7 +23,7 @@ impl lemna::Component for App {
     }
 
     fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) {
-        current_window().unwrap().set_drop_target_valid(false);
+        lemna::set_drop_target_valid(false);
     }
 }
 
@@ -77,12 +77,12 @@ impl Component for DropTarget {
 
     fn on_drag_enter(&mut self, _event: &mut Event<event::DragEnter>) {
         self.state_mut().active = true;
-        current_window().unwrap().set_drop_target_valid(true);
+        lemna::set_drop_target_valid(true);
     }
 
     fn on_drag_leave(&mut self, _event: &mut Event<event::DragLeave>) {
         self.state_mut().active = false;
-        current_window().unwrap().set_drop_target_valid(false);
+        lemna::set_drop_target_valid(false);
     }
 
     fn on_drag_target(&mut self, event: &mut Event<event::DragTarget>) {
@@ -114,9 +114,7 @@ impl Component for DragSource {
     }
 
     fn on_drag_start(&mut self, event: &mut Event<event::DragStart>) {
-        current_window()
-            .unwrap()
-            .start_drag(Data::Filepath("/test/file.txt".into()));
+        lemna::start_drag(Data::Filepath("/test/file.txt".into()));
         event.stop_bubbling();
     }
 }

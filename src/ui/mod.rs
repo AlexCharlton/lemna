@@ -19,6 +19,83 @@ mod no_std_ui;
 #[cfg(not(feature = "std"))]
 pub use no_std_ui::*;
 
+mod window {
+    extern crate alloc;
+    use alloc::boxed::Box;
+
+    use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+    use embassy_sync::once_lock::OnceLock;
+
+    use crate::Data;
+    use crate::base_types::PixelSize;
+    use crate::window::Window;
+
+    type RwLock<T> = embassy_sync::rwlock::RwLock<CriticalSectionRawMutex, T>;
+
+    fn _current_window() -> &'static RwLock<Option<Box<dyn Window>>> {
+        static CURRENT_WINDOW: OnceLock<RwLock<Option<Box<dyn Window>>>> = OnceLock::new();
+        CURRENT_WINDOW.get_or_init(|| RwLock::new(None))
+    }
+
+    #[doc(hidden)]
+    /// Return a reference to the current [`Window`].
+    /// Only for use in windowing backends and internal use.
+    pub fn current_window<'a>()
+    -> embassy_sync::rwlock::RwLockReadGuard<'a, CriticalSectionRawMutex, Option<Box<dyn Window>>>
+    {
+        embassy_futures::block_on(_current_window().read())
+    }
+
+    pub(crate) fn clear_current_window() {
+        *embassy_futures::block_on(_current_window().write()) = None;
+    }
+
+    pub(crate) fn set_current_window(window: Box<dyn Window>) {
+        *embassy_futures::block_on(_current_window().write()) = Some(window);
+    }
+
+    pub fn logical_size() -> Option<PixelSize> {
+        current_window().as_ref().map(|w| w.logical_size())
+    }
+
+    pub fn physical_size() -> Option<PixelSize> {
+        current_window().as_ref().map(|w| w.physical_size())
+    }
+
+    pub fn scale_factor() -> Option<f32> {
+        current_window().as_ref().map(|w| w.scale_factor())
+    }
+
+    pub fn set_cursor(cursor_type: &str) {
+        current_window().as_ref().map(|w| w.set_cursor(cursor_type));
+    }
+
+    pub fn unset_cursor() {
+        current_window().as_ref().map(|w| w.unset_cursor());
+    }
+
+    pub fn put_on_clipboard(data: &Data) {
+        current_window().as_ref().map(|w| w.put_on_clipboard(data));
+    }
+
+    pub fn get_from_clipboard() -> Option<Data> {
+        current_window()
+            .as_ref()
+            .and_then(|w| w.get_from_clipboard())
+    }
+
+    pub fn start_drag(data: Data) {
+        current_window().as_ref().map(|w| w.start_drag(data));
+    }
+
+    pub fn set_drop_target_valid(valid: bool) {
+        current_window()
+            .as_ref()
+            .map(|w| w.set_drop_target_valid(valid));
+    }
+}
+pub use window::*;
+
 pub(crate) trait LemnaUI {
     fn draw(&mut self);
 
@@ -36,7 +113,7 @@ pub(crate) trait LemnaUI {
 
     fn event_cache(&mut self) -> &mut EventCache;
     fn resize(&mut self) {}
-    fn exit(&mut self) {}
+    fn exit(&mut self);
 
     /// Calls [`Component#update`][Component#method.update] with `msg` on the root Node of the application. This will always trigger a redraw.
     fn update(&mut self, msg: crate::Message) {
@@ -407,7 +484,7 @@ pub(crate) trait LemnaUI {
 }
 
 #[cfg(feature = "std")]
-impl<W: crate::window::Window, A: Component + Default + Send + Sync + 'static> UI<W, A> {
+impl<A: Component + Default + Send + Sync + 'static> UI<A> {
     /// Signal to the draw thread that it may be time to draw a redraw the app.
     pub fn draw(&mut self) {
         LemnaUI::draw(self)

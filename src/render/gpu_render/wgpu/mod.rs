@@ -75,7 +75,7 @@ impl<'a> FrameRenderables<'a> {
     }
 }
 
-impl super::Renderer for WGPURenderer {
+impl crate::render::Renderer for WGPURenderer {
     fn new<W: Window>(window: &W) -> Self {
         let size = window.physical_size();
         let context = block_on(context::get_wgpu_context(

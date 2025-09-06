@@ -1,6 +1,6 @@
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lemna::UI;
-use lemna_baseview::{self, Message, ParentMessage, Window};
+use lemna_baseview::{self, Message, ParentMessage};
 use nih_plug::prelude::*;
 use std::{
     marker::PhantomData,
@@ -16,7 +16,7 @@ struct LemnaEditor<A: lemna::Component + Default + Send + Sync> {
     phantom_app: PhantomData<A>,
     scale_factor: Arc<RwLock<Option<f32>>>,
     // Called when initializing the app
-    build: Arc<dyn Fn(Arc<dyn GuiContext>, &mut UI<Window, A>) + 'static + Send + Sync>,
+    build: Arc<dyn Fn(Arc<dyn GuiContext>, &mut UI<A>) + 'static + Send + Sync>,
     on_param_change: Arc<dyn Fn() -> Vec<Message> + 'static + Send + Sync>,
     // Used to communicate with the baseview WindowHandler
     sender: Sender<ParentMessage>,
@@ -30,7 +30,7 @@ pub fn create_lemna_editor<A, B, P>(
 ) -> Option<Box<dyn Editor>>
 where
     A: 'static + lemna::Component + Default + Send + Sync,
-    B: Fn(Arc<dyn GuiContext>, &mut UI<Window, A>) + 'static + Send + Sync,
+    B: Fn(Arc<dyn GuiContext>, &mut UI<A>) + 'static + Send + Sync,
     P: Fn() -> Vec<Message> + 'static + Send + Sync,
 {
     let (sender, receiver) = unbounded::<ParentMessage>();

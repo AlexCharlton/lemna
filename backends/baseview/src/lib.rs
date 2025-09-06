@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::cell::UnsafeCell;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock, RwLock};
 
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
@@ -21,17 +21,47 @@ pub enum ParentMessage {
 }
 
 struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
-    ui: UI<Window, A>,
+    ui: UI<A>,
     parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct WindowSize {
+    logical_size: (u32, u32),
+    scale_factor: f32,
+    scale_policy: baseview::WindowScalePolicy,
+}
+
+impl Default for WindowSize {
+    fn default() -> Self {
+        WindowSize {
+            logical_size: (0, 0),
+            scale_factor: 1.0,
+            scale_policy: baseview::WindowScalePolicy::SystemScaleFactor,
+        }
+    }
+}
+
+fn window_size() -> &'static RwLock<WindowSize> {
+    static WINDOW_SIZE: OnceLock<RwLock<WindowSize>> = OnceLock::new();
+    WINDOW_SIZE.get_or_init(|| RwLock::new(WindowSize::default()))
+}
+
+fn set_window_size(size: (u32, u32), scale_factor: f32, scale_policy: baseview::WindowScalePolicy) {
+    *window_size().write().unwrap() = WindowSize {
+        logical_size: size,
+        scale_factor,
+        scale_policy,
+    };
+}
+
+fn get_window_size() -> WindowSize {
+    *window_size().read().unwrap()
 }
 
 pub struct Window {
     handle: RawWindowHandle,
     display_handle: RawDisplayHandle,
-    size: (u32, u32),
-    scale_policy: baseview::WindowScalePolicy,
-    scale_factor: f32,
-    baseview_window: Option<&'static baseview::Window<'static>>,
     drop_target_valid: Arc<RwLock<bool>>,
 }
 
@@ -49,7 +79,7 @@ impl Window {
     where
         P: HasRawWindowHandle,
         A: 'static + Component + Default + Send + Sync,
-        B: Fn(&mut UI<Window, A>) + 'static + Send,
+        B: Fn(&mut UI<A>) + 'static + Send,
     {
         let drop_target_valid = Arc::new(RwLock::new(true));
         let drop_target_valid2 = drop_target_valid.clone();
@@ -69,13 +99,14 @@ impl Window {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                     baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
                 } as f32;
+                set_window_size(
+                    (options.width, options.height),
+                    scale_factor,
+                    options.scale_policy,
+                );
                 let mut ui = UI::new(Self {
                     handle: window.raw_window_handle(),
                     display_handle: window.raw_display_handle(),
-                    size: (options.width, options.height),
-                    scale_factor,
-                    scale_policy: options.scale_policy,
-                    baseview_window: None,
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
@@ -114,13 +145,14 @@ impl Window {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                     baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
                 } as f32;
+                set_window_size(
+                    (options.width, options.height),
+                    scale_factor,
+                    options.scale_policy,
+                );
                 let mut ui = UI::new(Self {
                     handle: window.raw_window_handle(),
                     display_handle: window.raw_display_handle(),
-                    size: (options.width, options.height),
-                    scale_factor,
-                    scale_policy: options.scale_policy,
-                    baseview_window: None,
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
@@ -152,6 +184,25 @@ unsafe impl HasRawDisplayHandle for Window {
     }
 }
 
+thread_local!(
+    static CURRENT_WINDOW: UnsafeCell<Option<&'static mut baseview::Window<'static>>> = {
+        UnsafeCell::new(None)
+    }
+);
+
+/// Return a reference to the current [`Window`]. Will only return a `Some` value when called during event handling.
+pub fn current_window<'a>() -> &'static mut Option<&'a mut baseview::Window<'a>> {
+    CURRENT_WINDOW.with(|r| unsafe { r.get().as_mut().unwrap() })
+}
+
+fn clear_current_window() {
+    CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
+}
+
+fn set_current_window(window: &'static mut baseview::Window<'static>) {
+    CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
+}
+
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
 impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for BaseViewUI<A> {
     fn on_frame(&mut self, window: &mut baseview::Window) {
@@ -162,8 +213,8 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                         self.ui.update(m);
                     }
                     ParentMessage::Resize => {
-                        let size = self.ui.window.read().unwrap().size;
-                        window.resize(baseview::Size::new(size.0.into(), size.1.into()));
+                        let size = lemna::physical_size().unwrap();
+                        window.resize(baseview::Size::new(size.width.into(), size.height.into()));
                     }
                 }
             }
@@ -180,24 +231,28 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
     ) -> baseview::EventStatus {
         unsafe {
             // We're forcing the window into a static lifetime because we release it at the end of on_event
-            let baseview_window: &'static baseview::Window<'static> = std::mem::transmute::<
-                &baseview::Window,
-                &'static baseview::Window<'static>,
+            let baseview_window: &'static mut baseview::Window<'static> = std::mem::transmute::<
+                &mut baseview::Window,
+                &'static mut baseview::Window<'static>,
             >(window);
-            self.ui.window.write().unwrap().baseview_window = Some(baseview_window);
+            set_current_window(baseview_window);
         }
         match event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
-                    let win = &self.ui.window;
-                    let scale_policy = win.read().unwrap().scale_policy;
-                    win.write().unwrap().scale_factor = match scale_policy {
+                    let window_size = get_window_size();
+                    let scale_policy = window_size.scale_policy;
+                    let scale_factor = match scale_policy {
                         baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
                         baseview::WindowScalePolicy::SystemScaleFactor => window_info.scale(),
                     } as f32;
-                    win.write().unwrap().size = (
-                        window_info.logical_size().width as u32,
-                        window_info.logical_size().height as u32,
+                    set_window_size(
+                        (
+                            window_info.logical_size().width as u32,
+                            window_info.logical_size().height as u32,
+                        ),
+                        scale_factor,
+                        scale_policy,
                     );
                     self.ui.handle_input(&Input::Resize);
                 }
@@ -275,6 +330,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 }
             }
         }
+        clear_current_window();
         baseview::EventStatus::Captured
     }
 }
@@ -402,21 +458,23 @@ fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> {
 
 impl lemna::Window for Window {
     fn logical_size(&self) -> PixelSize {
+        let size = get_window_size();
         PixelSize {
-            width: self.size.0,
-            height: self.size.1,
+            width: size.logical_size.0,
+            height: size.logical_size.1,
         }
     }
 
     fn physical_size(&self) -> PixelSize {
+        let size = get_window_size();
         PixelSize {
-            width: ((self.size.0 as f32) * self.scale_factor) as u32,
-            height: ((self.size.1 as f32) * self.scale_factor) as u32,
+            width: ((size.logical_size.0 as f32) * size.scale_factor) as u32,
+            height: ((size.logical_size.1 as f32) * size.scale_factor) as u32,
         }
     }
 
     fn scale_factor(&self) -> f32 {
-        self.scale_factor
+        get_window_size().scale_factor
     }
 
     fn get_from_clipboard(&self) -> Option<Data> {
@@ -438,7 +496,7 @@ impl lemna::Window for Window {
     }
 
     fn start_drag(&self, data: Data) {
-        if let Some(win) = self.baseview_window {
+        if let Some(win) = current_window() {
             win.start_drag(lemna_data_to_baseview(data));
         }
     }
@@ -465,24 +523,14 @@ impl lemna::Window for Window {
             "SizeWE" => MouseCursor::EwResize,
             _ => MouseCursor::Default,
         };
-        if let Some(win) = self.baseview_window {
-            unsafe {
-                let t = win as *const _ as *const UnsafeCell<baseview::Window>;
-                let baseview_window: &UnsafeCell<baseview::Window> = &*t;
-                let baseview_window: &mut baseview::Window = &mut *baseview_window.get();
-                baseview_window.set_mouse_cursor(ct);
-            }
+        if let Some(win) = current_window() {
+            win.set_mouse_cursor(ct);
         }
     }
 
     fn unset_cursor(&self) {
-        if let Some(win) = self.baseview_window {
-            unsafe {
-                let t = win as *const _ as *const UnsafeCell<baseview::Window>;
-                let baseview_window: &UnsafeCell<baseview::Window> = &*t;
-                let baseview_window: &mut baseview::Window = &mut *baseview_window.get();
-                baseview_window.set_mouse_cursor(MouseCursor::Default);
-            }
+        if let Some(win) = current_window() {
+            win.set_mouse_cursor(MouseCursor::Default);
         }
     }
 }

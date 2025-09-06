@@ -2,9 +2,11 @@ extern crate alloc;
 
 use alloc::string::String;
 
+use super::Renderer;
 use crate::base_types::PixelSize;
 use crate::font_cache::FontCache;
 use crate::node::Node;
+use crate::window::Window;
 
 #[derive(Debug, PartialEq)]
 pub enum Renderable {
@@ -21,14 +23,15 @@ pub struct Caches {
     pub font: FontCache,
 }
 
-pub struct Renderer {}
+#[derive(Debug)]
+pub struct CPURenderer {}
 
-impl Renderer {
-    pub fn new() -> Self {
+impl Renderer for CPURenderer {
+    fn new<W: Window>(window: &W) -> Self {
         Self {}
     }
 
-    pub fn render(&self, node: &Node, caches: &Caches, size: PixelSize) {
+    fn render(&mut self, _node: &Node, _caches: &mut Caches, _physical_size: PixelSize) {
         // TODO
     }
 }

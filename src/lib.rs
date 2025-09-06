@@ -35,9 +35,7 @@ pub mod event;
 #[doc(inline)]
 pub use event::Event;
 
-#[cfg(feature = "std")]
 mod window;
-#[cfg(feature = "std")]
 pub use window::*;
 
 #[macro_use]

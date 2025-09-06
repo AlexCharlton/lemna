@@ -3,17 +3,19 @@ extern crate alloc;
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::marker::PhantomData;
 
+use super::{clear_current_window, set_current_window};
 use crate::base_types::PixelSize;
 use crate::component::Component;
 use crate::event::EventCache;
 use crate::layout::Layout;
 use crate::node::{Node, Registration};
-use crate::render::{Caches, Renderer};
+use crate::render::{ActiveRenderer, Caches, Renderer};
+use crate::window::Window;
 
 pub struct UI<A: Component + Default> {
     node: Node,
     phantom_app: PhantomData<A>,
-    renderer: Renderer,
+    renderer: ActiveRenderer,
     size: PixelSize,
     caches: Caches,
     registrations: Vec<Registration>,
@@ -61,7 +63,8 @@ impl<A: Component + Default + Send + Sync + 'static> super::LemnaUI for UI<A> {
 
     fn render(&mut self) {
         if self.frame_dirty {
-            self.renderer.render(&self.node, &self.caches, self.size);
+            self.renderer
+                .render(&self.node, &mut self.caches, self.size);
             self.frame_dirty = false;
         }
     }
@@ -73,17 +76,24 @@ impl<A: Component + Default + Send + Sync + 'static> super::LemnaUI for UI<A> {
     fn event_cache(&mut self) -> &mut EventCache {
         &mut self.event_cache
     }
+    fn exit(&mut self) {
+        clear_current_window();
+    }
 }
 
 impl<A: Component + Default + Send + Sync + 'static> UI<A> {
-    pub fn new(size: PixelSize) -> Self {
+    pub fn new<W: Window + 'static>(window: W) -> Self {
+        let size = window.physical_size();
         let mut component = A::default();
         component.init();
+        let renderer = ActiveRenderer::new(&window);
+
+        set_current_window(Box::new(window));
         Self {
             node: Node::new(Box::new(component), 0, Layout::default()),
             phantom_app: PhantomData,
             size,
-            renderer: Renderer::new(),
+            renderer,
             caches: Caches::default(),
             registrations: vec![],
             node_dirty: true,

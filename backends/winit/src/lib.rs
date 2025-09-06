@@ -31,7 +31,7 @@ impl Window {
             .with_inner_size(LogicalSize::new(width as f32, height as f32))
             .build(&event_loop)
             .unwrap();
-        let mut ui: UI<Window, A> = UI::new(Window {
+        let mut ui: UI<A> = UI::new(Window {
             winit_window: window,
         });
         for (name, data) in fonts.drain(..) {
@@ -50,7 +50,7 @@ impl Window {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::CursorMoved { position, .. } => {
-                        let scale_factor = ui.window.read().unwrap().winit_window.scale_factor();
+                        let scale_factor = lemna::scale_factor().unwrap();
                         // println!("{:?}", position);
                         ui.handle_input(&Input::Motion(Motion::Mouse {
                             x: position.x as f32 / scale_factor as f32,

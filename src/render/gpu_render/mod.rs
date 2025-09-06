@@ -1,9 +1,4 @@
-use std::fmt;
-
-use crate::base_types::*;
 use crate::font_cache::FontCache;
-use crate::node::Node;
-use crate::window::Window;
 
 pub(crate) mod glyph_brush_draw_cache;
 pub mod renderables;
@@ -25,11 +20,6 @@ pub struct Caches {
     pub text_buffer: BufferCache<renderables::text::Vertex, u16>,
     /// Font cache
     pub font: FontCache,
-}
-
-pub(crate) trait Renderer: fmt::Debug + std::marker::Sized + Send + Sync {
-    fn new<W: Window>(window: &W) -> Self;
-    fn render(&mut self, _node: &Node, _caches: &mut Caches, _physical_size: PixelSize) {}
 }
 
 /// Given an integer, return the next power of 2.

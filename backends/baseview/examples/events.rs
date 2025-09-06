@@ -269,13 +269,12 @@ impl Component for EventReactor {
     fn on_click(&mut self, event: &mut Event<event::Click>) {
         println!("Clicked on {} with {:?}", &self.name, event.input.0);
         match event.input.0 {
-            input::MouseButton::Left => println!(
-                "Got {:?} from the clipboard",
-                lemna::current_window().map(|w| w.get_from_clipboard())
-            ),
+            input::MouseButton::Left => {
+                println!("Got {:?} from the clipboard", lemna::get_from_clipboard())
+            }
             input::MouseButton::Right => {
                 println!("Put `Hello Events!` on the clipboard");
-                lemna::current_window().map(|w| w.put_on_clipboard(&"Hello Events!".into()));
+                lemna::put_on_clipboard(&"Hello Events!".into());
             }
             _ => (),
         };

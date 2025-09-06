@@ -1,22 +1,19 @@
-use std::cell::UnsafeCell;
 use std::marker::PhantomData;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
+use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use log::info;
 
+use super::window::{clear_current_window, current_window, set_current_window};
 use crate::base_types::*;
 use crate::component::Component;
 use crate::event::EventCache;
 use crate::instrumenting::*;
 use crate::layout::*;
 use crate::node::{Node, Registration};
-use crate::render::{Caches, Renderer};
+use crate::render::{ActiveRenderer, Caches, Renderer};
 use crate::window::Window;
-
-// This can become feature-dependant
-type ActiveRenderer = crate::render::wgpu::WGPURenderer;
 
 /// `UI` is the main struct that holds the [`Window`], `Renderer` and [`Node`]s of an app.
 /// It handles events and drawing+rendering.
@@ -29,10 +26,9 @@ type ActiveRenderer = crate::render::wgpu::WGPURenderer;
 /// itself is quite efficient, delays have been observed when fetching
 /// the next frame in the swapchain after resizing on certain platforms.
 /// Event handling happens on the same thread that the [`current_window`] is accessible from.
-pub struct UI<W: Window, A: Component + Default + Send + Sync> {
+pub struct UI<A: Component + Default + Send + Sync> {
     renderer: Arc<RwLock<Option<ActiveRenderer>>>,
     caches: Arc<RwLock<Caches>>,
-    pub window: Arc<RwLock<W>>,
     _render_thread: JoinHandle<()>,
     _draw_thread: JoinHandle<()>,
     render_channel: Sender<()>,
@@ -47,32 +43,7 @@ pub struct UI<W: Window, A: Component + Default + Send + Sync> {
     node_dirty: Arc<RwLock<bool>>,
 }
 
-thread_local!(
-    static CURRENT_WINDOW: UnsafeCell<Option<Arc<RwLock<dyn Window>>>> = {
-        UnsafeCell::new(None)
-    }
-);
-
-/// Return a reference to the current [`Window`]. Will only return a `Some` value when called during event handling.
-pub fn current_window<'a>() -> Option<RwLockReadGuard<'a, dyn Window>> {
-    CURRENT_WINDOW.with(|r| unsafe {
-        r.get()
-            .as_ref()
-            .unwrap()
-            .as_ref()
-            .map(|w| w.read().unwrap())
-    })
-}
-
-fn clear_current_window() {
-    CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
-}
-
-fn set_current_window(window: Arc<RwLock<dyn Window>>) {
-    CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
-}
-
-impl<W: Window, A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<W, A> {
+impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
     /// Signal to the draw thread that it may be time to draw a redraw the app.
     /// This performs three actions:
     /// - View, which calls [`view`][Component#method.view] on the root Component and then recursively across the children of the returned Node, thus recreating the Node graph. This does a number of sub tasks:
@@ -102,20 +73,22 @@ impl<W: Window, A: 'static + Component + Default + Send + Sync> super::LemnaUI f
     }
 
     fn resize(&mut self) {
-        let new_size = self.window.read().unwrap().physical_size();
+        if current_window().is_none() {
+            return;
+        }
+        let new_size = current_window().as_ref().unwrap().physical_size();
         if new_size.width != 0 && new_size.height != 0 {
-            let scale_factor = self.window.read().unwrap().scale_factor();
+            let scale_factor = current_window().as_ref().unwrap().scale_factor();
             *self.physical_size.write().unwrap() = new_size;
-            *self.logical_size.write().unwrap() = self.window.read().unwrap().logical_size();
+            *self.logical_size.write().unwrap() = current_window().as_ref().unwrap().logical_size();
             *self.scale_factor.write().unwrap() = scale_factor;
             self.event_cache.scale_factor = scale_factor;
             *self.node_dirty.write().unwrap() = true;
-            self.window.write().unwrap().redraw(); // Always redraw after resizing
+            current_window().as_ref().unwrap().redraw(); // Always redraw after resizing
         }
     }
 
     fn exit(&mut self) {
-        #[cfg(feature = "std")]
         clear_current_window();
 
         let renderer = self.renderer.write().unwrap().take().unwrap();
@@ -142,9 +115,9 @@ impl<W: Window, A: 'static + Component + Default + Send + Sync> super::LemnaUI f
     }
 }
 
-impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, A> {
+impl<A: 'static + Component + Default + Send + Sync> UI<A> {
     /// Create a new `UI`, given a [`Window`].
-    pub fn new(window: W) -> Self {
+    pub fn new<W: Window + 'static>(window: W) -> Self {
         let scale_factor = Arc::new(RwLock::new(window.scale_factor()));
         // dbg!(scale_factor);
         let physical_size = Arc::new(RwLock::new(window.physical_size()));
@@ -159,9 +132,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
 
         let renderer = Arc::new(RwLock::new(Some(ActiveRenderer::new(&window))));
         let event_cache = EventCache::new(window.scale_factor());
-        let window = Arc::new(RwLock::new(window));
-        #[cfg(feature = "std")]
-        set_current_window(window.clone());
+        set_current_window(Box::new(window));
 
         // Root node
         let node = Arc::new(RwLock::new(Node::new(
@@ -196,7 +167,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             frame_dirty,
             node_dirty.clone(),
             registrations.clone(),
-            window.clone(),
         );
 
         let n = Self {
@@ -206,7 +176,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
             _render_thread: render_thread,
             draw_channel,
             _draw_thread: draw_thread,
-            window,
             node,
             phantom_app: PhantomData,
             registrations,
@@ -257,7 +226,6 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
         frame_dirty: Arc<RwLock<bool>>,
         node_dirty: Arc<RwLock<bool>>,
         registrations: Arc<RwLock<Vec<Registration>>>,
-        window: Arc<RwLock<W>>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             for _ in receiver.iter() {
@@ -295,7 +263,7 @@ impl<W: 'static + Window, A: 'static + Component + Default + Send + Sync> UI<W, 
                         *old = new;
 
                         if do_render {
-                            window.write().unwrap().redraw();
+                            current_window().as_ref().unwrap().redraw();
                         }
                         *frame_dirty.write().unwrap() = true;
                     }
