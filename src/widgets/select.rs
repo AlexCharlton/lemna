@@ -7,7 +7,7 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::layout::*;
-use crate::render::{Renderable, renderables::shape::Shape};
+use crate::render::Renderable;
 use crate::style::{HorizontalPosition, Styled, current_style};
 use crate::{Node, node, txt};
 use lemna_macros::{component, state_component_impl};
@@ -207,7 +207,9 @@ struct Caret {
 }
 
 impl Component for Caret {
+    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        use crate::render::renderables::shape::Shape;
         use lyon::path::Path;
         use lyon::tessellation::math as lyon_math;
 
@@ -234,6 +236,11 @@ impl Component for Caret {
                 _ => None,
             }),
         ))])
+    }
+
+    #[cfg(feature = "cpu_renderer")]
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        todo!()
     }
 }
 

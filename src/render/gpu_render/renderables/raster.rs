@@ -1,9 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 
 use super::{BufferCache, BufferCacheId};
-use super::{RasterCache, RasterCacheId, RasterData};
-use crate::base_types::{Point, Pos, AABB};
+use super::{RasterCache, RasterCacheId};
 use crate::PixelSize;
+use crate::base_types::{AABB, Point, Pos};
+use crate::render::RasterData;
 
 const INDEX_ENTRIES_PER_IMAGE: usize = 6;
 const VERTEX_ENTRIES_PER_IMAGE: usize = 4;

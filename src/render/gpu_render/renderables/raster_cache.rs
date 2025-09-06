@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::PixelSize;
+use crate::{PixelSize, render::RasterData};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RasterCacheId(usize);
@@ -34,43 +34,6 @@ pub struct RasterCacheData {
     /// Rasters are unmarked at the start of a render pass and marked as each renderable renders to them
     /// Rasters that remain unmarked at the end of the pass are free to be claimed for new renderables
     marked: bool,
-}
-
-pub enum RasterData {
-    Vec(Vec<u8>),
-    Slice(&'static [u8]),
-}
-
-impl std::fmt::Debug for RasterData {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let (t, len) = match self {
-            RasterData::Slice(d) => ("Slice", d.len()),
-            RasterData::Vec(d) => ("Vec", d.len()),
-        };
-        write!(f, "RasterData::{}<len: {}>", t, len)?;
-        Ok(())
-    }
-}
-
-impl From<&'static [u8]> for RasterData {
-    fn from(d: &'static [u8]) -> Self {
-        RasterData::Slice(d)
-    }
-}
-
-impl From<Vec<u8>> for RasterData {
-    fn from(d: Vec<u8>) -> Self {
-        RasterData::Vec(d)
-    }
-}
-
-impl<'a> From<&'a RasterData> for &'a [u8] {
-    fn from(d: &'a RasterData) -> &'a [u8] {
-        match d {
-            RasterData::Vec(v) => &v[..],
-            RasterData::Slice(s) => s,
-        }
-    }
 }
 
 impl RasterCacheData {

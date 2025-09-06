@@ -1,12 +1,12 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, vec, vec::Vec};
+use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::font_cache::{FontCache, TextSegment};
-use crate::render::{Renderable, renderables::text};
+use crate::render::Renderable;
 use crate::style::{HorizontalPosition, Styled};
 use lemna_macros::{component, state_component_impl};
 
@@ -125,7 +125,10 @@ impl Component for Text {
         output
     }
 
+    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        use crate::render::renderables::text::Text;
+
         let h_alignment: HorizontalPosition =
             self.style_val("h_alignment").unwrap().horizontal_position();
         let font = self.style_val("font").map(|p| p.str().to_string());
@@ -145,7 +148,7 @@ impl Component for Text {
         if glyphs.is_empty() {
             Some(vec![])
         } else {
-            Some(vec![Renderable::Text(text::Text::new(
+            Some(vec![Renderable::Text(Text::new(
                 glyphs,
                 Pos::default(),
                 color,
@@ -156,5 +159,10 @@ impl Component for Text {
                 }),
             ))])
         }
+    }
+
+    #[cfg(feature = "cpu_renderer")]
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        todo!()
     }
 }

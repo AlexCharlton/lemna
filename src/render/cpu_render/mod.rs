@@ -8,9 +8,15 @@ use crate::font_cache::FontCache;
 use crate::node::Node;
 use crate::window::Window;
 
+mod rect;
+
+pub mod renderables {
+    pub use super::rect::Rect;
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Renderable {
-    Rect,   // (Rect),
+    Rect(rect::Rect),
     Shape,  //(Shape),
     Text,   //(Text),
     Raster, //(Raster),

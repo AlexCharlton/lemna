@@ -7,10 +7,7 @@ use core::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
-use crate::render::{
-    Renderable,
-    renderables::shape::{self, Shape},
-};
+use crate::render::Renderable;
 use crate::style::Styled;
 use lemna_macros::{component, state_component_impl};
 
@@ -86,7 +83,9 @@ impl Component for Toggle {
         self.state_ref().pressed.hash(hasher);
     }
 
+    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        use crate::render::renderables::shape::{self, Shape};
         use lyon::tessellation::math as lyon_math;
         use lyon::tessellation::{self, basic_shapes};
 
@@ -143,5 +142,10 @@ impl Component for Toggle {
                 _ => None,
             }),
         ))])
+    }
+
+    #[cfg(feature = "cpu_renderer")]
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        todo!()
     }
 }

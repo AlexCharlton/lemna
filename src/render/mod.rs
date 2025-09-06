@@ -1,3 +1,8 @@
+extern crate alloc;
+
+use alloc::vec::Vec;
+use core::fmt;
+
 use crate::base_types::*;
 use crate::node::Node;
 use crate::window::Window;
@@ -32,3 +37,40 @@ pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync 
 pub type ActiveRenderer = crate::render::wgpu::WGPURenderer;
 #[cfg(feature = "cpu_renderer")]
 pub type ActiveRenderer = crate::render::cpu_render::CPURenderer;
+
+pub enum RasterData {
+    Vec(Vec<u8>),
+    Slice(&'static [u8]),
+}
+
+impl fmt::Debug for RasterData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let (t, len) = match self {
+            RasterData::Slice(d) => ("Slice", d.len()),
+            RasterData::Vec(d) => ("Vec", d.len()),
+        };
+        write!(f, "RasterData::{}<len: {}>", t, len)?;
+        Ok(())
+    }
+}
+
+impl From<&'static [u8]> for RasterData {
+    fn from(d: &'static [u8]) -> Self {
+        RasterData::Slice(d)
+    }
+}
+
+impl From<Vec<u8>> for RasterData {
+    fn from(d: Vec<u8>) -> Self {
+        RasterData::Vec(d)
+    }
+}
+
+impl<'a> From<&'a RasterData> for &'a [u8] {
+    fn from(d: &'a RasterData) -> &'a [u8] {
+        match d {
+            RasterData::Vec(v) => &v[..],
+            RasterData::Slice(s) => s,
+        }
+    }
+}

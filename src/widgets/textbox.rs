@@ -17,10 +17,7 @@ use crate::event;
 use crate::font_cache::{FontCache, TextSegment};
 use crate::input::Key;
 use crate::layout::ScrollPosition;
-use crate::render::{
-    Renderable,
-    renderables::{Rect, Text},
-};
+use crate::render::{Renderable, renderables::Rect};
 use crate::style::{HorizontalPosition, Styled};
 use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
@@ -727,7 +724,10 @@ impl Component for TextBoxText {
         )
     }
 
+    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        use crate::render::renderables::text::Text;
+
         let cursor_z = 2.0;
         let text_z = 5.0;
         let font_size: f32 =
@@ -788,5 +788,10 @@ impl Component for TextBoxText {
         }
 
         Some(renderables)
+    }
+
+    #[cfg(feature = "cpu_renderer")]
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        todo!()
     }
 }

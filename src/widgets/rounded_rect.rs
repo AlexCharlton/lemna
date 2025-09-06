@@ -3,16 +3,9 @@ extern crate alloc;
 use alloc::{vec, vec::Vec};
 use core::hash::Hash;
 
-use lyon::tessellation;
-use lyon::tessellation::basic_shapes;
-use lyon::tessellation::math as lyon_math;
-
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
-use crate::render::{
-    Renderable,
-    renderables::shape::{self, Shape},
-};
+use crate::render::Renderable;
 
 #[derive(Debug)]
 pub struct RoundedRect {
@@ -60,7 +53,13 @@ impl Component for RoundedRect {
         (self.radius.3 as i32).hash(hasher);
     }
 
+    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        use crate::render::renderables::shape::{self, Shape};
+        use lyon::tessellation;
+        use lyon::tessellation::basic_shapes;
+        use lyon::tessellation::math as lyon_math;
+
         let mut geometry = shape::ShapeGeometry::new();
         let rect = lyon_math::rect(0.0, 0.0, context.aabb.width(), context.aabb.height());
         let radii = basic_shapes::BorderRadii {
@@ -107,5 +106,10 @@ impl Component for RoundedRect {
                 _ => None,
             }),
         ))])
+    }
+
+    #[cfg(feature = "cpu_renderer")]
+    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
+        todo!()
     }
 }
