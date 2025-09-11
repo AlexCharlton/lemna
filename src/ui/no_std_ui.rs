@@ -3,6 +3,9 @@ extern crate alloc;
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::marker::PhantomData;
 
+use embedded_graphics::draw_target::DrawTarget;
+use embedded_graphics::prelude::PixelColor;
+
 use super::{clear_current_window, set_current_window};
 use crate::base_types::PixelSize;
 use crate::component::Component;
@@ -12,9 +15,10 @@ use crate::node::{Node, Registration};
 use crate::render::{ActiveRenderer, Caches, Renderer};
 use crate::window::Window;
 
-pub struct UI<A: Component + Default> {
+pub struct UI<A: Component + Default, D: DrawTarget<Color = C, Error = E>, C: PixelColor, E> {
     node: Node,
     phantom_app: PhantomData<A>,
+    draw_target: D,
     renderer: ActiveRenderer,
     size: PixelSize,
     caches: Caches,
@@ -24,7 +28,13 @@ pub struct UI<A: Component + Default> {
     event_cache: EventCache,
 }
 
-impl<A: Component + Default + Send + Sync + 'static> super::LemnaUI for UI<A> {
+impl<
+    A: Component + Default + Send + Sync + 'static,
+    D: DrawTarget<Color = C, Error = E>,
+    C: PixelColor,
+    E,
+> super::LemnaUI for UI<A, D, C, E>
+{
     fn with_node<F, R>(&mut self, f: F) -> R
     where
         F: FnOnce(&mut Node) -> R,
@@ -63,8 +73,12 @@ impl<A: Component + Default + Send + Sync + 'static> super::LemnaUI for UI<A> {
 
     fn render(&mut self) {
         if self.frame_dirty {
-            self.renderer
-                .render(&self.node, &mut self.caches, self.size);
+            self.renderer.render(
+                &mut self.draw_target,
+                &self.node,
+                &mut self.caches,
+                self.size,
+            );
             self.frame_dirty = false;
         }
     }
@@ -81,8 +95,14 @@ impl<A: Component + Default + Send + Sync + 'static> super::LemnaUI for UI<A> {
     }
 }
 
-impl<A: Component + Default + Send + Sync + 'static> UI<A> {
-    pub fn new<W: Window + 'static>(window: W) -> Self {
+impl<
+    A: Component + Default + Send + Sync + 'static,
+    D: DrawTarget<Color = C, Error = E>,
+    C: PixelColor,
+    E,
+> UI<A, D, C, E>
+{
+    pub fn new<W: Window + 'static>(window: W, draw_target: D) -> Self {
         let size = window.physical_size();
         let mut component = A::default();
         component.init();
@@ -92,6 +112,7 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
         Self {
             node: Node::new(Box::new(component), 0, Layout::default()),
             phantom_app: PhantomData,
+            draw_target,
             size,
             renderer,
             caches: Caches::default(),

@@ -30,6 +30,20 @@ pub use cpu_render::*;
 
 pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync {
     fn new<W: Window>(window: &W) -> Self;
+    #[cfg(feature = "cpu_renderer")]
+    fn render<
+        D: embedded_graphics::draw_target::DrawTarget<Color = C, Error = E>,
+        C: embedded_graphics::pixelcolor::RgbColor,
+        E: core::fmt::Debug,
+    >(
+        &mut self,
+        _draw_target: &mut D,
+        _node: &Node,
+        _caches: &mut Caches,
+        _physical_size: PixelSize,
+    ) {
+    }
+    #[cfg(not(feature = "cpu_renderer"))]
     fn render(&mut self, _node: &Node, _caches: &mut Caches, _physical_size: PixelSize) {}
 }
 

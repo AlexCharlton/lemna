@@ -9,9 +9,9 @@ pub use canvas::Canvas;
 mod div;
 pub use div::Div;
 
-#[cfg(feature = "file-dialogs")]
+#[cfg(feature = "file_dialogs")]
 mod file_selector;
-#[cfg(feature = "file-dialogs")]
+#[cfg(feature = "file_dialogs")]
 pub use file_selector::*;
 
 mod radio_buttons;

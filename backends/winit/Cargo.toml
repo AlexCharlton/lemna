@@ -3,16 +3,21 @@ name = "lemna-winit"
 version = "0.4.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "winit windowing backend support for lemna"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/AlexCharlton/lemna"
 documentation = "https://docs.rs/lemna"
 license = "MIT"
 
 [features]
+default = ["gpu_renderer"]
 instrumented = ["lemna/instrumented"]
+cpu_renderer = ["lemna/std_cpu"]
+gpu_renderer = ["lemna/wgpu_renderer"]
 
 [dependencies]
-lemna = { path = "../../", version = "0.4" }
+lemna = { path = "../../", version = "0.4", default-features = false, features = [
+    "std",
+] }
 raw-window-handle = { workspace = true }
 winit = { version = "0.28" }
 

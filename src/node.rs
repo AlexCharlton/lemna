@@ -87,7 +87,9 @@ pub struct Node {
     pub(crate) children: Vec<Node>,
     pub(crate) layout: Layout,
     pub(crate) layout_result: LayoutResult,
+    // The AABB of this component
     pub(crate) aabb: AABB,
+    // The AABB of this component and all its children
     pub(crate) inclusive_aabb: AABB,
     // TODO: Marking a node dirty should propagate to all its parents.
     //   Clean nodes can be fully recycled instead of performing a `view`
@@ -857,51 +859,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use crate::render::{Renderable, Renderer};
-    use crate::window::Window;
-    use raw_window_handle::{
-        HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
-    };
-
-    pub struct TestWindow {}
-    impl Window for TestWindow {
-        fn logical_size(&self) -> PixelSize {
-            PixelSize {
-                width: 100,
-                height: 100,
-            }
-        }
-
-        fn physical_size(&self) -> PixelSize {
-            PixelSize {
-                width: 100,
-                height: 100,
-            }
-        }
-
-        fn scale_factor(&self) -> f32 {
-            1.0
-        }
-    }
-    unsafe impl HasRawWindowHandle for TestWindow {
-        fn raw_window_handle(&self) -> RawWindowHandle {
-            panic!("Can't get windows handle in a test")
-        }
-    }
-
-    unsafe impl HasRawDisplayHandle for TestWindow {
-        fn raw_display_handle(&self) -> RawDisplayHandle {
-            panic!("Can't get windows handle in a test")
-        }
-    }
-
-    #[derive(Debug)]
-    pub struct TestRenderer {}
-    impl Renderer for TestRenderer {
-        fn new<W: Window>(_window: &W) -> Self {
-            Self {}
-        }
-    }
+    use crate::render::Renderable;
 
     mod container {
         use super::*;

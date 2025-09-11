@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use lemna::*;
 
 #[derive(Debug)]
@@ -31,8 +29,9 @@ enum HelloEvent {
         selection: Vec<usize>,
     },
     Toggle(bool),
+    #[cfg(feature = "file_dialogs")]
     FileSelect {
-        selection: Option<PathBuf>,
+        selection: Option<std::path::PathBuf>,
     },
 }
 
@@ -56,7 +55,8 @@ impl lemna::Component for App {
     }
 
     fn view(&self) -> Option<Node> {
-        Some(
+        #[allow(unused_mut)] // Feature-conditional
+        let mut node =
             node!(
                 widgets::Div::new(),
                 [wrap: true, size_pct: [100], cross_alignment: End]
@@ -89,11 +89,6 @@ impl lemna::Component for App {
                     name: "jk, I'm just another button!".to_string()
                 }))),
                 [size: [Auto]]
-            ))
-            .push(node!(
-                widgets::FileSelector::new("Choose a file".to_string())
-                    .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
-                [size: [Auto], margin: [Auto, Auto, 50]]
             ))
             .push(node!(
                 widgets::Select::<String>::new(
@@ -147,8 +142,16 @@ impl lemna::Component for App {
                 )
                 .on_change(Box::new(|s| msg!(HelloEvent::Toggle(s)))),
                 [margin: [10]]
-            )),
-        )
+            ));
+        #[cfg(feature = "file_dialogs")]
+        {
+            node = node.push(node!(
+            widgets::FileSelector::new("Choose a file".to_string())
+                    .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
+                [size: [Auto], margin: [Auto, Auto, 50]]
+            ));
+        }
+        Some(node)
     }
 
     fn update(&mut self, message: Message) -> Vec<Message> {

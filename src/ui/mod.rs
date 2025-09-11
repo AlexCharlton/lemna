@@ -534,7 +534,13 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
 }
 
 #[cfg(not(feature = "std"))]
-impl<A: Component + Default + Send + Sync + 'static> UI<A> {
+impl<
+    A: Component + Default + Send + Sync + 'static,
+    D: embedded_graphics::draw_target::DrawTarget<Color = C, Error = E>,
+    C: embedded_graphics::pixelcolor::PixelColor,
+    E,
+> UI<A, D, C, E>
+{
     /// Signal to draw the app.
     pub fn draw(&mut self) {
         LemnaUI::draw(self)

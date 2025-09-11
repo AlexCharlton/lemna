@@ -3,19 +3,25 @@ name = "lemna-baseview"
 version = "0.4.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "Baseview windowing backend support for lemna"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/AlexCharlton/lemna"
 documentation = "https://docs.rs/lemna"
 license = "MIT"
 
 [features]
+default = ["gpu_renderer"]
 instrumented = ["lemna/instrumented"]
+cpu_renderer = ["lemna/std_cpu"]
+gpu_renderer = ["lemna/wgpu_renderer"]
+file_dialogs = ["lemna/file_dialogs"]
 
 [dependencies]
 arboard = "3.2"
 baseview = { workspace = true }
 keyboard-types = "0.6"
-lemna = { path = "../../", version = "0.4", features = ["std", "file-dialogs"] }
+lemna = { path = "../../", version = "0.4", default-features = false, features = [
+    "std",
+] }
 raw-window-handle = { workspace = true }
 crossbeam-channel = "0.4"
 
@@ -26,6 +32,7 @@ lyon = { workspace = true }
 png = "0.17.9"
 simplelog = { workspace = true }
 ttf-noto-sans = { workspace = true }
+lemna = { path = "../../", features = ["open_iconic"] }
 
 [[example]]
 name = "tut1"
