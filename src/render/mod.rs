@@ -28,12 +28,71 @@ mod cpu_render;
 #[cfg(feature = "cpu_renderer")]
 pub use cpu_render::*;
 
+#[cfg(feature = "cpu_renderer")]
+mod rgb_color {
+    use embedded_graphics::pixelcolor;
+    pub trait RgbColor: embedded_graphics::prelude::RgbColor {
+        fn new(r: u8, g: u8, b: u8) -> Self;
+    }
+
+    impl RgbColor for pixelcolor::Rgb888 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Rgb888::new(r, g, b)
+        }
+    }
+
+    impl RgbColor for pixelcolor::Rgb565 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Rgb565::new(r, g, b)
+        }
+    }
+
+    impl RgbColor for pixelcolor::Rgb666 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Rgb666::new(r, g, b)
+        }
+    }
+
+    impl RgbColor for pixelcolor::Rgb555 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Rgb555::new(r, g, b)
+        }
+    }
+
+    impl RgbColor for pixelcolor::Bgr888 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Bgr888::new(r, g, b)
+        }
+    }
+
+    impl RgbColor for pixelcolor::Bgr565 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Bgr565::new(r, g, b)
+        }
+    }
+
+    impl RgbColor for pixelcolor::Bgr666 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Bgr666::new(r, g, b)
+        }
+    }
+
+    impl RgbColor for pixelcolor::Bgr555 {
+        fn new(r: u8, g: u8, b: u8) -> Self {
+            pixelcolor::Bgr555::new(r, g, b)
+        }
+    }
+}
+
+#[cfg(feature = "cpu_renderer")]
+pub use rgb_color::*;
+
 pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync {
     fn new<W: Window>(window: &W) -> Self;
     #[cfg(feature = "cpu_renderer")]
     fn render<
         D: embedded_graphics::draw_target::DrawTarget<Color = C, Error = E>,
-        C: embedded_graphics::pixelcolor::RgbColor,
+        C: RgbColor,
         E: core::fmt::Debug,
     >(
         &mut self,

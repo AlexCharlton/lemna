@@ -98,19 +98,21 @@ impl Window {
 }
 
 impl lemna::Window for Window {
-    // TODO: This isn't good
-
     fn logical_size(&self) -> PixelSize {
         let size = self.winit_window.inner_size();
+        let scale_factor = self.scale_factor();
         PixelSize {
-            width: size.width,
-            height: size.width,
+            width: (size.width as f32 / scale_factor) as u32,
+            height: (size.height as f32 / scale_factor) as u32,
         }
     }
 
     fn physical_size(&self) -> PixelSize {
-        // let size = self.winit_window.inner_size();
-        self.logical_size() // This should transform to device size
+        let size = self.winit_window.inner_size();
+        PixelSize {
+            width: size.width,
+            height: size.height,
+        }
     }
 
     fn scale_factor(&self) -> f32 {

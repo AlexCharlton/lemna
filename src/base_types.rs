@@ -399,6 +399,7 @@ impl SubAssign for Pos {
     }
 }
 
+#[allow(dead_code)]
 /// An Axis-Aligned Bounding Box, in pixels.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 #[repr(C)]
@@ -407,6 +408,7 @@ pub(crate) struct PixelAABB {
     pub bottom_right: PixelPoint,
 }
 
+#[allow(dead_code)]
 impl PixelAABB {
     pub fn normalize(&self, scale: PixelSize) -> (Point, Point) {
         (
@@ -611,6 +613,32 @@ impl Div<f32> for AABB {
                 y: self.bottom_right.y / f,
             },
         }
+    }
+}
+
+#[cfg(feature = "cpu_renderer")]
+impl From<AABB> for tiny_skia::Rect {
+    fn from(aabb: AABB) -> Self {
+        tiny_skia::Rect::from_ltrb(
+            aabb.pos.x,
+            aabb.pos.y,
+            aabb.bottom_right.x,
+            aabb.bottom_right.y,
+        )
+        .unwrap()
+    }
+}
+
+#[cfg(feature = "cpu_renderer")]
+impl From<&AABB> for tiny_skia::Rect {
+    fn from(aabb: &AABB) -> Self {
+        tiny_skia::Rect::from_ltrb(
+            aabb.pos.x,
+            aabb.pos.y,
+            aabb.bottom_right.x,
+            aabb.bottom_right.y,
+        )
+        .unwrap()
     }
 }
 
@@ -823,6 +851,20 @@ impl From<Color> for [f32; 4] {
     /// Converts a Color into an array of floats `[R, G, B, A]`.
     fn from(c: Color) -> Self {
         unsafe { mem::transmute(c) }
+    }
+}
+
+#[cfg(feature = "cpu_renderer")]
+impl From<Color> for tiny_skia::Color {
+    fn from(c: Color) -> Self {
+        tiny_skia::Color::from_rgba(c.r, c.g, c.b, c.a).unwrap()
+    }
+}
+
+#[cfg(feature = "cpu_renderer")]
+impl From<&Color> for tiny_skia::Color {
+    fn from(c: &Color) -> Self {
+        tiny_skia::Color::from_rgba(c.r, c.g, c.b, c.a).unwrap()
     }
 }
 

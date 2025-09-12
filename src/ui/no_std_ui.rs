@@ -4,7 +4,6 @@ use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::marker::PhantomData;
 
 use embedded_graphics::draw_target::DrawTarget;
-use embedded_graphics::prelude::PixelColor;
 
 use super::{clear_current_window, set_current_window};
 use crate::base_types::PixelSize;
@@ -12,10 +11,15 @@ use crate::component::Component;
 use crate::event::EventCache;
 use crate::layout::Layout;
 use crate::node::{Node, Registration};
-use crate::render::{ActiveRenderer, Caches, Renderer};
+use crate::render::{ActiveRenderer, Caches, Renderer, RgbColor};
 use crate::window::Window;
 
-pub struct UI<A: Component + Default, D: DrawTarget<Color = C, Error = E>, C: PixelColor, E> {
+pub struct UI<
+    A: Component + Default,
+    D: DrawTarget<Color = C, Error = E>,
+    C: RgbColor,
+    E: core::fmt::Debug,
+> {
     node: Node,
     phantom_app: PhantomData<A>,
     draw_target: D,
@@ -31,8 +35,8 @@ pub struct UI<A: Component + Default, D: DrawTarget<Color = C, Error = E>, C: Pi
 impl<
     A: Component + Default + Send + Sync + 'static,
     D: DrawTarget<Color = C, Error = E>,
-    C: PixelColor,
-    E,
+    C: RgbColor,
+    E: core::fmt::Debug,
 > super::LemnaUI for UI<A, D, C, E>
 {
     fn with_node<F, R>(&mut self, f: F) -> R
@@ -98,8 +102,8 @@ impl<
 impl<
     A: Component + Default + Send + Sync + 'static,
     D: DrawTarget<Color = C, Error = E>,
-    C: PixelColor,
-    E,
+    C: RgbColor,
+    E: core::fmt::Debug,
 > UI<A, D, C, E>
 {
     pub fn new<W: Window + 'static>(window: W, draw_target: D) -> Self {

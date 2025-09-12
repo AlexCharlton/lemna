@@ -817,6 +817,8 @@ pub(crate) struct NodeRenderableIterator<'a> {
 }
 
 impl<'a> Iterator for NodeRenderableIterator<'a> {
+    // The vec of frames is the stack of frames that the current node is in
+    // Note that child frames may extend outside of the parent frame
     type Item = (&'a Renderable, &'a AABB, Vec<ScrollFrame>);
 
     fn next(&mut self) -> Option<Self::Item> {

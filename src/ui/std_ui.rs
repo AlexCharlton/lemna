@@ -392,17 +392,19 @@ impl embedded_graphics::draw_target::DrawTarget for SoftBufferDrawTarget {
         );
         let target_area = self_area.intersection(area);
         if let Some(bottom_right) = target_area.bottom_right() {
+            // bottom right is inclusive
+            let mut index = 0;
             let mut x = target_area.top_left.x;
             let mut y = target_area.top_left.y;
             for color in colors {
-                if x >= bottom_right.x {
+                if x > bottom_right.x {
                     x = target_area.top_left.x;
                     y += 1;
-                } else if y >= bottom_right.y {
+                } else if y > bottom_right.y {
                     break;
                 }
-                let index = y as usize * self.size.width as usize + x as usize;
                 buffer[index] = color.into_storage();
+                index += 1;
                 x += 1;
             }
         }

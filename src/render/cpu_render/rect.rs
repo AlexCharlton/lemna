@@ -2,9 +2,9 @@ use crate::base_types::{Color, Pos, Scale};
 
 #[derive(Debug, PartialEq)]
 pub struct Rect {
-    pos: Pos,
-    scale: Scale,
-    color: Color,
+    pub pos: Pos,
+    pub scale: Scale,
+    pub color: Color,
 }
 
 impl Rect {

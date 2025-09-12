@@ -537,8 +537,8 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
 impl<
     A: Component + Default + Send + Sync + 'static,
     D: embedded_graphics::draw_target::DrawTarget<Color = C, Error = E>,
-    C: embedded_graphics::pixelcolor::PixelColor,
-    E,
+    C: crate::render::RgbColor,
+    E: core::fmt::Debug,
 > UI<A, D, C, E>
 {
     /// Signal to draw the app.

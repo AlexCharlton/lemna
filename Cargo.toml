@@ -37,7 +37,7 @@ wgpu_renderer = [
     "lyon",
     "std",
 ]
-cpu_renderer = ["embedded-graphics"]
+cpu_renderer = ["embedded-graphics", "tiny-skia"]
 # For std environments where we don't want to use wgpu
 std_cpu = ["cpu_renderer", "std", "softbuffer"]
 
@@ -84,6 +84,8 @@ embed-doc-image = { version = "0.1", optional = true }
 lyon = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
 softbuffer = { version = "0.3", optional = true }
+tiny-skia = { version = "0.11", optional = true }
+
 # For glyph_brush_draw_cache
 ab_glyph = { version = "0.2.2", optional = true }
 linked-hash-map = { version = "0.5", optional = true }
