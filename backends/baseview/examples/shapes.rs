@@ -17,7 +17,6 @@ impl lemna::Component for App {
         );
         path_builder.close();
         let path1 = path_builder.build();
-        let (geom1, index_count1) = Shape::path_to_shape_geometry(path1, true, true);
 
         let mut path_builder = Path::builder();
         path_builder.begin(lyon_math::point(200.0, 200.0));
@@ -26,7 +25,6 @@ impl lemna::Component for App {
             .quadratic_bezier_to(lyon_math::point(10.0, 200.0), lyon_math::point(10.0, 100.0));
         path_builder.close();
         let path2 = path_builder.build();
-        let (geom2, index_count2) = Shape::path_to_shape_geometry(path2, true, false);
 
         let mut path_builder = Path::builder();
         path_builder.begin(lyon_math::point(230.0, 20.0));
@@ -34,46 +32,47 @@ impl lemna::Component for App {
             lyon_math::point(230.0, 100.0),
             lyon_math::point(330.0, 200.0),
         );
-        path_builder.close();
+        path_builder.end(false); // Don't close the path
         let path3 = path_builder.build();
-        let (geom3, _) = Shape::path_to_shape_geometry(path3, false, true);
 
         let shape1 = Renderable::Shape(Shape::new(
-            geom1,
-            index_count1,
+            path1,
             [1.0, 0.0, 0.0].into(),
             [0.0, 0.0, 0.0].into(),
             4.0,
             0.0,
-            &mut context.caches.shape_buffer,
-            context.prev_state.as_ref().and_then(|v| match v.first() {
-                Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                _ => None,
-            }),
+            context.caches,
+            context
+                .prev_state
+                .as_ref()
+                .and_then(|r| r.first())
+                .and_then(|r| r.as_shape()),
         ));
         let shape2 = Renderable::Shape(Shape::new(
-            geom2,
-            index_count2,
-            [0.0, 1.0, 0.3].into(),
-            [1.0, 1.0, 1.0].into(),
+            path2,
+            [0.0, 1.0, 1.0].into(),
+            Color::TRANSPARENT,
+            4.0,
             0.0,
-            0.0,
-            &mut context.caches.shape_buffer,
-            context.prev_state.as_ref().and_then(|v| match v.get(1) {
-                Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                _ => None,
-            }),
+            context.caches,
+            context
+                .prev_state
+                .as_ref()
+                .and_then(|r| r.get(1))
+                .and_then(|r| r.as_shape()),
         ));
-        let shape3 = Renderable::Shape(Shape::stroke(
-            geom3,
+        let shape3 = Renderable::Shape(Shape::new(
+            path3,
+            Color::TRANSPARENT,
             [0.0, 1.0, 0.0].into(),
             6.0,
             0.0,
-            &mut context.caches.shape_buffer,
-            context.prev_state.as_ref().and_then(|v| match v.get(2) {
-                Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                _ => None,
-            }),
+            context.caches,
+            context
+                .prev_state
+                .as_ref()
+                .and_then(|r| r.get(2))
+                .and_then(|r| r.as_shape()),
         ));
 
         Some(vec![shape1, shape2, shape3])

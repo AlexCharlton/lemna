@@ -9,11 +9,12 @@ documentation = "https://docs.rs/lemna"
 license = "MIT"
 
 [features]
-default = ["gpu_renderer"]
+default = ["gpu_renderer", "msaa_shapes"]
 instrumented = ["lemna/instrumented"]
 cpu_renderer = ["lemna/std_cpu"]
 gpu_renderer = ["lemna/wgpu_renderer"]
 file_dialogs = ["lemna/file_dialogs"]
+msaa_shapes = ["gpu_renderer", "lemna/msaa_shapes"]
 
 [dependencies]
 arboard = "3.2"

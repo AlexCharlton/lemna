@@ -100,11 +100,8 @@ impl Component for Toggle {
         builder.add_circle(center, radius, lyon::path::Winding::Positive);
         let path = builder.build();
 
-        let (geometry, fill_count) = Shape::path_to_shape_geometry(path, true, border_width > 0.0);
-
         Some(vec![Renderable::Shape(Shape::new(
-            geometry,
-            fill_count,
+            path,
             if self.state_ref().pressed {
                 highlight_color
             } else if self.active {
@@ -115,11 +112,12 @@ impl Component for Toggle {
             border_color,
             border_width * 0.5,
             0.0,
-            &mut context.caches.shape_buffer,
-            context.prev_state.as_ref().and_then(|v| match v.first() {
-                Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                _ => None,
-            }),
+            context.caches,
+            context
+                .prev_state
+                .as_ref()
+                .and_then(|r| r.first())
+                .and_then(|r| r.as_shape()),
         ))])
     }
 

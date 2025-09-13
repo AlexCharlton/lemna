@@ -8,7 +8,7 @@ mod context;
 use crate::base_types::{AABB, PixelSize};
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
-use crate::render::{Caches, renderables::*};
+use crate::render::{Caches, Renderable, renderables::*};
 use crate::window::Window;
 
 pub mod pipelines;

@@ -8,6 +8,7 @@ use lyon::tessellation;
 use lyon::tessellation::geometry_builder::VertexBuffers;
 
 use super::{BufferCache, BufferCacheId};
+use crate::Caches;
 use crate::base_types::{AABB, Color, Point, Pos};
 
 pub type ShapeGeometry = VertexBuffers<Vertex, u16>;
@@ -127,15 +128,20 @@ impl fmt::Debug for Shape {
 }
 
 impl Shape {
-    pub fn is_stroked(&self) -> bool {
+    pub(crate) fn is_stroked(&self) -> bool {
         self.stroke_width > 0.0
     }
 
-    pub fn is_filled(&self) -> bool {
+    pub(crate) fn is_filled(&self) -> bool {
         self.fill_range.start < self.fill_range.end
     }
 
-    pub fn path_to_shape_geometry(path: Path, fill: bool, stroke: bool) -> (ShapeGeometry, u32) {
+    fn path_to_shape_geometry(
+        path: Path,
+        fill: bool,
+        stroke: bool,
+        stroke_width: f32,
+    ) -> (ShapeGeometry, u32) {
         let mut geometry = ShapeGeometry::new();
 
         if fill {
@@ -152,7 +158,8 @@ impl Shape {
             tessellation::StrokeTessellator::new()
                 .tessellate_path(
                     &path,
-                    &tessellation::StrokeOptions::tolerance(TOLERANCE).with_line_width(0.01),
+                    &tessellation::StrokeOptions::tolerance(TOLERANCE)
+                        .with_line_width(stroke_width),
                     &mut tessellation::BuffersBuilder::new(&mut geometry, VertexConstructor {}),
                 )
                 .unwrap();
@@ -162,16 +169,23 @@ impl Shape {
     }
 
     pub fn new(
-        geometry: ShapeGeometry,
-        fill_index_count: u32,
+        path: Path,
         fill_color: Color,
         stroke_color: Color,
         stroke_width: f32,
         z: f32,
-        buffer_cache: &mut BufferCache<Vertex, u16>,
-        prev_buffer: Option<BufferCacheId>,
+        caches: &mut Caches,
+        prev: Option<&Shape>,
     ) -> Self {
-        let buffer_id = if let Some(c) = prev_buffer {
+        let buffer_cache = &mut caches.shape_buffer;
+        let (geometry, fill_count) = Shape::path_to_shape_geometry(
+            path,
+            fill_color.is_visible(),
+            stroke_color.is_visible() && stroke_width > 0.0,
+            stroke_width,
+        );
+
+        let buffer_id = if let Some(c) = prev.map(|r| r.buffer_id) {
             buffer_cache.alloc_or_reuse_chunk(c, geometry.vertices.len(), geometry.indices.len())
         } else {
             assert!(
@@ -191,39 +205,8 @@ impl Shape {
             fill_color,
             stroke_color,
             stroke_width,
-            fill_range: 0..fill_index_count,
-            stroke_range: fill_index_count..(geometry.indices.len() as u32),
-            z,
-            buffer_id,
-        }
-    }
-
-    pub fn stroke(
-        geometry: ShapeGeometry,
-        color: Color,
-        stroke_width: f32,
-        z: f32,
-        buffer_cache: &mut BufferCache<Vertex, u16>,
-        prev_buffer: Option<BufferCacheId>,
-    ) -> Self {
-        let buffer_id = if let Some(c) = prev_buffer {
-            buffer_cache.alloc_or_reuse_chunk(c, geometry.vertices.len(), geometry.indices.len())
-        } else {
-            buffer_cache.alloc_chunk(geometry.vertices.len(), geometry.indices.len())
-        };
-
-        let (vertex_chunk, index_chunk) = buffer_cache.get_chunks(buffer_id);
-        buffer_cache.vertex_data[vertex_chunk.start..(vertex_chunk.start + vertex_chunk.n)]
-            .copy_from_slice(&geometry.vertices);
-        buffer_cache.index_data[index_chunk.start..(index_chunk.start + index_chunk.n)]
-            .copy_from_slice(&geometry.indices);
-
-        Self {
-            fill_color: color,
-            stroke_color: color,
-            stroke_width,
-            fill_range: 0..0,
-            stroke_range: 0..(geometry.indices.len() as u32),
+            fill_range: 0..fill_count,
+            stroke_range: fill_count..(geometry.indices.len() as u32),
             z,
             buffer_id,
         }
@@ -249,7 +232,7 @@ impl Shape {
             ret.push(Instance {
                 pos,
                 color: self.stroke_color,
-                stroke_width: self.stroke_width,
+                stroke_width: self.stroke_width / 2.0,
             });
         }
         ret

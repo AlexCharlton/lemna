@@ -5,7 +5,7 @@ pub mod renderables;
 pub(crate) mod wgpu;
 
 use crate::render::renderables::BufferCache;
-pub use renderables::{RasterCache, Renderable};
+pub use renderables::RasterCache;
 
 /// The caches used by the Renderer. Passed to [`Component#render`][crate::Component#method.render] in a [`RenderContext`][crate::RenderContext].
 #[derive(Default)]

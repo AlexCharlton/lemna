@@ -14,6 +14,12 @@ mod cpu_path {
 
     pub struct Path(SkiaPath);
 
+    impl Path {
+        pub(crate) fn native_path(&self) -> &SkiaPath {
+            &self.0
+        }
+    }
+
     pub struct PathBuilder(SkiaPathBuilder);
 
     impl PathBuilder {
@@ -59,6 +65,12 @@ mod gpu_path {
     use lyon::tessellation::math as lyon_math;
 
     pub struct Path(LyonPath);
+
+    impl Path {
+        pub(crate) fn native_path(&self) -> &LyonPath {
+            &self.0
+        }
+    }
 
     pub struct PathBuilder(LyonPathBuilder);
 

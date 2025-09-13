@@ -18,8 +18,6 @@ compile_error!(
     "Must enable exactly one renderer feature: either 'wgpu_renderer' or 'cpu_renderer'."
 );
 
-pub mod path;
-
 #[cfg(feature = "wgpu_renderer")]
 mod gpu_render;
 #[cfg(feature = "wgpu_renderer")]
@@ -29,6 +27,53 @@ pub use gpu_render::*;
 mod cpu_render;
 #[cfg(feature = "cpu_renderer")]
 pub use cpu_render::*;
+
+pub mod path;
+
+/// The type returned by [`Component#render`][crate::Component#method.render], which contains the data required to render a Component (along with the [`Caches`][super::Caches]).
+#[derive(Debug, PartialEq)]
+pub enum Renderable {
+    Rect(renderables::Rect),
+    Shape(renderables::Shape),
+    Text(renderables::Text),
+    Raster(renderables::Raster),
+    // Renderable that just holds a counter, used for tests
+    #[cfg(test)]
+    Inc {
+        repr: String,
+        i: usize,
+    },
+}
+
+impl Renderable {
+    pub fn as_shape(&self) -> Option<&renderables::Shape> {
+        match self {
+            Renderable::Shape(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_rect(&self) -> Option<&renderables::Rect> {
+        match self {
+            Renderable::Rect(r) => Some(r),
+            _ => None,
+        }
+    }
+
+    pub fn as_text(&self) -> Option<&renderables::Text> {
+        match self {
+            Renderable::Text(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    pub fn as_raster(&self) -> Option<&renderables::Raster> {
+        match self {
+            Renderable::Raster(r) => Some(r),
+            _ => None,
+        }
+    }
+}
 
 #[cfg(feature = "cpu_renderer")]
 mod rgb_color {

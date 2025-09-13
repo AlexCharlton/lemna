@@ -224,18 +224,18 @@ impl Component for Caret {
         path_builder.line_to(lyon_math::point(w, start));
         path_builder.close();
 
-        let (geometry, _) = Shape::path_to_shape_geometry(path_builder.build(), false, true);
-
-        Some(vec![Renderable::Shape(Shape::stroke(
-            geometry,
+        Some(vec![Renderable::Shape(Shape::new(
+            path_builder.build(),
+            Color::TRANSPARENT,
             self.color,
             scale,
             0.0,
-            &mut context.caches.shape_buffer,
-            context.prev_state.as_ref().and_then(|v| match v.first() {
-                Some(Renderable::Shape(r)) => Some(r.buffer_id),
-                _ => None,
-            }),
+            context.caches,
+            context
+                .prev_state
+                .as_ref()
+                .and_then(|r| r.first())
+                .and_then(|r| r.as_shape()),
         ))])
     }
 

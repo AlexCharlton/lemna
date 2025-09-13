@@ -162,6 +162,7 @@ fn main() {
         ConfigBuilder::new().build(),
         std::fs::File::create("example.log").unwrap(),
     );
+    // let _ = SimpleLogger::init(LevelFilter::Info, Config::default());
     lemna_winit::Window::open_blocking::<App>("Hello scroll!", 800, 600, vec![]);
 
     println!("bye");
