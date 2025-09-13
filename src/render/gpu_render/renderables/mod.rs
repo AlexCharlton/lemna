@@ -24,5 +24,9 @@ pub enum Renderable {
     Text(Text),
     Raster(Raster),
     // Renderable that just holds a counter, used for tests
-    Inc { repr: String, i: usize },
+    #[cfg(test)]
+    Inc {
+        repr: String,
+        i: usize,
+    },
 }

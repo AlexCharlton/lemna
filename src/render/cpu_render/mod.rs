@@ -2,32 +2,19 @@ extern crate alloc;
 
 use core::marker::PhantomData;
 
-use alloc::{string::String, vec};
+use alloc::vec;
 
 use embedded_graphics::draw_target::DrawTarget;
-use tiny_skia::{BlendMode, Color, Mask, Paint, Pixmap, Shader, Transform};
+use tiny_skia::{Color, Mask, Pixmap, Transform};
 
 use super::{Renderer, RgbColor};
-use crate::base_types::{AABB, PixelSize, Pos, Scale};
+use crate::base_types::{AABB, PixelSize};
 use crate::font_cache::FontCache;
 use crate::node::Node;
 use crate::window::Window;
 
-mod rect;
-
-pub mod renderables {
-    pub use super::rect::Rect;
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Renderable {
-    Rect(rect::Rect),
-    Shape,  //(Shape),
-    Text,   //(Text),
-    Raster, //(Raster),
-    // Renderable that just holds a counter, used for tests
-    Inc { repr: String, i: usize },
-}
+pub mod renderables;
+pub use renderables::{Rect, Renderable};
 
 #[derive(Default)]
 pub struct Caches {
@@ -35,7 +22,7 @@ pub struct Caches {
 }
 
 #[derive(Debug)]
-pub struct CPURenderer {
+pub(crate) struct CPURenderer {
     size: PixelSize,
     pixmap: Pixmap,
 }
@@ -72,23 +59,20 @@ impl Renderer for CPURenderer {
                 current_frame = frame;
             }
             match renderable {
-                Renderable::Rect(rect::Rect { pos, scale, color }) => {
-                    let paint = Paint {
-                        shader: Shader::SolidColor(color.into()),
-                        anti_alias: true,
-                        blend_mode: BlendMode::SourceOver,
-                        force_hq_pipeline: false,
-                    };
-
-                    self.pixmap.fill_rect(
-                        rect_from_pos_scale(&(aabb.pos + *pos), scale),
-                        &paint,
-                        Transform::identity(),
-                        current_mask.as_ref(),
-                    );
+                Renderable::Rect(rect) => {
+                    rect.render(aabb, current_mask.as_ref(), &mut self.pixmap);
                 }
-                // TODO
-                _ => (),
+                Renderable::Shape(shape) => {
+                    shape.render(aabb, current_mask.as_ref(), &mut self.pixmap);
+                }
+                Renderable::Text(text) => {
+                    text.render(aabb, current_mask.as_ref(), &mut self.pixmap);
+                }
+                Renderable::Raster(raster) => {
+                    raster.render(aabb, current_mask.as_ref(), &mut self.pixmap);
+                }
+                #[cfg(test)]
+                _ => panic!("Unsupported renderable: {:?}", renderable),
             }
         }
 
@@ -102,10 +86,6 @@ impl Renderer for CPURenderer {
             log::error!("Failed to fill draw target: {:?}", e);
         }
     }
-}
-
-fn rect_from_pos_scale(pos: &Pos, scale: &Scale) -> tiny_skia::Rect {
-    tiny_skia::Rect::from_xywh(pos.x, pos.y, scale.width, scale.height).unwrap()
 }
 
 fn update_mask_from_frames(size: &PixelSize, frames: &[AABB], mask: &mut Option<Mask>) {
@@ -132,12 +112,14 @@ fn update_mask_from_frames(size: &PixelSize, frames: &[AABB], mask: &mut Option<
 
     mask.fill_path(
         &path,
-        tiny_skia::FillRule::EvenOdd,
+        tiny_skia::FillRule::default(),
         false,
         Transform::identity(),
     );
 }
 
+//------------------------------------------
+// MARK: PixMapIterator
 struct PixMapIterator<'a, C: RgbColor> {
     pixmap_data: &'a [u8], // RGBA
     index: usize,

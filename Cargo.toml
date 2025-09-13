@@ -24,9 +24,10 @@ members = [
 default = ["file_dialogs", "msaa_shapes", "open_iconic", "wgpu_renderer"]
 
 std = [
-    "embassy-sync/std",
     "critical-section/std",
     "crossbeam-channel",
+    "embassy-sync/std",
+    "kurbo/std",
     "raw-window-handle",
 ]
 wgpu_renderer = [
@@ -37,7 +38,7 @@ wgpu_renderer = [
     "lyon",
     "std",
 ]
-cpu_renderer = ["embedded-graphics", "tiny-skia"]
+cpu_renderer = ["embedded-graphics", "tiny-skia", "kurbo"]
 # For std environments where we don't want to use wgpu
 std_cpu = ["cpu_renderer", "std", "softbuffer"]
 
@@ -81,6 +82,9 @@ superluminal-perf = { version = "0.1", optional = true }
 crossbeam-channel = { version = "0.4", optional = true }
 tinyfiledialogs = { version = "3.9", optional = true }
 embed-doc-image = { version = "0.1", optional = true }
+kurbo = { version = "0.12", optional = true, default-features = false, features = [
+    "libm",
+] }
 lyon = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
 softbuffer = { version = "0.3", optional = true }

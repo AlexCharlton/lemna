@@ -201,8 +201,8 @@ impl crate::render::Renderer for WGPURenderer {
                     frames.last_mut().unwrap().rasters.push((r, aabb));
                     num_rasters += 1;
                 }
-
-                _ => (),
+                #[cfg(test)]
+                _ => panic!("Unsupported renderable: {:?}", renderable),
             }
         }
         let mut num_frames = frames.len();

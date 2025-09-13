@@ -753,6 +753,10 @@ impl Color {
     pub fn rgb(r: f32, g: f32, b: f32) -> Self {
         Self { r, g, b, a: 1.0 }
     }
+
+    pub fn is_visible(&self) -> bool {
+        self.a > 0.0
+    }
 }
 
 impl From<[f32; 4]> for Color {

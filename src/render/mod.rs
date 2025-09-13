@@ -107,9 +107,9 @@ pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync 
 }
 
 #[cfg(feature = "wgpu_renderer")]
-pub type ActiveRenderer = crate::render::wgpu::WGPURenderer;
+pub(crate) type ActiveRenderer = crate::render::wgpu::WGPURenderer;
 #[cfg(feature = "cpu_renderer")]
-pub type ActiveRenderer = crate::render::cpu_render::CPURenderer;
+pub(crate) type ActiveRenderer = crate::render::cpu_render::CPURenderer;
 
 pub enum RasterData {
     Vec(Vec<u8>),

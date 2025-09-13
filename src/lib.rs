@@ -75,6 +75,10 @@ pub use open_iconic::Icon;
 #[cfg(feature = "wgpu_renderer")]
 pub extern crate lyon;
 
+/// Used to construct the geometry used by [`renderables::Shape`].
+#[cfg(feature = "cpu_renderer")]
+pub extern crate kurbo;
+
 // Test stub window
 #[cfg(feature = "docs")]
 #[doc(hidden)]
