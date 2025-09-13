@@ -85,9 +85,8 @@ impl Component for Toggle {
 
     #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::shape::{self, Shape};
+        use crate::render::renderables::shape::Shape;
         use lyon::tessellation::math as lyon_math;
-        use lyon::tessellation::{self, basic_shapes};
 
         let background_color: Color = self.style_val("background_color").into();
         let active_color: Color = self.style_val("active_color").into();
@@ -95,33 +94,13 @@ impl Component for Toggle {
         let highlight_color: Color = self.style_val("highlight_color").into();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
-        let mut geometry = shape::ShapeGeometry::new();
-        let center = lyon_math::point(context.aabb.width() / 2.0, context.aabb.height() / 2.0);
+        let radius = context.aabb.width() / 2.0;
+        let center = lyon_math::point(radius, context.aabb.height() / 2.0);
+        let mut builder = lyon::path::Path::builder();
+        builder.add_circle(center, radius, lyon::path::Winding::Positive);
+        let path = builder.build();
 
-        let fill_count = basic_shapes::fill_circle(
-            center,
-            context.aabb.width() / 2.0,
-            &tessellation::FillOptions::tolerance(shape::TOLERANCE),
-            &mut tessellation::BuffersBuilder::new(
-                &mut geometry,
-                shape::Vertex::basic_vertex_constructor,
-            ),
-        )
-        .unwrap()
-        .indices;
-
-        if border_width > 0.0 {
-            basic_shapes::stroke_circle(
-                center,
-                context.aabb.width() / 2.0,
-                &tessellation::StrokeOptions::tolerance(shape::TOLERANCE).dont_apply_line_width(),
-                &mut tessellation::BuffersBuilder::new(
-                    &mut geometry,
-                    shape::Vertex::stroke_vertex_constructor,
-                ),
-            )
-            .unwrap();
-        }
+        let (geometry, fill_count) = Shape::path_to_shape_geometry(path, true, border_width > 0.0);
 
         Some(vec![Renderable::Shape(Shape::new(
             geometry,

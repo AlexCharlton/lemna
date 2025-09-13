@@ -9,7 +9,7 @@ pub struct App {}
 impl lemna::Component for App {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let mut path_builder = Path::builder();
-        path_builder.move_to(lyon_math::point(10.0, 10.0));
+        path_builder.begin(lyon_math::point(10.0, 10.0));
         path_builder.line_to(lyon_math::point(100.0, 10.0));
         path_builder.quadratic_bezier_to(
             lyon_math::point(200.0, 10.0),
@@ -20,7 +20,7 @@ impl lemna::Component for App {
         let (geom1, index_count1) = Shape::path_to_shape_geometry(path1, true, true);
 
         let mut path_builder = Path::builder();
-        path_builder.move_to(lyon_math::point(200.0, 200.0));
+        path_builder.begin(lyon_math::point(200.0, 200.0));
         path_builder.line_to(lyon_math::point(100.0, 200.0));
         path_builder
             .quadratic_bezier_to(lyon_math::point(10.0, 200.0), lyon_math::point(10.0, 100.0));
@@ -29,11 +29,12 @@ impl lemna::Component for App {
         let (geom2, index_count2) = Shape::path_to_shape_geometry(path2, true, false);
 
         let mut path_builder = Path::builder();
-        path_builder.move_to(lyon_math::point(230.0, 20.0));
+        path_builder.begin(lyon_math::point(230.0, 20.0));
         path_builder.quadratic_bezier_to(
             lyon_math::point(230.0, 100.0),
             lyon_math::point(330.0, 200.0),
         );
+        path_builder.close();
         let path3 = path_builder.build();
         let (geom3, _) = Shape::path_to_shape_geometry(path3, false, true);
 

@@ -18,6 +18,8 @@ compile_error!(
     "Must enable exactly one renderer feature: either 'wgpu_renderer' or 'cpu_renderer'."
 );
 
+pub mod path;
+
 #[cfg(feature = "wgpu_renderer")]
 mod gpu_render;
 #[cfg(feature = "wgpu_renderer")]

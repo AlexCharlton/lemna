@@ -6,7 +6,6 @@ use lyon;
 use lyon::path::Path;
 use lyon::tessellation;
 use lyon::tessellation::geometry_builder::VertexBuffers;
-use lyon::tessellation::math as lyon_math;
 
 use super::{BufferCache, BufferCacheId};
 use crate::base_types::{AABB, Color, Point, Pos};
@@ -42,42 +41,30 @@ impl crate::render::wgpu::VBDesc for Vertex {
     }
 }
 
-impl Vertex {
-    pub fn basic_vertex_constructor(position: lyon_math::Point) -> Vertex {
+struct VertexConstructor {}
+
+impl tessellation::FillVertexConstructor<Vertex> for VertexConstructor {
+    fn new_vertex(&mut self, vertex: tessellation::FillVertex<'_>) -> Vertex {
         Vertex {
             pos: Point {
-                x: position.x,
-                y: position.y,
+                x: vertex.position().x,
+                y: vertex.position().y,
             },
             norm: Point { x: 0.0, y: 0.0 },
         }
     }
+}
 
-    pub fn fill_vertex_constructor(
-        position: lyon_math::Point,
-        _attributes: tessellation::FillAttributes,
-    ) -> Vertex {
+impl tessellation::StrokeVertexConstructor<Vertex> for VertexConstructor {
+    fn new_vertex(&mut self, vertex: tessellation::StrokeVertex<'_, '_>) -> Vertex {
         Vertex {
             pos: Point {
-                x: position.x,
-                y: position.y,
-            },
-            norm: Point { x: 0.0, y: 0.0 },
-        }
-    }
-
-    pub fn stroke_vertex_constructor(
-        position: lyon_math::Point,
-        attributes: tessellation::StrokeAttributes,
-    ) -> Vertex {
-        Vertex {
-            pos: Point {
-                x: position.x,
-                y: position.y,
+                x: vertex.position().x,
+                y: vertex.position().y,
             },
             norm: Point {
-                x: attributes.normal().x,
-                y: attributes.normal().y,
+                x: vertex.normal().x,
+                y: vertex.normal().y,
             },
         }
     }
@@ -148,41 +135,25 @@ impl Shape {
         self.fill_range.start < self.fill_range.end
     }
 
-    pub fn fill_options() -> tessellation::FillOptions {
-        tessellation::FillOptions::tolerance(TOLERANCE)
-    }
-
-    pub fn stroke_options() -> tessellation::StrokeOptions {
-        tessellation::StrokeOptions::tolerance(TOLERANCE).dont_apply_line_width()
-    }
-
     pub fn path_to_shape_geometry(path: Path, fill: bool, stroke: bool) -> (ShapeGeometry, u32) {
         let mut geometry = ShapeGeometry::new();
 
-        let fill_count = if fill {
+        if fill {
             tessellation::FillTessellator::new()
                 .tessellate_path(
                     &path,
-                    &Shape::fill_options(),
-                    &mut tessellation::BuffersBuilder::new(
-                        &mut geometry,
-                        Vertex::fill_vertex_constructor,
-                    ),
+                    &tessellation::FillOptions::tolerance(TOLERANCE),
+                    &mut tessellation::BuffersBuilder::new(&mut geometry, VertexConstructor {}),
                 )
                 .unwrap()
-                .indices
-        } else {
-            0
-        };
+        }
+        let fill_count = geometry.indices.len() as u32;
         if stroke {
             tessellation::StrokeTessellator::new()
                 .tessellate_path(
                     &path,
-                    &Shape::stroke_options(),
-                    &mut tessellation::BuffersBuilder::new(
-                        &mut geometry,
-                        Vertex::stroke_vertex_constructor,
-                    ),
+                    &tessellation::StrokeOptions::tolerance(TOLERANCE).with_line_width(0.01),
+                    &mut tessellation::BuffersBuilder::new(&mut geometry, VertexConstructor {}),
                 )
                 .unwrap();
         }

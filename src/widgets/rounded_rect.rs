@@ -55,47 +55,30 @@ impl Component for RoundedRect {
 
     #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::shape::{self, Shape};
-        use lyon::tessellation;
-        use lyon::tessellation::basic_shapes;
+        use crate::render::renderables::shape::Shape;
         use lyon::tessellation::math as lyon_math;
+        use lyon_math::{Box2D, Point};
 
-        let mut geometry = shape::ShapeGeometry::new();
-        let rect = lyon_math::rect(0.0, 0.0, context.aabb.width(), context.aabb.height());
-        let radii = basic_shapes::BorderRadii {
+        let rect = Box2D {
+            min: Point::new(0.0, 0.0),
+            max: Point::new(context.aabb.width(), context.aabb.height()),
+        };
+        let radii = lyon::path::builder::BorderRadii {
             top_left: self.radius.0,
             top_right: self.radius.1,
             bottom_right: self.radius.2,
             bottom_left: self.radius.3,
         };
+        let mut builder = lyon::path::Path::builder();
+        builder.add_rounded_rectangle(&rect, &radii, lyon::path::Winding::Positive);
+        let path = builder.build();
 
-        let fill_count = basic_shapes::fill_rounded_rectangle(
-            &rect,
-            &radii,
-            &tessellation::FillOptions::tolerance(shape::TOLERANCE),
-            &mut tessellation::BuffersBuilder::new(
-                &mut geometry,
-                shape::Vertex::basic_vertex_constructor,
-            ),
-        )
-        .unwrap();
-
-        if self.border_width > 0.0 {
-            basic_shapes::stroke_rounded_rectangle(
-                &rect,
-                &radii,
-                &tessellation::StrokeOptions::tolerance(shape::TOLERANCE).dont_apply_line_width(),
-                &mut tessellation::BuffersBuilder::new(
-                    &mut geometry,
-                    shape::Vertex::stroke_vertex_constructor,
-                ),
-            )
-            .unwrap();
-        }
+        let (geometry, fill_count) =
+            Shape::path_to_shape_geometry(path, true, self.border_width > 0.0);
 
         Some(vec![Renderable::Shape(Shape::new(
             geometry,
-            fill_count.indices,
+            fill_count,
             self.background_color,
             self.border_color,
             self.border_width * 0.5,

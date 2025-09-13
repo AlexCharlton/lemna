@@ -219,9 +219,10 @@ impl Component for Caret {
         let w = context.aabb.width();
         let h = context.aabb.height();
         let start = h / 2.0;
-        path_builder.move_to(lyon_math::point(0.0, start));
+        path_builder.begin(lyon_math::point(0.0, start));
         path_builder.line_to(lyon_math::point(w / 2.0, h));
         path_builder.line_to(lyon_math::point(w, start));
+        path_builder.close();
 
         let (geometry, _) = Shape::path_to_shape_geometry(path_builder.build(), false, true);
 
