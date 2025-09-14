@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::{PixelSize, render::RasterData};
+use crate::{PixelSize, renderable::RasterData};
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct RasterCacheId(usize);

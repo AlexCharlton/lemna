@@ -7,7 +7,7 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
 use crate::layout::*;
-use crate::render::{Renderable, renderables::Rect};
+use crate::renderable::{Rectangle, Renderable};
 use crate::style::{HorizontalPosition, StyleVal, Styled, VerticalPosition};
 
 use lemna_macros::{component, state_component_impl};
@@ -17,8 +17,8 @@ const MIN_BAR_SIZE: f32 = 10.0;
 #[derive(Debug, Default)]
 pub struct DivState {
     scroll_position: Point,
-    x_scroll_bar: Option<AABB>,
-    y_scroll_bar: Option<AABB>,
+    x_scroll_bar: Option<Rect>,
+    y_scroll_bar: Option<Rect>,
     over_y_bar: bool,
     y_bar_pressed: bool,
     over_x_bar: bool,
@@ -236,21 +236,21 @@ impl Component for Div {
         }
     }
 
-    fn frame_bounds(&self, aabb: AABB, inner_scale: Option<Scale>) -> AABB {
-        let mut aabb = aabb;
+    fn frame_bounds(&self, rect: Rect, inner_scale: Option<Scale>) -> Rect {
+        let mut rect = rect;
         if self.scrollable() {
             let inner_scale = inner_scale.unwrap();
             let scaled_width = self.state_ref().scaled_scroll_bar_width;
-            let size = aabb.size();
+            let size = rect.size();
             let max_position = inner_scale - size;
 
             if self.y_scrollable() && max_position.height > 0.0 {
                 if self.style_val("y_bar_position")
                     == Some(StyleVal::HorizontalPosition(HorizontalPosition::Left))
                 {
-                    aabb.pos.x += scaled_width;
+                    rect.pos.x += scaled_width;
                 } else {
-                    aabb.bottom_right.x -= scaled_width;
+                    rect.bottom_right.x -= scaled_width;
                 }
             }
 
@@ -258,14 +258,14 @@ impl Component for Div {
                 if self.style_val("x_bar_position")
                     == Some(StyleVal::VerticalPosition(VerticalPosition::Top))
                 {
-                    aabb.pos.y += scaled_width;
+                    rect.pos.y += scaled_width;
                 } else {
-                    aabb.bottom_right.y -= scaled_width;
+                    rect.bottom_right.y -= scaled_width;
                 }
             }
         }
 
-        aabb
+        rect
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
@@ -275,7 +275,7 @@ impl Component for Div {
             .map_or(0.0, |x| (x * context.scale_factor.floor()).round());
 
         if let Some(bg) = self.background {
-            rs.push(Renderable::Rect(Rect::new(
+            rs.push(Renderable::Rectangle(Rectangle::new(
                 Pos {
                     x: border_width,
                     y: border_width,
@@ -287,7 +287,7 @@ impl Component for Div {
         }
 
         if let (Some(color), Some(_width)) = (self.border_color, self.border_width) {
-            rs.push(Renderable::Rect(Rect::new(
+            rs.push(Renderable::Rectangle(Rectangle::new(
                 Pos::default(),
                 context.aabb.size(),
                 color,
@@ -325,7 +325,7 @@ impl Component for Div {
                         0.0
                     };
 
-                    let bar_background = Rect::new(
+                    let bar_background = Rectangle::new(
                         Pos {
                             x,
                             y: bar_y_offset,
@@ -347,7 +347,7 @@ impl Component for Div {
                         y = bar_background_height - height;
                     }
 
-                    let bar_aabb = AABB::new(
+                    let bar_rect = Rect::new(
                         Pos {
                             x: x + 2.0,
                             y,
@@ -365,10 +365,10 @@ impl Component for Div {
                     } else {
                         self.style_val("bar_color").into()
                     };
-                    let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
-                    self.state_mut().y_scroll_bar = Some(bar_aabb);
-                    rs.push(Renderable::Rect(bar_background));
-                    rs.push(Renderable::Rect(bar));
+                    let bar = Rectangle::new(bar_rect.pos, bar_rect.size(), color);
+                    self.state_mut().y_scroll_bar = Some(bar_rect);
+                    rs.push(Renderable::Rectangle(bar_background));
+                    rs.push(Renderable::Rectangle(bar));
                 } else {
                     self.state_mut().y_scroll_bar = None;
                 }
@@ -396,7 +396,7 @@ impl Component for Div {
                         0.0
                     };
 
-                    let bar_background = Rect::new(
+                    let bar_background = Rectangle::new(
                         Pos {
                             x: bar_x_offset,
                             y,
@@ -418,7 +418,7 @@ impl Component for Div {
                         x = bar_background_width - width;
                     }
 
-                    let bar_aabb = AABB::new(
+                    let bar_rect = Rect::new(
                         Pos {
                             x,
                             y: y + 2.0,
@@ -436,10 +436,10 @@ impl Component for Div {
                     } else {
                         self.style_val("bar_color").into()
                     };
-                    let bar = Rect::new(bar_aabb.pos, bar_aabb.size(), color);
-                    self.state_mut().x_scroll_bar = Some(bar_aabb);
-                    rs.push(Renderable::Rect(bar_background));
-                    rs.push(Renderable::Rect(bar));
+                    let bar = Rectangle::new(bar_rect.pos, bar_rect.size(), color);
+                    self.state_mut().x_scroll_bar = Some(bar_rect);
+                    rs.push(Renderable::Rectangle(bar_background));
+                    rs.push(Renderable::Rectangle(bar));
                 } else {
                     self.state_mut().x_scroll_bar = None;
                 }

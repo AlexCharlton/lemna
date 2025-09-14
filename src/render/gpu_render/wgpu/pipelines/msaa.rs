@@ -3,7 +3,7 @@ use wgpu::{self, util::DeviceExt};
 
 use super::shared::{VBDesc, create_pipeline_depth_stencil};
 use crate::base_types::Point;
-use crate::render::wgpu::context;
+use crate::render::gpu_render::wgpu::context;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]

@@ -1,9 +1,9 @@
 use bytemuck::{Pod, Zeroable};
 
 use super::{BufferCache, BufferCacheId};
-use crate::base_types::{AABB, Color, Point, Pos};
+use crate::base_types::{Color, Point, Pos, Rect};
 use crate::font_cache::SectionGlyph;
-use crate::render::glyph_brush_draw_cache::DrawCache;
+use crate::renderable::glyph_brush_draw_cache::DrawCache;
 
 const INDEX_ENTRIES_PER_GLYPH: usize = 6;
 const VERTEX_ENTRIES_PER_GLYPH: usize = 4;
@@ -15,7 +15,7 @@ pub struct Vertex {
     pub tex_pos: Point,
 }
 
-impl crate::render::wgpu::VBDesc for Vertex {
+impl crate::render::gpu_render::VBDesc for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -43,7 +43,7 @@ pub(crate) struct Instance {
     pub color: Color,
 }
 
-impl crate::render::wgpu::VBDesc for Instance {
+impl crate::render::gpu_render::VBDesc for Instance {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -100,7 +100,7 @@ impl Text {
 
     pub(crate) fn render(
         &self,
-        aabb: &AABB,
+        aabb: &Rect,
         buffer_cache: &mut BufferCache<Vertex, u16>,
         glyph_cache: &DrawCache,
         instance_data: &mut Vec<Instance>,

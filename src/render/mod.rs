@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::base_types::*;
+use crate::base_types::PixelSize;
 use crate::node::Node;
 use crate::window::Window;
 
@@ -19,58 +19,103 @@ compile_error!(
 );
 
 #[cfg(feature = "wgpu_renderer")]
-mod gpu_render;
-#[cfg(feature = "wgpu_renderer")]
-pub use gpu_render::*;
+pub(crate) mod gpu_render;
 
 #[cfg(feature = "cpu_renderer")]
 mod cpu_render;
-#[cfg(feature = "cpu_renderer")]
-pub use cpu_render::*;
 
-pub mod path;
+mod path;
 
-/// The type returned by [`Component#render`][crate::Component#method.render], which contains the data required to render a Component (along with the [`Caches`][super::Caches]).
-#[derive(Debug, PartialEq)]
-pub enum Renderable {
-    Rect(renderables::Rect),
-    Shape(renderables::Shape),
-    Text(renderables::Text),
-    Raster(renderables::Raster),
-    // Renderable that just holds a counter, used for tests
-    #[cfg(test)]
-    Inc {
-        repr: String,
-        i: usize,
-    },
-}
+pub mod renderable {
+    use super::*;
 
-impl Renderable {
-    pub fn as_shape(&self) -> Option<&renderables::Shape> {
-        match self {
-            Renderable::Shape(s) => Some(s),
-            _ => None,
+    #[cfg(feature = "cpu_renderer")]
+    pub use cpu_render::*;
+
+    #[cfg(feature = "wgpu_renderer")]
+    pub use gpu_render::*;
+
+    pub use path::*;
+
+    /// The type returned by [`Component#render`][crate::Component#method.render], which contains the data required to render a Component (along with the [`Caches`][super::Caches]).
+    #[derive(Debug, PartialEq)]
+    pub enum Renderable {
+        Rectangle(Rectangle),
+        Shape(Shape),
+        Text(Text),
+        Raster(Raster),
+        // Renderable that just holds a counter, used for tests
+        #[cfg(test)]
+        Inc {
+            repr: String,
+            i: usize,
+        },
+    }
+
+    impl Renderable {
+        pub fn as_shape(&self) -> Option<&renderable::Shape> {
+            match self {
+                Renderable::Shape(s) => Some(s),
+                _ => None,
+            }
+        }
+
+        pub fn as_rect(&self) -> Option<&renderable::Rectangle> {
+            match self {
+                Renderable::Rectangle(r) => Some(r),
+                _ => None,
+            }
+        }
+
+        pub fn as_text(&self) -> Option<&renderable::Text> {
+            match self {
+                Renderable::Text(t) => Some(t),
+                _ => None,
+            }
+        }
+
+        pub fn as_raster(&self) -> Option<&renderable::Raster> {
+            match self {
+                Renderable::Raster(r) => Some(r),
+                _ => None,
+            }
         }
     }
 
-    pub fn as_rect(&self) -> Option<&renderables::Rect> {
-        match self {
-            Renderable::Rect(r) => Some(r),
-            _ => None,
+    pub enum RasterData {
+        Vec(Vec<u8>),
+        Slice(&'static [u8]),
+    }
+
+    impl fmt::Debug for RasterData {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            let (t, len) = match self {
+                RasterData::Slice(d) => ("Slice", d.len()),
+                RasterData::Vec(d) => ("Vec", d.len()),
+            };
+            write!(f, "RasterData::{}<len: {}>", t, len)?;
+            Ok(())
         }
     }
 
-    pub fn as_text(&self) -> Option<&renderables::Text> {
-        match self {
-            Renderable::Text(t) => Some(t),
-            _ => None,
+    impl From<&'static [u8]> for RasterData {
+        fn from(d: &'static [u8]) -> Self {
+            RasterData::Slice(d)
         }
     }
 
-    pub fn as_raster(&self) -> Option<&renderables::Raster> {
-        match self {
-            Renderable::Raster(r) => Some(r),
-            _ => None,
+    impl From<Vec<u8>> for RasterData {
+        fn from(d: Vec<u8>) -> Self {
+            RasterData::Vec(d)
+        }
+    }
+
+    impl<'a> From<&'a RasterData> for &'a [u8] {
+        fn from(d: &'a RasterData) -> &'a [u8] {
+            match d {
+                RasterData::Vec(v) => &v[..],
+                RasterData::Slice(s) => s,
+            }
         }
     }
 }
@@ -145,52 +190,32 @@ pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync 
         &mut self,
         _draw_target: &mut D,
         _node: &Node,
-        _caches: &mut Caches,
+        _caches: &mut renderable::Caches,
         _physical_size: PixelSize,
     ) {
     }
     #[cfg(not(feature = "cpu_renderer"))]
-    fn render(&mut self, _node: &Node, _caches: &mut Caches, _physical_size: PixelSize) {}
+    fn render(
+        &mut self,
+        _node: &Node,
+        _caches: &mut renderable::Caches,
+        _physical_size: PixelSize,
+    ) {
+    }
 }
 
 #[cfg(feature = "wgpu_renderer")]
-pub(crate) type ActiveRenderer = crate::render::wgpu::WGPURenderer;
+pub(crate) type ActiveRenderer = crate::render::gpu_render::WGPURenderer;
 #[cfg(feature = "cpu_renderer")]
 pub(crate) type ActiveRenderer = crate::render::cpu_render::CPURenderer;
 
-pub enum RasterData {
-    Vec(Vec<u8>),
-    Slice(&'static [u8]),
-}
-
-impl fmt::Debug for RasterData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let (t, len) = match self {
-            RasterData::Slice(d) => ("Slice", d.len()),
-            RasterData::Vec(d) => ("Vec", d.len()),
-        };
-        write!(f, "RasterData::{}<len: {}>", t, len)?;
-        Ok(())
-    }
-}
-
-impl From<&'static [u8]> for RasterData {
-    fn from(d: &'static [u8]) -> Self {
-        RasterData::Slice(d)
-    }
-}
-
-impl From<Vec<u8>> for RasterData {
-    fn from(d: Vec<u8>) -> Self {
-        RasterData::Vec(d)
-    }
-}
-
-impl<'a> From<&'a RasterData> for &'a [u8] {
-    fn from(d: &'a RasterData) -> &'a [u8] {
-        match d {
-            RasterData::Vec(v) => &v[..],
-            RasterData::Slice(s) => s,
-        }
-    }
+/// Given an integer, return the next power of 2.
+pub(crate) fn next_power_of_2(n: usize) -> usize {
+    let mut n = n - 1;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n + 1
 }

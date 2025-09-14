@@ -4,13 +4,13 @@ use wgpu;
 
 use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
-use crate::base_types::AABB;
-use crate::render::next_power_of_2;
-use crate::render::renderables::{
+use crate::base_types::Rect;
+use crate::render::gpu_render::{
     self,
     shape::{Instance, Shape, Vertex},
+    wgpu::context,
 };
-use crate::render::wgpu::context;
+use crate::render::next_power_of_2;
 
 pub struct ShapePipeline {
     pipeline: wgpu::RenderPipeline,
@@ -24,9 +24,9 @@ pub struct ShapePipeline {
 impl ShapePipeline {
     fn draw_renderables<'a: 'b, 'b>(
         &'a self,
-        renderables: &[(&'a Shape, &'a AABB)],
+        renderables: &[(&'a Shape, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
-        renderable_buffer_cache: &'a renderables::BufferCache<Vertex, u16>,
+        renderable_buffer_cache: &'a gpu_render::BufferCache<Vertex, u16>,
         msaa: bool,
         instance_offset: usize,
     ) {
@@ -59,7 +59,7 @@ impl ShapePipeline {
             }
             if renderable.is_stroked() {
                 // Don't draw stroked lines unless doing the MSAA pass
-                if msaa || !cfg!(feature = "msaa_shapes") {
+                if msaa || !cfg!(feature = "antialiased_shapes") {
                     let instances = if renderable.is_filled() { 1..2 } else { 0..1 };
                     pass.draw_indexed(renderable.stroke_range.clone(), 0, instances);
                 }
@@ -90,10 +90,10 @@ impl ShapePipeline {
 
     pub fn fill_buffers<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Shape, &'a AABB)],
+        renderables: &[(&'a Shape, &'a Rect)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
-        renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
+        renderable_buffer_cache: &'a mut gpu_render::BufferCache<Vertex, u16>,
     ) {
         self.instance_data.clear();
 
@@ -118,9 +118,9 @@ impl ShapePipeline {
 
     pub fn render<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Shape, &'a AABB)],
+        renderables: &[(&'a Shape, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
-        renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
+        renderable_buffer_cache: &'a mut gpu_render::BufferCache<Vertex, u16>,
         instance_offset: usize,
         msaa: bool,
     ) {

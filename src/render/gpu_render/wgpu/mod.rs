@@ -5,10 +5,10 @@ use wgpu::{self, util::DeviceExt};
 
 mod context;
 
-use crate::base_types::{AABB, PixelSize};
+use crate::base_types::{PixelSize, Rect};
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
-use crate::render::{Caches, Renderable, renderables::*};
+use crate::renderable::{Caches, Raster, Rectangle, Renderable, Shape, Text};
 use crate::window::Window;
 
 pub mod pipelines;
@@ -59,11 +59,11 @@ impl fmt::Debug for WGPURenderer {
 #[derive(Default)]
 struct FrameRenderables<'a> {
     frame: Vec<ScrollFrame>,
-    rasters: Vec<(&'a Raster, &'a AABB)>,
-    rects: Vec<(&'a Rect, &'a AABB)>,
-    shapes: Vec<(&'a Shape, &'a AABB)>,
+    rasters: Vec<(&'a Raster, &'a Rect)>,
+    rects: Vec<(&'a Rectangle, &'a Rect)>,
+    shapes: Vec<(&'a Shape, &'a Rect)>,
     num_shape_instances: usize,
-    texts: Vec<(&'a Text, &'a AABB)>,
+    texts: Vec<(&'a Text, &'a Rect)>,
 }
 
 impl<'a> FrameRenderables<'a> {
@@ -178,7 +178,7 @@ impl crate::render::Renderer for WGPURenderer {
                 frames.push(FrameRenderables::new(frame.clone()))
             }
             match renderable {
-                Renderable::Rect(r) => {
+                Renderable::Rectangle(r) => {
                     frames.last_mut().unwrap().rects.push((r, aabb));
                     num_rects += 1;
                 }
@@ -226,21 +226,21 @@ impl crate::render::Renderer for WGPURenderer {
             &frames
                 .iter()
                 .flat_map(|f| f.frame.clone())
-                .collect::<Vec<AABB>>(),
+                .collect::<Vec<Rect>>(),
             &mut self.context.queue,
         );
         self.rect_pipeline.fill_buffers(
             &frames
                 .iter()
                 .flat_map(|f| f.rects.clone())
-                .collect::<Vec<(&Rect, &AABB)>>(),
+                .collect::<Vec<(&Rectangle, &Rect)>>(),
             &mut self.context.queue,
         );
         self.shape_pipeline.fill_buffers(
             &frames
                 .iter()
                 .flat_map(|f| f.shapes.clone())
-                .collect::<Vec<(&Shape, &AABB)>>(),
+                .collect::<Vec<(&Shape, &Rect)>>(),
             &self.context.device,
             &mut self.context.queue,
             &mut caches.shape_buffer,
@@ -249,7 +249,7 @@ impl crate::render::Renderer for WGPURenderer {
             &frames
                 .iter()
                 .flat_map(|f| f.texts.clone())
-                .collect::<Vec<(&Text, &AABB)>>(),
+                .collect::<Vec<(&Text, &Rect)>>(),
             &self.context.device,
             &mut self.context.queue,
             &caches.font,
@@ -265,7 +265,7 @@ impl crate::render::Renderer for WGPURenderer {
                 &frames
                     .iter()
                     .flat_map(|f| f.rasters.clone())
-                    .collect::<Vec<(&Raster, &AABB)>>(),
+                    .collect::<Vec<(&Raster, &Rect)>>(),
                 &self.context.device,
                 &mut self.context.queue,
                 &mut caches.raster,
@@ -283,7 +283,7 @@ impl crate::render::Renderer for WGPURenderer {
                 &frames
                     .iter()
                     .flat_map(|f| f.rasters.clone())
-                    .collect::<Vec<(&Raster, &AABB)>>(),
+                    .collect::<Vec<(&Raster, &Rect)>>(),
                 &self.context.device,
                 &mut self.context.queue,
                 &mut caches.raster,
@@ -387,7 +387,7 @@ impl crate::render::Renderer for WGPURenderer {
                 }
             }
 
-            if cfg!(feature = "msaa_shapes") {
+            if cfg!(feature = "antialiased_shapes") {
                 let mut msaa_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &self.context.msaa_framebuffer,
@@ -477,7 +477,7 @@ impl crate::render::Renderer for WGPURenderer {
         }
 
         // Draw the results of the MSAA'd framebuffer
-        if cfg!(feature = "msaa_shapes") {
+        if cfg!(feature = "antialiased_shapes") {
             let mut encoder =
                 self.context
                     .device

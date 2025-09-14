@@ -8,5 +8,8 @@ version = "0.0.0"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-lemna = { path = "../../../", default-features = false, features = ["msaa_shapes", "open_iconic"] }
+lemna = { path = "../../../", default-features = false, features = [
+    "antialiased_shapes",
+    "open_iconic",
+] }
 lemna-nih-plug = { path = "../../../nih-plug/", features = ["standalone"] }

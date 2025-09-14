@@ -211,7 +211,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                         self.ui.update(m);
                     }
                     ParentMessage::Resize => {
-                        let size = lemna::physical_size().unwrap();
+                        let size = lemna::window::physical_size().unwrap();
                         window.resize(baseview::Size::new(size.width.into(), size.height.into()));
                     }
                 }
@@ -454,7 +454,7 @@ fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> {
     }
 }
 
-impl lemna::Window for Window {
+impl lemna::window::Window for Window {
     fn logical_size(&self) -> PixelSize {
         let size = get_window_size();
         PixelSize {

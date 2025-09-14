@@ -3,9 +3,9 @@ use log::info;
 use wgpu::{self, util::DeviceExt};
 
 use super::shared::{VBDesc, create_pipeline_depth_stencil};
-use crate::base_types::{AABB, Point, Pos, Scale};
+use crate::base_types::{Point, Pos, Rect, Scale};
+use crate::render::gpu_render::wgpu::context;
 use crate::render::next_power_of_2;
-use crate::render::wgpu::context;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -34,8 +34,8 @@ pub struct Instance {
     pub scale: Scale,
 }
 
-impl From<AABB> for Instance {
-    fn from(aabb: AABB) -> Self {
+impl From<Rect> for Instance {
+    fn from(aabb: Rect) -> Self {
         Self {
             pos: aabb.pos,
             scale: aabb.size(),
@@ -95,7 +95,7 @@ impl StencilPipeline {
         }
     }
 
-    pub fn fill_buffers<'a: 'b, 'b>(&'a mut self, aabbs: &[AABB], queue: &'b mut wgpu::Queue) {
+    pub fn fill_buffers<'a: 'b, 'b>(&'a mut self, aabbs: &[Rect], queue: &'b mut wgpu::Queue) {
         self.instance_data.clear();
         for aabb in aabbs {
             self.instance_data.push((*aabb).into());
@@ -105,7 +105,7 @@ impl StencilPipeline {
 
     pub fn render<'a: 'b, 'b>(
         &'a mut self,
-        aabbs: &[AABB],
+        aabbs: &[Rect],
         pass: &'b mut wgpu::RenderPass<'a>,
         instance_offset: usize,
         msaa: bool,

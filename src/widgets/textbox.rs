@@ -17,7 +17,7 @@ use crate::event;
 use crate::font_cache::{FontCache, TextSegment};
 use crate::input::Key;
 use crate::layout::ScrollPosition;
-use crate::render::{Renderable, renderables::Rect};
+use crate::renderable::{Rectangle, Renderable};
 use crate::style::{HorizontalPosition, Styled};
 use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
@@ -183,10 +183,10 @@ impl Component for TextBoxContainer {
 
     fn set_aabb(
         &mut self,
-        aabb: &mut AABB,
-        _parent_aabb: AABB,
-        mut children: Vec<(&mut AABB, Option<Scale>, Option<Point>)>,
-        _frame: AABB,
+        aabb: &mut Rect,
+        _parent_aabb: Rect,
+        mut children: Vec<(&mut Rect, Option<Scale>, Option<Point>)>,
+        _frame: Rect,
         scale_factor: f32,
     ) {
         if let Some((child_aabb, _, Some(focus))) = children.first_mut() {
@@ -208,7 +208,7 @@ impl Component for TextBoxContainer {
         }
     }
 
-    fn frame_bounds(&self, aabb: AABB, _inner_scale: Option<Scale>) -> AABB {
+    fn frame_bounds(&self, aabb: Rect, _inner_scale: Option<Scale>) -> Rect {
         let mut aabb = aabb;
         let w = self.state_ref().border_width_px;
         aabb.pos.x += w;
@@ -235,7 +235,7 @@ impl Component for TextBoxContainer {
         let border_width = self.border_width_px(context.scale_factor);
         self.state_mut().border_width_px = border_width;
 
-        let background = Renderable::Rect(Rect::new(
+        let background = Renderable::Rectangle(Rectangle::new(
             Pos {
                 x: border_width,
                 y: border_width,
@@ -245,7 +245,7 @@ impl Component for TextBoxContainer {
             self.background_color,
         ));
 
-        let border = Renderable::Rect(Rect::new(
+        let border = Renderable::Rectangle(Rectangle::new(
             Pos::default(),
             context.aabb.size(),
             self.border_color,
@@ -379,7 +379,7 @@ impl TextBoxText {
 
     fn cut(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            crate::put_on_clipboard(&self.state_ref().text[a..b].into());
+            crate::window::put_on_clipboard(&self.state_ref().text[a..b].into());
             self.insert_text("");
             true
         } else {
@@ -389,7 +389,7 @@ impl TextBoxText {
 
     fn copy(&mut self) -> bool {
         if let Some((a, b)) = self.selection() {
-            crate::put_on_clipboard(&self.state_ref().text[a..b].into());
+            crate::window::put_on_clipboard(&self.state_ref().text[a..b].into());
             true
         } else {
             false
@@ -397,7 +397,7 @@ impl TextBoxText {
     }
 
     fn paste(&mut self) -> bool {
-        if let Some(crate::Data::String(text)) = crate::get_from_clipboard() {
+        if let Some(crate::Data::String(text)) = crate::window::get_from_clipboard() {
             self.insert_text(&text);
             true
         } else {
@@ -454,11 +454,11 @@ impl Component for TextBoxText {
     }
 
     fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
-        crate::set_cursor("Ibeam");
+        crate::window::set_cursor("Ibeam");
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
-        crate::unset_cursor();
+        crate::window::unset_cursor();
     }
 
     fn on_tick(&mut self, _event: &mut event::Event<event::Tick>) {
@@ -726,7 +726,7 @@ impl Component for TextBoxText {
 
     #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::text::Text;
+        use crate::render::renderable::text::Text;
 
         let cursor_z = 2.0;
         let text_z = 5.0;
@@ -766,7 +766,7 @@ impl Component for TextBoxText {
         }
 
         if self.state_ref().cursor_visible && self.selection().is_none() {
-            let cursor_rect = Renderable::Rect(Rect::new(
+            let cursor_rect = Renderable::Rectangle(Rectangle::new(
                 Pos::new(cursor_x, offset + 2.0, cursor_z),
                 Scale::new(1.0, font_size_px - offset),
                 cursor_color,
@@ -779,7 +779,7 @@ impl Component for TextBoxText {
                 (cursor_x, selection_from_x.unwrap())
             };
 
-            let selection_rect = Renderable::Rect(Rect::new(
+            let selection_rect = Renderable::Rectangle(Rectangle::new(
                 Pos::new(x1, offset + 2.0, cursor_z),
                 Scale::new(x2 - x1, font_size_px - offset),
                 selection_color,

@@ -5,14 +5,14 @@ use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
-use crate::render::Renderable;
+use crate::renderable::Renderable;
 
 #[derive(Debug)]
 pub struct RoundedRect {
     pub background_color: Color,
     pub border_color: Color,
     pub border_width: f32,
-    pub radius: (f32, f32, f32, f32),
+    pub radii: BorderRadii,
 }
 
 impl Default for RoundedRect {
@@ -21,7 +21,7 @@ impl Default for RoundedRect {
             background_color: Color::WHITE,
             border_color: Color::BLACK,
             border_width: 0.0,
-            radius: (3.0, 3.0, 3.0, 3.0),
+            radii: BorderRadii::all(3.0),
         }
     }
 }
@@ -32,12 +32,12 @@ impl RoundedRect {
             background_color: bg.into(),
             border_color: Color::BLACK,
             border_width: 0.0,
-            radius: (radius, radius, radius, radius),
+            radii: BorderRadii::all(radius),
         }
     }
 
     pub fn radius(mut self, r: f32) -> Self {
-        self.radius = (r, r, r, r);
+        self.radii = BorderRadii::all(r);
         self
     }
 }
@@ -46,50 +46,35 @@ impl Component for RoundedRect {
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.background_color.hash(hasher);
         self.border_color.hash(hasher);
-        (self.border_width as u32).hash(hasher);
-        (self.radius.0 as i32).hash(hasher);
-        (self.radius.1 as i32).hash(hasher);
-        (self.radius.2 as i32).hash(hasher);
-        (self.radius.3 as i32).hash(hasher);
+        ((self.border_width * 100000.0) as u32).hash(hasher);
+        self.radii.hash(hasher);
     }
 
-    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::shape::Shape;
-        use lyon::tessellation::math as lyon_math;
-        use lyon_math::{Box2D, Point};
+        use crate::renderable::{Path, Shape};
 
-        let rect = Box2D {
-            min: Point::new(0.0, 0.0),
-            max: Point::new(context.aabb.width(), context.aabb.height()),
+        let rect = Rect {
+            pos: Pos::ORIGIN,
+            bottom_right: Point::new(context.aabb.width(), context.aabb.height()),
         };
-        let radii = lyon::path::builder::BorderRadii {
-            top_left: self.radius.0,
-            top_right: self.radius.1,
-            bottom_right: self.radius.2,
-            bottom_left: self.radius.3,
-        };
-        let mut builder = lyon::path::Path::builder();
-        builder.add_rounded_rectangle(&rect, &radii, lyon::path::Winding::Positive);
-        let path = builder.build();
-
-        Some(vec![Renderable::Shape(Shape::new(
-            path,
-            self.background_color,
-            self.border_color,
-            self.border_width * 0.5,
-            0.0,
-            context.caches,
-            context
-                .prev_state
-                .as_ref()
-                .and_then(|r| r.first())
-                .and_then(|r| r.as_shape()),
-        ))])
-    }
-
-    #[cfg(feature = "cpu_renderer")]
-    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        todo!()
+        match Path::rounded_rectangle(&rect, &self.radii) {
+            Ok(path) => Some(vec![Renderable::Shape(Shape::new(
+                path,
+                self.background_color,
+                self.border_color,
+                self.border_width * context.scale_factor,
+                0.0,
+                context.caches,
+                context
+                    .prev_state
+                    .as_ref()
+                    .and_then(|r| r.first())
+                    .and_then(|r| r.as_shape()),
+            ))]),
+            Err(e) => {
+                log::error!("Failed to build path: {:?}", e);
+                None
+            }
+        }
     }
 }

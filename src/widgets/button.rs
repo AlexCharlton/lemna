@@ -82,12 +82,12 @@ impl Component for Button {
                 },
                 border_color,
                 border_width,
-                radius: (radius, radius, radius, radius),
+                radii: BorderRadii::all(radius),
             },
             lay!(
                 size: size_pct!(100.0),
-                padding: rect!(padding),
-                margin: rect!(border_width / 2.0),
+                padding: bounds!(padding),
+                margin: bounds!(border_width / 2.0),
                 cross_alignment: crate::layout::Alignment::Center,
                 axis_alignment: crate::layout::Alignment::Center,
             )
@@ -123,12 +123,12 @@ impl Component for Button {
 
     fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
         self.state_mut().hover = true;
-        crate::set_cursor("PointingHand");
+        crate::window::set_cursor("PointingHand");
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         *self.state_mut() = ButtonState::default();
-        crate::unset_cursor();
+        crate::window::unset_cursor();
     }
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {

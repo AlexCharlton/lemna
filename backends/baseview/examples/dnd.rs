@@ -3,7 +3,7 @@ use lemna::{style::HorizontalPosition, *};
 #[derive(Debug, Default)]
 pub struct App {}
 
-impl lemna::Component for App {
+impl Component for App {
     fn view(&self) -> Option<Node> {
         Some(
             node!(
@@ -23,7 +23,7 @@ impl lemna::Component for App {
     }
 
     fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) {
-        lemna::set_drop_target_valid(false);
+        window::set_drop_target_valid(false);
     }
 }
 
@@ -65,8 +65,10 @@ impl Component for DropTarget {
                     axis_alignment: Center,
                 ],
             )
-            .push(node!(widgets::Text::new(txt!("Drag something onto me"))
-                .style("h_alignment", HorizontalPosition::Center))),
+            .push(node!(
+                widgets::Text::new(txt!("Drag something onto me"))
+                    .style("h_alignment", HorizontalPosition::Center)
+            )),
         )
     }
 
@@ -77,12 +79,12 @@ impl Component for DropTarget {
 
     fn on_drag_enter(&mut self, _event: &mut Event<event::DragEnter>) {
         self.state_mut().active = true;
-        lemna::set_drop_target_valid(true);
+        window::set_drop_target_valid(true);
     }
 
     fn on_drag_leave(&mut self, _event: &mut Event<event::DragLeave>) {
         self.state_mut().active = false;
-        lemna::set_drop_target_valid(false);
+        window::set_drop_target_valid(false);
     }
 
     fn on_drag_target(&mut self, event: &mut Event<event::DragTarget>) {
@@ -108,13 +110,15 @@ impl Component for DragSource {
                     axis_alignment: Center,
                 ],
             )
-            .push(node!(widgets::Text::new(txt!("Drag from me"))
-                .style("h_alignment", HorizontalPosition::Center))),
+            .push(node!(
+                widgets::Text::new(txt!("Drag from me"))
+                    .style("h_alignment", HorizontalPosition::Center)
+            )),
         )
     }
 
     fn on_drag_start(&mut self, event: &mut Event<event::DragStart>) {
-        lemna::start_drag(Data::Filepath("/test/file.txt".into()));
+        window::start_drag(Data::Filepath("/test/file.txt".into()));
         event.stop_bubbling();
     }
 }

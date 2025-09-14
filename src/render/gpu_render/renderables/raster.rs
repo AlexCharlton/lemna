@@ -3,8 +3,8 @@ use bytemuck::{Pod, Zeroable};
 use super::{BufferCache, BufferCacheId};
 use super::{RasterCache, RasterCacheId};
 use crate::PixelSize;
-use crate::base_types::{AABB, Point, Pos};
-use crate::render::RasterData;
+use crate::base_types::{Point, Pos, Rect};
+use crate::renderable::RasterData;
 
 const INDEX_ENTRIES_PER_IMAGE: usize = 6;
 const VERTEX_ENTRIES_PER_IMAGE: usize = 4;
@@ -16,7 +16,7 @@ pub struct Vertex {
     pub tex_pos: Point,
 }
 
-impl crate::render::wgpu::VBDesc for Vertex {
+impl crate::render::gpu_render::wgpu::VBDesc for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -43,7 +43,7 @@ pub(crate) struct Instance {
     pub pos: Pos,
 }
 
-impl crate::render::wgpu::VBDesc for Instance {
+impl crate::render::gpu_render::wgpu::VBDesc for Instance {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -88,7 +88,7 @@ impl Raster {
 
     pub(crate) fn render(
         &self,
-        aabb: &AABB,
+        aabb: &Rect,
         tex_coords: (Point, Point),
         buffer_cache: &mut BufferCache<Vertex, u16>,
         raster_cache: &mut RasterCache,

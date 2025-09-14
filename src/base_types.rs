@@ -7,6 +7,9 @@ use core::mem;
 use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Sub, SubAssign};
 use serde::{Deserialize, Serialize};
 
+//-------------------------------------------------------------
+// MARK: Data
+
 /// Data that can be shared between processes, e.g. by the Clipboard or Drag and Drop.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
@@ -22,6 +25,9 @@ impl From<&str> for Data {
     }
 }
 
+//-------------------------------------------------------------
+// MARK: Scalable
+
 /// An object that can be scaled by a scale factor. This is used to adjust the size of things to the scale factor used by the user's monitor.
 pub trait Scalable {
     // Logical to physical coordinates
@@ -36,6 +42,9 @@ pub trait Scalable {
     }
 }
 
+//-------------------------------------------------------------
+// MARK: Utility
+
 /// Clamp the input `x` between `min` and `max`.
 pub(crate) fn clamp(x: f32, min: f32, max: f32) -> f32 {
     if min > max {
@@ -48,6 +57,9 @@ pub(crate) fn clamp(x: f32, min: f32, max: f32) -> f32 {
         x
     }
 }
+
+//-------------------------------------------------------------
+// MARK: PixelSize
 
 /// The size of something, in pixels.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
@@ -68,6 +80,9 @@ impl PixelSize {
         self.width * self.height
     }
 }
+
+//-------------------------------------------------------------
+// MARK: Scale
 
 /// Two dimensional scale factor, used by [`renderables::Rect`][crate::renderables::Rect].
 #[derive(Debug, Default, Copy, Clone, PartialEq, Pod, Zeroable)]
@@ -136,6 +151,9 @@ impl From<PixelSize> for Scale {
     }
 }
 
+//-------------------------------------------------------------
+// MARK: PixelPoint
+
 /// An `(x, y)` coordinate, in pixels.
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq)]
 #[repr(C)]
@@ -160,6 +178,9 @@ impl From<Point> for PixelPoint {
     }
 }
 
+//-------------------------------------------------------------
+// MARK: Point
+
 /// An `(x, y)` coordinate.
 #[derive(Debug, Default, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
@@ -174,11 +195,11 @@ impl Point {
         Point { x, y }
     }
 
-    /// Clamp the point to be within the bounds of the [`AABB`].
-    pub fn clamp(self, aabb: AABB) -> Self {
+    /// Clamp the point to be within the bounds of the [`Rect`].
+    pub fn clamp(self, rect: Rect) -> Self {
         Self {
-            x: clamp(self.x, aabb.pos.x, aabb.bottom_right.x),
-            y: clamp(self.y, aabb.pos.y, aabb.bottom_right.y),
+            x: clamp(self.x, rect.pos.x, rect.bottom_right.x),
+            y: clamp(self.y, rect.pos.y, rect.bottom_right.y),
         }
     }
 
@@ -276,6 +297,45 @@ impl SubAssign for Point {
     }
 }
 
+impl From<Point> for kurbo::Point {
+    fn from(p: Point) -> Self {
+        Self {
+            x: p.x as f64,
+            y: p.y as f64,
+        }
+    }
+}
+
+impl From<&Point> for kurbo::Point {
+    fn from(p: &Point) -> Self {
+        Self {
+            x: p.x as f64,
+            y: p.y as f64,
+        }
+    }
+}
+
+impl From<kurbo::Point> for Point {
+    fn from(p: kurbo::Point) -> Self {
+        Self {
+            x: p.x as f32,
+            y: p.y as f32,
+        }
+    }
+}
+
+impl From<&kurbo::Point> for Point {
+    fn from(p: &kurbo::Point) -> Self {
+        Self {
+            x: p.x as f32,
+            y: p.y as f32,
+        }
+    }
+}
+
+//-------------------------------------------------------------
+// MARK: Pos
+
 /// A Position coordinate `(x, y, z)`. The `z` dimension refers to the [z-index](https://developer.mozilla.org/en-US/docs/Web/CSS/z-index).
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
@@ -340,6 +400,12 @@ impl Scalable for Pos {
 }
 
 impl Pos {
+    pub const ORIGIN: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+
     /// Constructor
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
@@ -399,17 +465,37 @@ impl SubAssign for Pos {
     }
 }
 
-#[allow(dead_code)]
+impl From<Pos> for kurbo::Point {
+    fn from(p: Pos) -> Self {
+        Self {
+            x: p.x as f64,
+            y: p.y as f64,
+        }
+    }
+}
+
+impl From<&Pos> for kurbo::Point {
+    fn from(p: &Pos) -> Self {
+        Self {
+            x: p.x as f64,
+            y: p.y as f64,
+        }
+    }
+}
+
+//-------------------------------------------------------------
+// MARK: PixelRect
+
 /// An Axis-Aligned Bounding Box, in pixels.
+/// Used by the texture cache.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 #[repr(C)]
-pub(crate) struct PixelAABB {
+pub(crate) struct PixelRect {
     pub pos: PixelPoint,
     pub bottom_right: PixelPoint,
 }
 
-#[allow(dead_code)]
-impl PixelAABB {
+impl PixelRect {
     pub fn normalize(&self, scale: PixelSize) -> (Point, Point) {
         (
             Point {
@@ -443,17 +529,20 @@ impl PixelAABB {
     }
 }
 
+//-------------------------------------------------------------
+// MARK: Rect
+
 /// An [Axis-Aligned Bounding Box](https://en.wikipedia.org/wiki/Minimum_bounding_box). Used by some of the advanced [`Component`](crate::Component) methods, including [`render`](crate::Component#render).
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 #[repr(C)]
-pub struct AABB {
+pub struct Rect {
     /// Top left + z
     pub pos: Pos,
     /// Bottom right
     pub bottom_right: Point,
 }
 
-impl AABB {
+impl Rect {
     /// Construct from a [`Pos`] (top left + z) and [`Scale`].
     pub fn new(pos: Pos, size: Scale) -> Self {
         Self {
@@ -564,7 +653,7 @@ impl AABB {
     }
 }
 
-impl Scalable for AABB {
+impl Scalable for Rect {
     fn scale(self, scale_factor: f32) -> Self {
         Self {
             pos: self.pos.scale(scale_factor),
@@ -573,7 +662,7 @@ impl Scalable for AABB {
     }
 }
 
-impl MulAssign<f32> for AABB {
+impl MulAssign<f32> for Rect {
     fn mul_assign(&mut self, f: f32) {
         self.pos.x *= f;
         self.pos.y *= f;
@@ -582,7 +671,7 @@ impl MulAssign<f32> for AABB {
     }
 }
 
-impl Mul<f32> for AABB {
+impl Mul<f32> for Rect {
     type Output = Self;
     fn mul(self, f: f32) -> Self {
         Self {
@@ -599,7 +688,7 @@ impl Mul<f32> for AABB {
     }
 }
 
-impl Div<f32> for AABB {
+impl Div<f32> for Rect {
     type Output = Self;
     fn div(self, f: f32) -> Self {
         Self {
@@ -617,30 +706,95 @@ impl Div<f32> for AABB {
 }
 
 #[cfg(feature = "cpu_renderer")]
-impl From<AABB> for tiny_skia::Rect {
-    fn from(aabb: AABB) -> Self {
+impl From<Rect> for tiny_skia::Rect {
+    fn from(rect: Rect) -> Self {
         tiny_skia::Rect::from_ltrb(
-            aabb.pos.x,
-            aabb.pos.y,
-            aabb.bottom_right.x,
-            aabb.bottom_right.y,
+            rect.pos.x,
+            rect.pos.y,
+            rect.bottom_right.x,
+            rect.bottom_right.y,
         )
         .unwrap()
     }
 }
 
 #[cfg(feature = "cpu_renderer")]
-impl From<&AABB> for tiny_skia::Rect {
-    fn from(aabb: &AABB) -> Self {
+impl From<&Rect> for tiny_skia::Rect {
+    fn from(rect: &Rect) -> Self {
         tiny_skia::Rect::from_ltrb(
-            aabb.pos.x,
-            aabb.pos.y,
-            aabb.bottom_right.x,
-            aabb.bottom_right.y,
+            rect.pos.x,
+            rect.pos.y,
+            rect.bottom_right.x,
+            rect.bottom_right.y,
         )
         .unwrap()
     }
 }
+
+impl From<Rect> for kurbo::Rect {
+    fn from(rect: Rect) -> Self {
+        Self {
+            x0: rect.pos.x as f64,
+            y0: rect.pos.y as f64,
+            x1: rect.bottom_right.x as f64,
+            y1: rect.bottom_right.y as f64,
+        }
+    }
+}
+
+impl From<&Rect> for kurbo::Rect {
+    fn from(rect: &Rect) -> Self {
+        Self {
+            x0: rect.pos.x as f64,
+            y0: rect.pos.y as f64,
+            x1: rect.bottom_right.x as f64,
+            y1: rect.bottom_right.y as f64,
+        }
+    }
+}
+
+//-------------------------------------------------------------
+// MARK: BorderRadii
+
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
+pub struct BorderRadii {
+    pub top_left: f32,
+    pub top_right: f32,
+    pub bottom_right: f32,
+    pub bottom_left: f32,
+}
+
+impl BorderRadii {
+    pub fn new(top_left: f32, top_right: f32, bottom_right: f32, bottom_left: f32) -> Self {
+        Self {
+            top_left,
+            top_right,
+            bottom_right,
+            bottom_left,
+        }
+    }
+
+    pub fn all(radius: f32) -> Self {
+        Self {
+            top_left: radius,
+            top_right: radius,
+            bottom_right: radius,
+            bottom_left: radius,
+        }
+    }
+}
+
+impl Hash for BorderRadii {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        ((self.top_left * 100000.0) as i32).hash(state);
+        ((self.top_right * 100000.0) as i32).hash(state);
+        ((self.bottom_right * 100000.0) as i32).hash(state);
+        ((self.bottom_left * 100000.0) as i32).hash(state);
+    }
+}
+
+//-------------------------------------------------------------
+// MARK: Color
 
 /// RGBA color struct, used for styling and rendering. Values are normalized (0.0--1.0) floating point.
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable, Serialize, Deserialize)]

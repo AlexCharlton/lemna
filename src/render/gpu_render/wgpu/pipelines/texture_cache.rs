@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    PixelAABB, PixelPoint, PixelSize, Point,
+    PixelPoint, PixelRect, PixelSize, Point,
     render::{
+        gpu_render::{Raster, RasterCache, RasterCacheId, RasterId},
         next_power_of_2,
-        renderables::{Raster, RasterCache, RasterCacheId, RasterId},
     },
 };
 use wgpu;
@@ -24,9 +24,9 @@ pub struct TextureCache {
 pub struct PackedTextureInfo {
     size: PixelSize,
     /// Raster ID -> (RasterCacheId, AABB within this Texture, has this been written to GPU?, has this been marked?)
-    raster_map: HashMap<RasterId, (RasterCacheId, PixelAABB, bool, bool)>,
+    raster_map: HashMap<RasterId, (RasterCacheId, PixelRect, bool, bool)>,
     /// Unfilled areas of data
-    free_slots: Vec<PixelAABB>,
+    free_slots: Vec<PixelRect>,
     /// Number of pixels taken out of contention
     dead_pixels: u32,
 }
@@ -42,7 +42,7 @@ impl PackedTextureInfo {
         size.width <= slot_size.width && size.height <= slot_size.height
     }
 
-    fn dead_slot(aabb: PixelAABB) -> bool {
+    fn dead_slot(aabb: PixelRect) -> bool {
         aabb.width() <= MIN_SLOT_DIM || aabb.height() <= MIN_SLOT_DIM
     }
 
@@ -52,7 +52,7 @@ impl PackedTextureInfo {
     /// Not really the same as described [here](https://gamedev.stackexchange.com/questions/2829/texture-packing-algorithm),
     /// but this has some interesting discussion
     fn insert(&mut self, id: RasterId, size: PixelSize, raster_cache_id: RasterCacheId) {
-        let mut extra_slot: Option<PixelAABB> = None;
+        let mut extra_slot: Option<PixelRect> = None;
         let mut remove_slot = false;
         let mut pos = PixelPoint { x: 0, y: 0 };
         let mut i = 0;
@@ -91,7 +91,7 @@ impl PackedTextureInfo {
             self.free_slots.push(aabb);
         }
 
-        let aabb = PixelAABB {
+        let aabb = PixelRect {
             pos,
             bottom_right: PixelPoint {
                 x: pos.x + size.width,
@@ -155,7 +155,7 @@ impl TextureCache {
         self.texture_info.push(PackedTextureInfo {
             size,
             raster_map: Default::default(),
-            free_slots: vec![PixelAABB {
+            free_slots: vec![PixelRect {
                 pos: PixelPoint::new(0, 0),
                 bottom_right: PixelPoint::new(size.width, size.height),
             }],
@@ -295,7 +295,7 @@ impl TextureCache {
 #[cfg(test)]
 mod tests {
     use super::PackedTextureInfo;
-    use crate::{base_types::*, render::renderables::RasterCacheId};
+    use crate::{base_types::*, render::gpu_render::RasterCacheId};
 
     #[test]
     fn test_insert() {
@@ -306,11 +306,11 @@ mod tests {
             },
             raster_map: Default::default(),
             free_slots: vec![
-                PixelAABB {
+                PixelRect {
                     pos: PixelPoint::new(0, 0),
                     bottom_right: PixelPoint::new(20, 100),
                 },
-                PixelAABB {
+                PixelRect {
                     pos: PixelPoint::new(0, 100),
                     bottom_right: PixelPoint::new(200, 200),
                 },
@@ -350,7 +350,7 @@ mod tests {
             t1.raster_map[&0],
             (
                 RasterCacheId::new(10),
-                PixelAABB {
+                PixelRect {
                     pos: PixelPoint::new(0, 100),
                     bottom_right: PixelPoint::new(50, 150),
                 },
@@ -361,21 +361,21 @@ mod tests {
         assert_eq!(t1.free_slots.len(), 3);
         assert_eq!(
             t1.free_slots[0],
-            PixelAABB {
+            PixelRect {
                 pos: PixelPoint::new(0, 0),
                 bottom_right: PixelPoint::new(20, 100),
             }
         );
         assert_eq!(
             t1.free_slots[1],
-            PixelAABB {
+            PixelRect {
                 pos: PixelPoint::new(50, 100),
                 bottom_right: PixelPoint::new(200, 150),
             }
         );
         assert_eq!(
             t1.free_slots[2],
-            PixelAABB {
+            PixelRect {
                 pos: PixelPoint::new(0, 150),
                 bottom_right: PixelPoint::new(200, 200),
             }
@@ -413,14 +413,14 @@ mod tests {
         assert_eq!(t1.free_slots.len(), 2);
         assert_eq!(
             t1.free_slots[0],
-            PixelAABB {
+            PixelRect {
                 pos: PixelPoint::new(0, 0),
                 bottom_right: PixelPoint::new(20, 100),
             }
         );
         assert_eq!(
             t1.free_slots[1],
-            PixelAABB {
+            PixelRect {
                 pos: PixelPoint::new(50, 100),
                 bottom_right: PixelPoint::new(200, 150),
             }
@@ -436,11 +436,11 @@ mod tests {
             },
             raster_map: Default::default(),
             free_slots: vec![
-                PixelAABB {
+                PixelRect {
                     pos: PixelPoint::new(0, 0),
                     bottom_right: PixelPoint::new(20, 100),
                 },
-                PixelAABB {
+                PixelRect {
                     pos: PixelPoint::new(0, 100),
                     bottom_right: PixelPoint::new(200, 200),
                 },

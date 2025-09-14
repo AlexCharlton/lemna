@@ -13,6 +13,7 @@ default = ["gpu_renderer"]
 instrumented = ["lemna/instrumented"]
 cpu_renderer = ["lemna/std_cpu"]
 gpu_renderer = ["lemna/wgpu_renderer"]
+antialiased_shapes = ["lemna/antialiased_shapes"]
 
 [dependencies]
 lemna = { path = "../../", version = "0.4", default-features = false, features = [

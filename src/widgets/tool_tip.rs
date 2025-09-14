@@ -41,7 +41,7 @@ impl Component for ToolTip {
                     .bg(background_color)
                     .border(border_color, border_width),
                 lay!(
-                    padding: rect!(padding),
+                    padding: bounds!(padding),
                     max_size: size!(ToolTip::MAX_WIDTH, Auto),
                 )
             )
@@ -61,10 +61,10 @@ impl Component for ToolTip {
 
     fn set_aabb(
         &mut self,
-        aabb: &mut AABB,
-        _parent_aabb: AABB,
-        _children: Vec<(&mut AABB, Option<Scale>, Option<Point>)>,
-        frame: AABB,
+        aabb: &mut Rect,
+        _parent_aabb: Rect,
+        _children: Vec<(&mut Rect, Option<Scale>, Option<Point>)>,
+        frame: Rect,
         _scale_factor: f32,
     ) {
         if aabb.bottom_right.y > frame.bottom_right.y {

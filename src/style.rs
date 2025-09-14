@@ -152,7 +152,7 @@ impl Default for Style {
                 StyleKey::new("Button", "border_color", None),
                 Color::BLACK.into(),
             ),
-            (StyleKey::new("Button", "border_width", None), 2.0.into()),
+            (StyleKey::new("Button", "border_width", None), 1.0.into()),
             (StyleKey::new("Button", "radius", None), 4.0.into()),
             (StyleKey::new("Button", "padding", None), 2.0.into()),
             // RadioButton
@@ -182,7 +182,7 @@ impl Default for Style {
             ),
             (
                 StyleKey::new("RadioButton", "border_width", None),
-                2.0.into(),
+                1.0.into(),
             ),
             (StyleKey::new("RadioButton", "radius", None), 4.0.into()),
             (StyleKey::new("RadioButton", "padding", None), 2.0.into()),
@@ -208,7 +208,7 @@ impl Default for Style {
                 StyleKey::new("Select", "caret_color", None),
                 Color::BLACK.into(),
             ),
-            (StyleKey::new("Select", "border_width", None), 2.0.into()),
+            (StyleKey::new("Select", "border_width", None), 1.0.into()),
             (StyleKey::new("Select", "radius", None), 4.0.into()),
             (StyleKey::new("Select", "padding", None), 2.0.into()),
             (StyleKey::new("Select", "max_height", None), 250.0.into()),
@@ -229,7 +229,7 @@ impl Default for Style {
                 StyleKey::new("Toggle", "border_color", None),
                 Color::BLACK.into(),
             ),
-            (StyleKey::new("Toggle", "border_width", None), 2.0.into()),
+            (StyleKey::new("Toggle", "border_width", None), 1.0.into()),
             // ToolTip
             (
                 StyleKey::new("ToolTip", "text_color", None),
@@ -244,7 +244,7 @@ impl Default for Style {
                 StyleKey::new("ToolTip", "border_color", None),
                 Color::BLACK.into(),
             ),
-            (StyleKey::new("ToolTip", "border_width", None), 2.0.into()),
+            (StyleKey::new("ToolTip", "border_width", None), 1.0.into()),
             (StyleKey::new("ToolTip", "padding", None), 4.0.into()),
             // TextBox
             (StyleKey::new("TextBox", "font_size", None), 12.0.into()),

@@ -9,7 +9,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 lemna = { path = "../../../", default-features = false, features = [
-    "msaa_shapes",
+    "antialiased_shapes",
     "open_iconic",
 ] }
 lemna-macros = { path = "../../../macros/" }

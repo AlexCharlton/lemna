@@ -8,13 +8,14 @@ use embedded_graphics::draw_target::DrawTarget;
 use tiny_skia::{Color, Mask, Pixmap, Transform};
 
 use super::{Renderer, RgbColor};
-use crate::base_types::{AABB, PixelSize};
+use crate::base_types::{PixelSize, Rect};
 use crate::font_cache::FontCache;
 use crate::node::Node;
+use crate::renderable::Renderable;
 use crate::window::Window;
 
-pub mod renderables;
-pub use renderables::{Rect, Renderable};
+mod renderable;
+pub use renderable::*;
 
 #[derive(Default)]
 pub struct Caches {
@@ -59,7 +60,7 @@ impl Renderer for CPURenderer {
                 current_frame = frame;
             }
             match renderable {
-                Renderable::Rect(rect) => {
+                Renderable::Rectangle(rect) => {
                     rect.render(aabb, current_mask.as_ref(), &mut self.pixmap);
                 }
                 Renderable::Shape(shape) => {
@@ -88,7 +89,7 @@ impl Renderer for CPURenderer {
     }
 }
 
-fn update_mask_from_frames(size: &PixelSize, frames: &[AABB], mask: &mut Option<Mask>) {
+fn update_mask_from_frames(size: &PixelSize, frames: &[Rect], mask: &mut Option<Mask>) {
     if mask.is_none() {
         *mask = Some(Mask::new(size.width, size.height).unwrap());
     } else {

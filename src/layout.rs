@@ -246,17 +246,17 @@ impl Size {
         }
     }
 
-    fn minus_rect(&self, rect: &Rect) -> Self {
+    fn minus_bounds(&self, bounds: &Bounds) -> Self {
         Self {
-            width: self.width - rect.left - rect.right,
-            height: self.height - rect.top - rect.bottom,
+            width: self.width - bounds.left - bounds.right,
+            height: self.height - bounds.top - bounds.bottom,
         }
     }
 
-    fn plus_rect(&self, rect: &Rect) -> Self {
+    fn plus_bounds(&self, bounds: &Bounds) -> Self {
         Self {
-            width: self.width + rect.left + rect.right,
-            height: self.height + rect.top + rect.bottom,
+            width: self.width + bounds.left + bounds.right,
+            height: self.height + bounds.top + bounds.bottom,
         }
     }
 }
@@ -271,14 +271,14 @@ impl From<ScrollPosition> for Size {
 }
 
 #[derive(Default, Copy, Clone, PartialEq)]
-pub struct Rect {
+pub struct Bounds {
     pub left: Dimension,
     pub right: Dimension,
     pub top: Dimension,
     pub bottom: Dimension,
 }
 
-impl core::fmt::Debug for Rect {
+impl core::fmt::Debug for Bounds {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         write!(
             f,
@@ -288,7 +288,7 @@ impl core::fmt::Debug for Rect {
     }
 }
 
-impl Rect {
+impl Bounds {
     const ZERO: Self = Self {
         left: Dimension::Px(0.0),
         right: Dimension::Px(0.0),
@@ -455,7 +455,7 @@ impl Rect {
     // }
 }
 
-impl From<crate::base_types::Point> for Rect {
+impl From<crate::base_types::Point> for Bounds {
     fn from(p: crate::base_types::Point) -> Self {
         Self {
             top: Dimension::Px(p.y.into()),
@@ -497,8 +497,8 @@ impl Direction {
         cross: Dimension,
         axis_alignment: Alignment,
         cross_alignment: Alignment,
-    ) -> Rect {
-        let mut rect = Rect::default();
+    ) -> Bounds {
+        let mut rect = Bounds::default();
 
         match (self, axis_alignment) {
             (Direction::Row, Alignment::End) => rect.right = main,
@@ -548,12 +548,12 @@ impl Default for Alignment {
 pub struct Layout {
     pub direction: Direction,
     pub wrap: bool,
-    pub position: Rect,
+    pub position: Bounds,
     pub position_type: PositionType,
     pub axis_alignment: Alignment,
     pub cross_alignment: Alignment,
-    pub margin: Rect,
-    pub padding: Rect,
+    pub margin: Bounds,
+    pub padding: Bounds,
     pub size: Size,
     // TODO employ this more consistently
     pub max_size: Size,
@@ -572,8 +572,8 @@ impl Default for Layout {
             position_type: Default::default(),
             axis_alignment: Default::default(),
             cross_alignment: Default::default(),
-            margin: Rect::ZERO,
-            padding: Rect::ZERO,
+            margin: Bounds::ZERO,
+            padding: Bounds::ZERO,
             size: Default::default(),
             max_size: Default::default(),
             min_size: Size {
@@ -590,10 +590,10 @@ impl Default for Layout {
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LayoutResult {
     pub size: Size,
-    pub position: Rect,
+    pub position: Bounds,
 }
 
-impl From<LayoutResult> for crate::base_types::AABB {
+impl From<LayoutResult> for crate::base_types::Rect {
     fn from(p: LayoutResult) -> Self {
         Self::new(
             crate::base_types::Pos::new(p.position.left.into(), p.position.top.into(), 0.0),
@@ -642,9 +642,9 @@ impl super::node::Node {
             child.layout_result.size = child
                 .layout
                 .size
-                .more_specific(&child.layout_result.size.plus_rect(&child_margin))
+                .more_specific(&child.layout_result.size.plus_bounds(&child_margin))
                 .maybe_resolve(&inner_size)
-                .minus_rect(&child_margin);
+                .minus_bounds(&child_margin);
 
             if self.layout.axis_alignment == Alignment::Stretch
                 && child.layout.size.main(dir) == Dimension::Auto
@@ -654,7 +654,7 @@ impl super::node::Node {
             }
             if !child.layout_result.size.resolved() {
                 let inner_size =
-                    inner_size.minus_rect(&child.layout.margin.maybe_resolve(&inner_size));
+                    inner_size.minus_bounds(&child.layout.margin.maybe_resolve(&inner_size));
                 let (w, h) = child.component.fill_bounds(
                     child.layout_result.size.width.maybe_px(),
                     child.layout_result.size.height.maybe_px(),
@@ -715,7 +715,7 @@ impl super::node::Node {
                     .size
                     .most_specific(&child.layout_result.size)
                     .maybe_resolve(&max_cross)
-                    .minus_rect(&child.layout.margin.maybe_resolve(&inner_size));
+                    .minus_bounds(&child.layout.margin.maybe_resolve(&inner_size));
             }
 
             child.resolve_layout(inner_size, font_cache, scale_factor, final_pass);
@@ -790,7 +790,7 @@ impl super::node::Node {
 
         for child in children.iter_mut() {
             let margin = child.layout.margin.maybe_resolve(&size);
-            let child_outer_size = child.layout_result.size.plus_rect(&margin);
+            let child_outer_size = child.layout_result.size.plus_bounds(&margin);
 
             // Perform a wrap?
             if self.layout.wrap
@@ -1003,7 +1003,7 @@ impl super::node::Node {
     ) {
         let size = self.layout.size.most_specific(&self.layout_result.size);
 
-        let mut inner_size = size.minus_rect(&self.layout.padding.maybe_resolve(&bounds_size));
+        let mut inner_size = size.minus_bounds(&self.layout.padding.maybe_resolve(&bounds_size));
         if self.scroll_x().is_some() {
             inner_size.width = Dimension::Auto;
         };
@@ -1049,7 +1049,7 @@ impl super::node::Node {
         font_cache: &crate::font_cache::FontCache,
         scale_factor: f32,
     ) {
-        self.layout_result.position = Rect {
+        self.layout_result.position = Bounds {
             top: Dimension::Px(0.0),
             left: Dimension::Px(0.0),
             bottom: Dimension::Auto,
@@ -1075,13 +1075,13 @@ macro_rules! lay {
     ( @ { $(,)* margin : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                margin : rect!($($vals)*),
+                margin : bounds!($($vals)*),
         ))
     );
     ( @ { $(,)* margin_pct : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                margin : rect_pct!($($vals)*),
+                margin : bounds_pct!($($vals)*),
         ))
     );
 
@@ -1089,13 +1089,13 @@ macro_rules! lay {
     ( @ { $(,)* padding : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                padding : rect!($($vals)*),
+                padding : bounds!($($vals)*),
         ))
     );
     ( @ { $(,)* padding_pct : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                padding : rect_pct!($($vals)*),
+                padding : bounds_pct!($($vals)*),
         ))
     );
 
@@ -1103,13 +1103,13 @@ macro_rules! lay {
     ( @ { $(,)* position : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                position : rect!($($vals)*),
+                position : bounds!($($vals)*),
         ))
     );
     ( @ { $(,)* position_pct : [$($vals:tt)+] $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                position : rect_pct!($($vals)*),
+                position : bounds_pct!($($vals)*),
         ))
     );
 
@@ -1320,10 +1320,10 @@ macro_rules! size_pct {
 }
 
 #[macro_export]
-macro_rules! rect {
+macro_rules! bounds {
     // One arg
     (Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
@@ -1331,7 +1331,7 @@ macro_rules! rect {
         }
     };
     ($all:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($all.into()),
             right: $crate::layout::Dimension::Px($all.into()),
             top: $crate::layout::Dimension::Px($all.into()),
@@ -1340,7 +1340,7 @@ macro_rules! rect {
     };
     // Two args
     (Auto, $se:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($se.into()),
             right: $crate::layout::Dimension::Px($se.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1348,7 +1348,7 @@ macro_rules! rect {
         }
     };
     ($tb:expr, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Px($tb.into()),
@@ -1356,7 +1356,7 @@ macro_rules! rect {
         }
     };
     ($tb:expr, $se:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($se.into()),
             right: $crate::layout::Dimension::Px($se.into()),
             top: $crate::layout::Dimension::Px($tb.into()),
@@ -1365,7 +1365,7 @@ macro_rules! rect {
     };
     // Three args
     ($t:expr, Auto, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Px($t),
@@ -1373,7 +1373,7 @@ macro_rules! rect {
         }
     };
     (Auto, Auto, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
@@ -1381,7 +1381,7 @@ macro_rules! rect {
         }
     };
     (Auto, $se:expr, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($se.into()),
             right: $crate::layout::Dimension::Px($se.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1389,7 +1389,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, Auto, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1397,7 +1397,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, $se:expr, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($se.into()),
             right: $crate::layout::Dimension::Px($se.into()),
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1405,7 +1405,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, $se:expr, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($se.into()),
             right: $crate::layout::Dimension::Px($se.into()),
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1414,7 +1414,7 @@ macro_rules! rect {
     };
     // Four args
     (Auto, $s:expr, Auto, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
@@ -1422,7 +1422,7 @@ macro_rules! rect {
         }
     };
     (Auto, Auto, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1430,7 +1430,7 @@ macro_rules! rect {
         }
     };
     (Auto, $s:expr, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1438,7 +1438,7 @@ macro_rules! rect {
         }
     };
     (Auto, Auto, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1446,7 +1446,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, $s:expr, Auto, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1454,7 +1454,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, Auto, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1462,7 +1462,7 @@ macro_rules! rect {
         }
     };
     (Auto, $s:expr, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1470,7 +1470,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, Auto, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1478,7 +1478,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, $s:expr, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1486,7 +1486,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, $s:expr, $b:expr, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1494,7 +1494,7 @@ macro_rules! rect {
         }
     };
     ($t:expr, $s:expr, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Px($s.into()),
             right: $crate::layout::Dimension::Px($e.into()),
             top: $crate::layout::Dimension::Px($t.into()),
@@ -1504,10 +1504,10 @@ macro_rules! rect {
 }
 
 #[macro_export]
-macro_rules! rect_pct {
+macro_rules! bounds_pct {
     // One arg
     (Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
@@ -1515,7 +1515,7 @@ macro_rules! rect_pct {
         }
     };
     ($all:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($all.into()),
             right: $crate::layout::Dimension::Pct($all.into()),
             top: $crate::layout::Dimension::Pct($all.into()),
@@ -1524,7 +1524,7 @@ macro_rules! rect_pct {
     };
     // Two args
     (Auto, $se:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($se.into()),
             right: $crate::layout::Dimension::Pct($se.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1532,7 +1532,7 @@ macro_rules! rect_pct {
         }
     };
     ($tb:expr, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Pct($tb.into()),
@@ -1540,7 +1540,7 @@ macro_rules! rect_pct {
         }
     };
     ($tb:expr, $se:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($se.into()),
             right: $crate::layout::Dimension::Pct($se.into()),
             top: $crate::layout::Dimension::Pct($tb.into()),
@@ -1549,7 +1549,7 @@ macro_rules! rect_pct {
     };
     // Three args
     ($t:expr, Auto, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1557,7 +1557,7 @@ macro_rules! rect_pct {
         }
     };
     (Auto, Auto, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
@@ -1565,7 +1565,7 @@ macro_rules! rect_pct {
         }
     };
     (Auto, $se:expr, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($se.into()),
             right: $crate::layout::Dimension::Pct($se.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1573,7 +1573,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, Auto, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1581,7 +1581,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, $se:expr, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($se.into()),
             right: $crate::layout::Dimension::Pct($se.into()),
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1589,7 +1589,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, $se:expr, $b:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($se.into()),
             right: $crate::layout::Dimension::Pct($se.into()),
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1598,7 +1598,7 @@ macro_rules! rect_pct {
     };
     // Four args
     (Auto, $s:expr, Auto, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Auto,
@@ -1606,7 +1606,7 @@ macro_rules! rect_pct {
         }
     };
     (Auto, Auto, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1614,7 +1614,7 @@ macro_rules! rect_pct {
         }
     };
     (Auto, $s:expr, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1622,7 +1622,7 @@ macro_rules! rect_pct {
         }
     };
     (Auto, Auto, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1630,7 +1630,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, $s:expr, Auto, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1638,7 +1638,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, Auto, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1646,7 +1646,7 @@ macro_rules! rect_pct {
         }
     };
     (Auto, $s:expr, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Auto,
@@ -1654,7 +1654,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, Auto, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Auto,
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1662,7 +1662,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, $s:expr, Auto, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1670,7 +1670,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, $s:expr, $b:expr, Auto) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Auto,
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1678,7 +1678,7 @@ macro_rules! rect_pct {
         }
     };
     ($t:expr, $s:expr, $b:expr, $e:expr) => {
-        $crate::layout::Rect {
+        $crate::layout::Bounds {
             left: $crate::layout::Dimension::Pct($s.into()),
             right: $crate::layout::Dimension::Pct($e.into()),
             top: $crate::layout::Dimension::Pct($t.into()),
@@ -1726,19 +1726,19 @@ mod tests {
     fn test_wrap_margins_and_padding() {
         let mut nodes = node!(
             Div::new(),
-            lay!(size: size!(300.0), direction: Direction::Row, wrap: true, padding: rect_pct!(1.0))
+            lay!(size: size!(300.0), direction: Direction::Row, wrap: true, padding: bounds_pct!(1.0))
         )
         .push(node!(
             Div::new(),
-            lay!(size: size!(150.0), margin: rect_pct!(1.0))
+            lay!(size: size!(150.0), margin: bounds_pct!(1.0))
         ))
         .push(node!(
             Div::new(),
-            lay!(size: size!(100.0), margin: rect_pct!(1.0))
+            lay!(size: size!(100.0), margin: bounds_pct!(1.0))
         ))
         .push(node!(
             Div::new(),
-            lay!(size: size!(200.0), margin: rect_pct!(1.0))
+            lay!(size: size!(200.0), margin: bounds_pct!(1.0))
         ));
         nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
@@ -1846,7 +1846,7 @@ mod tests {
     fn test_padding() {
         let mut nodes = node!(
             Div::new(),
-            lay!(size: size!(300.0), padding: rect!(10.0, 20.0, 30.0, 40.0))
+            lay!(size: size!(300.0), padding: bounds!(10.0, 20.0, 30.0, 40.0))
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
         nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
@@ -1861,7 +1861,7 @@ mod tests {
             Div::new(),
             lay!(
                 size: size!(300.0),
-                padding: rect_pct!(10.0, 20.0, 30.0, 40.0)
+                padding: bounds_pct!(10.0, 20.0, 30.0, 40.0)
             )
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
@@ -1878,14 +1878,14 @@ mod tests {
                 Div::new(),
                 lay!(
                     size: size_pct!(50.0, 100.0),
-                    margin: rect!(5.0, 10.0, 15.0, 20.0)
+                    margin: bounds!(5.0, 10.0, 15.0, 20.0)
                 )
             ))
             .push(node!(
                 Div::new(),
                 lay!(
                     size: size_pct!(50.0, 100.0),
-                    margin: rect!(15.0, 10.0, 5.0, 20.0)
+                    margin: bounds!(15.0, 10.0, 5.0, 20.0)
                 )
             ));
         nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
@@ -1904,14 +1904,14 @@ mod tests {
                 Div::new(),
                 lay!(
                     size: size_pct!(50.0, 100.0),
-                    margin: rect_pct!(5.0, 10.0, 15.0, 20.0),
+                    margin: bounds_pct!(5.0, 10.0, 15.0, 20.0),
                 )
             ))
             .push(node!(
                 Div::new(),
                 lay!(
                     size: size_pct!(50.0, 100.0),
-                    margin: rect_pct!(15.0, 10.0, 5.0, 20.0),
+                    margin: bounds_pct!(15.0, 10.0, 5.0, 20.0),
                 )
             ));
         nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
@@ -1927,13 +1927,13 @@ mod tests {
     fn test_auto() {
         let mut nodes = node!(
             Div::new(),
-            lay!(direction: Direction::Row, padding: rect!(10.0))
+            lay!(direction: Direction::Row, padding: bounds!(10.0))
         )
         .push(node!(Div::new(), lay!(size: size!(150.0))))
         .push(node!(Div::new(), lay!(size: size!(100.0))))
         .push(node!(
             Div::new(),
-            lay!(size: size!(200.0), margin: rect!(2.0))
+            lay!(size: size!(200.0), margin: bounds!(2.0))
         ));
         nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(
@@ -1987,20 +1987,20 @@ mod tests {
             Div::new(),
             lay!(size: size!(415.0), // This is just small enough to force a wrap
                  direction: Direction::Row,
-                 padding: rect!(5.0), wrap: true,
+                 padding: bounds!(5.0), wrap: true,
                  axis_alignment: Alignment::Center, cross_alignment: Alignment::Center)
         )
         .push(node!(
             Div::new(),
-            lay!(size: size!(100.0), margin: rect!(1.0))
+            lay!(size: size!(100.0), margin: bounds!(1.0))
         ))
         .push(node!(
             Div::new(),
-            lay!(size: size!(200.0), margin: rect!(1.0))
+            lay!(size: size!(200.0), margin: bounds!(1.0))
         ))
         .push(node!(
             Div::new(),
-            lay!(size: size!(100.0), margin: rect!(1.0))
+            lay!(size: size!(100.0), margin: bounds!(1.0))
         ));
         nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(415.0));
@@ -2027,7 +2027,7 @@ mod tests {
             lay!(
                 size: size!(100.0),
                 position_type: PositionType::Absolute,
-                position: rect!(Auto, Auto, 10.0, 10.0)
+                position: bounds!(Auto, Auto, 10.0, 10.0)
             )
         ));
         nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);

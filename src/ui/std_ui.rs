@@ -5,15 +5,16 @@ use std::thread::{self, JoinHandle};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use log::info;
 
-use super::window::{clear_current_window, current_window, set_current_window};
 use crate::base_types::*;
 use crate::component::Component;
 use crate::event::EventCache;
 use crate::instrumenting::*;
 use crate::layout::*;
 use crate::node::{Node, Registration};
-use crate::render::{ActiveRenderer, Caches, Renderer};
+use crate::render::{ActiveRenderer, Renderer};
+use crate::renderable::Caches;
 use crate::window::Window;
+use crate::window::{clear_current_window, current_window, set_current_window};
 
 /// `UI` is the main struct that holds the [`Window`], `Renderer` and [`Node`]s of an app.
 /// It handles events and drawing+rendering.

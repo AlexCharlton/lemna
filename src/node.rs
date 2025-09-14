@@ -10,7 +10,7 @@ use crate::component::*;
 use crate::event::{self, Event, EventInput};
 use crate::font_cache::FontCache;
 use crate::layout::*;
-use crate::render::{Caches, Renderable};
+use crate::renderable::{Caches, Renderable};
 
 static NODE_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);
 
@@ -88,9 +88,9 @@ pub struct Node {
     pub(crate) layout: Layout,
     pub(crate) layout_result: LayoutResult,
     // The AABB of this component
-    pub(crate) aabb: AABB,
+    pub(crate) aabb: Rect,
     // The AABB of this component and all its children
-    pub(crate) inclusive_aabb: AABB,
+    pub(crate) inclusive_aabb: Rect,
     // TODO: Marking a node dirty should propagate to all its parents.
     //   Clean nodes can be fully recycled instead of performing a `view`
     // pub(crate) dirty: bool,
@@ -118,7 +118,7 @@ impl fmt::Debug for Node {
     }
 }
 
-fn expand_aabb(a: &mut AABB, b: AABB) {
+fn expand_aabb(a: &mut Rect, b: Rect) {
     if a.pos.x > b.pos.x {
         a.pos.x = b.pos.x;
     }
@@ -254,10 +254,10 @@ impl Node {
     fn set_aabb(
         &mut self,
         parent_pos: Pos,
-        parent_aabb: AABB,
+        parent_aabb: Rect,
         mut parent_scroll_pos: ScrollPosition,
         parent_full_control: bool,
-        frame: AABB,
+        frame: Rect,
         scale_factor: f32,
     ) {
         let full_control = self.component.full_control();
@@ -277,7 +277,7 @@ impl Node {
             + self.layout.z_index_increment) as f32;
 
         if full_control {
-            let children: Vec<(&mut AABB, Option<Scale>, Option<Point>)> = self
+            let children: Vec<(&mut Rect, Option<Scale>, Option<Point>)> = self
                 .children
                 .iter_mut()
                 .map(|c| {
@@ -360,7 +360,7 @@ impl Node {
             self.aabb,
             ScrollPosition::default(),
             false,
-            (AABB::from(self.layout_result) * scale_factor).round(),
+            (Rect::from(self.layout_result) * scale_factor).round(),
             scale_factor,
         );
     }
@@ -807,7 +807,7 @@ impl Node {
     }
 }
 
-pub(crate) type ScrollFrame = AABB;
+pub(crate) type ScrollFrame = Rect;
 
 pub(crate) struct NodeRenderableIterator<'a> {
     queue: Vec<&'a Node>,
@@ -819,7 +819,7 @@ pub(crate) struct NodeRenderableIterator<'a> {
 impl<'a> Iterator for NodeRenderableIterator<'a> {
     // The vec of frames is the stack of frames that the current node is in
     // Note that child frames may extend outside of the parent frame
-    type Item = (&'a Renderable, &'a AABB, Vec<ScrollFrame>);
+    type Item = (&'a Renderable, &'a Rect, Vec<ScrollFrame>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(n) = self.queue.pop() {
@@ -861,7 +861,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
 #[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
-    use crate::render::Renderable;
+    use crate::renderable::Renderable;
 
     mod container {
         use super::*;

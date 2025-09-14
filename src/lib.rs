@@ -35,8 +35,7 @@ pub mod event;
 #[doc(inline)]
 pub use event::Event;
 
-mod window;
-pub use window::*;
+pub mod window;
 
 #[macro_use]
 mod node;
@@ -70,14 +69,6 @@ pub use lemna_macros::{component, state_component_impl};
 pub mod open_iconic;
 #[cfg(feature = "open_iconic")]
 pub use open_iconic::Icon;
-
-/// Used to construct the geometry used by [`renderables::Shape`].
-#[cfg(feature = "wgpu_renderer")]
-pub extern crate lyon;
-
-/// Used to construct the geometry used by [`renderables::Shape`].
-#[cfg(feature = "cpu_renderer")]
-pub extern crate kurbo;
 
 // Test stub window
 #[cfg(feature = "docs")]

@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::base_types::{AABB, Color, Point, Pos, Scale};
+use crate::base_types::{Color, Point, Pos, Rect, Scale};
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -8,7 +8,7 @@ pub struct Vertex {
     pub pos: Point,
 }
 
-impl crate::render::wgpu::VBDesc for Vertex {
+impl crate::render::gpu_render::VBDesc for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -30,7 +30,7 @@ pub(crate) struct Instance {
     pub color: Color,
 }
 
-impl crate::render::wgpu::VBDesc for Instance {
+impl crate::render::gpu_render::VBDesc for Instance {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
@@ -57,20 +57,20 @@ impl crate::render::wgpu::VBDesc for Instance {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Rect {
+pub struct Rectangle {
     instance_data: Instance,
 }
 
-impl Rect {
+impl Rectangle {
     pub fn new(pos: Pos, scale: Scale, color: Color) -> Self {
         Self {
             instance_data: Instance { pos, scale, color },
         }
     }
 
-    pub(crate) fn render(&self, aabb: &AABB) -> Instance {
+    pub(crate) fn render(&self, rect: &Rect) -> Instance {
         let mut i = self.instance_data;
-        i.pos += aabb.pos;
+        i.pos += rect.pos;
         i
     }
 }

@@ -8,7 +8,7 @@ use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
 use crate::font_cache::FontCache;
 use crate::input::MouseButton;
-use crate::render::{RasterData, Renderable};
+use crate::renderable::{RasterData, Renderable};
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug)]
@@ -157,7 +157,7 @@ impl Component for Canvas {
 
     #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::raster::Raster;
+        use crate::render::renderable::raster::Raster;
 
         let mut raster = context.prev_state.and_then(|mut v| match v.pop() {
             Some(Renderable::Raster(r)) => Some(r),

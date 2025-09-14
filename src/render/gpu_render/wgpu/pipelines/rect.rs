@@ -3,10 +3,12 @@ use log::info;
 use wgpu::{self, util::DeviceExt};
 
 use super::shared::{VBDesc, create_pipeline};
-use crate::base_types::AABB;
+use crate::base_types::Rect;
+use crate::render::gpu_render::{
+    rectangle::{Instance, Rectangle, Vertex},
+    wgpu::context,
+};
 use crate::render::next_power_of_2;
-use crate::render::renderables::rect::{Instance, Rect, Vertex};
-use crate::render::wgpu::context;
 
 pub struct RectPipeline {
     pipeline: wgpu::RenderPipeline,
@@ -41,7 +43,7 @@ impl RectPipeline {
 
     pub fn fill_buffers<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Rect, &'a AABB)],
+        renderables: &[(&'a Rectangle, &'a Rect)],
         queue: &'b mut wgpu::Queue,
     ) {
         self.instance_data.clear();
@@ -53,7 +55,7 @@ impl RectPipeline {
 
     pub fn render<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Rect, &'a AABB)],
+        renderables: &[(&'a Rectangle, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
         instance_offset: usize,
         msaa: bool,

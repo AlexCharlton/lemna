@@ -35,6 +35,10 @@ What's missing:
 - "scroll to" functionality
   - Use signals?
 
+Fix:
+- MSAA doesn't seem to be picking up clear color
+- Dragging off a toggle puts it in an active state
+
 
 ## Running
 Select your preferred windowing backend:

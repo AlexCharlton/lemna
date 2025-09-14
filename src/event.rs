@@ -32,7 +32,7 @@ pub struct Event<T: EventInput> {
     /// What keyboard modifiers (Shift, Alt, Ctr, Meta) were held when this event was fired.
     pub modifiers_held: ModifiersHeld,
     pub(crate) current_node_id: Option<u64>,
-    pub(crate) current_aabb: Option<AABB>,
+    pub(crate) current_aabb: Option<Rect>,
     pub(crate) current_inner_scale: Option<Scale>,
     pub(crate) over_child_n: Option<usize>,
     pub(crate) over_subchild_n: Option<usize>,
@@ -358,12 +358,12 @@ impl<T: EventInput> Event<T> {
     }
 
     /// Return the [`AABB`] of the current Node, in physical coordinates.
-    pub fn current_physical_aabb(&self) -> AABB {
+    pub fn current_physical_aabb(&self) -> Rect {
         self.current_aabb.unwrap()
     }
 
     /// Return the [`AABB`] of the current Node, in logical coordinates.
-    pub fn current_logical_aabb(&self) -> AABB {
+    pub fn current_logical_aabb(&self) -> Rect {
         self.current_aabb.unwrap().unscale(self.scale_factor)
     }
 

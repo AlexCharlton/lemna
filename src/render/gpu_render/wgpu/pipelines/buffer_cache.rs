@@ -4,8 +4,8 @@ use bytemuck::{Pod, cast_slice};
 use log::info;
 use wgpu;
 
+use crate::render::gpu_render::{BufferCacheId, BufferChunk};
 use crate::render::next_power_of_2;
-use crate::render::renderables::{BufferCacheId, BufferChunk};
 
 pub struct BufferCache<V, I> {
     pub vertex_buffer: wgpu::Buffer,
@@ -46,7 +46,7 @@ impl<V: Default + Pod, I: Default + Pod> BufferCache<V, I> {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        cache: &crate::render::renderables::BufferCache<V, I>,
+        cache: &crate::render::gpu_render::BufferCache<V, I>,
     ) {
         if cache.vertex_data.len() > self.vertex_buffer_len {
             self.vertex_buffer_len = next_power_of_2(cache.vertex_data.len());
@@ -82,7 +82,7 @@ impl<V: Default + Pod, I: Default + Pod> BufferCache<V, I> {
     pub fn get_chunks(
         &self,
         buffer_cache_id: BufferCacheId,
-        cache: &crate::render::renderables::BufferCache<V, I>,
+        cache: &crate::render::gpu_render::BufferCache<V, I>,
     ) -> (BufferChunk, BufferChunk) {
         cache.get_chunks(buffer_cache_id)
     }

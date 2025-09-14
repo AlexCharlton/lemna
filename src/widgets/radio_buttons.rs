@@ -177,7 +177,7 @@ impl Component for RadioButtons {
                     tool_tip: self.tool_tips.as_ref().map(|tt| tt[position].clone()),
                     position,
                     selected,
-                    radius: (
+                    radii: BorderRadii::new(
                         if row == 0 && col == 0 { radius } else { 0.0 },
                         if row == 0 && (col + 1 == n_columns || position + 1 == len) {
                             radius
@@ -246,7 +246,7 @@ struct RadioButton {
     tool_tip: Option<String>,
     position: usize,
     selected: bool,
-    radius: (f32, f32, f32, f32),
+    radii: BorderRadii,
 }
 
 #[state_component_impl(RadioButtonState)]
@@ -274,11 +274,11 @@ impl Component for RadioButton {
                 },
                 border_color,
                 border_width,
-                radius: self.radius,
+                radii: self.radii,
             },
             lay!(
                 size: size_pct!(100.0),
-                padding: rect!(padding),
+                padding: bounds!(padding),
                 cross_alignment: crate::layout::Alignment::Center,
                 axis_alignment: crate::layout::Alignment::Center
             )

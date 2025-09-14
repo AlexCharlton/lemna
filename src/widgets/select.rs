@@ -7,7 +7,7 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::layout::*;
-use crate::render::Renderable;
+use crate::renderable::Renderable;
 use crate::style::{HorizontalPosition, Styled, current_style};
 use crate::{Node, node, txt};
 use lemna_macros::{component, state_component_impl};
@@ -155,11 +155,11 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
                 background_color,
                 border_color,
                 border_width,
-                radius: (radius, radius, radius, radius),
+                radii: BorderRadii::all(radius),
             },
             lay!(
                 size: size_pct!(100.0),
-                padding: rect!(padding),
+                padding: bounds!(padding),
                 cross_alignment: Alignment::Center,
                 axis_alignment: Alignment::Center,
                 direction: Direction::Row,
@@ -179,7 +179,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
                     lay!(
                         size: size!(font_size / 2.0),
                         // TODO: Margin here is awkward
-                        margin: rect!(Auto, padding)
+                        margin: bounds!(Auto, padding)
                     )
                 ))
         }
@@ -209,9 +209,7 @@ struct Caret {
 impl Component for Caret {
     #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::shape::Shape;
-        use lyon::path::Path;
-        use lyon::tessellation::math as lyon_math;
+        use crate::renderable::{Path, Shape};
 
         let scale = 1.0;
 
@@ -219,13 +217,12 @@ impl Component for Caret {
         let w = context.aabb.width();
         let h = context.aabb.height();
         let start = h / 2.0;
-        path_builder.begin(lyon_math::point(0.0, start));
-        path_builder.line_to(lyon_math::point(w / 2.0, h));
-        path_builder.line_to(lyon_math::point(w, start));
-        path_builder.close();
+        path_builder.begin(Point::new(0.0, start));
+        path_builder.line_to(Point::new(w / 2.0, h));
+        path_builder.line_to(Point::new(w, start));
 
         Some(vec![Renderable::Shape(Shape::new(
-            path_builder.build(),
+            path_builder.build().unwrap(),
             Color::TRANSPARENT,
             self.color,
             scale,
@@ -287,10 +284,10 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
 
     fn set_aabb(
         &mut self,
-        aabb: &mut AABB,
-        parent_aabb: AABB,
-        mut children: Vec<(&mut AABB, Option<Scale>, Option<Point>)>,
-        frame: AABB,
+        aabb: &mut Rect,
+        parent_aabb: Rect,
+        mut children: Vec<(&mut Rect, Option<Scale>, Option<Point>)>,
+        frame: Rect,
         scale_factor: f32,
     ) {
         if let Some((child_aabb, Some(inner_scale), _)) = children.first_mut() {
@@ -348,7 +345,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
         }
 
         Some(
-            node!(div, lay!(size: size_pct!(100.0), padding: rect!(padding))).push(node!(
+            node!(div, lay!(size: size_pct!(100.0), padding: bounds!(padding))).push(node!(
                 super::Text::new(txt!(self.selection.to_string()))
                     .style("size", self.style_val("font_size").unwrap())
                     .style("color", self.style_val("text_color").unwrap())

@@ -1,4 +1,5 @@
 use crate::base_types::{Data, PixelSize};
+
 #[cfg(feature = "std")]
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
@@ -103,4 +104,84 @@ pub trait Window: Send + Sync {
 
     /// When responding to a Drag and Drop action, tell the window of origin whether the mouse is currently over a valid drop target.
     fn set_drop_target_valid(&self, _valid: bool) {}
+}
+
+//---------------------------------------------------
+// MARK: Accessors
+
+extern crate alloc;
+use alloc::boxed::Box;
+
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::once_lock::OnceLock;
+
+type RwLock<T> = embassy_sync::rwlock::RwLock<CriticalSectionRawMutex, T>;
+
+fn _current_window() -> &'static RwLock<Option<Box<dyn Window>>> {
+    static CURRENT_WINDOW: OnceLock<RwLock<Option<Box<dyn Window>>>> = OnceLock::new();
+    CURRENT_WINDOW.get_or_init(|| RwLock::new(None))
+}
+
+#[doc(hidden)]
+/// Return a reference to the current [`Window`].
+/// Only for use in windowing backends and internal use.
+pub fn current_window<'a>()
+-> embassy_sync::rwlock::RwLockReadGuard<'a, CriticalSectionRawMutex, Option<Box<dyn Window>>> {
+    embassy_futures::block_on(_current_window().read())
+}
+
+pub(crate) fn clear_current_window() {
+    *embassy_futures::block_on(_current_window().write()) = None;
+}
+
+pub(crate) fn set_current_window(window: Box<dyn Window>) {
+    *embassy_futures::block_on(_current_window().write()) = Some(window);
+}
+
+pub fn logical_size() -> Option<PixelSize> {
+    current_window().as_ref().map(|w| w.logical_size())
+}
+
+pub fn physical_size() -> Option<PixelSize> {
+    current_window().as_ref().map(|w| w.physical_size())
+}
+
+pub fn scale_factor() -> Option<f32> {
+    current_window().as_ref().map(|w| w.scale_factor())
+}
+
+pub fn set_cursor(cursor_type: &str) {
+    if let Some(w) = current_window().as_ref() {
+        w.set_cursor(cursor_type)
+    }
+}
+
+pub fn unset_cursor() {
+    if let Some(w) = current_window().as_ref() {
+        w.unset_cursor()
+    }
+}
+
+pub fn put_on_clipboard(data: &Data) {
+    if let Some(w) = current_window().as_ref() {
+        w.put_on_clipboard(data)
+    }
+}
+
+pub fn get_from_clipboard() -> Option<Data> {
+    current_window()
+        .as_ref()
+        .and_then(|w| w.get_from_clipboard())
+}
+
+pub fn start_drag(data: Data) {
+    if let Some(w) = current_window().as_ref() {
+        w.start_drag(data)
+    }
+}
+
+pub fn set_drop_target_valid(valid: bool) {
+    if let Some(w) = current_window().as_ref() {
+        w.set_drop_target_valid(valid)
+    }
 }

@@ -5,14 +5,15 @@ use core::marker::PhantomData;
 
 use embedded_graphics::draw_target::DrawTarget;
 
-use super::{clear_current_window, set_current_window};
 use crate::base_types::PixelSize;
 use crate::component::Component;
 use crate::event::EventCache;
 use crate::layout::Layout;
 use crate::node::{Node, Registration};
-use crate::render::{ActiveRenderer, Caches, Renderer, RgbColor};
+use crate::render::{ActiveRenderer, Renderer, RgbColor};
+use crate::renderable::Caches;
 use crate::window::Window;
+use crate::window::{clear_current_window, set_current_window};
 
 pub struct UI<
     A: Component + Default,

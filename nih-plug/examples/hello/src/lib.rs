@@ -17,11 +17,11 @@ impl lemna::Component for App {
             )
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(1.0, 0.0, 0.0)),
-                lay!(size: size!(200.0, 100.0), margin: rect!(5.0)),
+                lay!(size: size!(200.0, 100.0), margin: bounds!(5.0)),
             ))
             .push(node!(
                 widgets::Div::new().bg(Color::rgb(0.0, 1.0, 0.0)),
-                lay!(size: size!(100.0), margin: rect!(5.0)),
+                lay!(size: size!(100.0), margin: bounds!(5.0)),
             ))
             .push(node!(
                 widgets::RoundedRect {
@@ -30,13 +30,13 @@ impl lemna::Component for App {
                     ..Default::default()
                 }
                 .radius(5.0),
-                lay!(size: size!(100.0), margin: rect!(5.0)),
+                lay!(size: size!(100.0), margin: bounds!(5.0)),
             )),
         )
     }
 
     fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
-        lemna::set_cursor("Cross");
+        lemna::window::set_cursor("Cross");
     }
 }
 

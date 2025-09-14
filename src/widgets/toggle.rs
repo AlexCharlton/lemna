@@ -7,7 +7,7 @@ use core::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
-use crate::render::Renderable;
+use crate::renderable::Renderable;
 use crate::style::Styled;
 use lemna_macros::{component, state_component_impl};
 
@@ -83,10 +83,8 @@ impl Component for Toggle {
         self.state_ref().pressed.hash(hasher);
     }
 
-    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::shape::Shape;
-        use lyon::tessellation::math as lyon_math;
+        use crate::renderable::{Path, Shape};
 
         let background_color: Color = self.style_val("background_color").into();
         let active_color: Color = self.style_val("active_color").into();
@@ -95,10 +93,8 @@ impl Component for Toggle {
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         let radius = context.aabb.width() / 2.0;
-        let center = lyon_math::point(radius, context.aabb.height() / 2.0);
-        let mut builder = lyon::path::Path::builder();
-        builder.add_circle(center, radius, lyon::path::Winding::Positive);
-        let path = builder.build();
+        let center = Point::new(radius, context.aabb.height() / 2.0);
+        let path = Path::circle(center, radius).unwrap();
 
         Some(vec![Renderable::Shape(Shape::new(
             path,
@@ -110,7 +106,7 @@ impl Component for Toggle {
                 background_color
             },
             border_color,
-            border_width * 0.5,
+            border_width * context.scale_factor,
             0.0,
             context.caches,
             context
@@ -119,10 +115,5 @@ impl Component for Toggle {
                 .and_then(|r| r.first())
                 .and_then(|r| r.as_shape()),
         ))])
-    }
-
-    #[cfg(feature = "cpu_renderer")]
-    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        todo!()
     }
 }

@@ -11,7 +11,7 @@ use crate::event::{self, Event};
 use crate::font_cache::FontCache;
 use crate::layout::*;
 use crate::node::Node;
-use crate::render::{Caches, Renderable};
+use crate::renderable::{Caches, Renderable};
 
 /// A `Box<dyn Any>` type, used to convey information from a [`Component`] to one of its parent nodes. Passed to [`Event#emit`][Event#method.emit].
 pub type Message = Box<dyn Any>;
@@ -33,8 +33,9 @@ macro_rules! msg {
 
 /// Passed to [`Component#render`][Component#method.render], with context required for rendering.
 pub struct RenderContext<'a> {
-    /// The `AABB` that contains the given [`Component`] instance.
-    pub aabb: AABB,
+    /// The `Rect` that contains the given [`Component`] instance.
+    /// This is in physical units (i.e. it has been scaled by the scale factor), not logical units.
+    pub aabb: Rect,
     /// For scrollable Components (Components that return a `Some` value for [`#scroll_position`][Component#method.scroll_position]), this is the size of the child Nodes.
     pub inner_scale: Option<Scale>,
     /// The caches used by the renderer.
@@ -125,13 +126,13 @@ pub trait Component: fmt::Debug {
 
     /// Is the `mouse_position` over this Component? Implement if the Component has
     /// non-rectangular geometry. Otherwise will default to `aabb.is_under(mouse_position)`.
-    fn is_mouse_over(&self, mouse_position: Point, aabb: AABB) -> bool {
+    fn is_mouse_over(&self, mouse_position: Point, aabb: Rect) -> bool {
         aabb.is_under(mouse_position)
     }
 
     /// TODO: Why does this exist? aabb is `inclusive_aabb`, which has something
     /// to do with scrollables, but why does that exist?
-    fn is_mouse_maybe_over(&self, mouse_position: Point, aabb: AABB) -> bool {
+    fn is_mouse_maybe_over(&self, mouse_position: Point, aabb: Rect) -> bool {
         aabb.is_under(mouse_position)
     }
 
@@ -161,10 +162,10 @@ pub trait Component: fmt::Debug {
     /// Will only have an affect if [`#full_control`][Component#method.full_control] returns `true`.
     fn set_aabb(
         &mut self,
-        _aabb: &mut AABB,
-        _parent_aabb: AABB,
-        _children: Vec<(&mut AABB, Option<Scale>, Option<Point>)>,
-        _frame: AABB,
+        _aabb: &mut Rect,
+        _parent_aabb: Rect,
+        _children: Vec<(&mut Rect, Option<Scale>, Option<Point>)>,
+        _frame: Rect,
         _scale_factor: f32,
     ) {
     }
@@ -187,7 +188,7 @@ pub trait Component: fmt::Debug {
     /// Should return an [`AABB`] that is inside the bounds of the input `aabb` which belongs to the current Node. `inner_scale` is the size of its child Nodes.
     ///
     /// By default this returns `aabb`.
-    fn frame_bounds(&self, aabb: AABB, _inner_scale: Option<Scale>) -> AABB {
+    fn frame_bounds(&self, aabb: Rect, _inner_scale: Option<Scale>) -> Rect {
         aabb
     }
 

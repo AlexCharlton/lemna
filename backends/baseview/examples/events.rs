@@ -1,3 +1,4 @@
+use lemna::renderable::{Rectangle, Renderable};
 use lemna::*;
 
 #[derive(Debug)]
@@ -45,9 +46,7 @@ impl lemna::Component for App {
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::renderables::Rect;
-
-        Some(vec![Renderable::Rect(Rect::new(
+        Some(vec![Renderable::Rectangle(Rectangle::new(
             Pos::default(),
             context.aabb.size(),
             [0.5, 0.7, 0.7].into(),
@@ -252,7 +251,7 @@ impl Component for EventReactor {
     }
 
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        Some(vec![Renderable::Rect(lemna::renderables::Rect::new(
+        Some(vec![Renderable::Rectangle(Rectangle::new(
             Pos::default(),
             context.aabb.size(),
             Color::BLUE,
@@ -272,11 +271,11 @@ impl Component for EventReactor {
         println!("Clicked on {} with {:?}", &self.name, event.input.0);
         match event.input.0 {
             input::MouseButton::Left => {
-                println!("Got {:?} from the clipboard", lemna::get_from_clipboard())
+                println!("Got {:?} from the clipboard", window::get_from_clipboard())
             }
             input::MouseButton::Right => {
                 println!("Put `Hello Events!` on the clipboard");
-                lemna::put_on_clipboard(&"Hello Events!".into());
+                window::put_on_clipboard(&"Hello Events!".into());
             }
             _ => (),
         };

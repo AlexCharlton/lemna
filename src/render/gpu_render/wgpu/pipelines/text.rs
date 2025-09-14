@@ -5,15 +5,15 @@ use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
 use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
-use crate::base_types::{AABB, Pos};
+use crate::base_types::{Pos, Rect};
 use crate::font_cache::FontCache;
-use crate::render::glyph_brush_draw_cache::{CachedBy, DrawCache};
-use crate::render::next_power_of_2;
-use crate::render::renderables::{
+use crate::render::gpu_render::glyph_brush_draw_cache::{CachedBy, DrawCache};
+use crate::render::gpu_render::renderables::{
     self,
     text::{Instance, Text, Vertex},
 };
-use crate::render::wgpu::context;
+use crate::render::gpu_render::wgpu::context;
+use crate::render::next_power_of_2;
 
 const DEFAULT_TEXTURE_CACHE_SIZE: u32 = 1024;
 
@@ -64,7 +64,7 @@ pub struct TextPipeline {
 impl TextPipeline {
     fn draw_renderables<'a: 'b, 'b>(
         &'a self,
-        renderables: &[(&'a Text, &'a AABB)],
+        renderables: &[(&'a Text, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
         renderable_buffer_cache: &'a renderables::BufferCache<Vertex, u16>,
         instance_offset: usize,
@@ -119,7 +119,7 @@ impl TextPipeline {
 
     pub fn fill_buffers<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Text, &'a AABB)],
+        renderables: &[(&'a Text, &'a Rect)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
         font_cache: &FontCache,
@@ -151,7 +151,7 @@ impl TextPipeline {
 
     pub fn render<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Text, &'a AABB)],
+        renderables: &[(&'a Text, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
         device: &'b wgpu::Device,
         renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
@@ -250,7 +250,7 @@ impl TextPipeline {
 
     fn update_glyph_cache(
         &mut self,
-        renderables: &[(&Text, &AABB)],
+        renderables: &[(&Text, &Rect)],
         device: &wgpu::Device,
         queue: &mut wgpu::Queue,
         font_cache: &FontCache,

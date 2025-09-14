@@ -50,7 +50,7 @@ impl Window {
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::CursorMoved { position, .. } => {
-                        let scale_factor = lemna::scale_factor().unwrap();
+                        let scale_factor = lemna::window::scale_factor().unwrap();
                         // println!("{:?}", position);
                         ui.handle_input(&Input::Motion(Motion::Mouse {
                             x: position.x as f32 / scale_factor as f32,
@@ -97,7 +97,7 @@ impl Window {
     }
 }
 
-impl lemna::Window for Window {
+impl lemna::window::Window for Window {
     fn logical_size(&self) -> PixelSize {
         let size = self.winit_window.inner_size();
         let scale_factor = self.scale_factor();

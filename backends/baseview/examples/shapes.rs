@@ -1,7 +1,5 @@
-use lemna::renderables::Shape;
+use lemna::renderable::{Path, Renderable, Shape};
 use lemna::*;
-use lyon::path::Path;
-use lyon::tessellation::math as lyon_math;
 
 #[derive(Debug, Default)]
 pub struct App {}
@@ -9,31 +7,37 @@ pub struct App {}
 impl lemna::Component for App {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         let mut path_builder = Path::builder();
-        path_builder.begin(lyon_math::point(10.0, 10.0));
-        path_builder.line_to(lyon_math::point(100.0, 10.0));
-        path_builder.quadratic_bezier_to(
-            lyon_math::point(200.0, 10.0),
-            lyon_math::point(200.0, 100.0),
-        );
+        path_builder.begin(Point::new(10.0, 10.0));
+        path_builder.line_to(Point::new(100.0, 10.0));
+        path_builder.quad_to(Point::new(200.0, 10.0), Point::new(200.0, 100.0));
         path_builder.close();
-        let path1 = path_builder.build();
+        let path1 = path_builder.build().unwrap();
 
         let mut path_builder = Path::builder();
-        path_builder.begin(lyon_math::point(200.0, 200.0));
-        path_builder.line_to(lyon_math::point(100.0, 200.0));
-        path_builder
-            .quadratic_bezier_to(lyon_math::point(10.0, 200.0), lyon_math::point(10.0, 100.0));
+        path_builder.begin(Point::new(200.0, 200.0));
+        path_builder.line_to(Point::new(100.0, 200.0));
+        path_builder.cubic_to(
+            Point::new(10.0, 200.0),
+            Point::new(10.0, 100.0),
+            Point::new(10.0, 100.0),
+        );
         path_builder.close();
-        let path2 = path_builder.build();
+        let path2 = path_builder.build().unwrap();
 
         let mut path_builder = Path::builder();
-        path_builder.begin(lyon_math::point(230.0, 20.0));
-        path_builder.quadratic_bezier_to(
-            lyon_math::point(230.0, 100.0),
-            lyon_math::point(330.0, 200.0),
+        path_builder.begin(Point::new(230.0, 20.0));
+        path_builder.cubic_to(
+            Point::new(230.0, 100.0),
+            Point::new(330.0, 200.0),
+            Point::new(330.0, 200.0),
         );
-        path_builder.end(false); // Don't close the path
-        let path3 = path_builder.build();
+        let path3 = path_builder.build().unwrap();
+
+        let path4 = Path::ellipse(&Rect::new(
+            Pos::new(350.0, 20.0, 0.0),
+            Scale::new(130.0, 90.0),
+        ))
+        .unwrap();
 
         let shape1 = Renderable::Shape(Shape::new(
             path1,
@@ -74,8 +78,21 @@ impl lemna::Component for App {
                 .and_then(|r| r.get(2))
                 .and_then(|r| r.as_shape()),
         ));
+        let shape4 = Renderable::Shape(Shape::new(
+            path4,
+            Color::BLUE,
+            Color::RED,
+            4.0,
+            0.0,
+            context.caches,
+            context
+                .prev_state
+                .as_ref()
+                .and_then(|r| r.get(3))
+                .and_then(|r| r.as_shape()),
+        ));
 
-        Some(vec![shape1, shape2, shape3])
+        Some(vec![shape1, shape2, shape3, shape4])
     }
 }
 

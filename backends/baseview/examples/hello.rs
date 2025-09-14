@@ -30,7 +30,7 @@ impl Component for App {
                     ..Default::default()
                 }
                 .radius(5.0),
-                [size: [100], margin: rect!(5)]
+                [size: [100], margin: bounds!(5)]
             )),
         )
     }

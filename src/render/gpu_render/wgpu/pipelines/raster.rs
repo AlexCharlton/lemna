@@ -5,13 +5,13 @@ use wgpu;
 use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
 use super::texture_cache::TextureCache;
-use crate::base_types::AABB;
-use crate::render::next_power_of_2;
-use crate::render::renderables::{
+use crate::base_types::Rect;
+use crate::render::gpu_render::{
     self, RasterCache,
     raster::{Instance, Raster, Vertex},
+    wgpu::context,
 };
-use crate::render::wgpu::context;
+use crate::render::next_power_of_2;
 
 pub struct RasterPipeline {
     pipeline: wgpu::RenderPipeline,
@@ -20,7 +20,7 @@ pub struct RasterPipeline {
 
     pub(crate) texture_cache: TextureCache,
     pub(crate) buffer_cache: BufferCache<Vertex, u16>,
-    renderable_buffer_cache: renderables::BufferCache<Vertex, u16>,
+    renderable_buffer_cache: gpu_render::BufferCache<Vertex, u16>,
     instance_data: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     num_instances: usize,
@@ -34,7 +34,7 @@ impl RasterPipeline {
 
     fn draw_renderables<'a: 'b, 'b>(
         &'a self,
-        renderables: &[(&'a Raster, &'a AABB)],
+        renderables: &[(&'a Raster, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
         raster_cache: &RasterCache,
         instance_offset: usize,
@@ -102,7 +102,7 @@ impl RasterPipeline {
 
     pub fn fill_buffers<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Raster, &'a AABB)],
+        renderables: &[(&'a Raster, &'a Rect)],
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
         raster_cache: &'a mut RasterCache,
@@ -135,7 +135,7 @@ impl RasterPipeline {
 
     pub fn render<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Raster, &'a AABB)],
+        renderables: &[(&'a Raster, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
         raster_cache: &'a mut RasterCache,
         instance_offset: usize,
@@ -148,7 +148,7 @@ impl RasterPipeline {
 
     pub fn update_texture_cache(
         &mut self,
-        renderables: &[(&Raster, &AABB)],
+        renderables: &[(&Raster, &Rect)],
         device: &wgpu::Device,
         queue: &mut wgpu::Queue,
         raster_cache: &mut RasterCache,
@@ -244,7 +244,7 @@ impl RasterPipeline {
         Self {
             buffer_cache: BufferCache::new(&context.device),
             texture_cache: TextureCache::new(),
-            renderable_buffer_cache: renderables::BufferCache::new(),
+            renderable_buffer_cache: gpu_render::BufferCache::new(),
             instance_data: vec![],
             instance_buffer,
             num_instances,

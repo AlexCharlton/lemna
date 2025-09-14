@@ -6,7 +6,7 @@ use core::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::font_cache::{FontCache, TextSegment};
-use crate::render::Renderable;
+use crate::renderable::Renderable;
 use crate::style::{HorizontalPosition, Styled};
 use lemna_macros::{component, state_component_impl};
 
@@ -127,7 +127,7 @@ impl Component for Text {
 
     #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderables::text::Text;
+        use crate::render::renderable::text::Text;
 
         let h_alignment: HorizontalPosition =
             self.style_val("h_alignment").unwrap().horizontal_position();

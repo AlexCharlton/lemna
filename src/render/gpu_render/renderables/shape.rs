@@ -2,40 +2,33 @@ use std::fmt;
 use std::ops::Range;
 
 use bytemuck::{Pod, Zeroable};
-use lyon;
-use lyon::path::Path;
 use lyon::tessellation;
-use lyon::tessellation::geometry_builder::VertexBuffers;
 
 use super::{BufferCache, BufferCacheId};
-use crate::Caches;
-use crate::base_types::{AABB, Color, Point, Pos};
+use crate::base_types::{Color, Point, Pos, Rect};
+use crate::render::path::Path;
+use crate::renderable::Caches;
 
-pub type ShapeGeometry = VertexBuffers<Vertex, u16>;
+pub type ShapeGeometry = tessellation::geometry_builder::VertexBuffers<Vertex, u16>;
 pub const TOLERANCE: f32 = 0.2;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Pod, Zeroable)]
 pub struct Vertex {
     pub pos: Point,
-    pub norm: Point,
 }
 
-impl crate::render::wgpu::VBDesc for Vertex {
+impl crate::render::gpu_render::VBDesc for Vertex {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
+                // Position
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 4 * 2,
-                    shader_location: 1,
                 },
             ],
         }
@@ -51,7 +44,6 @@ impl tessellation::FillVertexConstructor<Vertex> for VertexConstructor {
                 x: vertex.position().x,
                 y: vertex.position().y,
             },
-            norm: Point { x: 0.0, y: 0.0 },
         }
     }
 }
@@ -62,10 +54,6 @@ impl tessellation::StrokeVertexConstructor<Vertex> for VertexConstructor {
             pos: Point {
                 x: vertex.position().x,
                 y: vertex.position().y,
-            },
-            norm: Point {
-                x: vertex.normal().x,
-                y: vertex.normal().y,
             },
         }
     }
@@ -79,26 +67,23 @@ pub(crate) struct Instance {
     pub stroke_width: f32,
 }
 
-impl crate::render::wgpu::VBDesc for Instance {
+impl crate::render::gpu_render::VBDesc for Instance {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
             array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
+                // Position
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x3,
                     offset: 0,
-                    shader_location: 2,
+                    shader_location: 1,
                 },
+                // Color
                 wgpu::VertexAttribute {
                     format: wgpu::VertexFormat::Float32x4,
                     offset: 4 * 3,
-                    shader_location: 3,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32,
-                    offset: 4 * 7,
-                    shader_location: 4,
+                    shader_location: 2,
                 },
             ],
         }
@@ -143,11 +128,12 @@ impl Shape {
         stroke_width: f32,
     ) -> (ShapeGeometry, u32) {
         let mut geometry = ShapeGeometry::new();
+        let path = path.native_path();
 
         if fill {
             tessellation::FillTessellator::new()
                 .tessellate_path(
-                    &path,
+                    path,
                     &tessellation::FillOptions::tolerance(TOLERANCE),
                     &mut tessellation::BuffersBuilder::new(&mut geometry, VertexConstructor {}),
                 )
@@ -157,7 +143,7 @@ impl Shape {
         if stroke {
             tessellation::StrokeTessellator::new()
                 .tessellate_path(
-                    &path,
+                    path,
                     &tessellation::StrokeOptions::tolerance(TOLERANCE)
                         .with_line_width(stroke_width),
                     &mut tessellation::BuffersBuilder::new(&mut geometry, VertexConstructor {}),
@@ -214,7 +200,7 @@ impl Shape {
 
     pub(crate) fn render(
         &self,
-        aabb: &AABB,
+        aabb: &Rect,
         buffer_cache: &mut BufferCache<Vertex, u16>,
     ) -> Vec<Instance> {
         buffer_cache.register(self.buffer_id);
@@ -232,7 +218,7 @@ impl Shape {
             ret.push(Instance {
                 pos,
                 color: self.stroke_color,
-                stroke_width: self.stroke_width / 2.0,
+                stroke_width: self.stroke_width,
             });
         }
         ret
