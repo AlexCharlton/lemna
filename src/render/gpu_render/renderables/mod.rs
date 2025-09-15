@@ -4,14 +4,12 @@
 
 mod buffer_cache;
 pub(crate) mod raster;
-mod raster_cache;
 pub(crate) mod rectangle;
 pub(crate) mod shape;
 pub(crate) mod text;
 
-pub use buffer_cache::*;
+pub(crate) use buffer_cache::*;
 pub use raster::Raster;
-pub use raster_cache::*;
 pub use rectangle::Rectangle;
 pub use shape::Shape;
 pub use text::Text;

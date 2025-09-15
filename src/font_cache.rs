@@ -2,7 +2,7 @@
 //!
 //! Adding fonts to the `FontCache` is done via [`UI#add_font`][crate::UI#method.add_font], and window backends may include hooks to add fonts on application load.
 //!
-//! The `FontCache` is exposed to users so that you can lay out text (i.e. when you're not using a Component that lays out text for you, like [`widgets::Text`][crate::widgets::Text]) via the [`Caches`][crate::Caches] referenced by the [`RenderContext`][crate::RenderContext] which gets passed to [`Component#render`][crate::Component#method.render].
+//! The `FontCache` is exposed to users so that you can lay out text (i.e. when you're not using a Component that lays out text for you, like [`widgets::Text`][crate::widgets::Text]) via the [`Caches`][crate::renderable::Caches] referenced by the [`RenderContext`][crate::RenderContext] which gets passed to [`Component#render`][crate::Component#method.render].
 //!
 //! The text-layout interface uses a slice of [`TextSegment`]s as a Component-agnostic way of representing text. A `TextSegment` stores a text string, and optionally a font size and font name (defaults will be used otherwise). In this way, we can lay out text in a variety of types and sizes. [`txt`][crate::txt] is provided as a convenient way of creating `TextSegment`s.
 
@@ -23,7 +23,7 @@ use crate::style::HorizontalPosition;
 
 type Fonts = Vec<FontRef<'static>>;
 
-/// Output by [`FontCache::layout_text`], and an input to [`Text::new`](crate::render::renderables::text::Text::new). Useful for text-rendering widgets to cache in their state, so that they don't need to be recomputed unless necessary.
+/// Output by [`FontCache::layout_text`], and an input to [`Text::new`][crate::renderable::Text::new]. Useful for text-rendering widgets to cache in their state, so that they don't need to be recomputed unless necessary.
 pub type SectionGlyph = glyph_brush_layout::SectionGlyph;
 
 /// Value by which fonts are scaled. 12 px fonts render at scale 18 px for some reason. Useful if you need to compute the line height: it will be `<font_size> * SIZE_SCALE` in logical size, and `<font_size> * SIZE_SCALE * <scale_factor>` in physical pixels.
@@ -66,7 +66,7 @@ impl FontCache {
         self.font_names.insert(name, i);
     }
 
-    /// Given a set of [`TextSegment`]s, create [`SectionGlyph`]s, which are then used by the [`Text`][crate::renderables::Text] renderable.
+    /// Given a set of [`TextSegment`]s, create [`SectionGlyph`]s, which are then used by the [`Text`][crate::renderable::Text] renderable.
     ///
     /// `base_font` and `base_size` are provided as fallbacks for when a `TextSegment` does not specify a font or size. `scale_factor` is the display scale factor. `alignment` dictates how the text is aligned, and `bounds` sets the maximum width and height.
     pub fn layout_text(

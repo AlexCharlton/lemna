@@ -1,4 +1,5 @@
 use crate::font_cache::FontCache;
+use crate::render::raster_cache::RasterCache;
 
 pub(crate) mod glyph_brush_draw_cache;
 mod wgpu;

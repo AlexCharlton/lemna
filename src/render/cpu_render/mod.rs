@@ -11,6 +11,7 @@ use super::{Renderer, RgbColor};
 use crate::base_types::{PixelSize, Rect};
 use crate::font_cache::FontCache;
 use crate::node::Node;
+use crate::render::raster_cache::RasterCache;
 use crate::renderable::Renderable;
 use crate::window::Window;
 
@@ -19,6 +20,7 @@ pub use renderable::*;
 
 #[derive(Default)]
 pub struct Caches {
+    pub(crate) raster: RasterCache,
     pub font: FontCache,
 }
 

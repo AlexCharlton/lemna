@@ -155,14 +155,13 @@ impl Component for Canvas {
         )
     }
 
-    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderable::raster::Raster;
+        use crate::renderable::Raster;
 
-        let mut raster = context.prev_state.and_then(|mut v| match v.pop() {
-            Some(Renderable::Raster(r)) => Some(r),
-            _ => None,
-        });
+        let mut raster = context
+            .prev_state
+            .and_then(|mut v| v.pop())
+            .and_then(|r| r.into_raster());
         let size = self.state_ref().size;
 
         self.state_mut().updates.drain(..).for_each(|u| match u {
@@ -170,10 +169,8 @@ impl Component for Canvas {
                 raster = Some(Raster::new(
                     data,
                     size,
-                    &mut context.caches.image_buffer,
-                    &mut context.caches.raster,
-                    raster.as_ref().map(|r| r.buffer_id),
-                    raster.as_ref().map(|r| r.raster_cache_id),
+                    context.caches,
+                    raster.as_ref(),
                 ));
             }
             CanvasUpdate::New((color, size)) => {
@@ -188,16 +185,13 @@ impl Component for Canvas {
                 raster = Some(Raster::new(
                     data.into(),
                     size,
-                    &mut context.caches.image_buffer,
-                    &mut context.caches.raster,
-                    raster.as_ref().map(|r| r.buffer_id),
-                    raster.as_ref().map(|r| r.raster_cache_id),
+                    context.caches,
+                    raster.as_ref(),
                 ));
             }
             CanvasUpdate::Update((point, pixel)) => {
-                if let Some(r) = raster.as_mut() {
-                    context.caches.raster.get_mut_raster_data(r.raster_cache_id).dirty();
-                    match &mut context.caches.raster.get_mut_raster_data(r.raster_cache_id).data {
+                if let Some(r) = raster.as_ref() {
+                    match r.get_mut_raster_data(context.caches) {
                         RasterData::Vec(v) => {
                             let i = ((point.x + (point.y * size.width)) * 4) as usize;
                             if i < v.len() {
@@ -216,10 +210,5 @@ impl Component for Canvas {
         });
 
         raster.map(|r| vec![Renderable::Raster(r)])
-    }
-
-    #[cfg(feature = "cpu_renderer")]
-    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        todo!()
     }
 }

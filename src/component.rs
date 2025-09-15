@@ -54,7 +54,7 @@ pub trait Component: fmt::Debug {
     ///
     /// In this fashion, Components can be built from other Components (for instance, a button can be build from a [`RoundedRect`][crate::widgets::RoundedRect] and a [`Text`][crate::widgets::Text]), and an app can be built from an even larger assemblage of Components.
     ///
-    /// Not all Components need implement `view`. Some Components are built up from [`renderables`][crate::renderables] -- graphical primitives -- returned in the [`#render`][Component#method.render] method.
+    /// Not all Components need implement `view`. Some Components are built up from [`renderables`][crate::renderable] -- graphical primitives -- returned in the [`#render`][Component#method.render] method.
     ///
     /// Do not perform expensive computations in `view`. Use [`#init`][Component#method.init] or [`#new_props`][Component#method.new_props] instead.
     fn view(&self) -> Option<Node> {
@@ -74,7 +74,7 @@ pub trait Component: fmt::Debug {
         vec![msg]
     }
 
-    /// Called while rendering, Components may return [`renderables`][crate::renderables] -- graphical primitives -- from this method. In this way they can efficiently draw to the screen in ways that other Components are unable to.
+    /// Called while rendering, Components may return [`renderables`][crate::renderable] -- graphical primitives -- from this method. In this way they can efficiently draw to the screen in ways that other Components are unable to.
     ///
     /// Many of the built-in [`widgets`][crate::widgets], like [`RoundedRect`][crate::widgets::RoundedRect] and [`Text`][crate::widgets::Text], implement the `render` method.
     fn render(&mut self, _context: RenderContext) -> Option<Vec<Renderable>> {
@@ -152,12 +152,12 @@ pub trait Component: fmt::Debug {
         (None, None)
     }
 
-    /// Give the Component full control over its own [`AABB`]. When this returns `true`, [`#set_aabb`][Component#method.set_aabb] will be called while drawing a given Node.
+    /// Give the Component full control over its own AABB [`Rect`]. When this returns `true`, [`#set_aabb`][Component#method.set_aabb] will be called while drawing a given Node.
     fn full_control(&self) -> bool {
         false
     }
 
-    /// Mutate `aabb` to set it to a new size or position. This Node's parent's `AABB`, information about its children (`AABB`, inner scale, and [`#focus`][Component#method.focus]), as well as the frame it exist in (either the window, or the scrollable frame) are provided. "Inner scale" is the size of the contents of a scrollable Component. Children's AABBs can also be mutated to adjust their size and position.
+    /// Mutate `aabb` to set it to a new size or position. This Node's parent's AABB, information about its children (AABB, inner scale, and [`#focus`][Component#method.focus]), as well as the frame it exist in (either the window, or the scrollable frame) are provided. "Inner scale" is the size of the contents of a scrollable Component. Children's AABBs can also be mutated to adjust their size and position.
     ///
     /// Will only have an affect if [`#full_control`][Component#method.full_control] returns `true`.
     fn set_aabb(
@@ -185,7 +185,7 @@ pub trait Component: fmt::Debug {
     }
 
     /// Should only be overridden by scrollable containers. Used to limit the bounds of the scrollable area.
-    /// Should return an [`AABB`] that is inside the bounds of the input `aabb` which belongs to the current Node. `inner_scale` is the size of its child Nodes.
+    /// Should return a [`Rect`] that is inside the bounds of the input `aabb` which belongs to the current Node. `inner_scale` is the size of its child Nodes.
     ///
     /// By default this returns `aabb`.
     fn frame_bounds(&self, aabb: Rect, _inner_scale: Option<Scale>) -> Rect {

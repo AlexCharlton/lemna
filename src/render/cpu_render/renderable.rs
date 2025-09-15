@@ -2,9 +2,10 @@ extern crate alloc;
 
 use tiny_skia::{BlendMode, Mask, Paint, Pixmap, Shader, Stroke, Transform};
 
-use crate::base_types::{Color, Pos, Rect, Scale};
+use crate::base_types::{Color, PixelSize, Pos, Rect, Scale};
 use crate::render::path::Path;
-use crate::renderable::Caches;
+use crate::render::raster_cache::RasterCacheId;
+use crate::renderable::{Caches, RasterData};
 
 //--------------------------------
 // MARK: Rectangle
@@ -128,11 +129,35 @@ impl Text {
 // MARK: Raster
 
 #[derive(Debug, PartialEq)]
-pub struct Raster {}
+pub struct Raster {
+    raster_cache_id: RasterCacheId,
+}
 
 impl Raster {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(
+        data: RasterData,
+        size: PixelSize,
+        caches: &mut Caches,
+        prev: Option<&Raster>,
+    ) -> Self {
+        let raster_cache = &mut caches.raster;
+        let raster_cache_id = raster_cache.alloc_or_reuse_chunk(prev.map(|r| r.raster_cache_id));
+        raster_cache.set_raster(raster_cache_id, data, size);
+
+        Self { raster_cache_id }
+    }
+
+    pub fn get_mut_raster_data<'a>(&self, caches: &'a mut Caches) -> &'a mut RasterData {
+        let raster_cache = &mut caches.raster;
+        raster_cache
+            .get_mut_raster_data(self.raster_cache_id)
+            .dirty();
+        &mut raster_cache.get_mut_raster_data(self.raster_cache_id).data
+    }
+
+    pub fn get_raster_data<'a>(&self, caches: &'a mut Caches) -> &'a RasterData {
+        let raster_cache = &mut caches.raster;
+        &raster_cache.get_raster_data(self.raster_cache_id).data
     }
 
     pub(crate) fn render(&self, aabb: &Rect, mask: Option<&Mask>, pixmap: &mut Pixmap) {

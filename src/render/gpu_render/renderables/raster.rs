@@ -1,10 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 
 use super::{BufferCache, BufferCacheId};
-use super::{RasterCache, RasterCacheId};
 use crate::PixelSize;
 use crate::base_types::{Point, Pos, Rect};
-use crate::renderable::RasterData;
+use crate::render::raster_cache::{RasterCache, RasterCacheId};
+use crate::renderable::{Caches, RasterData};
 
 const INDEX_ENTRIES_PER_IMAGE: usize = 6;
 const VERTEX_ENTRIES_PER_IMAGE: usize = 4;
@@ -59,31 +59,44 @@ impl crate::render::gpu_render::wgpu::VBDesc for Instance {
 
 #[derive(Debug, PartialEq)]
 pub struct Raster {
-    pub buffer_id: BufferCacheId,
-    pub raster_cache_id: RasterCacheId,
+    pub(crate) buffer_id: BufferCacheId,
+    pub(crate) raster_cache_id: RasterCacheId,
 }
 
 impl Raster {
     pub fn new(
         data: RasterData,
         size: PixelSize,
-        buffer_cache: &mut BufferCache<Vertex, u16>,
-        raster_cache: &mut RasterCache,
-        prev_buffer: Option<BufferCacheId>,
-        prev_raster: Option<RasterCacheId>,
+        caches: &mut Caches,
+        prev: Option<&Raster>,
     ) -> Self {
-        let buffer_id = if let Some(c) = prev_buffer {
+        let buffer_cache = &mut caches.image_buffer;
+        let raster_cache = &mut caches.raster;
+        let buffer_id = if let Some(c) = prev.map(|r| r.buffer_id) {
             buffer_cache.alloc_or_reuse_chunk(c, VERTEX_ENTRIES_PER_IMAGE, INDEX_ENTRIES_PER_IMAGE)
         } else {
             buffer_cache.alloc_chunk(VERTEX_ENTRIES_PER_IMAGE, INDEX_ENTRIES_PER_IMAGE)
         };
-        let raster_cache_id = raster_cache.alloc_or_reuse_chunk(prev_raster);
+        let raster_cache_id = raster_cache.alloc_or_reuse_chunk(prev.map(|r| r.raster_cache_id));
         raster_cache.set_raster(raster_cache_id, data, size);
 
         Self {
             buffer_id,
             raster_cache_id,
         }
+    }
+
+    pub fn get_mut_raster_data<'a>(&self, caches: &'a mut Caches) -> &'a mut RasterData {
+        let raster_cache = &mut caches.raster;
+        raster_cache
+            .get_mut_raster_data(self.raster_cache_id)
+            .dirty();
+        &mut raster_cache.get_mut_raster_data(self.raster_cache_id).data
+    }
+
+    pub fn get_raster_data<'a>(&self, caches: &'a mut Caches) -> &'a RasterData {
+        let raster_cache = &mut caches.raster;
+        &raster_cache.get_raster_data(self.raster_cache_id).data
     }
 
     pub(crate) fn render(

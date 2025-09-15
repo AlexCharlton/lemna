@@ -207,7 +207,6 @@ struct Caret {
 }
 
 impl Component for Caret {
-    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         use crate::renderable::{Path, Shape};
 
@@ -234,11 +233,6 @@ impl Component for Caret {
                 .and_then(|r| r.first())
                 .and_then(|r| r.as_shape()),
         ))])
-    }
-
-    #[cfg(feature = "cpu_renderer")]
-    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        todo!()
     }
 }
 

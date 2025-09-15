@@ -287,6 +287,7 @@ impl crate::render::Renderer for WGPURenderer {
                 &self.context.device,
                 &mut self.context.queue,
                 &mut caches.raster,
+                &mut caches.image_buffer,
                 cache_invalid,
             );
         }
@@ -371,6 +372,7 @@ impl crate::render::Renderer for WGPURenderer {
                         &frame_renderables.rasters,
                         &mut pass,
                         &mut caches.raster,
+                        &mut caches.image_buffer,
                         num_rasters,
                     );
                 }

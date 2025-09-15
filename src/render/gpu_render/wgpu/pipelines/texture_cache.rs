@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use crate::{
     PixelPoint, PixelRect, PixelSize, Point,
     render::{
-        gpu_render::{Raster, RasterCache, RasterCacheId, RasterId},
+        gpu_render::Raster,
         next_power_of_2,
+        raster_cache::{RasterCache, RasterCacheId, RasterId},
     },
 };
 use wgpu;
@@ -295,7 +296,7 @@ impl TextureCache {
 #[cfg(test)]
 mod tests {
     use super::PackedTextureInfo;
-    use crate::{base_types::*, render::gpu_render::RasterCacheId};
+    use crate::{base_types::*, render::raster_cache::RasterCacheId};
 
     #[test]
     fn test_insert() {

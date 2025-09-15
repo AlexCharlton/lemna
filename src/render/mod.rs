@@ -25,6 +25,7 @@ pub(crate) mod gpu_render;
 mod cpu_render;
 
 mod path;
+mod raster_cache;
 
 pub mod renderable {
     use super::*;
@@ -37,7 +38,7 @@ pub mod renderable {
 
     pub use path::*;
 
-    /// The type returned by [`Component#render`][crate::Component#method.render], which contains the data required to render a Component (along with the [`Caches`][super::Caches]).
+    /// The type returned by [`Component#render`][crate::Component#method.render], which contains the data required to render a Component (along with the [`Caches`]).
     #[derive(Debug, PartialEq)]
     pub enum Renderable {
         Rectangle(Rectangle),
@@ -75,6 +76,34 @@ pub mod renderable {
         }
 
         pub fn as_raster(&self) -> Option<&renderable::Raster> {
+            match self {
+                Renderable::Raster(r) => Some(r),
+                _ => None,
+            }
+        }
+
+        pub fn into_shape(self) -> Option<renderable::Shape> {
+            match self {
+                Renderable::Shape(s) => Some(s),
+                _ => None,
+            }
+        }
+
+        pub fn into_rect(self) -> Option<renderable::Rectangle> {
+            match self {
+                Renderable::Rectangle(r) => Some(r),
+                _ => None,
+            }
+        }
+
+        pub fn into_text(self) -> Option<renderable::Text> {
+            match self {
+                Renderable::Text(t) => Some(t),
+                _ => None,
+            }
+        }
+
+        pub fn into_raster(self) -> Option<renderable::Raster> {
             match self {
                 Renderable::Raster(r) => Some(r),
                 _ => None,

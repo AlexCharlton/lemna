@@ -84,7 +84,7 @@ impl PixelSize {
 //-------------------------------------------------------------
 // MARK: Scale
 
-/// Two dimensional scale factor, used by [`renderables::Rect`][crate::renderables::Rect].
+/// Two dimensional scale factor, used by [`renderable::Rect`][crate::renderable::Rectangle].
 #[derive(Debug, Default, Copy, Clone, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Scale {
@@ -411,7 +411,7 @@ impl Pos {
         Self { x, y, z }
     }
 
-    /// Apply [`round`](std::f32#round) to all elements.
+    /// Apply [`round`][core::f32#round] to all elements.
     pub fn round(&self) -> Self {
         Self {
             x: self.x.round(),
@@ -601,7 +601,7 @@ impl Rect {
         self.bottom_right.y = self.pos.y + h;
     }
 
-    /// Mutate `self`, applying [`round`](std::f32#round) to all `(x, y)` elements.
+    /// Mutate `self`, applying [`round`][core::f32#round] to all `(x, y)` elements.
     pub fn round_mut(&mut self) {
         self.pos.x = self.pos.x.round();
         self.pos.y = self.pos.y.round();
@@ -633,7 +633,7 @@ impl Rect {
         }
     }
 
-    /// Apply [`round`](std::f32#round) to all `(x, y)` elements.
+    /// Apply [`round`][core::f32#round] to all `(x, y)` elements.
     pub fn round(self) -> Self {
         Self {
             pos: Pos::new(self.pos.x.round(), self.pos.y.round(), self.pos.z),

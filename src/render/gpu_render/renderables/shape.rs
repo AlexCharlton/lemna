@@ -95,10 +95,10 @@ pub struct Shape {
     fill_color: Color,
     stroke_color: Color,
     stroke_width: f32,
-    pub fill_range: Range<u32>,
-    pub stroke_range: Range<u32>,
+    pub(crate) fill_range: Range<u32>,
+    pub(crate) stroke_range: Range<u32>,
     z: f32,
-    pub buffer_id: BufferCacheId,
+    pub(crate) buffer_id: BufferCacheId,
 }
 
 impl fmt::Debug for Shape {

@@ -27,7 +27,7 @@ fn main() {
     ));
 }
 ```
-This example defines a struct called `App` and makes it a [`Component`], which is the central Lemna interface. There's no special meaning to the name "App", it's just a convention for the top-level or "root" Component in your application. And the only special thing about a root Component is that it must implement [`std::default::Default`].
+This example defines a struct called `App` and makes it a [`Component`], which is the central Lemna interface. There's no special meaning to the name "App", it's just a convention for the top-level or "root" Component in your application. And the only special thing about a root Component is that it must implement [`Default`].
 
 We define the `view` method of `App` to return a [`Node`], which is constructed with the [`node!`][macro@node] macro. Our Node contains another `Component` named [`Div`][widgets::Div], which is named after the [HTML element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/div). We set the `Div`'s background to the hex color `0xFF00FFFF` (a.k.a. magenta), and give it a width and height of 100 pixels.
 
@@ -45,7 +45,7 @@ $ cargo run -p lemna-baseview --example tut1
 ```
 Replacing the name of the example with the name provided.
 
-You'll notice that the example lives in the `lemna-baseview` project. This's because Lemna is designed to be able to run in any "backend" that implements the [`Window`] trait. Backends handle opening a window, receiving events like mouse clicks, and other interactions with your OS's window manager. `lemna-baseview` uses a (forked) [baseview](https://github.com/AlexCharlton/baseview) backend, and it's by far the most functional backend today.
+You'll notice that the example lives in the `lemna-baseview` project. This's because Lemna is designed to be able to run in any "backend" that implements the [`Window`][window::Window] trait. Backends handle opening a window, receiving events like mouse clicks, and other interactions with your OS's window manager. `lemna-baseview` uses a (forked) [baseview](https://github.com/AlexCharlton/baseview) backend, and it's by far the most functional backend today.
 
 Since all of our examples use more or less the same `main` function, we will elide it in the future unless there's a reason not to. **Any time we define a `main` function it's then used in all the succeeding examples until it's again redefined.** You can find all tutorial examples [here](https://github.com/AlexCharlton/lemna/tree/main/backends/baseview/examples/tutorial).
 

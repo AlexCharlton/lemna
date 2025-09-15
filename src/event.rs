@@ -357,12 +357,12 @@ impl<T: EventInput> Event<T> {
         self.messages.push(msg);
     }
 
-    /// Return the [`AABB`] of the current Node, in physical coordinates.
+    /// Return the AABB of the current Node, in physical coordinates.
     pub fn current_physical_aabb(&self) -> Rect {
         self.current_aabb.unwrap()
     }
 
-    /// Return the [`AABB`] of the current Node, in logical coordinates.
+    /// Return the AABB of the current Node, in logical coordinates.
     pub fn current_logical_aabb(&self) -> Rect {
         self.current_aabb.unwrap().unscale(self.scale_factor)
     }
@@ -420,12 +420,12 @@ impl Event<Drag> {
         self.physical_delta().unscale(self.scale_factor)
     }
 
-    /// The distance dragged, but clamped to the current Node's [`AABB`], in physical coordinates.
+    /// The distance dragged, but clamped to the current Node's AABB, in physical coordinates.
     pub fn bounded_physical_delta(&self) -> Point {
         self.mouse_position.clamp(self.current_physical_aabb()) - self.input.start_pos
     }
 
-    /// The distance dragged, but clamped to the current Node's [`AABB`], in logical coordinates.
+    /// The distance dragged, but clamped to the current Node's AABB, in logical coordinates.
     pub fn bounded_logical_delta(&self) -> Point {
         self.bounded_physical_delta().unscale(self.scale_factor)
     }
@@ -442,12 +442,12 @@ impl Event<DragEnd> {
         self.physical_delta().unscale(self.scale_factor)
     }
 
-    /// The distance dragged, but clamped to the current Node's [`AABB`], in physical coordinates.
+    /// The distance dragged, but clamped to the current Node's AABB, in physical coordinates.
     pub fn bounded_physical_delta(&self) -> Point {
         self.mouse_position.clamp(self.current_physical_aabb()) - self.input.start_pos
     }
 
-    /// The distance dragged, but clamped to the current Node's [`AABB`], in logical coordinates.
+    /// The distance dragged, but clamped to the current Node's AABB, in logical coordinates.
     pub fn bounded_logical_delta(&self) -> Point {
         self.bounded_physical_delta().unscale(self.scale_factor)
     }

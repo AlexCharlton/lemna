@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+extern crate alloc;
+
+use alloc::vec::Vec;
+use core::sync::atomic::{AtomicU64, Ordering};
 
 use crate::{PixelSize, renderable::RasterData};
 
@@ -6,6 +9,8 @@ use crate::{PixelSize, renderable::RasterData};
 pub struct RasterCacheId(usize);
 
 impl RasterCacheId {
+    #[allow(unused)]
+    // TODO: Is this needed?
     pub fn new(id: usize) -> Self {
         Self(id)
     }
@@ -47,10 +52,6 @@ impl RasterCacheData {
 }
 
 impl RasterCache {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     pub fn unmark(&mut self) {
         for r in self.rasters.iter_mut() {
             r.marked = false;

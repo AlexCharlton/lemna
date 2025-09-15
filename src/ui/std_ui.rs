@@ -20,7 +20,7 @@ use crate::window::{clear_current_window, current_window, set_current_window};
 /// It handles events and drawing+rendering.
 /// You probably don't need to reference it directly, unless you're implementing a windowing backend.
 ///
-/// Drawing (laying out [`Node`]s and assembling their [`Renderable`][crate::renderables::Renderable]s) and rendering
+/// Drawing (laying out [`Node`]s and assembling their [`Renderable`][crate::renderable::Renderable]s) and rendering
 /// (painting the `Renderables` onto the `Window`'s frame) are performed in separate threads
 /// from the handling of events/render requests. This prevents hanging when handling events
 /// which could otherwise happen if rendering takes a while. Even though the wgpu rendering pipeline
@@ -53,7 +53,7 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
     ///   - For Nodes that existed in the old graph, [`props_hash`][Component#method.props_hash] is called on the new Component. If the new hash is not equal to the old one, then [`new_props`][Component#method.new_props] is called.
     ///   - [`register`][Component#method.register] is also called on all Nodes.
     /// - Layout, which calculates the positions and sizes all of the Nodes in the graph. See [`layout`][crate::layout] for how it interacts with the [`Component`] interface.
-    /// - Render Nodes, which generates new [`Renderable`][crate::renderables::Renderable]s for each Node, or else recycles the previously generated ones. [`render_hash`][Component#method.render_hash] is called and compared to the old value -- if any -- to decide whether or not [`render`][Component#method.render] needs to be called.
+    /// - Render Nodes, which generates new [`Renderable`][crate::renderable::Renderable]s for each Node, or else recycles the previously generated ones. [`render_hash`][Component#method.render_hash] is called and compared to the old value -- if any -- to decide whether or not [`render`][Component#method.render] needs to be called.
     ///
     /// A draw will only occur if an event was handled that resulted in [`state_mut`][crate::state_component_impl] being called.
     fn draw(&mut self) {
@@ -63,7 +63,7 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
     /// Signal to the render thread that it may be time to render a frame.
     /// A render will only occur if the draw thread has marked `frame_dirty` as true,
     /// which it will do after drawing. This thread does not interact with the user-facing API,
-    /// just the [`Renderable`][crate::renderables::Renderable]s generated during [`draw`][UI#method.draw].
+    /// just the [`Renderable`][crate::renderable::Renderable]s generated during [`draw`][UI#method.draw].
     fn render(&mut self) {
         self.render_channel.send(()).unwrap();
     }

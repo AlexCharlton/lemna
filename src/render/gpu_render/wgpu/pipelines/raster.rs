@@ -2,7 +2,6 @@ use bytemuck::cast_slice;
 use log::info;
 use wgpu;
 
-use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
 use super::texture_cache::TextureCache;
 use crate::base_types::Rect;
@@ -19,8 +18,7 @@ pub struct RasterPipeline {
     bind_group_layout: wgpu::BindGroupLayout,
 
     pub(crate) texture_cache: TextureCache,
-    pub(crate) buffer_cache: BufferCache<Vertex, u16>,
-    renderable_buffer_cache: gpu_render::BufferCache<Vertex, u16>,
+    buffer_cache: gpu_render::pipelines::buffer_cache::BufferCache<Vertex, u16>,
     instance_data: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     num_instances: usize,
@@ -29,23 +27,21 @@ pub struct RasterPipeline {
 impl RasterPipeline {
     pub(crate) fn unmark_cache(&mut self) {
         self.texture_cache.unmark();
-        self.renderable_buffer_cache.unmark();
     }
 
     fn draw_renderables<'a: 'b, 'b>(
         &'a self,
         renderables: &[(&'a Raster, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
-        raster_cache: &RasterCache,
+        raster_cache: &'a RasterCache,
+        image_buffer: &'a mut gpu_render::BufferCache<Vertex, u16>,
         instance_offset: usize,
     ) {
         let last_texture = None;
         // We construct our instance data in the same order of our renderables,
         // so `i` can be used to index into the instance_data
         for (i, (renderable, _)) in renderables.iter().enumerate() {
-            let (vertex_chunk, index_chunk) = self
-                .buffer_cache
-                .get_chunks(renderable.buffer_id, &self.renderable_buffer_cache);
+            let (vertex_chunk, index_chunk) = image_buffer.get_chunks(renderable.buffer_id);
 
             let texture_index = self
                 .texture_cache
@@ -106,6 +102,7 @@ impl RasterPipeline {
         device: &'b wgpu::Device,
         queue: &'b mut wgpu::Queue,
         raster_cache: &'a mut RasterCache,
+        image_buffer: &'a mut gpu_render::BufferCache<Vertex, u16>,
         cache_invalid: bool,
     ) {
         self.instance_data.clear();
@@ -117,7 +114,7 @@ impl RasterPipeline {
             cache_changed |= renderable.render(
                 aabb,
                 texture_pos,
-                &mut self.renderable_buffer_cache,
+                image_buffer,
                 raster_cache,
                 &mut self.instance_data,
                 cache_invalid,
@@ -126,8 +123,7 @@ impl RasterPipeline {
 
         // Update GPU buffers
         if cache_changed {
-            self.buffer_cache
-                .sync_buffers(device, queue, &self.renderable_buffer_cache);
+            self.buffer_cache.sync_buffers(device, queue, image_buffer);
         }
 
         queue.write_buffer(&self.instance_buffer, 0, cast_slice(&self.instance_data));
@@ -138,12 +134,19 @@ impl RasterPipeline {
         renderables: &[(&'a Raster, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
         raster_cache: &'a mut RasterCache,
+        image_buffer: &'a mut gpu_render::BufferCache<Vertex, u16>,
         instance_offset: usize,
     ) {
         // Draw the renderables
         pass.set_pipeline(&self.pipeline);
 
-        self.draw_renderables(renderables, pass, raster_cache, instance_offset);
+        self.draw_renderables(
+            renderables,
+            pass,
+            raster_cache,
+            image_buffer,
+            instance_offset,
+        );
     }
 
     pub fn update_texture_cache(
@@ -242,9 +245,8 @@ impl RasterPipeline {
             .create_shader_module(wgpu::include_spirv!("shaders/image.frag.spv"));
 
         Self {
-            buffer_cache: BufferCache::new(&context.device),
             texture_cache: TextureCache::new(),
-            renderable_buffer_cache: gpu_render::BufferCache::new(),
+            buffer_cache: gpu_render::pipelines::buffer_cache::BufferCache::new(&context.device),
             instance_data: vec![],
             instance_buffer,
             num_instances,
