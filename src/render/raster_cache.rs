@@ -29,6 +29,7 @@ pub struct RasterCache {
     rasters: Vec<RasterCacheData>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct RasterCacheData {
     pub(crate) id: RasterId,
@@ -41,6 +42,7 @@ pub struct RasterCacheData {
     marked: bool,
 }
 
+#[allow(dead_code)]
 impl RasterCacheData {
     pub fn dirty(&mut self) {
         self.dirty = true;
@@ -51,6 +53,7 @@ impl RasterCacheData {
     }
 }
 
+#[allow(dead_code)]
 impl RasterCache {
     pub fn unmark(&mut self) {
         for r in self.rasters.iter_mut() {
@@ -68,6 +71,10 @@ impl RasterCache {
 
     pub fn get_mut_raster_data(&mut self, raster_cache_id: RasterCacheId) -> &mut RasterCacheData {
         &mut self.rasters[raster_cache_id.0]
+    }
+
+    pub fn get_raster_size(&self, raster_cache_id: RasterCacheId) -> PixelSize {
+        self.rasters[raster_cache_id.0].size
     }
 
     pub fn alloc_or_reuse_chunk(&mut self, raster_cache: Option<RasterCacheId>) -> RasterCacheId {

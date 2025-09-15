@@ -60,6 +60,8 @@ impl Canvas {
     }
 
     /// You can call this when initializing a canvas and it won't overwrite any changes because after the first instance, the state will be replaced
+    /// The size of the canvas is the size in Physical pixels. This means that if you want to set
+    /// the canvas to be a particular logical size, you need to multiply the width and height by the window [`scale_factor`][crate::window::scale_factor].
     pub fn set<D: Into<RasterData>>(mut self, data: D, size: PixelSize) -> Self {
         self.reset(data, size);
         self.dirty = false;
@@ -75,9 +77,17 @@ impl Canvas {
         self
     }
 
+    /// Scale the size of the rendered canvas.
+    #[cfg(feature = "wgpu_renderer")]
     pub fn scale(mut self, scale: f32) -> Self {
         self.scale = scale;
         self
+    }
+
+    #[allow(unused_mut)]
+    #[cfg(feature = "cpu_renderer")]
+    pub fn scale(mut self, _scale: f32) -> Self {
+        unimplemented!("scale is not implemented for the cpu renderer");
     }
 
     pub fn on_draw(
@@ -110,7 +120,7 @@ impl Component for Canvas {
         if self.state_ref().drawing {
             // TODO should interpolate from last position
             if let Some(f) = &self.on_draw {
-                for update in f(event.relative_logical_position().into()).drain(..) {
+                for update in f(event.relative_physical_position().into()).drain(..) {
                     self.state_mut().updates.push(CanvasUpdate::Update(update));
                     self.state_mut().update_counter += 1;
                 }
@@ -146,12 +156,12 @@ impl Component for Canvas {
         _max_width: Option<f32>,
         _max_height: Option<f32>,
         _font_cache: &FontCache,
-        _scale_factor: f32,
+        scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
         let size = self.state_ref().size;
         (
-            Some(size.width as f32 * self.scale),
-            Some(size.height as f32 * self.scale),
+            Some(size.width as f32 * self.scale / scale_factor),
+            Some(size.height as f32 * self.scale / scale_factor),
         )
     }
 

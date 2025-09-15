@@ -490,11 +490,13 @@ impl From<&Pos> for kurbo::Point {
 /// Used by the texture cache.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
 #[repr(C)]
+#[allow(dead_code)]
 pub(crate) struct PixelRect {
     pub pos: PixelPoint,
     pub bottom_right: PixelPoint,
 }
 
+#[allow(dead_code)]
 impl PixelRect {
     pub fn normalize(&self, scale: PixelSize) -> (Point, Point) {
         (

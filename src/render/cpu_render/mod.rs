@@ -41,7 +41,7 @@ impl Renderer for CPURenderer {
         &mut self,
         draw_target: &mut D,
         node: &Node,
-        _caches: &mut Caches,
+        caches: &mut Caches,
         size: PixelSize,
     ) {
         if size != self.size {
@@ -72,7 +72,7 @@ impl Renderer for CPURenderer {
                     text.render(aabb, current_mask.as_ref(), &mut self.pixmap);
                 }
                 Renderable::Raster(raster) => {
-                    raster.render(aabb, current_mask.as_ref(), &mut self.pixmap);
+                    raster.render(aabb, current_mask.as_ref(), &mut self.pixmap, caches);
                 }
                 #[cfg(test)]
                 _ => panic!("Unsupported renderable: {:?}", renderable),

@@ -1,6 +1,9 @@
 extern crate alloc;
 
+#[cfg(test)]
+use alloc::string::String;
 use alloc::vec::Vec;
+
 use core::fmt;
 
 use crate::base_types::PixelSize;
@@ -237,6 +240,8 @@ pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync 
 pub(crate) type ActiveRenderer = crate::render::gpu_render::WGPURenderer;
 #[cfg(feature = "cpu_renderer")]
 pub(crate) type ActiveRenderer = crate::render::cpu_render::CPURenderer;
+
+#[allow(dead_code)]
 
 /// Given an integer, return the next power of 2.
 pub(crate) fn next_power_of_2(n: usize) -> usize {

@@ -62,8 +62,8 @@ impl Shape {
         stroke_color: Color,
         stroke_width: f32,
         z: f32,
-        #[allow(unused)] caches: &mut Caches,
-        prev: Option<&Shape>,
+        _caches: &mut Caches,
+        _prev: Option<&Shape>,
     ) -> Self {
         Self {
             path,
@@ -155,12 +155,78 @@ impl Raster {
         &mut raster_cache.get_mut_raster_data(self.raster_cache_id).data
     }
 
-    pub fn get_raster_data<'a>(&self, caches: &'a mut Caches) -> &'a RasterData {
-        let raster_cache = &mut caches.raster;
-        &raster_cache.get_raster_data(self.raster_cache_id).data
+    pub fn get_raster_data<'a>(&self, caches: &'a Caches) -> &'a RasterData {
+        &caches.raster.get_raster_data(self.raster_cache_id).data
     }
 
-    pub(crate) fn render(&self, aabb: &Rect, mask: Option<&Mask>, pixmap: &mut Pixmap) {
-        // TODO
+    pub(crate) fn render(
+        &self,
+        aabb: &Rect,
+        mask: Option<&Mask>,
+        pixmap: &mut Pixmap,
+        caches: &Caches,
+    ) {
+        let screen_width = pixmap.width();
+        let screen_height = pixmap.height();
+        let raster_size = caches.raster.get_raster_size(self.raster_cache_id);
+        let mut pixmap_i = None;
+        let pixmap_data = pixmap.data_mut();
+        let data: &[u8] = self.get_raster_data(caches).into();
+        let mut raster_x = 0;
+        let initial_pixmap_x = aabb.pos.x as i32;
+        let mut pixmap_x = initial_pixmap_x;
+        let mut pixmap_y = aabb.pos.y as i32;
+        for i in (0..data.len()).step_by(4) {
+            if raster_x >= raster_size.width {
+                raster_x = 0;
+                pixmap_x = initial_pixmap_x;
+                pixmap_y += 1;
+                pixmap_i = None; // Force a new pixmap_i
+            }
+
+            // Make sure we are within the pixmap
+            if pixmap_x < 0
+                || pixmap_x >= screen_width as i32
+                || pixmap_y < 0
+                || pixmap_y >= screen_height as i32
+            {
+                raster_x += 1;
+                pixmap_x += 1;
+                pixmap_i = None;
+                continue;
+            }
+
+            // all values are within the pixmap now
+            if pixmap_i.is_none() {
+                pixmap_i = Some((pixmap_x + (pixmap_y * screen_width as i32)) as usize * 4);
+            }
+
+            // We always have a pixmap_i now
+            let pi = pixmap_i.unwrap();
+
+            if pi >= pixmap_data.len() {
+                break;
+            }
+
+            // Obey the mask
+            if let Some(mask) = mask {
+                // If the mask is not white, skip the pixel
+                if mask.data()[pi] != 255 {
+                    raster_x += 1;
+                    pixmap_x += 1;
+                    *pixmap_i.as_mut().unwrap() += 4;
+                    continue;
+                }
+            }
+
+            pixmap_data[pi] = data[i];
+            pixmap_data[pi + 1] = data[i + 1];
+            pixmap_data[pi + 2] = data[i + 2];
+            pixmap_data[pi + 3] = data[i + 3];
+
+            raster_x += 1;
+            pixmap_x += 1;
+            *pixmap_i.as_mut().unwrap() += 4;
+        }
     }
 }
