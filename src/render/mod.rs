@@ -242,7 +242,6 @@ pub(crate) type ActiveRenderer = crate::render::gpu_render::WGPURenderer;
 pub(crate) type ActiveRenderer = crate::render::cpu_render::CPURenderer;
 
 #[allow(dead_code)]
-
 /// Given an integer, return the next power of 2.
 pub(crate) fn next_power_of_2(n: usize) -> usize {
     let mut n = n - 1;
