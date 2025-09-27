@@ -724,9 +724,8 @@ impl Component for TextBoxText {
         )
     }
 
-    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderable::text::Text;
+        use crate::renderable::Text;
 
         let cursor_z = 2.0;
         let text_z = 5.0;
@@ -755,11 +754,12 @@ impl Component for TextBoxText {
                     z: text_z,
                 },
                 text_color,
-                &mut context.caches.text_buffer,
-                context.prev_state.and_then(|v| match v.first() {
-                    Some(Renderable::Text(r)) => Some(r.buffer_id),
-                    _ => None,
-                }),
+                context.caches,
+                context
+                    .prev_state
+                    .as_ref()
+                    .and_then(|r| r.first())
+                    .and_then(|r| r.as_text()),
             ));
 
             renderables.push(text);
@@ -788,10 +788,5 @@ impl Component for TextBoxText {
         }
 
         Some(renderables)
-    }
-
-    #[cfg(feature = "cpu_renderer")]
-    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        todo!()
     }
 }

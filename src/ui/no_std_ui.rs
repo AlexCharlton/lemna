@@ -69,10 +69,9 @@ impl<
             self.registrations = new_registrations;
 
             new.layout(&self.node, &self.caches.font, 1.0);
-            // TODO: Do something with do_render?
-            let _do_render = new.render(&mut self.caches, Some(&mut self.node), 1.0);
+            let do_render = new.render(&mut self.caches, Some(&mut self.node), 1.0);
             self.node = new;
-            self.frame_dirty = true;
+            self.frame_dirty = do_render;
         }
     }
 

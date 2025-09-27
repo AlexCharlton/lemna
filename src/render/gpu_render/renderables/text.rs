@@ -3,14 +3,14 @@ use bytemuck::{Pod, Zeroable};
 use super::{BufferCache, BufferCacheId};
 use crate::base_types::{Color, Point, Pos, Rect};
 use crate::font_cache::SectionGlyph;
-use crate::renderable::glyph_brush_draw_cache::DrawCache;
+use crate::renderable::{Caches, glyph_brush_draw_cache::DrawCache};
 
 const INDEX_ENTRIES_PER_GLYPH: usize = 6;
 const VERTEX_ENTRIES_PER_GLYPH: usize = 4;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Pod, Zeroable)]
-pub struct Vertex {
+pub(crate) struct Vertex {
     pub pos: Point,
     pub tex_pos: Point,
 }
@@ -67,9 +67,9 @@ impl crate::render::gpu_render::VBDesc for Instance {
 #[derive(Debug, PartialEq)]
 pub struct Text {
     color: Color,
-    pub glyphs: Vec<SectionGlyph>,
+    pub(crate) glyphs: Vec<SectionGlyph>,
     offset: Pos,
-    pub buffer_id: BufferCacheId,
+    pub(crate) buffer_id: BufferCacheId,
 }
 
 impl Text {
@@ -77,14 +77,15 @@ impl Text {
         glyphs: Vec<SectionGlyph>,
         offset: Pos,
         color: Color,
-        buffer_cache: &mut BufferCache<Vertex, u16>,
-        prev_buffer: Option<BufferCacheId>,
+        caches: &mut Caches,
+        prev: Option<&Text>,
     ) -> Self {
+        let buffer_cache = &mut caches.text_buffer;
         let len = glyphs.len();
         let index_len = len * INDEX_ENTRIES_PER_GLYPH;
         let vertex_len = len * VERTEX_ENTRIES_PER_GLYPH;
 
-        let buffer_id = if let Some(c) = prev_buffer {
+        let buffer_id = if let Some(c) = prev.map(|r| r.buffer_id) {
             buffer_cache.alloc_or_reuse_chunk(c, vertex_len, index_len)
         } else {
             buffer_cache.alloc_chunk(vertex_len, index_len)

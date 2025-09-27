@@ -1,8 +1,11 @@
 extern crate alloc;
 
+use alloc::vec::Vec;
+
 use tiny_skia::{BlendMode, Mask, Paint, Pixmap, Shader, Stroke, Transform};
 
 use crate::base_types::{Color, PixelSize, Pos, Rect, Scale};
+use crate::font_cache::SectionGlyph;
 use crate::render::path::Path;
 use crate::render::raster_cache::RasterCacheId;
 use crate::renderable::{Caches, RasterData};
@@ -113,11 +116,25 @@ impl Shape {
 // MARK: Text
 
 #[derive(Debug, PartialEq)]
-pub struct Text {}
+pub struct Text {
+    glyphs: Vec<SectionGlyph>,
+    offset: Pos,
+    color: Color,
+}
 
 impl Text {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(
+        glyphs: Vec<SectionGlyph>,
+        offset: Pos,
+        color: Color,
+        _caches: &mut Caches,
+        _prev: Option<&Text>,
+    ) -> Self {
+        Self {
+            glyphs,
+            offset,
+            color,
+        }
     }
 
     pub(crate) fn render(&self, aabb: &Rect, mask: Option<&Mask>, pixmap: &mut Pixmap) {

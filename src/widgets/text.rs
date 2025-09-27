@@ -125,9 +125,8 @@ impl Component for Text {
         output
     }
 
-    #[cfg(feature = "wgpu_renderer")]
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        use crate::render::renderable::text::Text;
+        use crate::renderable::Text;
 
         let h_alignment: HorizontalPosition =
             self.style_val("h_alignment").unwrap().horizontal_position();
@@ -152,17 +151,13 @@ impl Component for Text {
                 glyphs,
                 Pos::default(),
                 color,
-                &mut context.caches.text_buffer,
-                context.prev_state.and_then(|v| match v.first() {
-                    Some(Renderable::Text(r)) => Some(r.buffer_id),
-                    _ => None,
-                }),
+                context.caches,
+                context
+                    .prev_state
+                    .as_ref()
+                    .and_then(|r| r.first())
+                    .and_then(|r| r.as_text()),
             ))])
         }
-    }
-
-    #[cfg(feature = "cpu_renderer")]
-    fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
-        todo!()
     }
 }
