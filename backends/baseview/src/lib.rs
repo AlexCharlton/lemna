@@ -110,7 +110,9 @@ impl Window {
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
-                    ui.add_font(name, data);
+                    if let Err(e) = ui.add_font(name, data) {
+                        log::error!("Failed to add font: {}", e);
+                    }
                 }
                 build(&mut ui);
                 // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
@@ -156,7 +158,9 @@ impl Window {
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
-                    ui.add_font(name, data);
+                    if let Err(e) = ui.add_font(name, data) {
+                        log::error!("Failed to add font: {}", e);
+                    }
                 }
                 // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
                 #[cfg(windows)]

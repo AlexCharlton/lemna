@@ -7,18 +7,18 @@ use alloc::{
     vec::Vec,
 };
 
-use crate::time::Instant;
 use core::cmp::Ordering;
 use core::hash::Hash;
 
+use crate::TextSegment;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
-use crate::font_cache::{FontCache, TextSegment};
 use crate::input::Key;
 use crate::layout::ScrollPosition;
-use crate::renderable::{Rectangle, Renderable};
+use crate::renderable::{Caches, Rectangle, Renderable};
 use crate::style::{HorizontalPosition, Styled};
+use crate::time::Instant;
 use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
@@ -263,9 +263,10 @@ struct TextBoxTextState {
     selection_from: Option<usize>,
     activated_at: Instant,
     cursor_visible: bool,
-    glyphs: Vec<crate::font_cache::SectionGlyph>,
+    glyphs: Vec<crate::font_cache::PositionedGlyph>,
     glyph_widths: Vec<f32>,
     padding_offset_px: f32,
+    line_height: f32,
     dirty: bool,
 }
 
@@ -287,6 +288,7 @@ impl TextBoxText {
             glyphs: vec![],
             glyph_widths: vec![],
             padding_offset_px: 0.0,
+            line_height: 0.0,
             dirty: true,
         });
     }
@@ -303,11 +305,7 @@ impl TextBoxText {
     }
 
     fn position(&self, x: f32) -> usize {
-        if let Some(i) = self
-            .state_ref()
-            .glyphs
-            .iter()
-            .position(|g| x < g.glyph.position.x + 4.0)
+        if let Some(i) = self.state_ref().glyphs.iter().position(|g| x < g.x + 4.0)
         // This should really be checking against the glyph center
         {
             i
@@ -365,15 +363,13 @@ impl TextBoxText {
     fn cursor_position_px(&self, pos: usize) -> f32 {
         let len = self.state_ref().text.len();
         let glyphs = &self.state_ref().glyphs;
-        (if pos < len {
-            let g = &glyphs[pos].glyph;
-            g.position.x
-        } else if pos == 0 {
+        (if pos == 0 {
             0.0
+        } else if pos < len {
+            glyphs[pos].x - 1.0 // Provide a 1px gap between the next glyph and the cursor
         } else {
             // Last glyph, need to add the advance
-            let g = &glyphs[pos - 1].glyph;
-            g.position.x + self.state_ref().glyph_widths.last().map_or(0.0, |w| *w)
+            glyphs[pos - 1].x + self.state_ref().glyph_widths.last().map_or(0.0, |w| *w)
         }) + self.state_ref().padding_offset_px
     }
 
@@ -677,17 +673,15 @@ impl Component for TextBoxText {
         _height: Option<f32>,
         _max_width: Option<f32>,
         _max_height: Option<f32>,
-        font_cache: &FontCache,
+        caches: &Caches,
         scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
         let padding: f32 = self.style_val("padding").unwrap().f32();
         let font_size: f32 = self.style_val("font_size").unwrap().f32();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
-
         if self.state_ref().dirty {
             let font = self.style_val("font").map(|p| p.str().to_string());
-
-            self.state_mut().glyphs = font_cache.layout_text(
+            self.state_mut().glyphs = caches.layout_text(
                 &[TextSegment {
                     text: self.state_ref().text.clone(),
                     size: font_size.into(),
@@ -700,27 +694,23 @@ impl Component for TextBoxText {
                 (f32::MAX, f32::MAX),
             );
 
-            let glyph_widths = font_cache.glyph_widths(
-                font.as_deref(),
-                font_size,
-                scale_factor,
-                &self.state_ref().glyphs,
-            );
+            let glyph_widths = caches.glyph_widths(&self.state_ref().glyphs);
             self.state_mut().glyph_widths = glyph_widths;
             self.state_mut().padding_offset_px = ((padding + border_width) * scale_factor).round();
 
             self.state_mut().dirty = false;
+            self.state_mut().line_height = caches.line_height(font.as_deref(), font_size, 1.0);
         }
 
         let width = self
             .state_ref()
             .glyphs
             .last()
-            .map_or(0.0, |g| g.glyph.position.x + g.glyph.scale.x)
+            .map_or(0.0, |g| g.x + g.width as f32)
             + self.state_ref().padding_offset_px * 2.0;
         (
             Some(width / scale_factor),
-            Some(font_size * crate::font_cache::SIZE_SCALE + padding * 2.0 + border_width * 2.0),
+            Some(self.state_ref().line_height + padding * 2.0 + border_width * 2.0),
         )
     }
 
@@ -729,19 +719,17 @@ impl Component for TextBoxText {
 
         let cursor_z = 2.0;
         let text_z = 5.0;
-        let font_size: f32 =
-            self.style_val("font_size").unwrap().f32() * crate::font_cache::SIZE_SCALE;
         let text_color: Color = self.style_val("text_color").into();
         let cursor_color: Color = self.style_val("cursor_color").into();
         let selection_color: Color = self.style_val("selection_color").into();
         let pos = self.state_ref().cursor_pos;
         let offset = self.state_ref().padding_offset_px;
-        let font_size_px = font_size * context.scale_factor;
         let cursor_x = self.cursor_position_px(pos);
         let selection_from_x = self
             .state_ref()
             .selection_from
             .map(|pos| self.cursor_position_px(pos));
+        let line_height = self.state_ref().line_height * context.scale_factor;
 
         let mut renderables = vec![];
 
@@ -768,7 +756,7 @@ impl Component for TextBoxText {
         if self.state_ref().cursor_visible && self.selection().is_none() {
             let cursor_rect = Renderable::Rectangle(Rectangle::new(
                 Pos::new(cursor_x, offset + 2.0, cursor_z),
-                Scale::new(1.0, font_size_px - offset),
+                Scale::new(1.0, line_height - offset),
                 cursor_color,
             ));
             renderables.push(cursor_rect);
@@ -781,7 +769,7 @@ impl Component for TextBoxText {
 
             let selection_rect = Renderable::Rectangle(Rectangle::new(
                 Pos::new(x1, offset + 2.0, cursor_z),
-                Scale::new(x2 - x1, font_size_px - offset),
+                Scale::new(x2 - x1, line_height - offset),
                 selection_color,
             ));
             renderables.push(selection_rect);

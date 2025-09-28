@@ -68,7 +68,7 @@ impl<
             new.view(Some(&mut self.node), &mut new_registrations);
             self.registrations = new_registrations;
 
-            new.layout(&self.node, &self.caches.font, 1.0);
+            new.layout(&self.node, &self.caches, 1.0);
             let do_render = new.render(&mut self.caches, Some(&mut self.node), 1.0);
             self.node = new;
             self.frame_dirty = do_render;
@@ -87,8 +87,8 @@ impl<
         }
     }
 
-    fn add_font(&mut self, name: String, bytes: &'static [u8]) {
-        self.caches.font.add_font(name, bytes);
+    fn add_font(&mut self, name: String, bytes: &'static [u8]) -> Result<(), &'static str> {
+        self.caches.font.add_font(name, bytes)
     }
 
     fn event_cache(&mut self) -> &mut EventCache {

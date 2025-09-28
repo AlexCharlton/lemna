@@ -8,7 +8,6 @@ use ahash::AHasher;
 
 use crate::base_types::*;
 use crate::event::{self, Event};
-use crate::font_cache::FontCache;
 use crate::layout::*;
 use crate::node::Node;
 use crate::renderable::{Caches, Renderable};
@@ -139,14 +138,14 @@ pub trait Component: fmt::Debug {
     /// Called during layout, this can be used to set the size of the Component
     /// based on some intrinsic properties, by returning a desired `(width, height)`. `None` values for width or height indicate that the layout engine should determine the size.
     ///
-    /// The input `width` and `height` is the size that the layout engine believes the component should have, if it does have an opinion. The size returned should not exceed the `max_` width or height. The [`FontCache`] is also provided, so that text layout can inform the size of the Component. If laying out text, you should cache the glyphs so that you don't need to compute them every time `fill_bounds` is called.
+    /// The input `width` and `height` is the size that the layout engine believes the component should have, if it does have an opinion. The size returned should not exceed the `max_` width or height. The [`Caches`] are also provided, so that text layout can inform the size of the Component. If laying out text, you should cache the glyphs so that you don't need to compute them every time `fill_bounds` is called.
     fn fill_bounds(
         &mut self,
         _width: Option<f32>,
         _height: Option<f32>,
         _max_width: Option<f32>,
         _max_height: Option<f32>,
-        _font_cache: &FontCache,
+        _caches: &Caches,
         _scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
         (None, None)

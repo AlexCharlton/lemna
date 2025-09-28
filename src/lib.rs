@@ -45,7 +45,9 @@ pub use node::*;
 mod component;
 pub use component::*;
 
-pub mod font_cache;
+mod font_cache;
+#[doc(inline)]
+pub use font_cache::*;
 
 #[macro_use]
 pub mod style;

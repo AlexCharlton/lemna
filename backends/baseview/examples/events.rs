@@ -122,7 +122,7 @@ impl lemna::Component for App {
                     vec![txt!(Icon::Bell), txt!(Icon::Book), txt!(Icon::Bolt)],
                     self.state_ref().radio_selection.clone(),
                 )
-                    .style("font_size", 10.0)
+                    .style("font_size", 20.0)
                     .style("font", "open iconic")
                 .tool_tips(vec![
                     "Bell".to_string(),
@@ -310,7 +310,15 @@ impl Component for EventReactor {
 
 // App setup
 fn main() {
+    use simplelog::*;
+
     println!("hello");
+    let _ = WriteLogger::init(
+        LevelFilter::Info,
+        ConfigBuilder::new().build(),
+        std::fs::File::create("example-events.log").unwrap(),
+    );
+
     lemna_baseview::Window::open_blocking::<App>(
         lemna_baseview::WindowOptions::new("Hello Events", (800, 600))
             .resizable(false)

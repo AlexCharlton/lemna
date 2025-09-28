@@ -7,7 +7,7 @@ use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
 use crate::base_types::{Pos, Rect};
 use crate::font_cache::FontCache;
-use crate::render::gpu_render::glyph_brush_draw_cache::{CachedBy, DrawCache};
+use crate::render::glyph_cache::{CachedBy, DrawCache};
 use crate::render::gpu_render::renderables::{
     self,
     text::{Instance, Text, Vertex},
@@ -262,9 +262,7 @@ impl TextPipeline {
         while !cache_success {
             for (renderable, _) in renderables.iter() {
                 for g in renderable.glyphs.iter().cloned() {
-                    self.glyph_cache
-                        .glyph_cache
-                        .queue_glyph(g.font_id.0, g.glyph);
+                    self.glyph_cache.glyph_cache.queue_glyph(g);
                 }
             }
 

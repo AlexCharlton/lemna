@@ -69,8 +69,8 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
     }
 
     /// Add a font to the [`font_cache::FontCache`][crate::font_cache::FontCache]. The name provided is the name used to reference the font in a [`TextSegment`][crate::font_cache::TextSegment]. `bytes` are the bytes of a OpenType font, which must be held in static memory.
-    fn add_font(&mut self, name: String, bytes: &'static [u8]) {
-        self.caches.write().unwrap().font.add_font(name, bytes);
+    fn add_font(&mut self, name: String, bytes: &'static [u8]) -> Result<(), &'static str> {
+        self.caches.write().unwrap().font.add_font(name, bytes)
     }
 
     fn resize(&mut self) {
@@ -277,7 +277,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         inst_end();
 
                         inst("Node::layout");
-                        new.layout(&old, &caches.font, scale_factor);
+                        new.layout(&old, &caches, scale_factor);
                         inst_end();
 
                         inst("Node::render");

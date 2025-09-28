@@ -6,9 +6,8 @@ use core::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
-use crate::font_cache::FontCache;
 use crate::input::MouseButton;
-use crate::renderable::{RasterData, Renderable};
+use crate::renderable::{Caches, RasterData, Renderable};
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug)]
@@ -155,7 +154,7 @@ impl Component for Canvas {
         _height: Option<f32>,
         _max_width: Option<f32>,
         _max_height: Option<f32>,
-        _font_cache: &FontCache,
+        _caches: &Caches,
         scale_factor: f32,
     ) -> (Option<f32>, Option<f32>) {
         let size = self.state_ref().size;

@@ -3,10 +3,10 @@ extern crate alloc;
 use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 use core::hash::Hash;
 
+use crate::TextSegment;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
-use crate::font_cache::{FontCache, TextSegment};
-use crate::renderable::Renderable;
+use crate::renderable::{Caches, Renderable};
 use crate::style::{HorizontalPosition, Styled};
 use lemna_macros::{component, state_component_impl};
 
@@ -66,7 +66,7 @@ impl Component for Text {
         height: Option<f32>,
         max_width: Option<f32>,
         max_height: Option<f32>,
-        font_cache: &FontCache,
+        caches: &Caches,
         scale: f32,
     ) -> (Option<f32>, Option<f32>) {
         let c = &self.state_ref().bounds_cache;
@@ -81,33 +81,35 @@ impl Component for Text {
 
         let size: f32 = self.style_val("size").unwrap().f32();
         let font = self.style_val("font").map(|p| p.str().to_string());
-        let scaled_size = size * scale * crate::font_cache::SIZE_SCALE;
+        let line_height = caches.line_height(font.as_deref(), size, scale);
 
-        let glyphs = font_cache.layout_text(
+        let glyphs = caches.layout_text(
             &self.text,
             font.as_deref(),
             size,
             scale,
             HorizontalPosition::Left,
             (
-                width.or(max_width).unwrap_or(f32::MAX) * scale,
-                height.or(max_height).unwrap_or(f32::MAX) * scale,
+                width.or(max_width).map_or(f32::MAX, |w| w * scale),
+                height.or(max_height).map_or(f32::MAX, |h| h * scale),
             ),
         );
         let output = if let Some(last_glyph) = glyphs.last() {
-            let p = last_glyph.glyph.position;
             // Unless there is only one row, use the max width
-            let w = if p.y <= scaled_size || max_width.is_none() {
-                p.x + last_glyph.glyph.scale.x
+            let w = if last_glyph.y <= line_height || max_width.is_none() {
+                // We always add a small margin to the end of the text, otherwise we will create a bounds that is too small
+                // TODO: Is there a better way to do this?
+                last_glyph.x + last_glyph.width as f32 + scale * 3.0
             } else {
                 max_width.unwrap() * scale
             };
             // Force h to the next multiple of size, in order to account for some lines not otherwise having the same height as others
-            let h = if p.y % scaled_size > 0.001 {
-                p.y + (scaled_size - p.y % scaled_size)
+            let h = if last_glyph.y % line_height > 0.001 {
+                last_glyph.y + (line_height - last_glyph.y % line_height)
             } else {
-                p.y
+                line_height
             };
+
             (
                 Some(width.unwrap_or(w / scale)),
                 Some(height.unwrap_or(h / scale)),

@@ -4,8 +4,8 @@ use alloc::vec::Vec;
 
 use tiny_skia::{BlendMode, Mask, Paint, Pixmap, Shader, Stroke, Transform};
 
+use crate::PositionedGlyph;
 use crate::base_types::{Color, PixelSize, Pos, Rect, Scale};
-use crate::font_cache::SectionGlyph;
 use crate::render::path::Path;
 use crate::render::raster_cache::RasterCacheId;
 use crate::renderable::{Caches, RasterData};
@@ -117,14 +117,14 @@ impl Shape {
 
 #[derive(Debug, PartialEq)]
 pub struct Text {
-    glyphs: Vec<SectionGlyph>,
+    glyphs: Vec<PositionedGlyph>,
     offset: Pos,
     color: Color,
 }
 
 impl Text {
     pub fn new(
-        glyphs: Vec<SectionGlyph>,
+        glyphs: Vec<PositionedGlyph>,
         offset: Pos,
         color: Color,
         _caches: &mut Caches,

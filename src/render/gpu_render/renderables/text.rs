@@ -2,8 +2,9 @@ use bytemuck::{Pod, Zeroable};
 
 use super::{BufferCache, BufferCacheId};
 use crate::base_types::{Color, Point, Pos, Rect};
-use crate::font_cache::SectionGlyph;
-use crate::renderable::{Caches, glyph_brush_draw_cache::DrawCache};
+use crate::font_cache::PositionedGlyph;
+use crate::render::glyph_cache::DrawCache;
+use crate::render::gpu_render::Caches;
 
 const INDEX_ENTRIES_PER_GLYPH: usize = 6;
 const VERTEX_ENTRIES_PER_GLYPH: usize = 4;
@@ -64,17 +65,24 @@ impl crate::render::gpu_render::VBDesc for Instance {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Text {
     color: Color,
-    pub(crate) glyphs: Vec<SectionGlyph>,
+    pub(crate) glyphs: Vec<PositionedGlyph>,
     offset: Pos,
     pub(crate) buffer_id: BufferCacheId,
 }
 
+impl PartialEq for Text {
+    // Should only be used for tests
+    fn eq(&self, other: &Self) -> bool {
+        self.color == other.color && self.offset == other.offset
+    }
+}
+
 impl Text {
     pub fn new(
-        glyphs: Vec<SectionGlyph>,
+        glyphs: Vec<PositionedGlyph>,
         offset: Pos,
         color: Color,
         caches: &mut Caches,
@@ -119,45 +127,42 @@ impl Text {
             let mut n_indices = 0;
             let mut v_relative = 0;
             for g in self.glyphs.iter() {
-                if let Some((uv_rect, screen_rect)) = glyph_cache.rect_for(g.font_id.0, &g.glyph) {
+                if let Some(uv_rect) = glyph_cache.rect_for(g) {
                     buffer_cache.vertex_data[v] = Vertex {
-                        pos: Point {
-                            x: screen_rect.min.x,
-                            y: screen_rect.min.y,
-                        },
+                        pos: Point { x: g.x, y: g.y },
                         tex_pos: Point {
-                            x: uv_rect.min.x,
-                            y: uv_rect.min.y,
+                            x: uv_rect.pos.x,
+                            y: uv_rect.pos.y,
                         },
                     };
                     buffer_cache.vertex_data[v + 1] = Vertex {
                         pos: Point {
-                            x: screen_rect.max.x,
-                            y: screen_rect.min.y,
+                            x: g.x + g.width as f32,
+                            y: g.y,
                         },
                         tex_pos: Point {
-                            x: uv_rect.max.x,
-                            y: uv_rect.min.y,
+                            x: uv_rect.bottom_right.x,
+                            y: uv_rect.pos.y,
                         },
                     };
                     buffer_cache.vertex_data[v + 2] = Vertex {
                         pos: Point {
-                            x: screen_rect.min.x,
-                            y: screen_rect.max.y,
+                            x: g.x,
+                            y: g.y + g.height as f32,
                         },
                         tex_pos: Point {
-                            x: uv_rect.min.x,
-                            y: uv_rect.max.y,
+                            x: uv_rect.pos.x,
+                            y: uv_rect.bottom_right.y,
                         },
                     };
                     buffer_cache.vertex_data[v + 3] = Vertex {
                         pos: Point {
-                            x: screen_rect.max.x,
-                            y: screen_rect.max.y,
+                            x: g.x + g.width as f32,
+                            y: g.y + g.height as f32,
                         },
                         tex_pos: Point {
-                            x: uv_rect.max.x,
-                            y: uv_rect.max.y,
+                            x: uv_rect.bottom_right.x,
+                            y: uv_rect.bottom_right.y,
                         },
                     };
 

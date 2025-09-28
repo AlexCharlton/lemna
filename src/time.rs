@@ -23,7 +23,7 @@ impl Instant {
     }
 
     pub fn elapsed(self) -> Duration {
-        self - Self::now()
+        Self::now() - self
     }
 }
 

@@ -8,6 +8,8 @@ use alloc::{string::String, vec, vec::Vec};
 
 use core::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 
+use crate::renderable::Caches;
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ScrollPosition {
     pub x: Option<f32>,
@@ -606,7 +608,7 @@ impl super::node::Node {
     fn resolve_child_sizes(
         &mut self,
         inner_size: Size,
-        font_cache: &crate::font_cache::FontCache,
+        caches: &Caches,
         scale_factor: f32,
         final_pass: bool,
     ) {
@@ -666,7 +668,7 @@ impl super::node::Node {
                         .height
                         .maybe_px()
                         .or(self.layout.max_size.height.maybe_px()),
-                    font_cache,
+                    caches,
                     scale_factor,
                 );
                 if let Some(w) = w {
@@ -718,7 +720,7 @@ impl super::node::Node {
                     .minus_bounds(&child.layout.margin.maybe_resolve(&inner_size));
             }
 
-            child.resolve_layout(inner_size, font_cache, scale_factor, final_pass);
+            child.resolve_layout(inner_size, caches, scale_factor, final_pass);
         }
     }
 
@@ -997,7 +999,7 @@ impl super::node::Node {
     fn resolve_layout(
         &mut self,
         bounds_size: Size,
-        font_cache: &crate::font_cache::FontCache,
+        caches: &Caches,
         scale_factor: f32,
         final_pass: bool,
     ) {
@@ -1025,7 +1027,7 @@ impl super::node::Node {
             );
         }
 
-        self.resolve_child_sizes(inner_size, font_cache, scale_factor, final_pass);
+        self.resolve_child_sizes(inner_size, caches, scale_factor, final_pass);
         let children_size = self.set_children_position(size);
         self.resolve_size(size, children_size);
         self.set_inner_scale(children_size);
@@ -1044,20 +1046,16 @@ impl super::node::Node {
         }
     }
 
-    pub(crate) fn calculate_layout(
-        &mut self,
-        font_cache: &crate::font_cache::FontCache,
-        scale_factor: f32,
-    ) {
+    pub(crate) fn calculate_layout(&mut self, caches: &Caches, scale_factor: f32) {
         self.layout_result.position = Bounds {
             top: Dimension::Px(0.0),
             left: Dimension::Px(0.0),
             bottom: Dimension::Auto,
             right: Dimension::Auto,
         };
-        self.resolve_layout(self.layout.size, font_cache, scale_factor, false);
+        self.resolve_layout(self.layout.size, caches, scale_factor, false);
         // Layout is resolved twice, the second time to resolve percentages that couldn't have been known without better knowledge of the children
-        self.resolve_layout(self.layout.size, font_cache, scale_factor, true);
+        self.resolve_layout(self.layout.size, caches, scale_factor, true);
     }
 }
 
@@ -1697,7 +1695,7 @@ mod tests {
     #[test]
     fn test_empty() {
         let mut nodes = node!(Div::new(), lay!(size: size!(300.0)));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.layout_result.position.top, px!(0.0));
         assert_eq!(nodes.layout_result.position.left, px!(0.0));
@@ -1712,7 +1710,7 @@ mod tests {
         .push(node!(Div::new(), lay!(size: size!(150.0))))
         .push(node!(Div::new(), lay!(size: size!(100.0))))
         .push(node!(Div::new(), lay!(size: size!(200.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(0.0));
@@ -1740,7 +1738,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(200.0), margin: bounds_pct!(1.0))
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(
             nodes.children[0].layout_result.position.left,
@@ -1769,7 +1767,7 @@ mod tests {
             node!(Div::new(), lay!(size: size_pct!(50.0, 100.0)))
                 .push(node!(Div::new(), lay!(size: size_pct!(50.0, 100.0)))),
         );
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(150.0, 300.0));
         assert_eq!(
@@ -1789,7 +1787,7 @@ mod tests {
             Div::new(),
             lay!(size: Size {width: Dimension::Pct(100.0), height: Dimension::Px(50.0)})
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(50.0, 150.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(50.0, 100.0));
         assert_eq!(nodes.children[1].layout_result.size, size!(50.0, 50.0));
@@ -1808,7 +1806,7 @@ mod tests {
         )
         .push(node!(Div::new()))
         .push(node!(Div::new()));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(150.0, 300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
@@ -1831,7 +1829,7 @@ mod tests {
         )
         .push(node!(Div::new()))
         .push(node!(Div::new(), lay!(size: size!(100.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(200.0, 300.0));
@@ -1849,7 +1847,7 @@ mod tests {
             lay!(size: size!(300.0), padding: bounds!(10.0, 20.0, 30.0, 40.0))
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(240.0, 260.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(20.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(10.0));
@@ -1865,7 +1863,7 @@ mod tests {
             )
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(120.0, 180.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(60.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(30.0));
@@ -1888,7 +1886,7 @@ mod tests {
                     margin: bounds!(15.0, 10.0, 5.0, 20.0)
                 )
             ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(120.0, 280.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(10.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(5.0));
@@ -1914,7 +1912,7 @@ mod tests {
                     margin: bounds_pct!(15.0, 10.0, 5.0, 20.0),
                 )
             ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(60.0, 240.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(30.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(15.0));
@@ -1935,7 +1933,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(200.0), margin: bounds!(2.0))
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(
             nodes.layout_result.size,
             size!(
@@ -1951,7 +1949,7 @@ mod tests {
             Div::new(),
             lay!(direction: Direction::Row, min_size: size!(250.0, 300.0))
         );
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(250.0, 300.0));
     }
 
@@ -1966,7 +1964,7 @@ mod tests {
         .push(node!(Div::new(), lay!(size: size!(100.0)))) // Child 1
         .push(node!(Div::new(), lay!(size: size!(200.0)))); // Child 2
 
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
 
         assert_eq!(nodes.children[0].layout_result.position.right, px!(300.0));
@@ -2002,7 +2000,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(100.0), margin: bounds!(1.0))
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(415.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(56.5));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(56.5));
@@ -2030,7 +2028,7 @@ mod tests {
                 position: bounds!(Auto, Auto, 10.0, 10.0)
             )
         ));
-        nodes.calculate_layout(&crate::font_cache::FontCache::default(), 1.0);
+        nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(0.0));

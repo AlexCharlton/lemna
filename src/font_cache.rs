@@ -15,25 +15,42 @@ use alloc::{
 use core::hash::{Hash, Hasher};
 
 use ahash::HashMap;
-use glyph_brush_layout::{
-    FontId, GlyphPositioner, HorizontalAlign, SectionGeometry, SectionText, ab_glyph::*,
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use fontdue::{
+    Font, FontResult, FontSettings,
+    layout::{HorizontalAlign, Layout, LayoutSettings, TextStyle, VerticalAlign},
 };
 
 use crate::style::HorizontalPosition;
 
-type Fonts = Vec<FontRef<'static>>;
+type RwLock<T> = embassy_sync::rwlock::RwLock<CriticalSectionRawMutex, T>;
 
-/// Output by [`FontCache::layout_text`], and an input to [`Text::new`][crate::renderable::Text::new]. Useful for text-rendering widgets to cache in their state, so that they don't need to be recomputed unless necessary.
-pub type SectionGlyph = glyph_brush_layout::SectionGlyph;
+/// Output by [`Caches::layout_text`][crate::renderable::Caches::layout_text], and an input to [`Text::new`][crate::renderable::Text::new]. Useful for text-rendering widgets to cache in their state, so that they don't need to be recomputed unless necessary.
+pub type PositionedGlyph = fontdue::layout::GlyphPosition;
 
-/// Value by which fonts are scaled. 12 px fonts render at scale 18 px for some reason. Useful if you need to compute the line height: it will be `<font_size> * SIZE_SCALE` in logical size, and `<font_size> * SIZE_SCALE * <scale_factor>` in physical pixels.
-pub const SIZE_SCALE: f32 = 1.5;
+// The index of the font in the `fonts` vector
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct FontId(usize);
+
+const DEFAULT_LINE_HEIGHT_SCALE: f32 = 1.5;
 
 /// Stores fonts, and provides text layout functionality to Components who render.
-#[derive(Default)]
-pub struct FontCache {
-    pub(crate) fonts: Fonts,
-    pub(crate) font_names: HashMap<String, usize>,
+pub(crate) struct FontCache {
+    pub fonts: Vec<Font>,
+    pub font_names: HashMap<String, usize>,
+    layout: RwLock<Layout>,
+}
+
+impl Default for FontCache {
+    fn default() -> Self {
+        Self {
+            fonts: Vec::new(),
+            font_names: HashMap::default(),
+            layout: RwLock::new(Layout::new(
+                fontdue::layout::CoordinateSystem::PositiveYDown,
+            )),
+        }
+    }
 }
 
 impl FontCache {
@@ -60,13 +77,15 @@ impl FontCache {
     }
 
     /// bytes is an OpenType font
-    pub(crate) fn add_font(&mut self, name: String, bytes: &'static [u8]) {
+    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) -> FontResult<()> {
         let i = self.fonts.len();
-        self.fonts.push(FontRef::try_from_slice(bytes).unwrap());
+        let font = Font::from_bytes(bytes, FontSettings::default())?;
+        self.fonts.push(font);
         self.font_names.insert(name, i);
+        Ok(())
     }
 
-    /// Given a set of [`TextSegment`]s, create [`SectionGlyph`]s, which are then used by the [`Text`][crate::renderable::Text] renderable.
+    /// Given a set of [`TextSegment`]s, create [`PositionedGlyph`]s, which are then used by the [`Text`][crate::renderable::Text] renderable.
     ///
     /// `base_font` and `base_size` are provided as fallbacks for when a `TextSegment` does not specify a font or size. `scale_factor` is the display scale factor. `alignment` dictates how the text is aligned, and `bounds` sets the maximum width and height.
     pub fn layout_text(
@@ -77,72 +96,64 @@ impl FontCache {
         scale_factor: f32,
         alignment: HorizontalPosition,
         bounds: (f32, f32),
-    ) -> Vec<SectionGlyph> {
-        // TODO: Should accept an AABB and a start pos within it.
-        let scaled_size = base_size * scale_factor * SIZE_SCALE;
-        let base_font = self.font_or_default(base_font);
+    ) -> Vec<PositionedGlyph> {
+        let mut layout = embassy_futures::block_on(self.layout.write());
 
-        let section_text: Vec<_> = text
-            .iter()
-            .map(|TextSegment { text, size, font }| SectionText {
-                text,
-                scale: size
-                    .map_or(scaled_size, |s| s * scale_factor * SIZE_SCALE)
-                    .into(),
-                font_id: font
-                    .as_ref()
-                    .and_then(|f| self.font(f))
-                    .unwrap_or(base_font),
-            })
-            .collect();
-
-        let screen_position = (
-            match alignment {
-                HorizontalPosition::Left => 0.0,
-                HorizontalPosition::Center => bounds.0 / 2.0,
-                HorizontalPosition::Right => bounds.0,
-            },
-            0.0,
-        );
-
-        glyph_brush_layout::Layout::default()
-            .h_align(match alignment {
+        let settings = LayoutSettings {
+            x: 0.0,
+            y: 0.0,
+            max_width: Some(bounds.0),
+            max_height: Some(bounds.1),
+            horizontal_align: match alignment {
                 HorizontalPosition::Left => HorizontalAlign::Left,
                 HorizontalPosition::Right => HorizontalAlign::Right,
                 HorizontalPosition::Center => HorizontalAlign::Center,
-            })
-            .calculate_glyphs(
+            },
+            vertical_align: VerticalAlign::Top,
+            line_height: 1.0,
+            wrap_style: fontdue::layout::WrapStyle::Word,
+            wrap_hard_breaks: true,
+        };
+        layout.reset(&settings);
+        // TODO: Should accept an AABB and a start pos within it.
+        let scaled_size = base_size * scale_factor;
+        let base_font = self.font_or_default(base_font);
+
+        for TextSegment { text, size, font } in text {
+            layout.append(
                 &self.fonts,
-                &SectionGeometry {
-                    screen_position,
-                    bounds,
+                &TextStyle {
+                    text: text.as_str(),
+                    px: size.map_or(scaled_size, |s| s * scale_factor).into(),
+                    font_index: font
+                        .as_ref()
+                        .and_then(|f| self.font(f))
+                        .unwrap_or(base_font)
+                        .0,
+                    user_data: (),
                 },
-                &section_text,
             )
+        }
+
+        layout.glyphs().to_vec()
+    }
+
+    pub fn line_height(&self, font: Option<&str>, size: f32, scale_factor: f32) -> f32 {
+        let font = &self.fonts[self.font_or_default(font).0];
+        if let Some(metrics) = font.horizontal_line_metrics(size * scale_factor) {
+            metrics.new_line_size
+        } else {
+            size * scale_factor * DEFAULT_LINE_HEIGHT_SCALE
+        }
     }
 
     /// Given a slice of [`SectionGlyph`]s (which would have been returned by [`#layout_text`][FontCache#method.layout_text]), and a known **fixed** `font` and `font_size`, return the width of each glyph. This is useful if you need to e.g. render a cursor between characters as in [`TextBox`][crate::widgets::TextBox].
-    pub fn glyph_widths(
-        &self,
-        font: Option<&str>,
-        font_size: f32,
-        scale_factor: f32,
-        glyphs: &[SectionGlyph],
-    ) -> Vec<f32> {
-        let font_ref = self.font_or_default(font);
-        let font = &self.fonts[font_ref.0];
-
-        glyphs
-            .iter()
-            .map(|g| {
-                font.as_scaled(font_size * scale_factor * SIZE_SCALE)
-                    .h_advance(g.glyph.id)
-            })
-            .collect()
+    pub fn glyph_widths(&self, glyphs: &[PositionedGlyph]) -> Vec<f32> {
+        glyphs.iter().map(|g| g.width as f32).collect()
     }
 }
 
-/// Used by [`FontCache#layout_text`][FontCache#method.layout_text] as an input. Accordingly, it is also commonly used as the input to Components that display text, e.g. [`widgets::Text`][crate::widgets::Text] and [`widgets::Button`][crate::widgets::Button].
+/// Used by [`Caches::layout_text`][crate::renderable::Caches::layout_text] as an input. Accordingly, it is also commonly used as the input to Components that display text, e.g. [`widgets::Text`][crate::widgets::Text] and [`widgets::Button`][crate::widgets::Button].
 ///
 /// [`txt`][crate::txt] is provided as a convenient constructor, but you can also use `into` from a `&str` or `String`, e.g. `"some text".into()`.
 #[derive(Debug, Clone)]
@@ -237,19 +248,19 @@ macro_rules! txt {
     // End split_comma
 
     // Operation performed per comma-separated expr
-    (@as_txt_seg  ($text:expr, None, $size:expr)) => { $crate::font_cache::TextSegment {
+    (@as_txt_seg  ($text:expr, None, $size:expr)) => { $crate::TextSegment {
         text: $text.into(),
         size: Some($size),
         font: None,
     } };
 
-    (@as_txt_seg  ($text:expr, $font:expr, $size:expr)) => { $crate::font_cache::TextSegment {
+    (@as_txt_seg  ($text:expr, $font:expr, $size:expr)) => { $crate::TextSegment {
         text: $text.into(),
         size: Some($size),
         font: Some($font.into()),
     } };
 
-    (@as_txt_seg  ($text:expr, $font:expr)) => { $crate::font_cache::TextSegment {
+    (@as_txt_seg  ($text:expr, $font:expr)) => { $crate::TextSegment {
         text: $text.into(),
         size: None,
         font: Some($font.into()),

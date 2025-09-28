@@ -35,7 +35,9 @@ impl Window {
             winit_window: window,
         });
         for (name, data) in fonts.drain(..) {
-            ui.add_font(name, data);
+            if let Err(e) = ui.add_font(name, data) {
+                log::error!("Failed to add font: {}", e);
+            }
         }
 
         event_loop.run(move |event, _, control_flow| {

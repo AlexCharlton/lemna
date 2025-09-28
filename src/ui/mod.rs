@@ -24,7 +24,7 @@ pub(crate) trait LemnaUI {
 
     fn render(&mut self);
 
-    fn add_font(&mut self, name: String, bytes: &'static [u8]);
+    fn add_font(&mut self, name: String, bytes: &'static [u8]) -> Result<(), &'static str>;
 
     fn with_node<F, R>(&mut self, f: F) -> R
     where
@@ -419,7 +419,7 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
     }
 
     /// Add a font to the font cache.
-    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
+    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) -> Result<(), &'static str> {
         LemnaUI::add_font(self, name, bytes)
     }
 
@@ -467,7 +467,7 @@ impl<
     }
 
     /// Add a font to the font cache.
-    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) {
+    pub fn add_font(&mut self, name: String, bytes: &'static [u8]) -> Result<(), &'static str> {
         LemnaUI::add_font(self, name, bytes)
     }
 

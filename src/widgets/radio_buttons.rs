@@ -11,7 +11,7 @@ use crate::component::{Component, ComponentHasher, Message};
 use crate::event;
 use crate::font_cache::TextSegment;
 use crate::layout::*;
-use crate::style::{HorizontalPosition, Styled};
+use crate::style::Styled;
 use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
@@ -110,10 +110,12 @@ impl Component for RadioButtons {
     fn view(&self) -> Option<Node> {
         let mut base = node!(
             super::Div::new(),
-            lay!(direction: match self.direction {
-                Direction::Row => Direction::Column,
-                Direction::Column => Direction::Row,
-            })
+            [
+                direction: match self.direction {
+                    Direction::Row => Direction::Column,
+                    Direction::Column => Direction::Row,
+                }
+            ]
         );
 
         let limit = match self.direction {
@@ -144,7 +146,7 @@ impl Component for RadioButtons {
 
         let mut i: usize = 0;
         let mut j: usize = 0;
-        let mut container = node!(super::Div::new(), lay!(direction: self.direction)).key(i as u64);
+        let mut container = node!(super::Div::new(), [direction: self.direction]).key(i as u64);
         for (position, b) in self.buttons.iter().enumerate() {
             if j >= limit {
                 j = 0;
@@ -152,10 +154,11 @@ impl Component for RadioButtons {
                 let old_container = container;
                 container = node!(
                     super::Div::new(),
-                    lay!(direction: self.direction,
-                         cross_alignment: Alignment::Stretch,
-                         // axis_alignment: Alignment::Stretch, // TODO: This is broken
-                    )
+                    [
+                        direction: self.direction,
+                        cross_alignment: Alignment::Stretch,
+                        // axis_alignment: Alignment::Stretch, // TODO: This is broken
+                    ]
                 )
                 .key(i as u64);
                 base = base.push(old_container);
@@ -276,28 +279,28 @@ impl Component for RadioButton {
                 border_width,
                 radii: self.radii,
             },
-            lay!(
+            [
                 size: size_pct!(100.0),
                 padding: bounds!(padding),
                 cross_alignment: crate::layout::Alignment::Center,
                 axis_alignment: crate::layout::Alignment::Center
-            )
+            ]
         )
         .push(node!(
             super::Text::new(self.label.clone())
                 .style("size", self.style_val("font_size").unwrap())
                 .style("color", self.style_val("text_color").unwrap())
-                .style("h_alignment", HorizontalPosition::Center)
                 .maybe_style("font", self.style_val("font"))
         ));
 
         if let (Some(p), Some(tt)) = (self.state_ref().tool_tip_open, self.tool_tip.as_ref()) {
             base = base.push(node!(
                 ToolTip::new(tt.clone()),
-                lay!(position_type: PositionType::Absolute,
-                     z_index_increment: 1000.0,
-                     position: (p + ToolTip::MOUSE_OFFSET).into(),
-                )
+                [
+                    position_type: PositionType::Absolute,
+                    z_index_increment: 1000.0,
+                    position: (p + ToolTip::MOUSE_OFFSET).into(),
+                ]
             ));
         }
 

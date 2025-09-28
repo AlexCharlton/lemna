@@ -8,7 +8,6 @@ use core::sync::atomic::{AtomicU64, Ordering};
 use crate::base_types::*;
 use crate::component::*;
 use crate::event::{self, Event, EventInput};
-use crate::font_cache::FontCache;
 use crate::layout::*;
 use crate::renderable::{Caches, Renderable};
 
@@ -353,8 +352,8 @@ impl Node {
         }
     }
 
-    pub(crate) fn layout(&mut self, _prev: &Self, font_cache: &FontCache, scale_factor: f32) {
-        self.calculate_layout(font_cache, scale_factor);
+    pub(crate) fn layout(&mut self, _prev: &Self, caches: &Caches, scale_factor: f32) {
+        self.calculate_layout(caches, scale_factor);
         self.set_aabb(
             Pos::default(),
             self.aabb,
@@ -1304,7 +1303,7 @@ mod tests {
             lay!(size: size!(300.0)),
         );
         n.view(None, &mut vec![]);
-        n.layout(&m, &caches.font, 1.0);
+        n.layout(&m, &caches, 1.0);
 
         // Expect the inner_scale to be a real size
         let scroll_node = &mut n.children[0].children[0];

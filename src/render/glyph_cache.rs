@@ -14,18 +14,17 @@
 //! # let fonts: Vec<ab_glyph::FontArc> = Vec::new();
 //! # fn update_texture(_: glyph_brush_draw_cache::Rectangle<u32>, _: &[u8]) {}
 //! // queue up some glyphs to store in the cache
-//! for (font_id, glyph) in glyphs {
-//!     draw_cache.queue_glyph(font_id, glyph);
+//! for glyph in glyphs {
+//!     draw_cache.queue_glyph(glyph);
 //! }
 //!
 //! // process everything in the queue, rasterizing & uploading as necessary
 //! draw_cache.cache_queued(&fonts, |rect, tex_data| update_texture(rect, tex_data))?;
 //!
-//! // access a given glyph's texture position & pixel position for the texture quad
-//! # let font_id = 0;
+//! // access a given glyph's texture position
 //! # let glyph: ab_glyph::Glyph = unimplemented!();
-//! match draw_cache.rect_for(font_id, &glyph) {
-//!     Some((tex_coords, px_coords)) => {}
+//! match draw_cache.rect_for(&glyph) {
+//!     Some(tex_coords) => {}
 //!     None => {/* The glyph has no outline, or wasn't queued up to be cached */}
 //! }
 //! # Ok(()) }
@@ -33,34 +32,24 @@
 
 //! This is a reimplementation based on the discussion here: <https://github.com/alexheretic/glyph-brush/pull/120>
 //! Without these changes, it's just too slow!
-use ab_glyph::*;
-use ahash::{HashMap, HashSet};
-use linked_hash_map::LinkedHashMap;
-use std::{error, fmt, hash::BuildHasherDefault, ops};
+//! This has since been changed to use fontdue
+extern crate alloc;
 
-/// (Texture coordinates, pixel coordinates)
-pub type TextureCoords = (Rect, Rect);
+use alloc::{vec, vec::Vec};
+use core::{error, fmt, hash::BuildHasherDefault, ops};
+
+use ahash::{HashMap, HashSet};
+use fontdue::Font;
+use fontdue::layout::{GlyphPosition, GlyphRasterConfig};
+use indexmap::IndexMap;
+
+use crate::base_types::{Point, Pos, Rect};
 
 type FxBuildHasher = BuildHasherDefault<ahash::AHasher>;
 
 /// Indicates where a glyph texture is stored in the cache
 /// (row position, glyph index in row)
 type TextureRowGlyphIndex = (u32, u32);
-
-/// Texture lookup key that uses scale & offset as integers attained
-/// by dividing by the relevant tolerance.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-struct LossyGlyphInfo {
-    font_id: usize,
-    glyph_id: GlyphId,
-    /// x & y scales divided by `scale_tolerance` & rounded
-    scale_over_tolerance: (u32, u32),
-    /// Normalised subpixel positions divided by `position_tolerance` & rounded
-    ///
-    /// `u16` is enough as subpixel position `[-0.5, 0.5]` converted to `[0, 1]`
-    ///  divided by the min `position_tolerance` (`0.001`) is small.
-    offset_over_tolerance: (u16, u16),
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ByteArray2d {
@@ -131,12 +120,8 @@ struct Row {
 }
 
 struct GlyphTexInfo {
-    glyph_info: LossyGlyphInfo,
+    glyph_info: GlyphRasterConfig,
     tex_coords: Rectangle<u32>,
-    /// Used to calculate the bounds/texture pixel location for a similar glyph.
-    ///
-    /// Each ordinate is calculated: `(bounds_ord - position_ord) / g.scale`
-    bounds_minus_position_over_scale: Rect,
 }
 
 trait PaddingAware {
@@ -343,7 +328,7 @@ impl DrawCacheBuilder {
             position_tolerance,
             width,
             height,
-            rows: LinkedHashMap::default(),
+            rows: IndexMap::default(),
             space_start_for_end: {
                 let mut m = HashMap::default();
                 m.insert(height, 0);
@@ -435,34 +420,20 @@ pub enum CachedBy {
     Reordering,
 }
 
-fn normalised_offset_from_position(position: Point) -> Point {
-    let mut offset = point(position.x.fract(), position.y.fract());
-    if offset.x > 0.5 {
-        offset.x -= 1.0;
-    } else if offset.x < -0.5 {
-        offset.x += 1.0;
-    }
-    if offset.y > 0.5 {
-        offset.y -= 1.0;
-    } else if offset.y < -0.5 {
-        offset.y += 1.0;
-    }
-    offset
-}
-
 /// Dynamic rasterization draw cache.
 pub struct DrawCache {
     scale_tolerance: f32,
     position_tolerance: f32,
     width: u32,
     height: u32,
-    rows: LinkedHashMap<u32, Row, FxBuildHasher>,
+    // Start y pixel position is the index
+    rows: IndexMap<u32, Row, FxBuildHasher>,
     /// Mapping of row gaps bottom -> top
     space_start_for_end: HashMap<u32, u32>,
     /// Mapping of row gaps top -> bottom
     space_end_for_start: HashMap<u32, u32>,
-    queue: Vec<(usize, Glyph)>,
-    all_glyphs: HashMap<LossyGlyphInfo, TextureRowGlyphIndex>,
+    queue: Vec<GlyphPosition>,
+    all_glyphs: HashMap<GlyphRasterConfig, TextureRowGlyphIndex>,
     pad_glyphs: bool,
     align_4x4: bool,
     cpu_cache: ByteArray2d,
@@ -497,8 +468,8 @@ impl DrawCache {
     /// Queue a glyph for caching by the next call to `cache_queued`. `font_id`
     /// is used to disambiguate glyphs from different fonts. The user should
     /// ensure that `font_id` is unique to the font the glyph is from.
-    pub fn queue_glyph(&mut self, font_id: usize, glyph: Glyph) {
-        self.queue.push((font_id, glyph));
+    pub fn queue_glyph(&mut self, glyph: GlyphPosition) {
+        self.queue.push(glyph);
     }
 
     /// Clears the cache. Does not affect the glyph queue.
@@ -524,26 +495,6 @@ impl DrawCache {
         self.queue.clear();
     }
 
-    /// Returns glyph info with accuracy according to the set tolerances.
-    fn lossy_info_for(&self, font_id: usize, glyph: &Glyph) -> LossyGlyphInfo {
-        let scale = glyph.scale;
-        let offset = normalised_offset_from_position(glyph.position);
-
-        LossyGlyphInfo {
-            font_id,
-            glyph_id: glyph.id,
-            scale_over_tolerance: (
-                (scale.x / self.scale_tolerance + 0.5) as u32,
-                (scale.y / self.scale_tolerance + 0.5) as u32,
-            ),
-            // convert [-0.5, 0.5] -> [0, 1] then divide
-            offset_over_tolerance: (
-                ((offset.x + 0.5) / self.position_tolerance + 0.5) as u16,
-                ((offset.y + 0.5) / self.position_tolerance + 0.5) as u16,
-            ),
-        }
-    }
-
     /// Caches the queued glyphs. If this is unsuccessful, the queue is
     /// untouched. Any glyphs cached by previous calls to this function may be
     /// removed from the cache to make room for the newly queued glyphs. Thus if
@@ -558,13 +509,12 @@ impl DrawCache {
     ///
     /// If successful returns a `CachedBy` that can indicate the validity of
     /// previously cached glyph textures.
-    pub fn cache_queued<F, U>(
+    pub fn cache_queued<U>(
         &mut self,
-        fonts: &[F],
+        fonts: &[Font],
         mut uploader: U,
     ) -> Result<CachedBy, CacheWriteErr>
     where
-        F: Font + Sync,
         U: FnMut(Rectangle<u32>, &[u8]),
     {
         let mut queue_success = true;
@@ -585,8 +535,8 @@ impl DrawCache {
 
                 // divide glyphs into texture rows where a matching glyph texture
                 // already exists & glyphs where new textures must be cached
-                for (font_id, glyph) in &self.queue {
-                    let glyph_info = self.lossy_info_for(*font_id, glyph);
+                for glyph in &self.queue {
+                    let glyph_info = glyph.key;
                     if let Some((row, ..)) = self.all_glyphs.get(&glyph_info) {
                         in_use_rows.insert(*row);
                     } else {
@@ -597,38 +547,40 @@ impl DrawCache {
                 (in_use_rows, uncached_glyphs)
             };
 
-            for row in &in_use_rows {
-                self.rows.get_refresh(row);
+            for k in &in_use_rows {
+                if let Some(row) = self.rows.shift_remove(k) {
+                    self.rows.insert(*k, row);
+                }
             }
 
-            // outline
-            let mut uncached_outlined: Vec<_> = uncached_glyphs
+            let mut uncached_metrics: Vec<_> = uncached_glyphs
                 .into_iter()
-                .filter_map(|(info, glyph)| {
-                    Some((info, fonts[info.font_id].outline_glyph(glyph.clone())?))
+                .filter_map(|(_, glyph)| {
+                    Some((
+                        glyph,
+                        fonts[glyph.font_index]
+                            .metrics_indexed(glyph.key.glyph_index, glyph.key.px),
+                    ))
                 })
                 .collect();
 
             // tallest first gives better packing
             // can use 'sort_unstable' as order of equal elements is unimportant
-            uncached_outlined.sort_unstable_by(|(_, ga), (_, gb)| {
-                gb.px_bounds()
-                    .height()
-                    .partial_cmp(&ga.px_bounds().height())
+            uncached_metrics.sort_unstable_by(|(_, ga), (_, gb)| {
+                gb.height
+                    .partial_cmp(&ga.height)
                     .unwrap_or(core::cmp::Ordering::Equal)
             });
 
-            self.all_glyphs.reserve(uncached_outlined.len());
-            let mut draw_and_upload = Vec::with_capacity(uncached_outlined.len());
+            self.all_glyphs.reserve(uncached_metrics.len());
+            let mut draw_and_upload = Vec::with_capacity(uncached_metrics.len());
 
-            'per_glyph: for (glyph_info, outlined) in uncached_outlined {
-                let bounds = outlined.px_bounds();
-
+            'per_glyph: for (glyph, metrics) in uncached_metrics {
                 let (unaligned_width, unaligned_height) = {
                     if self.pad_glyphs {
-                        (bounds.width() as u32 + 2, bounds.height() as u32 + 2)
+                        (metrics.width as u32 + 2, metrics.height as u32 + 2)
                     } else {
-                        (bounds.width() as u32, bounds.height() as u32)
+                        (metrics.width as u32, metrics.height as u32)
                     }
                 };
                 let (aligned_width, aligned_height) = if self.align_4x4 {
@@ -663,9 +615,9 @@ impl DrawCache {
                         // Remove old rows until room is available
                         while !self.rows.is_empty() {
                             // check that the oldest row isn't also in use
-                            if !in_use_rows.contains(self.rows.front().unwrap().0) {
+                            if !in_use_rows.contains(self.rows.first().unwrap().0) {
                                 // Remove row
-                                let (top, row) = self.rows.pop_front().unwrap();
+                                let (top, row) = self.rows.shift_remove_index(0).unwrap();
 
                                 for g in row.glyphs {
                                     self.all_glyphs.remove(&g.glyph_info);
@@ -725,7 +677,8 @@ impl DrawCache {
                 }
                 let row_top = row_top.unwrap();
                 // calculate the target rect
-                let row = self.rows.get_refresh(&row_top).unwrap();
+                let mut row = self.rows.shift_remove(&row_top).unwrap();
+
                 let aligned_tex_coords = Rectangle {
                     min: [row.width, row_top],
                     max: [row.width + aligned_width, row_top + aligned_height],
@@ -735,41 +688,31 @@ impl DrawCache {
                     max: [row.width + unaligned_width, row_top + unaligned_height],
                 };
 
-                let g = outlined.glyph();
-
                 // add the glyph to the row
                 row.glyphs.push(GlyphTexInfo {
-                    glyph_info,
+                    glyph_info: glyph.key,
                     tex_coords: unaligned_tex_coords,
-                    bounds_minus_position_over_scale: Rect {
-                        min: point(
-                            (bounds.min.x - g.position.x) / g.scale.x,
-                            (bounds.min.y - g.position.y) / g.scale.y,
-                        ),
-                        max: point(
-                            (bounds.max.x - g.position.x) / g.scale.x,
-                            (bounds.max.y - g.position.y) / g.scale.y,
-                        ),
-                    },
                 });
                 row.dirty = true;
                 row.width += aligned_width;
                 in_use_rows.insert(row_top);
 
-                draw_and_upload.push((aligned_tex_coords, outlined));
+                draw_and_upload.push((aligned_tex_coords, glyph));
 
                 self.all_glyphs
-                    .insert(glyph_info, (row_top, row.glyphs.len() as u32 - 1));
+                    .insert(glyph.key, (row_top, row.glyphs.len() as u32 - 1));
+                self.rows.insert(row_top, row);
             }
 
             if queue_success {
                 {
                     // single thread rasterization
-                    for (tex_coords, outlined) in draw_and_upload {
+                    for (tex_coords, glyph) in draw_and_upload {
                         draw_glyph_onto_buffer(
                             &mut self.cpu_cache,
                             tex_coords,
-                            &outlined,
+                            fonts,
+                            glyph,
                             self.pad_glyphs,
                         );
                     }
@@ -824,54 +767,34 @@ impl DrawCache {
 
     /// Retrieves the (floating point) texture coordinates of the quad for a
     /// glyph in the cache, as well as the pixel-space (integer) coordinates
-    /// that this region should be drawn at. These pixel-space coordinates
-    /// assume an origin at the top left of the quad. In the majority of cases
-    /// these pixel-space coordinates should be identical to the bounding box of
-    /// the input glyph. They only differ if the cache has returned a substitute
-    /// glyph that is deemed close enough to the requested glyph as specified by
-    /// the cache tolerance parameters.
+    /// that this region should be drawn at.
     ///
     /// A successful result is `Some` if the glyph is not an empty glyph (no
     /// shape, and thus no rect to return).
-    ///
-    /// Ensure that `font_id` matches the `font_id` that was passed to
-    /// `queue_glyph` with this `glyph`.
-    pub fn rect_for(&self, font_id: usize, glyph: &Glyph) -> Option<TextureCoords> {
-        let (row, index) = self.all_glyphs.get(&self.lossy_info_for(font_id, glyph))?;
+    pub fn rect_for(&self, glyph: &GlyphPosition) -> Option<Rect> {
+        let (row, index) = self.all_glyphs.get(&glyph.key)?;
 
         let (tex_width, tex_height) = (self.width as f32, self.height as f32);
 
         let GlyphTexInfo {
             tex_coords: mut tex_rect,
-            bounds_minus_position_over_scale,
             ..
         } = self.rows[row].glyphs[*index as usize];
         if self.pad_glyphs {
             tex_rect = tex_rect.unpadded();
         }
         let uv_rect = Rect {
-            min: point(
+            pos: Pos::new(
                 tex_rect.min[0] as f32 / tex_width,
                 tex_rect.min[1] as f32 / tex_height,
+                0.0,
             ),
-            max: point(
+            bottom_right: Point::new(
                 tex_rect.max[0] as f32 / tex_width,
                 tex_rect.max[1] as f32 / tex_height,
             ),
         };
-
-        let equivalent_bounds = Rect {
-            min: point(
-                bounds_minus_position_over_scale.min.x * glyph.scale.x,
-                bounds_minus_position_over_scale.min.y * glyph.scale.y,
-            ) + glyph.position,
-            max: point(
-                bounds_minus_position_over_scale.max.x * glyph.scale.x,
-                bounds_minus_position_over_scale.max.y * glyph.scale.y,
-            ) + glyph.position,
-        };
-
-        Some((uv_rect, equivalent_bounds))
+        Some(uv_rect)
     }
 }
 
@@ -879,26 +802,41 @@ impl DrawCache {
 fn draw_glyph_onto_buffer(
     buffer: &mut ByteArray2d,
     tex_coords: Rectangle<u32>,
-    glyph: &OutlinedGlyph,
+    fonts: &[Font],
+    glyph: &GlyphPosition,
     pad_glyphs: bool,
 ) {
+    let font = &fonts[glyph.font_index];
+    let (metrics, raster) = font.rasterize_config(glyph.key);
+    let mut x = 0;
+    let mut y = 0;
+
     if pad_glyphs {
-        glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round() as u8;
-            // `+ 1` accounts for top/left glyph padding
+        for v in raster {
             buffer[(
                 (y + tex_coords.min[1]) as usize + 1,
                 (x + tex_coords.min[0]) as usize + 1,
             )] = v;
-        });
+
+            x += 1;
+            if x >= metrics.width as u32 {
+                x = 0;
+                y += 1;
+            }
+        }
     } else {
-        glyph.draw(|x, y, v| {
-            let v = (v * 255.0).round() as u8;
+        for v in raster {
             buffer[(
                 (y + tex_coords.min[1]) as usize,
                 (x + tex_coords.min[0]) as usize,
             )] = v;
-        });
+
+            x += 1;
+            if x >= metrics.width as u32 {
+                x = 0;
+                y += 1;
+            }
+        }
     }
 }
 

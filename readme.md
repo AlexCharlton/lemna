@@ -38,6 +38,8 @@ What's missing:
 Fix:
 - MSAA doesn't seem to be picking up clear color
 - Dragging off a toggle puts it in an active state
+- The first drag on the events DND example doesn't do anything
+- Text selection to a mid-point doesn't work
 
 
 ## Running

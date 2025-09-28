@@ -30,14 +30,7 @@ std = [
     "kurbo/std",
     "raw-window-handle",
 ]
-wgpu_renderer = [
-    "dep:wgpu",
-    "shaders",
-    "ab_glyph",
-    "linked-hash-map",
-    "lyon",
-    "std",
-]
+wgpu_renderer = ["dep:wgpu", "shaders", "lyon", "std"]
 cpu_renderer = ["embedded-graphics", "tiny-skia"]
 # For std environments where we don't want to use wgpu
 std_cpu = ["cpu_renderer", "std", "softbuffer"]
@@ -73,8 +66,9 @@ critical-section = { version = "1" }
 embassy-futures = "0.1"
 embassy-sync = "0.7"
 embedded-graphics = { version = "0.8", optional = true }
+indexmap = { version = "2.2", default-features = false }
+fontdue = { version = "0.9" }
 futures = "0.3.4"
-glyph_brush_layout = "0.2"
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 
@@ -88,10 +82,6 @@ lyon = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
 softbuffer = { version = "0.3", optional = true }
 tiny-skia = { version = "0.11", optional = true }
-
-# For glyph_brush_draw_cache
-ab_glyph = { version = "0.2.2", optional = true }
-linked-hash-map = { version = "0.5", optional = true }
 
 [workspace.dependencies]
 raw-window-handle = "0.5"

@@ -30,8 +30,11 @@ mod cpu_render;
 mod path;
 mod raster_cache;
 
+mod glyph_cache;
+
 pub mod renderable {
     use super::*;
+    use crate::style::HorizontalPosition;
 
     #[cfg(feature = "cpu_renderer")]
     pub use cpu_render::*;
@@ -40,6 +43,29 @@ pub mod renderable {
     pub use gpu_render::*;
 
     pub use path::*;
+
+    impl Caches {
+        pub fn layout_text(
+            &self,
+            text: &[crate::font_cache::TextSegment],
+            base_font: Option<&str>,
+            base_size: f32,
+            scale_factor: f32,
+            alignment: HorizontalPosition,
+            bounds: (f32, f32),
+        ) -> Vec<crate::font_cache::PositionedGlyph> {
+            self.font
+                .layout_text(text, base_font, base_size, scale_factor, alignment, bounds)
+        }
+
+        pub fn line_height(&self, font: Option<&str>, size: f32, scale_factor: f32) -> f32 {
+            self.font.line_height(font, size, scale_factor)
+        }
+
+        pub fn glyph_widths(&self, glyphs: &[crate::font_cache::PositionedGlyph]) -> Vec<f32> {
+            self.font.glyph_widths(glyphs)
+        }
+    }
 
     /// The type returned by [`Component#render`][crate::Component#method.render], which contains the data required to render a Component (along with the [`Caches`]).
     #[derive(Debug, PartialEq)]

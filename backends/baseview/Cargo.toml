@@ -23,6 +23,7 @@ keyboard-types = "0.6"
 lemna = { path = "../../", version = "0.4", default-features = false, features = [
     "std",
 ] }
+log = "0.4"
 raw-window-handle = { workspace = true }
 crossbeam-channel = "0.4"
 

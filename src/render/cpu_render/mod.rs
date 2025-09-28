@@ -21,7 +21,7 @@ pub use renderable::*;
 #[derive(Default)]
 pub struct Caches {
     pub(crate) raster: RasterCache,
-    pub font: FontCache,
+    pub(crate) font: FontCache,
 }
 
 #[derive(Debug)]
