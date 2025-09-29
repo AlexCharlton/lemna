@@ -261,6 +261,7 @@ struct TextBoxTextState {
     text: String,
     cursor_pos: usize,
     selection_from: Option<usize>,
+    dragging: bool,
     activated_at: Instant,
     cursor_visible: bool,
     glyphs: Vec<crate::font_cache::PositionedGlyph>,
@@ -283,6 +284,7 @@ impl TextBoxText {
             text: self.default_text.clone(),
             cursor_pos: 0,
             selection_from: None,
+            dragging: false,
             activated_at: Instant::now(),
             cursor_visible: false,
             glyphs: vec![],
@@ -471,6 +473,11 @@ impl Component for TextBoxText {
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         match event.input.0 {
             crate::input::MouseButton::Left => {
+                if self.state_ref().dragging {
+                    // Short drags also send click events, before the drag end event is sent
+                    // We don't want to react to these
+                    return;
+                }
                 self.activate();
                 let new_pos = self.position(event.relative_physical_position().x);
                 if new_pos != self.state_ref().cursor_pos {
@@ -631,11 +638,13 @@ impl Component for TextBoxText {
     fn on_drag_start(&mut self, event: &mut event::Event<event::DragStart>) {
         self.activate();
         self.state_mut().selection_from = Some(self.position(event.relative_physical_position().x));
+        self.state_mut().dragging = true;
         event.focus();
         event.stop_bubbling();
     }
 
     fn on_drag_end(&mut self, _event: &mut event::Event<event::DragEnd>) {
+        self.state_mut().dragging = false;
         if self.selection().is_none() {
             self.state_mut().selection_from = None;
         }

@@ -230,6 +230,18 @@ pub(crate) trait LemnaUI {
 
                 // End drag
                 if Some(*b) == self.event_cache().drag_button {
+                    let drag_distance = self
+                        .event_cache()
+                        .drag_started
+                        .unwrap()
+                        .dist(self.event_cache().mouse_position);
+                    if drag_distance < event::DRAG_CLICK_MAX_DIST {
+                        // Send a Click event if the drag was quite short
+                        // We send it before the drag end event, so that widgets can choose to ignore it
+                        let mut click_event = Event::new(event::Click(*b), self.event_cache());
+                        self.handle_event(Node::click, &mut click_event, None);
+                    }
+
                     let mut drag_end_event = Event::new(
                         event::DragEnd {
                             button: *b,
@@ -239,17 +251,6 @@ pub(crate) trait LemnaUI {
                     );
                     let target = self.event_cache().drag_target;
                     self.handle_event(Node::drag_end, &mut drag_end_event, target);
-
-                    let drag_distance = self
-                        .event_cache()
-                        .drag_started
-                        .unwrap()
-                        .dist(self.event_cache().mouse_position);
-                    if drag_distance < event::DRAG_CLICK_MAX_DIST {
-                        // Send a Click event if the drag was quite short
-                        let mut click_event = Event::new(event::Click(*b), self.event_cache());
-                        self.handle_event(Node::click, &mut click_event, None);
-                    }
 
                     // Unfocus when clicking a thing not focused
                     if drag_end_event.current_node_id != Some(self.event_cache().focus)

@@ -48,7 +48,7 @@ docs_rs = []
 docs = ["embed-doc-image"]
 
 [package.metadata.docs.rs]
-features = ["docs_rs", "docs", "std"]
+features = ["docs_rs", "docs", "std", "cpu_renderer"]
 default-features = false
 
 [dependencies.wgpu]

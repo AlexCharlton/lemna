@@ -6,7 +6,7 @@
 
 A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerated (on supported targets)
 
-Features:
+**Features:**
 - React-esque stateful UI
 - Flexbox-like layout engine
 - Global styling
@@ -32,16 +32,15 @@ Features:
 - wgpu rendering backend batches primitives together to minimize calls out to wgpu (which makes it a lot faster than things that don't do this!)
 - [nih-plug](https://github.com/robbert-vdh/nih-plug) support in the lemna-nih-plug package
 
-What's missing:
+**What's missing:**
 - More robust and more widgets (e.g. text selection support on `Text` widget)
 - "scroll to" functionality
   - Use signals?
 
-Fix:
+**To fix:**
 - MSAA doesn't seem to be picking up clear color
 - Dragging off a toggle puts it in an active state
 - The first drag on the events DND example sometimes doesn't do anything: Is this based on focus?
-- Text selection to a mid-point doesn't work
 
 
 ## Running
@@ -51,17 +50,10 @@ cargo run -p lemna-baseview --example hello
 ```
 
 ```
-cargo run -p lemna-wx-rs --example hello
-```
-
-```
 cargo run -p lemna-winit --example scroll
 ```
 
-See `./backends/**/**examples` for other examples. Note that wx-rs presently has compilation limitations on most platforms, and winit does not handle many events. The Baseview backend is not on cargo (because baseview itself is not) but it is the most functional.
-
-## Embedded
-- Make current Renderable gpu-specific, create a new 2d renderable
+See `./backends/**/**examples` for other examples. Note that winit does not handle many events. The Baseview backend is not on cargo (because baseview itself is not) but it is the most functional.
 
 ## Practical Examples
 - [midi-m8](https://github.com/AlexCharlton/midi-m8/tree/master/plugin)
@@ -69,7 +61,7 @@ See `./backends/**/**examples` for other examples. Note that wx-rs presently has
 ## Dependencies
 Lemna should have very few runtime dependencies. Exceptions listed below.
 
-Linux requires Vulkan libraries.
+wgpu on Linux requires Vulkan libraries.
 
 The `FileSelector` widget uses [tinyfiledialogs](https://sourceforge.net/projects/tinyfiledialogs/), which will call out to the following:
 ```
