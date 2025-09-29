@@ -5,7 +5,7 @@ use crate::time::Instant;
 use alloc::{string::String, vec, vec::Vec};
 use core::fmt;
 
-use ahash::HashSet;
+use hashbrown::HashSet;
 
 use super::base_types::*;
 use super::input::{Key, MouseButton};

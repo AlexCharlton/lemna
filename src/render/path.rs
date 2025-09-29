@@ -26,6 +26,12 @@ mod cpu_path {
         current_point: Point,
     }
 
+    impl Default for PathBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl PathBuilder {
         pub fn new() -> Self {
             Self {

@@ -14,12 +14,12 @@ use alloc::{
 };
 use core::hash::{Hash, Hasher};
 
-use ahash::HashMap;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use fontdue::{
     Font, FontResult, FontSettings,
     layout::{HorizontalAlign, Layout, LayoutSettings, TextStyle, VerticalAlign},
 };
+use hashbrown::HashMap;
 
 use crate::style::HorizontalPosition;
 
@@ -124,7 +124,7 @@ impl FontCache {
                 &self.fonts,
                 &TextStyle {
                     text: text.as_str(),
-                    px: size.map_or(scaled_size, |s| s * scale_factor).into(),
+                    px: size.map_or(scaled_size, |s| s * scale_factor),
                     font_index: font
                         .as_ref()
                         .and_then(|f| self.font(f))

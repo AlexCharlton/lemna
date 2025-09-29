@@ -10,8 +10,8 @@ extern crate alloc;
 
 use alloc::{vec, vec::Vec};
 use core::{error, fmt, hash::BuildHasherDefault, ops};
+use hashbrown::{HashMap, HashSet};
 
-use ahash::{HashMap, HashSet};
 use fontdue::Font;
 use fontdue::layout::{GlyphPosition, GlyphRasterConfig};
 use indexmap::IndexMap;
@@ -273,7 +273,6 @@ impl DrawCacheBuilder {
     ///
     /// `scale_tolerance` or `position_tolerance` are less than or equal to
     /// zero.
-
     #[allow(dead_code)]
     pub fn rebuild(self, cache: &mut DrawCache) {
         let DrawCacheBuilder {
@@ -435,14 +434,8 @@ impl DrawCache {
             self.clean_rows();
 
             let (mut in_use_rows, uncached_glyphs) = {
-                let mut in_use_rows = HashSet::with_capacity_and_hasher(
-                    self.rows.len(),
-                    ahash::RandomState::default(),
-                );
-                let mut uncached_glyphs = HashMap::with_capacity_and_hasher(
-                    self.queue.len(),
-                    ahash::RandomState::default(),
-                );
+                let mut in_use_rows = HashSet::with_capacity(self.rows.len());
+                let mut uncached_glyphs = HashMap::with_capacity(self.queue.len());
 
                 // divide glyphs into texture rows where a matching glyph texture
                 // already exists & glyphs where new textures must be cached
@@ -465,13 +458,13 @@ impl DrawCache {
             }
 
             let mut uncached_metrics: Vec<_> = uncached_glyphs
-                .into_iter()
-                .filter_map(|(_, glyph)| {
-                    Some((
+                .into_values()
+                .map(|glyph| {
+                    (
                         glyph,
                         fonts[glyph.font_index]
                             .metrics_indexed(glyph.key.glyph_index, glyph.key.px),
-                    ))
+                    )
                 })
                 .collect();
 

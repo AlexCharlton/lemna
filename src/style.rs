@@ -5,10 +5,10 @@
 extern crate alloc;
 
 use alloc::string::{String, ToString};
-
-use ahash::HashMap;
 use core::hash::Hash;
+
 use embassy_sync::once_lock::OnceLock;
+use hashbrown::HashMap;
 
 use crate::base_types::*;
 use crate::layout::*;

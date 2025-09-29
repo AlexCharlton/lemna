@@ -26,6 +26,7 @@ jobs:
       - name: Run | check
         run: |
           cargo check --workspace
+          cargo check --no-default-features --features cpu_renderer
           cargo check --workspace --examples
 
       - name: Run | test
@@ -37,6 +38,13 @@ jobs:
       - name: Run | clippy
         run:  |
           cargo clippy --workspace -- -D warnings \
+            -A clippy::type_complexity \
+            -A clippy::unnecessary_unwrap \
+            -A clippy::too_many_arguments \
+            -A clippy::large_enum_variant \
+            -A clippy::single_match \
+            -A clippy::needless_doctest_main
+          cargo clippy --no-default-features --features cpu_renderer -- -D warnings \
             -A clippy::type_complexity \
             -A clippy::unnecessary_unwrap \
             -A clippy::too_many_arguments \

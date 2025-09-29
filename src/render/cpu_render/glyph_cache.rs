@@ -1,6 +1,6 @@
-use ahash::HashMap;
 use fontdue::Font;
 use fontdue::layout::{GlyphPosition, GlyphRasterConfig};
+use hashbrown::HashMap;
 
 use tiny_skia::{IntSize, Mask};
 
@@ -15,10 +15,10 @@ impl GlyphCache {
     pub fn glyph_mask(&mut self, fonts: &[Font], glyph: &GlyphPosition) -> Option<&Mask> {
         if !self.glyphs.contains_key(&glyph.key) {
             let (metrics, raster) = fonts[glyph.font_index].rasterize_config(glyph.key);
-            if let Some(size) = IntSize::from_wh(metrics.width as u32, metrics.height as u32) {
-                if let Some(mask) = Mask::from_vec(raster, size) {
-                    self.glyphs.insert(glyph.key, mask);
-                }
+            if let Some(size) = IntSize::from_wh(metrics.width as u32, metrics.height as u32)
+                && let Some(mask) = Mask::from_vec(raster, size)
+            {
+                self.glyphs.insert(glyph.key, mask);
             }
         }
         self.glyphs.get(&glyph.key)

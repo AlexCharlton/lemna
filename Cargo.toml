@@ -59,13 +59,14 @@ optional = true
 
 [dependencies]
 lemna-macros = { workspace = true }
-ahash = "0.8"
+ahash = { version = "0.8", default-features = false }
 bytemuck = { version = "1.4", features = ["derive"] }
 cgmath = "0.17.0"
 critical-section = { version = "1" }
 embassy-futures = "0.1"
 embassy-sync = "0.7"
 embedded-graphics = { version = "0.8", optional = true }
+hashbrown = "0.16"
 indexmap = { version = "2.2", default-features = false }
 fontdue = { version = "0.9" }
 futures = "0.3.4"

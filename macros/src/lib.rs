@@ -4,7 +4,7 @@ use global_counter::primitive::exact::CounterU64;
 use proc_macro::{Group, TokenStream, TokenTree};
 use quote::quote;
 use std::iter::FromIterator;
-use syn::{self, parse_macro_input, Lit, Meta, MetaNameValue, NestedMeta};
+use syn::{self, Lit, Meta, MetaNameValue, NestedMeta, parse_macro_input};
 
 static ID_COUNTER: CounterU64 = CounterU64::new(0);
 

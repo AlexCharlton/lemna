@@ -1,4 +1,4 @@
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use lemna::UI;
 use lemna_baseview::{self, Message, ParentMessage};
 use nih_plug::prelude::*;

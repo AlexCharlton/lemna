@@ -3,7 +3,7 @@ use std::error::Error;
 #[cfg(not(feature = "shaders"))]
 fn main() -> Result<(), Box<dyn Error>> {
     println!("Skipping building shaders");
-    return Ok(());
+    Ok(())
 }
 
 #[cfg(feature = "shaders")]
