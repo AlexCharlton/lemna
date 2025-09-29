@@ -4,16 +4,18 @@
 [![Docs.rs](https://docs.rs/lemna/badge.svg)](https://docs.rs/lemna)
 [![CI](https://github.com/AlexCharlton/lemna/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexCharlton/lemna/actions/workflows/ci.yml)
 
-A Reactive UI framework for Rust
+A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerated (on supported targets)
 
 Features:
 - React-esque stateful UI
 - Flexbox-like layout engine
 - Global styling
-- Configurable rendering targets (currently just wgpu, which offers cross-platform GPU-accelerated rendering)
-- Configurable windowing backends (baseview, winit, wx-rs)
+- Configurable rendering targets
+  - The GPU renderer, built on [wgpu](https://github.com/gfx-rs/wgpu) for cross-platform GPU acceleration (feature: `wgpu_renderer`)
+  - The CPU renderer, built on [tiny-skia](https://github.com/linebender/tiny-skia) (feature: `cpu_renderer` or `std_cpu` when used in a std environment)
+- Configurable windowing backends (baseview, winit)
 - Cross-platform
-- Components can be built using a combination of other components and graphical primitives that map well to GPU renderers.
+- Components can be built using a combination of other components and graphical primitives.
 - State and render-state is cached, so state changes only trigger recompute of the relevant nodes
 - Built in components/widgets:
   - `Div`, a scrollable container
@@ -25,9 +27,9 @@ Features:
   - `Canvas`, for displaying raster images, including drawing to a blank canvas
   - `Selection`, a dropdown menu
   - `RoundedRect`, a stylable-rectangle
-  - `FileSelector`, a dialog for selecting files
-- OpenIconic icons built-in
-- wgpu rendering backend batches primitives together to use few calls out to wgpu (which makes it a lot faster than things that don't do this!)
+  - `FileSelector`, a dialog for selecting files (feature: `file_dialogs`)
+- OpenIconic icons built-in (feature: `open_iconic`)
+- wgpu rendering backend batches primitives together to minimize calls out to wgpu (which makes it a lot faster than things that don't do this!)
 - [nih-plug](https://github.com/robbert-vdh/nih-plug) support in the lemna-nih-plug package
 
 What's missing:
@@ -38,7 +40,7 @@ What's missing:
 Fix:
 - MSAA doesn't seem to be picking up clear color
 - Dragging off a toggle puts it in an active state
-- The first drag on the events DND example doesn't do anything
+- The first drag on the events DND example sometimes doesn't do anything: Is this based on focus?
 - Text selection to a mid-point doesn't work
 
 
@@ -85,7 +87,7 @@ The `FileSelector` widget uses [tinyfiledialogs](https://sourceforge.net/project
 When using wgpu's Vulkan backend (will be selected for Linux), debug builds will require the validation layer `VK_LAYER_KHRONOS_validation`.
 
 ### Build deps
-[shaderc](https://crates.io/crates/shaderc) requires CMake, git, Python, and [ninja](https://github.com/ninja-build/ninja) on Windows to be built from source. Steps it took for me to build on Windows:
+[shaderc](https://crates.io/crates/shaderc) – used at build-time to compile wgpu shaders – requires CMake, git, Python, and [ninja](https://github.com/ninja-build/ninja) on Windows to be built from source. Steps it took for me to build on Windows:
 ```
 $ git clone https://github.com/google/shaderc
 $ cd shaderc

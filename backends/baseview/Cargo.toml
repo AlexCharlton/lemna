@@ -1,6 +1,6 @@
 [package]
 name = "lemna-baseview"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "Baseview windowing backend support for lemna"
 edition = "2024"
@@ -20,7 +20,7 @@ antialiased_shapes = ["lemna/antialiased_shapes"]
 arboard = "3.2"
 baseview = { workspace = true }
 keyboard-types = "0.6"
-lemna = { path = "../../", version = "0.4", default-features = false, features = [
+lemna = { path = "../../", version = "0.5", default-features = false, features = [
     "std",
 ] }
 log = "0.4"

@@ -1,6 +1,6 @@
 [package]
 name = "lemna-winit"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Alex Charlton <alex.n.charlton@gmail.com>"]
 description = "winit windowing backend support for lemna"
 edition = "2024"
@@ -16,7 +16,7 @@ gpu_renderer = ["lemna/wgpu_renderer"]
 antialiased_shapes = ["lemna/antialiased_shapes"]
 
 [dependencies]
-lemna = { path = "../../", version = "0.4", default-features = false, features = [
+lemna = { path = "../../", version = "0.5", default-features = false, features = [
     "std",
 ] }
 log = "0.4"
