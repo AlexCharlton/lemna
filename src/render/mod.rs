@@ -136,6 +136,17 @@ pub mod renderable {
                 _ => None,
             }
         }
+
+        pub fn z(&self) -> f32 {
+            match self {
+                Renderable::Rectangle(r) => r.z(),
+                Renderable::Shape(s) => s.z(),
+                Renderable::Text(t) => t.z(),
+                Renderable::Raster(r) => r.z(),
+                #[cfg(test)]
+                Renderable::Inc { .. } => 0.0,
+            }
+        }
     }
 
     pub enum RasterData {

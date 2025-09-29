@@ -2,7 +2,7 @@ extern crate alloc;
 
 use core::marker::PhantomData;
 
-use alloc::vec;
+use alloc::{vec, vec::Vec};
 
 use embedded_graphics::draw_target::DrawTarget;
 use tiny_skia::{Color, Mask, Pixmap, Transform};
@@ -56,33 +56,43 @@ impl Renderer for CPURenderer {
 
         let mut current_frame = vec![];
         let mut current_mask = None;
+        let mut renderables: Vec<(&Renderable, &Rect)> = vec![];
+        // Iterate over the renderables and collect them into a vec of renderables
+        // So that we can sort them by z-index and render them in the correct order
         for (renderable, aabb, frame) in node.iter_renderables() {
             if frame != current_frame {
+                // Render the last frame
+                // This empties the renderables vec
+                render_renderables(
+                    &mut renderables,
+                    &mut self.pixmap,
+                    caches,
+                    current_mask.as_ref(),
+                );
+
+                // Update the mask
                 if frame.is_empty() {
                     current_mask = None;
                 } else {
                     update_mask_from_frames(&size, &frame, &mut current_mask);
                 }
+
                 current_frame = frame;
             }
-            match renderable {
-                Renderable::Rectangle(rect) => {
-                    rect.render(aabb, current_mask.as_ref(), &mut self.pixmap);
-                }
-                Renderable::Shape(shape) => {
-                    shape.render(aabb, current_mask.as_ref(), &mut self.pixmap);
-                }
-                Renderable::Text(text) => {
-                    text.render(aabb, current_mask.as_ref(), &mut self.pixmap, caches);
-                }
-                Renderable::Raster(raster) => {
-                    raster.render(aabb, current_mask.as_ref(), &mut self.pixmap, caches);
-                }
-                #[cfg(test)]
-                _ => panic!("Unsupported renderable: {:?}", renderable),
-            }
+            renderables.push((renderable, aabb));
         }
 
+        // Render the final frame
+        if !renderables.is_empty() {
+            render_renderables(
+                &mut renderables,
+                &mut self.pixmap,
+                caches,
+                current_mask.as_ref(),
+            );
+        }
+
+        // Draw the pixmap to the draw target
         if let Err(e) = draw_target.fill_contiguous(
             &embedded_graphics::primitives::Rectangle::new(
                 embedded_graphics::geometry::Point::new(0, 0),
@@ -91,6 +101,37 @@ impl Renderer for CPURenderer {
             PixMapIterator::new(&self.pixmap),
         ) {
             log::error!("Failed to fill draw target: {:?}", e);
+        }
+    }
+}
+
+fn render_renderables(
+    renderables: &mut Vec<(&Renderable, &Rect)>,
+    pixmap: &mut Pixmap,
+    caches: &mut Caches,
+    mask: Option<&Mask>,
+) {
+    renderables.sort_by(|a, b| {
+        (a.0.z() + a.1.pos.z)
+            .partial_cmp(&(b.0.z() + b.1.pos.z))
+            .unwrap()
+    });
+    for (renderable, aabb) in renderables.drain(..) {
+        match renderable {
+            Renderable::Rectangle(rect) => {
+                rect.render(aabb, mask, pixmap);
+            }
+            Renderable::Shape(shape) => {
+                shape.render(aabb, mask, pixmap);
+            }
+            Renderable::Text(text) => {
+                text.render(aabb, mask, pixmap, caches);
+            }
+            Renderable::Raster(raster) => {
+                raster.render(aabb, mask, pixmap, caches);
+            }
+            #[cfg(test)]
+            _ => panic!("Unsupported renderable: {:?}", renderable),
         }
     }
 }

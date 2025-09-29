@@ -166,4 +166,9 @@ impl Raster {
 
         cache_changed
     }
+
+    pub(crate) fn z(&self) -> f32 {
+        // TODO: Should rasters have a z-index?
+        0.0
+    }
 }

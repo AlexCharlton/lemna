@@ -223,4 +223,8 @@ impl Shape {
         }
         ret
     }
+
+    pub(crate) fn z(&self) -> f32 {
+        self.z
+    }
 }

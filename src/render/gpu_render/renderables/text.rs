@@ -195,4 +195,8 @@ impl Text {
 
         cache_changed
     }
+
+    pub(crate) fn z(&self) -> f32 {
+        self.offset.z
+    }
 }

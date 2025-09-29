@@ -820,6 +820,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
     // Note that child frames may extend outside of the parent frame
     type Item = (&'a Renderable, &'a Rect, Vec<ScrollFrame>);
 
+    // We return all nodes that belong to a given frame contiguously
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(n) = self.queue.pop() {
             if let Some(c) = &n.render_cache {

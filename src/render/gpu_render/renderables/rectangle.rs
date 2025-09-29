@@ -73,4 +73,8 @@ impl Rectangle {
         i.pos += rect.pos;
         i
     }
+
+    pub(crate) fn z(&self) -> f32 {
+        self.instance_data.pos.z
+    }
 }

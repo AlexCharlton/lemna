@@ -40,6 +40,10 @@ impl Rectangle {
             mask,
         )
     }
+
+    pub(crate) fn z(&self) -> f32 {
+        self.pos.z
+    }
 }
 
 fn rect_from_pos_scale(pos: &Pos, scale: &Scale) -> tiny_skia::Rect {
@@ -109,6 +113,10 @@ impl Shape {
             };
             pixmap.stroke_path(path, &paint, &stroke, transform, mask);
         }
+    }
+
+    pub(crate) fn z(&self) -> f32 {
+        self.z
     }
 }
 
@@ -191,6 +199,10 @@ impl Text {
             force_hq_pipeline: false,
         };
         pixmap.fill_rect(aabb.into(), &paint, Transform::identity(), Some(&text_mask));
+    }
+
+    pub(crate) fn z(&self) -> f32 {
+        self.offset.z
     }
 }
 
@@ -297,5 +309,10 @@ impl Raster {
             pixmap_x += 1;
             *pixmap_i.as_mut().unwrap() += 4;
         }
+    }
+
+    pub(crate) fn z(&self) -> f32 {
+        // TODO: Should rasters have a z-index?
+        0.0
     }
 }
