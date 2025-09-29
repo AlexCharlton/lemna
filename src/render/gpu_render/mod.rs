@@ -7,6 +7,8 @@ pub(crate) use wgpu::*;
 mod renderables;
 pub use renderables::*;
 
+mod glyph_cache;
+
 /// The caches used by the Renderer. Passed to [`Component#render`][crate::Component#method.render] in a [`RenderContext`][crate::RenderContext].
 #[derive(Default)]
 pub struct Caches {

@@ -1,34 +1,7 @@
-//! Rasterization cache for [ab_glyph](https://github.com/alexheretic/ab-glyph). Manages a
+//! Rasterization cache for fontdue. Manages a
 //! updates to a texture (e.g. one stored on a GPU) drawing new glyphs, reusing & reordering
 //! as necessary.
 //!
-//! # Example
-//! ```ignore
-//! # fn main() -> Result<(), glyph_brush_draw_cache::CacheWriteErr> {
-//! use glyph_brush_draw_cache::DrawCache;
-//!
-//! // build a cache with default settings
-//! let mut draw_cache = DrawCache::builder().build();
-//!
-//! # let glyphs: Vec<(usize, ab_glyph::Glyph)> = Vec::new();
-//! # let fonts: Vec<ab_glyph::FontArc> = Vec::new();
-//! # fn update_texture(_: glyph_brush_draw_cache::Rectangle<u32>, _: &[u8]) {}
-//! // queue up some glyphs to store in the cache
-//! for glyph in glyphs {
-//!     draw_cache.queue_glyph(glyph);
-//! }
-//!
-//! // process everything in the queue, rasterizing & uploading as necessary
-//! draw_cache.cache_queued(&fonts, |rect, tex_data| update_texture(rect, tex_data))?;
-//!
-//! // access a given glyph's texture position
-//! # let glyph: ab_glyph::Glyph = unimplemented!();
-//! match draw_cache.rect_for(&glyph) {
-//!     Some(tex_coords) => {}
-//!     None => {/* The glyph has no outline, or wasn't queued up to be cached */}
-//! }
-//! # Ok(()) }
-//! ```
 
 //! This is a reimplementation based on the discussion here: <https://github.com/alexheretic/glyph-brush/pull/120>
 //! Without these changes, it's just too slow!
@@ -140,25 +113,6 @@ impl PaddingAware for Rectangle<u32> {
 }
 
 /// Builder & rebuilder for `DrawCache`.
-///
-/// # Example
-///
-/// ```ignore
-/// use glyph_brush_draw_cache::DrawCache;
-///
-/// // Create a cache with all default values set explicitly
-/// // equivalent to `DrawCache::builder().build()`
-/// let default_cache = DrawCache::builder()
-///     .dimensions(256, 256)
-///     .scale_tolerance(0.1)
-///     .position_tolerance(0.1)
-///     .pad_glyphs(true)
-///     .align_4x4(false)
-///     .build();
-///
-/// // Create a cache with all default values, except with a dimension of 1024x1024
-/// let bigger_cache = DrawCache::builder().dimensions(1024, 1024).build();
-/// ```
 #[derive(Debug, Clone)]
 pub struct DrawCacheBuilder {
     dimensions: (u32, u32),
@@ -172,8 +126,8 @@ impl Default for DrawCacheBuilder {
     fn default() -> Self {
         Self {
             dimensions: (256, 256),
-            scale_tolerance: 0.1,
-            position_tolerance: 0.1,
+            scale_tolerance: 0.2,
+            position_tolerance: 0.2,
             pad_glyphs: true,
             align_4x4: false,
         }
@@ -188,12 +142,6 @@ impl DrawCacheBuilder {
     /// `cache_queued` will try to cache into coordinates outside the bounds of
     /// the texture.
     ///
-    /// # Example (set to default value)
-    ///
-    /// ```ignore
-    /// # use glyph_brush_draw_cache::DrawCache;
-    /// let cache = DrawCache::builder().dimensions(256, 256).build();
-    /// ```
     pub fn dimensions(mut self, width: u32, height: u32) -> Self {
         self.dimensions = (width, height);
         self
@@ -215,12 +163,7 @@ impl DrawCacheBuilder {
     /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
     ///
-    /// # Example (set to default value)
-    ///
-    /// ```ignore
-    /// # use glyph_brush_draw_cache::DrawCache;
-    /// let cache = DrawCache::builder().scale_tolerance(0.1).build();
-    /// ```
+    #[allow(dead_code)]
     pub fn scale_tolerance<V: Into<f32>>(mut self, scale_tolerance: V) -> Self {
         self.scale_tolerance = scale_tolerance.into();
         self
@@ -245,12 +188,7 @@ impl DrawCacheBuilder {
     /// inaccuracies with `scale_tolerance` and `position_tolerance` set to
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
     ///
-    /// # Example (set to default value)
-    ///
-    /// ```ignore
-    /// # use glyph_brush_draw_cache::DrawCache;
-    /// let cache = DrawCache::builder().position_tolerance(0.1).build();
-    /// ```
+    #[allow(dead_code)]
     pub fn position_tolerance<V: Into<f32>>(mut self, position_tolerance: V) -> Self {
         self.position_tolerance = position_tolerance.into();
         self
@@ -261,12 +199,6 @@ impl DrawCacheBuilder {
     /// If glyphs are never transformed this may be set to `false` to slightly
     /// improve the glyph packing.
     ///
-    /// # Example (set to default value)
-    ///
-    /// ```ignore
-    /// # use glyph_brush_draw_cache::DrawCache;
-    /// let cache = DrawCache::builder().pad_glyphs(true).build();
-    /// ```
     #[allow(dead_code)]
     pub fn pad_glyphs(mut self, pad_glyphs: bool) -> Self {
         self.pad_glyphs = pad_glyphs;
@@ -277,12 +209,6 @@ impl DrawCacheBuilder {
     /// If your backend requires texture updates to be aligned to 4x4 texel
     /// boundaries (e.g. WebGL), this should be set to `true`.
     ///
-    /// # Example (set to default value)
-    ///
-    /// ```ignore
-    /// # use glyph_brush_draw_cache::DrawCache;
-    /// let cache = DrawCache::builder().align_4x4(false).build();
-    /// ```
     #[allow(dead_code)]
     pub fn align_4x4(mut self, align_4x4: bool) -> Self {
         self.align_4x4 = align_4x4;
@@ -307,13 +233,6 @@ impl DrawCacheBuilder {
     ///
     /// `scale_tolerance` or `position_tolerance` are less than or equal to
     /// zero.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// # use glyph_brush_draw_cache::DrawCache;
-    /// let cache = DrawCache::builder().build();
-    /// ```
     pub fn build(self) -> DrawCache {
         let DrawCacheBuilder {
             dimensions: (width, height),
@@ -354,15 +273,7 @@ impl DrawCacheBuilder {
     ///
     /// `scale_tolerance` or `position_tolerance` are less than or equal to
     /// zero.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// # use glyph_brush_draw_cache::DrawCache;
-    /// # let mut cache = DrawCache::builder().build();
-    /// // Rebuild the cache with different dimensions
-    /// cache.to_builder().dimensions(768, 768).rebuild(&mut cache);
-    /// ```
+
     #[allow(dead_code)]
     pub fn rebuild(self, cache: &mut DrawCache) {
         let DrawCacheBuilder {
@@ -847,13 +758,12 @@ pub struct Rectangle<N> {
     pub max: [N; 2],
 }
 
+#[allow(dead_code)]
 impl<N: ops::Sub<Output = N> + Copy> Rectangle<N> {
-    #[inline]
     pub fn width(&self) -> N {
         self.max[0] - self.min[0]
     }
 
-    #[inline]
     pub fn height(&self) -> N {
         self.max[1] - self.min[1]
     }

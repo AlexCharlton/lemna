@@ -30,8 +30,6 @@ mod cpu_render;
 mod path;
 mod raster_cache;
 
-mod glyph_cache;
-
 pub mod renderable {
     use super::*;
     use crate::style::HorizontalPosition;

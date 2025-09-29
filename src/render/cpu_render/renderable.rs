@@ -115,11 +115,18 @@ impl Shape {
 //--------------------------------
 // MARK: Text
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct Text {
     glyphs: Vec<PositionedGlyph>,
     offset: Pos,
     color: Color,
+}
+
+impl PartialEq for Text {
+    // Should only be used for tests
+    fn eq(&self, other: &Self) -> bool {
+        self.color == other.color && self.offset == other.offset
+    }
 }
 
 impl Text {
@@ -137,8 +144,53 @@ impl Text {
         }
     }
 
-    pub(crate) fn render(&self, aabb: &Rect, mask: Option<&Mask>, pixmap: &mut Pixmap) {
-        // TODO
+    pub(crate) fn render(
+        &self,
+        aabb: &Rect,
+        mask: Option<&Mask>,
+        pixmap: &mut Pixmap,
+        caches: &mut Caches,
+    ) {
+        let mut text_mask = Mask::new(pixmap.width(), pixmap.height()).unwrap();
+        let mask_data = text_mask.data_mut();
+
+        // Draw each glyph into the mask
+        // The text_mask will be black where the render mask is
+        for glyph in self.glyphs.iter() {
+            let mask_x_initial = aabb.pos.x as usize + self.offset.x as usize + glyph.x as usize;
+            let mut mask_y = aabb.pos.y as usize + self.offset.y as usize + glyph.y as usize;
+            let mut mask_i = mask_x_initial + (mask_y * pixmap.width() as usize);
+            let mut glyph_x = 0;
+            if let Some(glyph_mask) = caches.glyph.glyph_mask(&caches.font.fonts, glyph) {
+                for v in glyph_mask.data() {
+                    if let Some(mask) = mask {
+                        // If our current render mask position is not white, skip the pixel
+                        if mask.data()[mask_i] == 255 {
+                            mask_data[mask_i] = *v;
+                        }
+                    } else {
+                        // If we don't have a mask, just draw the glyph
+                        mask_data[mask_i] = *v;
+                    }
+
+                    glyph_x += 1;
+                    mask_i += 1;
+                    if glyph_x >= glyph_mask.width() as usize {
+                        glyph_x = 0;
+                        mask_y += 1;
+                        mask_i = mask_x_initial + glyph_x + (mask_y * pixmap.width() as usize);
+                    }
+                }
+            }
+        }
+        // Draw the mask with the text color
+        let paint = Paint {
+            shader: Shader::SolidColor(self.color.into()),
+            anti_alias: false,
+            blend_mode: BlendMode::SourceOver,
+            force_hq_pipeline: false,
+        };
+        pixmap.fill_rect(aabb.into(), &paint, Transform::identity(), Some(&text_mask));
     }
 }
 

@@ -18,10 +18,14 @@ use crate::window::Window;
 mod renderable;
 pub use renderable::*;
 
+mod glyph_cache;
+use glyph_cache::GlyphCache;
+
 #[derive(Default)]
 pub struct Caches {
     pub(crate) raster: RasterCache,
     pub(crate) font: FontCache,
+    pub(crate) glyph: GlyphCache,
 }
 
 #[derive(Debug)]
@@ -69,7 +73,7 @@ impl Renderer for CPURenderer {
                     shape.render(aabb, current_mask.as_ref(), &mut self.pixmap);
                 }
                 Renderable::Text(text) => {
-                    text.render(aabb, current_mask.as_ref(), &mut self.pixmap);
+                    text.render(aabb, current_mask.as_ref(), &mut self.pixmap, caches);
                 }
                 Renderable::Raster(raster) => {
                     raster.render(aabb, current_mask.as_ref(), &mut self.pixmap, caches);

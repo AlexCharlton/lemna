@@ -7,7 +7,7 @@ use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
 use crate::base_types::{Pos, Rect};
 use crate::font_cache::FontCache;
-use crate::render::glyph_cache::{CachedBy, DrawCache};
+use crate::render::gpu_render::glyph_cache::{CachedBy, DrawCache};
 use crate::render::gpu_render::renderables::{
     self,
     text::{Instance, Text, Vertex},
@@ -39,11 +39,8 @@ impl GlyphCache {
     }
 
     fn new_texture(&mut self, texture: wgpu::Texture, size: u32) {
-        self.glyph_cache = DrawCache::builder()
-            .dimensions(size, size)
-            .scale_tolerance(0.2)
-            .position_tolerance(0.2)
-            .build();
+        self.glyph_cache = DrawCache::builder().dimensions(size, size).build();
+        self.size = size;
         self.texture = texture;
     }
 }

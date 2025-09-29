@@ -3,8 +3,7 @@ use bytemuck::{Pod, Zeroable};
 use super::{BufferCache, BufferCacheId};
 use crate::base_types::{Color, Point, Pos, Rect};
 use crate::font_cache::PositionedGlyph;
-use crate::render::glyph_cache::DrawCache;
-use crate::render::gpu_render::Caches;
+use crate::render::gpu_render::{Caches, glyph_cache::DrawCache};
 
 const INDEX_ENTRIES_PER_GLYPH: usize = 6;
 const VERTEX_ENTRIES_PER_GLYPH: usize = 4;
