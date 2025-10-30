@@ -157,4 +157,10 @@ impl Component for Button {
             event.emit(f());
         }
     }
+
+    fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
+        if let Some(f) = &self.on_click {
+            event.emit(f());
+        }
+    }
 }

@@ -4,7 +4,7 @@
 [![Docs.rs](https://docs.rs/lemna/badge.svg)](https://docs.rs/lemna)
 [![CI](https://github.com/AlexCharlton/lemna/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexCharlton/lemna/actions/workflows/ci.yml)
 
-A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerated (on supported targets)
+A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerated (on supported std targets).
 
 **Features:**
 - React-esque stateful UI
