@@ -17,30 +17,24 @@ type RwLock<T> =
     embassy_sync::rwlock::RwLock<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, T>;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum VerticalPosition {
+    #[default]
     Bottom,
     Center,
     Top,
 }
 
-impl Default for VerticalPosition {
-    fn default() -> Self {
-        Self::Bottom
-    }
-}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Default)]
 pub enum HorizontalPosition {
     Left,
     Center,
+    #[default]
     Right,
 }
 
-impl Default for HorizontalPosition {
-    fn default() -> Self {
-        Self::Right
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StyleVal {
