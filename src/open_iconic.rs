@@ -26,6 +26,10 @@
 //     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 //     THE SOFTWARE.
 
+extern crate alloc;
+
+use alloc::string::String;
+
 /// The [Open Iconic](https://icon-sets.iconify.design/oi/) font, to be loaded into the [`FontCache`][crate::font_cache::FontCache].
 pub const ICONS: &[u8] = include_bytes!("../assets/open-iconic.ttf");
 
