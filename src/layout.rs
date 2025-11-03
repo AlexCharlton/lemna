@@ -26,8 +26,7 @@ impl Div<f32> for ScrollPosition {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Copy, Clone, PartialEq, Default)]
 pub enum Dimension {
     #[default]
     Auto,
@@ -44,7 +43,6 @@ impl core::fmt::Debug for Dimension {
         }
     }
 }
-
 
 impl Dimension {
     /// Between two dimensions, return the most specific value
@@ -464,14 +462,12 @@ impl From<crate::base_types::Point> for Bounds {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum Direction {
     #[default]
     Row,
     Column,
 }
-
 
 impl Direction {
     fn size(&self, main: Dimension, cross: Dimension) -> Size {
@@ -514,17 +510,14 @@ impl Direction {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum PositionType {
     Absolute,
     #[default]
     Relative,
 }
 
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum Alignment {
     #[default]
     Start,
@@ -532,7 +525,6 @@ pub enum Alignment {
     Center,
     Stretch,
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Layout {

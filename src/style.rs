@@ -16,8 +16,7 @@ use crate::layout::*;
 type RwLock<T> =
     embassy_sync::rwlock::RwLock<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, T>;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub enum VerticalPosition {
     #[default]
     Bottom,
@@ -25,16 +24,13 @@ pub enum VerticalPosition {
     Top,
 }
 
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[derive(Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
 pub enum HorizontalPosition {
     Left,
     Center,
     #[default]
     Right,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum StyleVal {
