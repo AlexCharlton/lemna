@@ -84,7 +84,7 @@ pub struct Node {
     pub(crate) component: Box<dyn Component + Send + Sync>,
     pub(crate) render_cache: Option<Vec<Renderable>>,
     pub(crate) children: Vec<Node>,
-    pub(crate) layout: Layout,
+    pub layout: Layout,
     pub(crate) layout_result: LayoutResult,
     // The AABB of this component
     pub(crate) aabb: Rect,
