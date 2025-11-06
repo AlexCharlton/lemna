@@ -100,7 +100,7 @@ impl Shape {
                 mask,
             );
         }
-        if self.stroke_color.is_visible() {
+        if self.stroke_color.is_visible() && self.stroke_width > 0.0 {
             let paint = Paint {
                 shader: Shader::SolidColor(self.stroke_color.into()),
                 anti_alias: cfg!(feature = "antialiased_shapes"),
