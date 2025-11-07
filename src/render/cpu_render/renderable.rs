@@ -167,6 +167,9 @@ impl Text {
         for glyph in self.glyphs.iter() {
             let mask_x_initial = aabb.pos.x as usize + self.offset.x as usize + glyph.x as usize;
             let mut mask_y = aabb.pos.y as usize + self.offset.y as usize + glyph.y as usize;
+            if mask_y >= pixmap.height() as usize {
+                continue;
+            }
             let mut mask_i = mask_x_initial + (mask_y * pixmap.width() as usize);
             let mut glyph_x = 0;
             if let Some(glyph_mask) = caches.glyph.glyph_mask(&caches.font.fonts, glyph) {

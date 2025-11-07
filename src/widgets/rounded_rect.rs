@@ -40,6 +40,16 @@ impl RoundedRect {
         self.radii = BorderRadii::all(r);
         self
     }
+
+    pub fn border_width(mut self, w: f32) -> Self {
+        self.border_width = w;
+        self
+    }
+
+    pub fn border_color(mut self, c: Color) -> Self {
+        self.border_color = c;
+        self
+    }
 }
 
 impl Component for RoundedRect {
