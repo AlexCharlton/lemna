@@ -150,10 +150,7 @@ impl Default for Style {
                 StyleKey::new("RadioButton", "text_color", None),
                 Color::BLACK.into(),
             ),
-            (
-                StyleKey::new("RadioButton", "font_size", None),
-                Color::BLACK.into(),
-            ),
+            (StyleKey::new("RadioButton", "font_size", None), 12.0.into()),
             (
                 StyleKey::new("RadioButton", "background_color", None),
                 Color::WHITE.into(),
