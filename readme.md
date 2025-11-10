@@ -36,6 +36,7 @@ A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerat
 - More robust and more widgets (e.g. text selection support on `Text` widget)
 - "scroll to" functionality
   - Use signals?
+- Debug detection of duplicate keys
 
 **To fix:**
 - MSAA doesn't seem to be picking up clear color

@@ -263,8 +263,8 @@ impl Node {
 
         if !parent_full_control {
             self.aabb = self.layout_result.into();
-            self.aabb *= scale_factor;
             self.aabb = self.aabb.round();
+            self.aabb *= scale_factor;
             if let Some(s) = self.inner_scale.as_mut() {
                 s.width = (s.width * scale_factor).round();
                 s.height = (s.height * scale_factor).round();
