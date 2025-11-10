@@ -191,6 +191,9 @@ impl Text {
                         mask_y += 1;
                         mask_i = mask_x_initial + glyph_x + (mask_y * pixmap.width() as usize);
                     }
+                    if mask_i >= mask_data.len() {
+                        break;
+                    }
                 }
             }
         }
