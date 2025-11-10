@@ -260,13 +260,9 @@ pub(crate) trait LemnaUI {
                         self.blur();
                     }
 
-                    // Clean up event cache
-                    self.event_cache().drag_started = None;
-                    self.event_cache().drag_button = None;
-                    self.event_cache().mouse_up(*b);
+                // Clean up event cache
                 } else if self.event_cache().is_mouse_button_held(*b) {
                     // Resolve click
-                    self.event_cache().mouse_up(*b);
                     let event_current_node_id = if is_double_click {
                         let mut event = Event::new(event::DoubleClick(*b), self.event_cache());
                         self.handle_event(Node::double_click, &mut event, None);
@@ -285,6 +281,10 @@ pub(crate) trait LemnaUI {
                         self.blur();
                     }
                 }
+                // Clean up cache state
+                self.event_cache().drag_started = None;
+                self.event_cache().drag_button = None;
+                self.event_cache().mouse_up(*b);
             }
             Input::Press(Button::Keyboard(k)) => {
                 self.event_cache().key_down(*k);
