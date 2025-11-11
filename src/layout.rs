@@ -585,15 +585,49 @@ impl From<LayoutResult> for crate::base_types::Rect {
 }
 
 impl super::node::Node {
+    /// Returns the best available dimension for a child's bounds, preferring:
+    /// 1. Child's resolved size (minus padding) if available
+    /// 2. Parent's inner_size if resolved
+    /// 3. Ancestor's bounds_size as fallback
+    fn best_available_dimension(
+        child_dim: Dimension,
+        inner_dim: Dimension,
+        bounds_dim: Dimension,
+        padding_start: Dimension,
+        padding_end: Dimension,
+    ) -> Dimension {
+        if child_dim.resolved() {
+            (child_dim - padding_start - padding_end).max(Dimension::Px(0.0))
+        } else if inner_dim.resolved() {
+            inner_dim
+        } else {
+            bounds_dim
+        }
+    }
+
     fn resolve_child_sizes(
         &mut self,
         inner_size: Size,
+        bounds_size: Size,
         caches: &Caches,
         scale_factor: f32,
         final_pass: bool,
     ) {
         let dir = self.layout.direction;
-        let mut main_remaining = f64::from(inner_size.main(dir));
+        let axis_align = self.layout.axis_alignment;
+        // Use bounds_size as fallback when inner_size is not resolved (e.g., when parent has auto size)
+        let max_available = if inner_size.main(dir).resolved() {
+            inner_size.main(dir)
+        } else if bounds_size.main(dir).resolved() {
+            // Calculate maximum available space from bounds_size minus padding
+            let padding = self.layout.padding.maybe_resolve(&bounds_size);
+            let main_start_padding = padding.main(dir, axis_align);
+            let main_end_padding = padding.main_reverse(dir, axis_align);
+            (bounds_size.main(dir) - main_start_padding - main_end_padding).max(Dimension::Px(0.0))
+        } else {
+            Dimension::Auto
+        };
+        let mut main_remaining = f64::from(max_available);
         let mut max_cross_size = 0.0;
         let mut unresolved = 0;
         // dbg!(&self.component, inner_size);
@@ -663,7 +697,9 @@ impl super::node::Node {
                 max_cross_size = child.layout_result.size.cross(dir).into();
             }
 
-            if let Dimension::Px(x) = child.layout_result.size.main(dir) {
+            if let Dimension::Px(x) = child.layout_result.size.main(dir)
+                && !(child.layout.wrap && !child.layout.size.main(dir).resolved())
+            {
                 main_remaining -= x;
             } else {
                 unresolved += 1;
@@ -680,6 +716,19 @@ impl super::node::Node {
                     Dimension::Px(main_remaining / unresolved as f64)
                         - margin.main(dir, Alignment::Start)
                         - margin.main(dir, Alignment::End);
+            } else if unresolved == 1
+                && !child.layout.size.main(dir).resolved()
+                && child.layout.wrap
+                && main_remaining > 0.0
+            {
+                // If there's exactly one unresolved child with auto size and wrapping enabled,
+                // and we have remaining space, resolve it from the remaining space
+                // (all siblings have resolved sizes)
+                let margin = child.layout.margin.maybe_resolve(&inner_size);
+                let margin_main = f64::from(margin.main(dir, Alignment::Start))
+                    + f64::from(margin.main(dir, Alignment::End));
+                *child.layout_result.size.main_mut(dir) =
+                    Dimension::Px(main_remaining - margin_main);
             }
 
             // size as a pct of max sibling
@@ -700,7 +749,30 @@ impl super::node::Node {
                     .minus_bounds(&child.layout.margin.maybe_resolve(&inner_size));
             }
 
-            child.resolve_layout(inner_size, caches, scale_factor, final_pass);
+            // Pass bounds to children. Use the most specific available size for each dimension:
+            // 1. Child's resolved size (minus padding) - if child was just resolved, use its size
+            // 2. inner_size - parent's actual inner size if resolved
+            // 3. bounds_size - fallback from ancestor
+            let child_dir = child.layout.direction;
+            let child_padding = child.layout.padding.maybe_resolve(&bounds_size);
+
+            let child_bounds_size = child_dir.size(
+                Self::best_available_dimension(
+                    child.layout_result.size.main(child_dir),
+                    inner_size.main(dir),
+                    bounds_size.main(dir),
+                    child_padding.main(child_dir, child.layout.axis_alignment),
+                    child_padding.main_reverse(child_dir, child.layout.axis_alignment),
+                ),
+                Self::best_available_dimension(
+                    child.layout_result.size.cross(child_dir),
+                    inner_size.cross(dir),
+                    bounds_size.cross(dir),
+                    child_padding.cross(child_dir, child.layout.cross_alignment),
+                    child_padding.cross_reverse(child_dir, child.layout.cross_alignment),
+                ),
+            );
+            child.resolve_layout(child_bounds_size, caches, scale_factor, final_pass);
         }
     }
 
@@ -736,7 +808,7 @@ impl super::node::Node {
         }
     }
 
-    fn set_children_position(&mut self, size: Size) -> Size {
+    fn set_children_position(&mut self, size: Size, bounds_size: Size) -> Size {
         let dir = self.layout.direction;
         let axis_align = self.layout.axis_alignment;
         let cross_align = self.layout.cross_alignment;
@@ -775,11 +847,19 @@ impl super::node::Node {
             let child_outer_size = child.layout_result.size.plus_bounds(&margin);
 
             // Perform a wrap?
+            // Use bounds_size as fallback when size is not resolved (for wrapping nodes with auto size)
+            let wrap_size = if size.main(dir).resolved() {
+                size.main(dir)
+            } else if self.layout.wrap && bounds_size.main(dir).resolved() {
+                bounds_size.main(dir)
+            } else {
+                Dimension::Auto
+            };
             if self.layout.wrap
-                && size.main(dir).resolved()
+                && wrap_size.resolved()
                 && child.layout.position_type != PositionType::Absolute
                 && (main_pos + main_end_padding + f64::from(child_outer_size.main(dir)))
-                    > f64::from(size.main(dir))
+                    > f64::from(wrap_size)
                 && main_pos > main_start_padding
             {
                 row_lengths.push((main_pos + main_end_padding, row_elements_count));
@@ -850,9 +930,14 @@ impl super::node::Node {
         let mut children_size = if self.children.is_empty() {
             Size::default()
         } else {
-            // This won't be accurate for wrapped elements, but it doesn't really matter
+            // For wrapping nodes, use the maximum row width, not the current position
+            let main_size = if self.layout.wrap && !row_lengths.is_empty() {
+                row_lengths.iter().map(|(len, _)| *len).fold(0.0, f64::max)
+            } else {
+                main_pos
+            };
             dir.size(
-                Dimension::Px(main_pos),
+                Dimension::Px(main_size),
                 Dimension::Px(cross_pos + max_cross_size),
             )
         };
@@ -927,6 +1012,22 @@ impl super::node::Node {
     /// Make sure the node has a size, either taken from its children or from itself
     fn resolve_size(&mut self, mut size: Size, children_size: Size) {
         let min_size = self.layout.min_size;
+        let dir = self.layout.direction;
+
+        // For wrapping nodes with auto size that were temporarily resolved, allow shrinking to children's size
+        // Allow shrinking on both main and cross axes if the original size was Auto
+        let allow_shrink_main = self.layout.wrap
+            && self.layout.size.main(dir) == Dimension::Auto
+            && size.main(dir).resolved()
+            && children_size.main(dir).resolved()
+            && f64::from(children_size.main(dir)) < f64::from(size.main(dir));
+
+        let allow_shrink_cross = self.layout.wrap
+            && self.layout.size.cross(dir) == Dimension::Auto
+            && size.cross(dir).resolved()
+            && children_size.cross(dir).resolved()
+            && f64::from(children_size.cross(dir)) < f64::from(size.cross(dir));
+
         if !size.width.resolved() || f64::from(size.width) < 0.0 {
             if self.scroll_x().is_none() && children_size.width.resolved() {
                 size.width = children_size.width;
@@ -935,7 +1036,15 @@ impl super::node::Node {
             } else {
                 size.width = Dimension::Px(10.0)
             }
+        } else if allow_shrink_main
+            && dir == Direction::Row
+            && self.scroll_x().is_none()
+            && children_size.width.resolved()
+        {
+            // Allow shrinking width for wrapping nodes with auto size
+            size.width = children_size.width;
         }
+
         if !size.height.resolved() || f64::from(size.height) < 0.0 {
             if self.scroll_y().is_none() && children_size.height.resolved() {
                 size.height = children_size.height;
@@ -944,6 +1053,13 @@ impl super::node::Node {
             } else {
                 size.height = Dimension::Px(10.0)
             }
+        } else if ((allow_shrink_main && dir == Direction::Column)
+            || (allow_shrink_cross && dir == Direction::Row))
+            && self.scroll_y().is_none()
+            && children_size.height.resolved()
+        {
+            // Allow shrinking height for wrapping nodes with auto size
+            size.height = children_size.height;
         }
 
         self.layout_result.size = size;
@@ -1007,8 +1123,10 @@ impl super::node::Node {
             );
         }
 
-        self.resolve_child_sizes(inner_size, caches, scale_factor, final_pass);
-        let children_size = self.set_children_position(size);
+        self.resolve_child_sizes(inner_size, bounds_size, caches, scale_factor, final_pass);
+        // Recalculate size after resolving children, as wrapping nodes may have been resolved
+        let size = self.layout.size.most_specific(&self.layout_result.size);
+        let children_size = self.set_children_position(size, bounds_size);
         self.resolve_size(size, children_size);
         self.set_inner_scale(children_size);
 
@@ -1698,6 +1816,442 @@ mod tests {
         assert_eq!(nodes.children[1].layout_result.position.top, px!(0.0));
         assert_eq!(nodes.children[2].layout_result.position.left, px!(0.0));
         assert_eq!(nodes.children[2].layout_result.position.top, px!(150.0));
+    }
+
+    #[test]
+    fn test_wrap_with_auto_size_and_resolved_parent_and_sibling_sizes() {
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0)))
+            .push(node!(Div::new(), lay!(size: size!(100.0))))
+            .push(
+                // This node now has 200px to work with, so wrapping should be able to figure out the position of the children
+                node!(Div::new(), lay!(wrap: true))
+                    .push(node!(Div::new(), lay!(size: size!(100.0))))
+                    .push(node!(Div::new(), lay!(size: size!(100.0))))
+                    .push(node!(Div::new(), lay!(size: size!(200.0)))),
+            );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let wrap_node = &nodes.children[1];
+        assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(nodes.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.layout_result.position.left, px!(100.0));
+        assert_eq!(wrap_node.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(
+            wrap_node.children[1].layout_result.position.left,
+            px!(100.0)
+        );
+        assert_eq!(wrap_node.children[1].layout_result.position.top, px!(0.0));
+        // This node should be wrapped to the next row
+        assert_eq!(wrap_node.children[2].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[2].layout_result.position.top, px!(100.0));
+    }
+
+    #[test]
+    fn test_wrap_with_auto_size_and_unresolved_parent_and_resolved_sibling_sizes() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px                             │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ sub_root: 300px (100%)              │ │
+        // │ │ ┌──────┐ ┌────────────────────────┐ │ │
+        // │ │ │100px │ │ wrap_node: 200px       │ │ │
+        // │ │ │sibl- │ │ ┌──────┐ ┌──────┐      │ │ │
+        // │ │ │ing   │ │ │100px │ │100px │      │ │ │
+        // │ │ │      │ │ └──────┘ └──────┘      │ │ │
+        // │ │ │      │ │ ┌──────────────┐       │ │ │
+        // │ │ │      │ │ │    200px     │       │ │ │
+        // │ │ │      │ │ └──────────────┘       │ │ │
+        // │ │ └──────┘ └────────────────────────┘ │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
+            // We don't know the size of this node yet, but we do know it can't be larger than 300px
+            node!(Div::new(), [])
+                .push(node!(Div::new(), lay!(size: size!(100.0))))
+                .push(
+                    // This node now has 200px to work with, so wrapping should be able to figure out the position of the children
+                    node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
+                        .push(node!(Div::new(), lay!(size: size!(100.0))))
+                        .push(node!(Div::new(), lay!(size: size!(100.0))))
+                        .push(node!(Div::new(), lay!(size: size!(200.0)))),
+                ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let sub_root = &nodes.children[0];
+        let wrap_node = &sub_root.children[1];
+        assert_eq!(sub_root.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(sub_root.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.layout_result.position.left, px!(100.0));
+        assert_eq!(wrap_node.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(
+            wrap_node.children[1].layout_result.position.left,
+            px!(100.0)
+        );
+        assert_eq!(wrap_node.children[1].layout_result.position.top, px!(0.0));
+        // This node should be wrapped to the next row
+        assert_eq!(wrap_node.children[2].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[2].layout_result.position.top, px!(100.0));
+    }
+
+    #[test]
+    fn test_wrap_with_auto_size_and_double_unresolved_parent_and_resolved_sibling_sizes() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px                             │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ sub_root: 300px (auto)              │ │
+        // │ │ ┌─────────────────────────────────┐ │ │
+        // │ │ │ sub_sub_root: 300px (auto)      │ │ │
+        // │ │ │ ┌──────────────────┐ ┌──────┐   │ │ │
+        // │ │ │ │ wrap_node: 200px │ │100px │   │ │ │
+        // │ │ │ │ ┌──────┐ ┌──────┐│ │sibl- │   │ │ │
+        // │ │ │ │ │100px │ │100px ││ │ing   │   │ │ │
+        // │ │ │ │ └──────┘ └──────┘│ └──────┘   │ │ │
+        // │ │ │ │ ┌──────────────┐ │            │ │ │
+        // │ │ │ │ │    200px     │ │            │ │ │
+        // │ │ │ │ └──────────────┘ │            │ │ │
+        // │ │ │ └──────────────────┘            │ │ │
+        // │ │ └─────────────────────────────────┘ │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
+            // We don't know the size of this node yet, but we do know it can't be larger than 300px
+            node!(Div::new(), []).push(
+                node!(Div::new(), [])
+                    .push(
+                        // This node now has 200px to work with, so wrapping should be able to figure out the position of the children
+                        node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(node!(Div::new(), lay!(size: size!(200.0)))),
+                    )
+                    .push(node!(Div::new(), lay!(size: size!(100.0)))),
+            ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let sub_root = &nodes.children[0];
+        let sub_sub_root = &sub_root.children[0];
+        let wrap_node = &sub_sub_root.children[0];
+        assert_eq!(
+            sub_sub_root.children[0].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            sub_sub_root.children[0].layout_result.position.top,
+            px!(0.0)
+        );
+        assert_eq!(wrap_node.layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(
+            wrap_node.children[1].layout_result.position.left,
+            px!(100.0)
+        );
+        assert_eq!(wrap_node.children[1].layout_result.position.top, px!(0.0));
+        // This node should be wrapped to the next row
+        assert_eq!(wrap_node.children[2].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[2].layout_result.position.top, px!(100.0));
+    }
+
+    #[test]
+    fn test_wrap_nested_with_auto_size() {
+        // Layout structure:
+        // Root (300px)
+        // ├── sibling (100px) at x=0
+        // └── outer_wrap_node (200px, auto size, wrap enabled) at x=100
+        //     ├── child 0 (100px) at x=0, y=0
+        //     ├── inner_wrap_node (200px, auto size, wrap enabled) at x=0, y=100 (wrapped to next row)
+        //     │   ├── child 0 (100px) at x=0, y=0
+        //     │   ├── child 1 (100px) at x=100, y=0
+        //     │   └── child 2 (100px) at x=0, y=100 (wrapped to next row)
+        //     └── child 2 (100px) at x=0, y=300 (wrapped to next row)
+        //
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px                             │
+        // │ ┌──────┐ ┌────────────────────────────┐ │
+        // │ │100px │ │ outer_wrap_node: 200px     │ │
+        // │ │sibl- │ │ ┌──────┐                   │ │
+        // │ │ing   │ │ │100px │                   │ │
+        // │ │      │ │ │child0│                   │ │
+        // │ │      │ │ └──────┘                   │ │
+        // │ │      │ │ ┌────────────────────────┐ │ │
+        // │ │      │ │ │ inner_wrap_node: 200px │ │ │
+        // │ │      │ │ │ ┌──────┐ ┌──────┐      │ │ │
+        // │ │      │ │ │ │100px │ │100px │      │ │ │
+        // │ │      │ │ │ └──────┘ └──────┘      │ │ │
+        // │ │      │ │ │ ┌──────┐               │ │ │
+        // │ │      │ │ │ │100px │ (wrapped)     │ │ │
+        // │ │      │ │ │ └──────┘               │ │ │
+        // │ │      │ │ └────────────────────────┘ │ │
+        // │ │      │ │ ┌──────┐                   │ │
+        // │ │      │ │ │100px │                   │ │
+        // │ │      │ │ │child2│                   │ │
+        // │ │      │ │ └──────┘                   │ │
+        // │ └──────┘ └────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0)))
+            .push(node!(Div::new(), lay!(size: size!(100.0))))
+            .push(
+                // Outer wrap node should resolve to 200px (300 - 100 sibling)
+                node!(Div::new(), lay!(wrap: true, debug: "outer_wrap_node"))
+                    .push(node!(Div::new(), lay!(size: size!(100.0))))
+                    .push(
+                        // Inner wrap node should use outer_wrap_node's 200px
+                        node!(Div::new(), lay!(wrap: true, debug: "inner_wrap_node"))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(node!(Div::new(), lay!(size: size!(100.0)))),
+                    )
+                    .push(node!(Div::new(), lay!(size: size!(100.0)))),
+            );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let outer_wrap_node = &nodes.children[1];
+        let inner_wrap_node = &outer_wrap_node.children[1];
+
+        // Outer wrap node should be 200px (300 - 100 sibling)
+        assert_eq!(outer_wrap_node.layout_result.size.width, px!(200.0));
+        assert_eq!(outer_wrap_node.layout_result.position.left, px!(100.0));
+
+        // Outer wrap node's children
+        assert_eq!(
+            outer_wrap_node.children[0].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            outer_wrap_node.children[0].layout_result.position.top,
+            px!(0.0)
+        );
+        assert_eq!(inner_wrap_node.layout_result.position.left, px!(0.0));
+        assert_eq!(inner_wrap_node.layout_result.position.top, px!(100.0));
+        assert_eq!(
+            outer_wrap_node.children[2].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            outer_wrap_node.children[2].layout_result.position.top,
+            px!(300.0)
+        );
+
+        // Inner wrap node should be 200px (constrained by outer_wrap_node, not root)
+        assert_eq!(inner_wrap_node.layout_result.size.width, px!(200.0));
+        assert_eq!(inner_wrap_node.layout_result.position.left, px!(0.0));
+        assert_eq!(inner_wrap_node.layout_result.position.top, px!(100.0));
+
+        // Inner wrap node's children
+        assert_eq!(
+            inner_wrap_node.children[0].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[0].layout_result.position.top,
+            px!(0.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[1].layout_result.position.left,
+            px!(100.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[1].layout_result.position.top,
+            px!(0.0)
+        );
+        // Third child should wrap at 200px boundary (150 + 100 = 250 > 200)
+        assert_eq!(
+            inner_wrap_node.children[2].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[2].layout_result.position.top,
+            px!(100.0)
+        );
+    }
+
+    #[test]
+    fn test_wrap_nested_with_auto_size_and_multiple_unresolved_parents() {
+        // Layout structure:
+        // Root (300px)
+        // └── sub_root (300px, auto size)
+        //     └── sub_sub_root (300px, auto size)
+        //         ├── sibling (100px) at x=0
+        //         └── outer_wrap_node (200px, auto size, wrap enabled) at x=100
+        //             ├── child 0 (100px) at x=0, y=0
+        //             ├── inner_wrap_node (200px, auto size, wrap enabled) at x=0, y=100 (wrapped to next row)
+        //             │   ├── child 0 (100px) at x=0, y=0
+        //             │   ├── child 1 (100px) at x=100, y=0
+        //             │   └── child 2 (100px) at x=0, y=100 (wrapped to next row)
+        //             └── child 2 (100px) at x=0, y=300 (wrapped to next row)
+        //
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px                             │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ sub_root: 300px (auto)              │ │
+        // │ │ ┌─────────────────────────────────┐ │ │
+        // │ │ │ sub_sub_root: 300px (auto)      │ │ │
+        // │ │ │ ┌──────┐ ┌────────────────────┐ │ │ │
+        // │ │ │ │100px │ │ outer_wrap_node:   │ │ │ │
+        // │ │ │ │sibl- │ │ 200px              │ │ │ │
+        // │ │ │ │ing   │ │ ┌──────┐           │ │ │ │
+        // │ │ │ │      │ │ │100px │           │ │ │ │
+        // │ │ │ │      │ │ │child0│           │ │ │ │
+        // │ │ │ │      │ │ └──────┘           │ │ │ │
+        // │ │ │ │      │ │ ┌────────────────┐ │ │ │ │
+        // │ │ │ │      │ │ │ inner_wrap_node│ │ │ │ │
+        // │ │ │ │      │ │ │ ┌──────┐ ┌────┐│ │ │ │ │
+        // │ │ │ │      │ │ │ │100px │ │100 ││ │ │ │ │
+        // │ │ │ │      │ │ │ └──────┘ └────┘│ │ │ │ │
+        // │ │ │ │      │ │ │ ┌──────┐       │ │ │ │ │
+        // │ │ │ │      │ │ │ │100px │(wrap) │ │ │ │ │
+        // │ │ │ │      │ │ │ └──────┘       │ │ │ │ │
+        // │ │ │ │      │ │ └────────────────┘ │ │ │ │
+        // │ │ │ │      │ │ ┌──────┐           │ │ │ │
+        // │ │ │ │      │ │ │100px │           │ │ │ │
+        // │ │ │ │      │ │ │child2│           │ │ │ │
+        // │ │ │ │      │ │ └──────┘           │ │ │ │
+        // │ │ │ └──────┘ └────────────────────┘ │ │ │
+        // │ │ └─────────────────────────────────┘ │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
+            node!(Div::new(), lay!()).push(
+                node!(Div::new(), lay!())
+                    .push(node!(Div::new(), lay!(size: size!(100.0))))
+                    .push(
+                        // Outer wrap node should resolve to 200px (300 - 100 sibling)
+                        node!(Div::new(), lay!(wrap: true, debug: "outer_wrap_node"))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(
+                                // Inner wrap node should use outer_wrap_node's 200px
+                                node!(Div::new(), lay!(wrap: true, debug: "inner_wrap_node"))
+                                    .push(node!(Div::new(), lay!(size: size!(100.0, 50.0))))
+                                    .push(node!(Div::new(), lay!(size: size!(100.0, 50.0))))
+                                    .push(node!(Div::new(), lay!(size: size!(100.0, 50.0)))),
+                            )
+                            .push(node!(Div::new(), lay!(size: size!(100.0)))),
+                    ),
+            ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let sub_root = &nodes.children[0];
+        let sub_sub_root = &sub_root.children[0];
+        let outer_wrap_node = &sub_sub_root.children[1];
+        let inner_wrap_node = &outer_wrap_node.children[1];
+
+        // Outer wrap node should be 200px (300 - 100 sibling)
+        assert_eq!(outer_wrap_node.layout_result.size.width, px!(200.0));
+        assert_eq!(outer_wrap_node.layout_result.position.left, px!(100.0));
+
+        // Outer wrap node's children
+        assert_eq!(
+            outer_wrap_node.children[0].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            outer_wrap_node.children[0].layout_result.position.top,
+            px!(0.0)
+        );
+        assert_eq!(inner_wrap_node.layout_result.position.left, px!(0.0));
+        assert_eq!(inner_wrap_node.layout_result.position.top, px!(100.0));
+        assert_eq!(
+            outer_wrap_node.children[2].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            outer_wrap_node.children[2].layout_result.position.top,
+            px!(200.0)
+        );
+
+        // Inner wrap node should be 200px (constrained by outer_wrap_node, not root)
+        assert_eq!(inner_wrap_node.layout_result.size.width, px!(200.0));
+        assert_eq!(inner_wrap_node.layout_result.position.left, px!(0.0));
+        assert_eq!(inner_wrap_node.layout_result.position.top, px!(100.0));
+
+        // Inner wrap node's children
+        assert_eq!(
+            inner_wrap_node.children[0].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[0].layout_result.position.top,
+            px!(0.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[1].layout_result.position.left,
+            px!(100.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[1].layout_result.position.top,
+            px!(0.0)
+        );
+        // Third child should wrap at 200px boundary (150 + 100 = 250 > 200)
+        assert_eq!(
+            inner_wrap_node.children[2].layout_result.position.left,
+            px!(0.0)
+        );
+        assert_eq!(
+            inner_wrap_node.children[2].layout_result.position.top,
+            px!(50.0)
+        );
+    }
+
+    #[test]
+    fn test_wrap_with_auto_size_not_enough_children_to_wrap_and_unresolved_parent_and_resolved_sibling_sizes()
+     {
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
+            // We don't know the size of this node yet, but we do know it can't be larger than 300px
+            node!(Div::new())
+                .push(node!(Div::new(), lay!(size: size!(100.0))))
+                .push(
+                    // This node now has 200px to work with, but only one 100px child, so it shouldn't wrap, and its total size should be 100px
+                    node!(Div::new(), lay!(wrap: true))
+                        .push(node!(Div::new(), lay!(size: size!(100.0)))),
+                ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let sub_root = &nodes.children[0];
+        let wrap_node = &sub_root.children[1];
+        assert_eq!(sub_root.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(sub_root.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.layout_result.position.left, px!(100.0));
+        assert_eq!(wrap_node.layout_result.position.right, px!(200.0));
+        assert_eq!(wrap_node.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.top, px!(0.0));
+    }
+
+    #[test]
+    fn test_wrap_with_column_parent() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px (column)                    │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ wrap_node (unfilled)                │ │
+        // │ │ ┌──────┐                            │ │
+        // │ │ │100px │                            │ │
+        // │ │ └──────┘                            │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(
+            Div::new(),
+            lay!(size: size!(300.0), direction: Direction::Column)
+        )
+        .push(
+            node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
+                .push(node!(Div::new(), lay!(size: size!(100.0)))),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let wrap_node = &nodes.children[0];
+        assert_eq!(wrap_node.layout_result.size, size!(100.0, 100.0));
+        assert_eq!(wrap_node.layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.top, px!(0.0));
     }
 
     #[test]
