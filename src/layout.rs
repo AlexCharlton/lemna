@@ -10,6 +10,10 @@ use core::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 
 use crate::renderable::Caches;
 
+//--------------------------------
+// MARK: Types
+//--------------------------------
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ScrollPosition {
     pub x: Option<f32>,
@@ -583,7 +587,9 @@ impl From<LayoutResult> for crate::base_types::Rect {
         )
     }
 }
-
+//--------------------------------
+// MARK: Node::resolve_layout
+//--------------------------------
 impl super::node::Node {
     /// Returns the best available dimension for a child's bounds, preferring:
     /// 1. Child's resolved size (minus padding) if available
@@ -603,6 +609,46 @@ impl super::node::Node {
         } else {
             bounds_dim
         }
+    }
+
+    // Used to pass bounds from parent to children. Use the most specific available size for each dimension:
+    // 1. Child's resolved size (minus padding) - if child was just resolved, use its size
+    // 2. inner_size - parent's actual inner size if resolved
+    // 3. bounds_size - fallback from ancestor
+    // For wrapping nodes resolved from remaining space, use that remaining space as the constraint
+
+    fn bounds_size(
+        &self,
+        parent_inner_size: Size,
+        parent_bounds_size: Size,
+        remaining_space_main: Dimension,
+    ) -> Size {
+        let dir = self.layout.direction;
+        let padding = self.layout.padding.maybe_resolve(&parent_bounds_size);
+
+        let main_dim = if !parent_inner_size.main(dir).resolved() {
+            // Use remaining space if parent_inner_size is not resolved
+            remaining_space_main
+        } else {
+            Self::best_available_dimension(
+                self.layout_result.size.main(dir),
+                parent_inner_size.main(dir),
+                parent_bounds_size.main(dir),
+                padding.main(dir, self.layout.axis_alignment),
+                padding.main_reverse(dir, self.layout.axis_alignment),
+            )
+        };
+
+        dir.size(
+            main_dim,
+            Self::best_available_dimension(
+                self.layout_result.size.cross(dir),
+                parent_inner_size.cross(dir),
+                parent_bounds_size.cross(dir),
+                padding.cross(dir, self.layout.cross_alignment),
+                padding.cross_reverse(dir, self.layout.cross_alignment),
+            ),
+        )
     }
 
     fn resolve_child_sizes(
@@ -749,30 +795,12 @@ impl super::node::Node {
                     .minus_bounds(&child.layout.margin.maybe_resolve(&inner_size));
             }
 
-            // Pass bounds to children. Use the most specific available size for each dimension:
-            // 1. Child's resolved size (minus padding) - if child was just resolved, use its size
-            // 2. inner_size - parent's actual inner size if resolved
-            // 3. bounds_size - fallback from ancestor
-            let child_dir = child.layout.direction;
-            let child_padding = child.layout.padding.maybe_resolve(&bounds_size);
-
-            let child_bounds_size = child_dir.size(
-                Self::best_available_dimension(
-                    child.layout_result.size.main(child_dir),
-                    inner_size.main(dir),
-                    bounds_size.main(dir),
-                    child_padding.main(child_dir, child.layout.axis_alignment),
-                    child_padding.main_reverse(child_dir, child.layout.axis_alignment),
-                ),
-                Self::best_available_dimension(
-                    child.layout_result.size.cross(child_dir),
-                    inner_size.cross(dir),
-                    bounds_size.cross(dir),
-                    child_padding.cross(child_dir, child.layout.cross_alignment),
-                    child_padding.cross_reverse(child_dir, child.layout.cross_alignment),
-                ),
+            child.resolve_layout(
+                child.bounds_size(inner_size, bounds_size, Dimension::Px(main_remaining)),
+                caches,
+                scale_factor,
+                final_pass,
             );
-            child.resolve_layout(child_bounds_size, caches, scale_factor, final_pass);
         }
     }
 
@@ -1157,6 +1185,9 @@ impl super::node::Node {
     }
 }
 
+//--------------------------------
+// MARK: lay! macro
+//--------------------------------
 #[macro_export]
 macro_rules! lay {
     // Finish it
@@ -1339,6 +1370,9 @@ macro_rules! lay {
     );
 }
 
+//--------------------------------
+// MARK: Other macros
+//--------------------------------
 #[macro_export]
 macro_rules! px {
     ($val:expr) => {
@@ -1415,6 +1449,9 @@ macro_rules! size_pct {
     };
 }
 
+//--------------------------------
+// MARK: bounds! macro
+//--------------------------------
 #[macro_export]
 macro_rules! bounds {
     // One arg
@@ -1783,12 +1820,41 @@ macro_rules! bounds_pct {
     };
 }
 
+//--------------------------------
+// MARK: tests
+//--------------------------------
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::component::Component;
     use crate::node;
+    use crate::renderable::Caches;
     use crate::widgets::Div;
     use alloc::boxed::Box;
+
+    /// A dummy widget for layout tests that always returns a fixed 100x100px size from `fill_bounds`.
+    #[derive(Debug, Default)]
+    struct FillBoundser;
+
+    impl FillBoundser {
+        fn new() -> Self {
+            Self
+        }
+    }
+
+    impl Component for FillBoundser {
+        fn fill_bounds(
+            &mut self,
+            _width: Option<f32>,
+            _height: Option<f32>,
+            _max_width: Option<f32>,
+            _max_height: Option<f32>,
+            _caches: &Caches,
+            _scale_factor: f32,
+        ) -> (Option<f32>, Option<f32>) {
+            (Some(100.0), Some(100.0))
+        }
+    }
 
     #[test]
     fn test_empty() {
@@ -1868,7 +1934,7 @@ mod tests {
         let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
             // We don't know the size of this node yet, but we do know it can't be larger than 300px
             node!(Div::new(), [])
-                .push(node!(Div::new(), lay!(size: size!(100.0))))
+                .push(node!(FillBoundser::new(), lay!()))
                 .push(
                     // This node now has 200px to work with, so wrapping should be able to figure out the position of the children
                     node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
@@ -1898,6 +1964,66 @@ mod tests {
     }
 
     #[test]
+    fn test_wrap_with_auto_size_and_unresolved_parent_with_sibling_and_unresolved_parent() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px                             │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ sub_root: Auto                      │ │
+        // │ │ ┌──────┐ ┌────────────────────────┐ │ │
+        // │ │ │100px │ │ wrap_parent: Auto      │ │ │
+        // │ │ │sibl- │ │ ┌────────────────────┐ │ │ │
+        // │ │ │ing   │ │ │ wrap_node: 200px   │ │ │ │
+        // │ │ └──────┘ │ │ ┌──────┐ ┌──────┐  │ │ │ │
+        // │ │          │ │ │100px │ │100px │  │ │ │ │
+        // │ │          │ │ └──────┘ └──────┘  │ │ │ │
+        // │ │          │ │ ┌──────┐ ┌──────┐  │ │ │ │
+        // │ │          │ │ │100px │ │100px │  │ │ │ │
+        // │ │          │ │ └──────┘ └──────┘  │ │ │ │
+        // │ │          │ └────────────────────┘ │ │ │
+        // │ │          └────────────────────────┘ │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
+            // We don't know the size of this node yet, but we do know it can't be larger than 300px
+            node!(Div::new(), lay!(debug: "sub_root"))
+                .push(node!(FillBoundser::new(), lay!(debug: "fill_boundser")))
+                .push(
+                    node!(Div::new(), []).push(
+                        // This node now has 200px to work with, so wrapping should be able to figure out the position of the children
+                        node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(node!(Div::new(), lay!(size: size!(100.0))))
+                            .push(node!(Div::new(), lay!(size: size!(100.0)))),
+                    ),
+                ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let sub_root = &nodes.children[0];
+        let wrap_sibling = &sub_root.children[0];
+        let wrap_parent = &sub_root.children[1];
+        let wrap_node = &wrap_parent.children[0];
+        assert_eq!(wrap_parent.layout_result.position.left, px!(100.0));
+        assert_eq!(wrap_parent.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_parent.layout_result.size, size!(200.0, 200.0));
+        assert_eq!(wrap_sibling.layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_sibling.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(
+            wrap_node.children[1].layout_result.position.left,
+            px!(100.0)
+        );
+        assert_eq!(wrap_node.children[1].layout_result.position.top, px!(0.0));
+        // This node should be wrapped to the next row
+        assert_eq!(wrap_node.children[2].layout_result.position.left, px!(0.0));
+        assert_eq!(wrap_node.children[2].layout_result.position.top, px!(100.0));
+    }
+
+    #[test]
     fn test_wrap_with_auto_size_and_double_unresolved_parent_and_resolved_sibling_sizes() {
         // ┌─────────────────────────────────────────┐
         // │ Root: 300px                             │
@@ -1910,9 +2036,9 @@ mod tests {
         // │ │ │ │ ┌──────┐ ┌──────┐│ │sibl- │   │ │ │
         // │ │ │ │ │100px │ │100px ││ │ing   │   │ │ │
         // │ │ │ │ └──────┘ └──────┘│ └──────┘   │ │ │
-        // │ │ │ │ ┌──────────────┐ │            │ │ │
-        // │ │ │ │ │    200px     │ │            │ │ │
-        // │ │ │ │ └──────────────┘ │            │ │ │
+        // │ │ │ │ ┌──────┐         │            │ │ │
+        // │ │ │ │ │100px │         │            │ │ │
+        // │ │ │ │ └──────┘         │            │ │ │
         // │ │ │ └──────────────────┘            │ │ │
         // │ │ └─────────────────────────────────┘ │ │
         // │ └─────────────────────────────────────┘ │
@@ -1926,9 +2052,9 @@ mod tests {
                         node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
                             .push(node!(Div::new(), lay!(size: size!(100.0))))
                             .push(node!(Div::new(), lay!(size: size!(100.0))))
-                            .push(node!(Div::new(), lay!(size: size!(200.0)))),
+                            .push(node!(Div::new(), lay!(size: size!(100.0)))),
                     )
-                    .push(node!(Div::new(), lay!(size: size!(100.0)))),
+                    .push(node!(FillBoundser::new(), lay!())),
             ),
         );
         nodes.calculate_layout(&Caches::default(), 1.0);
