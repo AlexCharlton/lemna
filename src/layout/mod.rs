@@ -141,19 +141,23 @@ impl super::node::Node {
                 *child.layout_result.size.main_mut(dir) = Dimension::Auto;
             }
             if !child.layout_result.size.resolved() {
-                let inner_size =
-                    inner_size.minus_bounds(&child.layout.margin.maybe_resolve(&inner_size));
+                // Use bounds_size as fallback when inner_size is not resolved (for fill_bounds constraints)
+                let fill_bounds_size = inner_size.most_specific(&bounds_size);
+                let fill_bounds_inner_size = fill_bounds_size
+                    .minus_bounds(&child.layout.margin.maybe_resolve(&fill_bounds_size));
                 let (w, h) = child.component.fill_bounds(
                     child.layout_result.size.width.maybe_px(),
                     child.layout_result.size.height.maybe_px(),
-                    inner_size
+                    fill_bounds_inner_size.width.maybe_px().or(self
+                        .layout
+                        .max_size
                         .width
-                        .maybe_px()
-                        .or(self.layout.max_size.width.maybe_px()),
-                    inner_size
+                        .maybe_px()),
+                    fill_bounds_inner_size.height.maybe_px().or(self
+                        .layout
+                        .max_size
                         .height
-                        .maybe_px()
-                        .or(self.layout.max_size.height.maybe_px()),
+                        .maybe_px()),
                     caches,
                     scale_factor,
                 );
@@ -646,6 +650,40 @@ mod tests {
             (Some(100.0), Some(100.0))
         }
     }
+
+    //---------------------------------------------------------------------------------
+
+    /// A dummy widget for layout tests that always returns the provided width, unless it's None/0, in which case it returns 666px.
+    #[derive(Debug, Default)]
+    struct FillBoundsWithWidth;
+
+    impl FillBoundsWithWidth {
+        fn new() -> Self {
+            Self
+        }
+    }
+
+    impl Component for FillBoundsWithWidth {
+        fn fill_bounds(
+            &mut self,
+            width: Option<f32>,
+            _height: Option<f32>,
+            max_width: Option<f32>,
+            _max_height: Option<f32>,
+            _caches: &Caches,
+            _scale_factor: f32,
+        ) -> (Option<f32>, Option<f32>) {
+            let width = width.or(max_width).or(Some(666.0));
+            if width.unwrap_or(0.0) == 0.0 {
+                (Some(666.0), Some(100.0))
+            } else {
+                (width, Some(100.0))
+            }
+        }
+    }
+
+    //---------------------------------------------------------------------------------
+    // Test cases
 
     #[test]
     fn test_empty() {
@@ -1280,6 +1318,41 @@ mod tests {
             px!(3.0 + 150.0 + 1.0 + 1.0)
         ); // 3 (child1 pos) + 150 (child1 width) + 1 (child1 right margin) + 1 (child2 left margin) = 155px
         assert_eq!(child2.layout_result.position.top, px!(3.0));
+    }
+
+    #[test]
+    fn test_bounds_propagation_with_multiple_undefined_parents() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px                             │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ sub_root: 300px (auto)              │ │
+        // │ │ ┌─────────────────────────────────┐ │ │
+        // │ │ │ sub_sub_root: 300px (auto)      │ │ │
+        // │ │ │ ┌──────────────────────────────┐│ │ │
+        // │ │ │ │ fill_bounds_with_width       ││ │ │
+        // │ │ │ └──────────────────────────────┘│ │ │
+        // │ │ └─────────────────────────────────┘ │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
+            // We don't know the size of this node yet, but we do know it can't be larger than 300px
+            node!(Div::new(), []).push(node!(Div::new(), []).push(node!(
+                FillBoundsWithWidth::new(),
+                lay!(debug: "fill_bounds_with_width")
+            ))),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let sub_root = &nodes.children[0];
+        let sub_sub_root = &sub_root.children[0];
+        let fill_bounds_with_width = &sub_sub_root.children[0];
+        assert_eq!(fill_bounds_with_width.layout_result.position.left, px!(0.0));
+        assert_eq!(fill_bounds_with_width.layout_result.position.top, px!(0.0));
+        assert_eq!(
+            fill_bounds_with_width.layout_result.size,
+            // FillBoundsWithWidth returns a fixed 100px height and the maximum width provided, unless it's None/0, in which case it returns 666px.
+            size!(300.0, 100.0)
+        );
     }
 
     #[test]
