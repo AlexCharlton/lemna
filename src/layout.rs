@@ -914,8 +914,9 @@ impl super::node::Node {
                 // Push bounds
                 main_pos += f64::from(child_outer_size.main(dir));
                 row_elements_count += 1;
-                if f64::from(child_outer_size.cross(dir)) > max_cross_size {
-                    max_cross_size = child_outer_size.cross(dir).into();
+                let child_cross = f64::from(child_outer_size.cross(dir));
+                if child_cross > max_cross_size {
+                    max_cross_size = child_cross;
                 }
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
@@ -960,16 +961,18 @@ impl super::node::Node {
         } else {
             // For wrapping nodes, use the maximum row width, not the current position
             let main_size = if self.layout.wrap && !row_lengths.is_empty() {
+                // row_lengths already includes main_end_padding, so we don't need to add it again
                 row_lengths.iter().map(|(len, _)| *len).fold(0.0, f64::max)
             } else {
                 main_pos
             };
-            dir.size(
-                Dimension::Px(main_size),
-                Dimension::Px(cross_pos + max_cross_size),
-            )
+            let cross_size = cross_pos + max_cross_size;
+            dir.size(Dimension::Px(main_size), Dimension::Px(cross_size))
         };
-        *children_size.main_mut(dir) += self.layout.padding.main_reverse(dir, axis_align);
+        // Only add end padding if we're not using row_lengths (which already includes it)
+        if !(self.layout.wrap && !row_lengths.is_empty()) {
+            *children_size.main_mut(dir) += self.layout.padding.main_reverse(dir, axis_align);
+        }
         *children_size.cross_mut(dir) += self.layout.padding.cross_reverse(dir, cross_align);
 
         // TODO Alignment::Stretch when not all space is filled
@@ -2382,6 +2385,20 @@ mod tests {
 
     #[test]
     fn test_wrap_margins_and_padding() {
+        // ┌───────────────────────────────────────┐
+        // │ Root: 300px (Row, wrap, padding: 1%)  │
+        // │                                       │
+        // │  ┌──────────┐ ┌────────┐              │
+        // │  │ 150px    │ │ 100px  │              │
+        // │  │ (margin: │ │(margin:│              │
+        // │  │  1%)     │ │  1%)   │              │
+        // │  └──────────┘ └────────┘              │
+        // │  ┌──────────────┐                     │
+        // │  │    200px     │                     │
+        // │  │  (margin:    │                     │
+        // │  │    1%)       │                     │
+        // │  └──────────────┘                     │
+        // └───────────────────────────────────────┘
         let mut nodes = node!(
             Div::new(),
             lay!(size: size!(300.0), direction: Direction::Row, wrap: true, padding: bounds_pct!(1.0))
@@ -2419,6 +2436,62 @@ mod tests {
             nodes.children[2].layout_result.position.top,
             px!((3.0 * 4.0) + 150.0)
         );
+    }
+
+    #[test]
+    fn test_wrap_margins_and_padding_when_shrinking() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px                             │
+        // │ ┌──────────────────────────┐            │
+        // │ │ Wrapping node; 2px pad   │            │
+        // │ │ ┌────────────┐ ┌────────┐│            │
+        // │ │ │ 150px      │ │ 100px  ││            │
+        // │ │ │ (margin:   │ │(margin:││            │
+        // │ │ │  1px)      │ │ 1px)   ││            │
+        // │ │ │            │ └────────┘│            │
+        // │ │ │            │           │            │
+        // │ │ └────────────┘           │            │
+        // │ └──────────────────────────┘            │
+        // │                                         │
+        // │                                         │
+        // │                                         │
+        // │                                         │
+        // │                                         │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0]]
+        )
+        .push(
+            node!(
+                Div::new(),
+                [direction: Direction::Row, wrap: true, margin: [2.0], padding: [2.0], debug: "wrapping_node"]
+
+            )
+            .push(node!(
+                Div::new(),
+                [size: [150.0], margin: [1.0]]
+            ))
+            .push(node!(
+                Div::new(),
+                [size: [100.0], margin: [1.0]]
+            )),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let wrapping_node = &nodes.children[0];
+        assert_eq!(wrapping_node.layout_result.size, size!(258.0, 156.0));
+        assert_eq!(wrapping_node.layout_result.position.left, px!(2.0));
+        assert_eq!(wrapping_node.layout_result.position.top, px!(2.0));
+        let child1 = &wrapping_node.children[0];
+        let child2 = &wrapping_node.children[1];
+        assert_eq!(child1.layout_result.position.left, px!(3.0));
+        assert_eq!(child1.layout_result.position.top, px!(3.0));
+        assert_eq!(
+            child2.layout_result.position.left,
+            px!(3.0 + 150.0 + 1.0 + 1.0)
+        ); // 3 (child1 pos) + 150 (child1 width) + 1 (child1 right margin) + 1 (child2 left margin) = 155px
+        assert_eq!(child2.layout_result.position.top, px!(3.0));
     }
 
     #[test]
