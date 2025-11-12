@@ -744,7 +744,7 @@ impl super::node::Node {
             }
 
             if let Dimension::Px(x) = child.layout_result.size.main(dir)
-                && !(child.layout.wrap && !child.layout.size.main(dir).resolved())
+                && (!child.layout.wrap || child.layout.size.main(dir).resolved())
             {
                 main_remaining -= x;
             } else {
@@ -890,7 +890,7 @@ impl super::node::Node {
                     > f64::from(wrap_size)
                 && main_pos > main_start_padding
             {
-                row_lengths.push((main_pos + main_end_padding, row_elements_count));
+                row_lengths.push((main_pos, row_elements_count));
                 main_pos = main_start_padding;
                 cross_pos += max_cross_size;
                 max_cross_size = 0.0;
@@ -953,7 +953,7 @@ impl super::node::Node {
             }
         }
 
-        row_lengths.push((main_pos + main_end_padding, row_elements_count));
+        row_lengths.push((main_pos, row_elements_count));
 
         // Combined size of children
         let mut children_size = if self.children.is_empty() {
@@ -961,7 +961,6 @@ impl super::node::Node {
         } else {
             // For wrapping nodes, use the maximum row width, not the current position
             let main_size = if self.layout.wrap && !row_lengths.is_empty() {
-                // row_lengths already includes main_end_padding, so we don't need to add it again
                 row_lengths.iter().map(|(len, _)| *len).fold(0.0, f64::max)
             } else {
                 main_pos
@@ -969,10 +968,7 @@ impl super::node::Node {
             let cross_size = cross_pos + max_cross_size;
             dir.size(Dimension::Px(main_size), Dimension::Px(cross_size))
         };
-        // Only add end padding if we're not using row_lengths (which already includes it)
-        if !(self.layout.wrap && !row_lengths.is_empty()) {
-            *children_size.main_mut(dir) += self.layout.padding.main_reverse(dir, axis_align);
-        }
+        *children_size.main_mut(dir) += self.layout.padding.main_reverse(dir, axis_align);
         *children_size.cross_mut(dir) += self.layout.padding.cross_reverse(dir, cross_align);
 
         // TODO Alignment::Stretch when not all space is filled
@@ -1005,7 +1001,8 @@ impl super::node::Node {
                         elements_positioned_in_row = 0;
                         current_row += 1;
                     }
-                    (f64::from(size.main(dir)) - row_lengths[current_row].0) / 2.0
+                    (f64::from(size.main(dir)) - (row_lengths[current_row].0 + main_end_padding))
+                        / 2.0
                 } else {
                     main_offset
                 };
