@@ -102,11 +102,14 @@ impl super::node::Node {
         let mut main_remaining = f64::from(max_available);
         let mut max_cross_size = 0.0;
         let mut unresolved = 0;
+        let mut unresolved_flex_grow = 0.0;
         // dbg!(&self.component, inner_size);
 
         for child in self.children.iter_mut() {
-            // Stretch alignment
-            if self.layout.cross_alignment == Alignment::Stretch {
+            // Stretch alignment - only apply if cross size is not already resolved
+            if self.layout.cross_alignment == Alignment::Stretch
+                && !child.layout_result.size.cross(dir).resolved()
+            {
                 *child.layout_result.size.cross_mut(dir) = Dimension::Pct(100.0)
             }
 
@@ -136,6 +139,7 @@ impl super::node::Node {
 
             if self.layout.axis_alignment == Alignment::Stretch
                 && child.layout.size.main(dir) == Dimension::Auto
+                && child.layout.flex_grow != 0.0
             {
                 // We want to calculate this in the next for block
                 *child.layout_result.size.main_mut(dir) = Dimension::Auto;
@@ -174,11 +178,14 @@ impl super::node::Node {
             }
 
             if let Dimension::Px(x) = child.layout_result.size.main(dir)
-                && (!child.layout.wrap || child.layout.size.main(dir).resolved())
+                && (!child.layout.wrap
+                    || child.layout.size.main(dir).resolved()
+                    || child.layout.flex_grow == 0.0)
             {
                 main_remaining -= x;
             } else {
                 unresolved += 1;
+                unresolved_flex_grow += child.layout.flex_grow;
             }
         }
         main_remaining = main_remaining.max(0.0);
@@ -186,10 +193,12 @@ impl super::node::Node {
         for child in self.children.iter_mut() {
             if self.layout.axis_alignment == Alignment::Stretch
                 && !child.layout_result.size.main(dir).resolved()
+                && child.layout.flex_grow != 0.0
             {
                 let margin = child.layout.margin.maybe_resolve(&inner_size);
+                let flex_ratio = child.layout.flex_grow / unresolved_flex_grow;
                 *child.layout_result.size.main_mut(dir) =
-                    Dimension::Px(main_remaining / unresolved as f64)
+                    Dimension::Px(main_remaining * flex_ratio)
                         - margin.main(dir, Alignment::Start)
                         - margin.main(dir, Alignment::End);
             } else if unresolved == 1
@@ -616,7 +625,7 @@ impl super::node::Node {
 }
 
 //--------------------------------
-// MARK: tests
+// MARK: Tests
 //--------------------------------
 #[cfg(test)]
 mod tests {
@@ -1353,6 +1362,184 @@ mod tests {
             // FillBoundsWithWidth returns a fixed 100px height and the maximum width provided, unless it's None/0, in which case it returns 666px.
             size!(300.0, 100.0)
         );
+    }
+
+    #[test]
+    fn test_flex_grow() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px × 400px                     │
+        // │ ┌─────────────────┐                     │
+        // │ │ sibling1: 100px │                     │
+        // │ │                 │                     │
+        // │ │                 │                     │
+        // │ └─────────────────┘                     │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ sibling2: 100% × Auto               │ │
+        // │ │ ┌───────────────┐                   │ │
+        // │ │ │ child: 100px  │                   │ │
+        // │ │ └───────────────┘                   │ │
+        // │ └─────────────────────────────────────┘ │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ remaining: 100% × Auto              │ │
+        // │ │                                     │ │
+        // │ │                                     │ │
+        // │ │                                     │ │
+        // │ │                                     │ │
+        // │ │                                     │ │
+        // │ │                                     │ │
+        // │ │                                     │ │
+        // │ │                                     │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0, 400.0], direction: Direction::Column, axis_alignment: Alignment::Stretch, cross_alignment: Alignment::Stretch]
+        )
+        .push(node!(
+            FillBoundser::new(),
+            [debug: "sibling1"]
+        ))
+        .push(node!(
+            Div::new(),
+            [size_pct: [100.0, Auto], flex_grow: 0.0, debug: "sibling2"]
+                     ).push(node!(
+                 FillBoundser::new(),
+                 [size: [100.0, 100.0]]
+        )))
+        .push(
+            node!(
+                Div::new(),
+                [size_pct: [100.0, Auto], debug: "remaining"]
+            )
+            // Child of scrollable node: longer than the remaining space
+            .push(node!(
+                Div::new(),
+                [size: [100.0, 400.0]]
+            )),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+
+        // Root should be 300px × 300px
+        assert_eq!(nodes.layout_result.size, size!(300.0, 400.0));
+
+        // First child (sibling) should be 100px × 100px
+        let sibling1 = &nodes.children[0];
+        assert_eq!(sibling1.layout_result.size, size!(100.0, 100.0));
+        assert_eq!(sibling1.layout_result.position.top, px!(0.0));
+        assert_eq!(sibling1.layout_result.position.left, px!(0.0));
+
+        // Second child (sibling) should be 300px × 100px
+        let sibling2 = &nodes.children[1];
+        assert_eq!(sibling2.layout_result.size, size!(300.0, 100.0));
+        assert_eq!(sibling2.layout_result.position.top, px!(100.0));
+        assert_eq!(sibling2.layout_result.position.left, px!(0.0));
+
+        // Remaining node should be 300px × 200px (remaining space)
+        let remaining = &nodes.children[2];
+        assert_eq!(remaining.layout_result.size, size!(300.0, 200.0));
+        assert_eq!(remaining.layout_result.position.top, px!(200.0));
+        assert_eq!(remaining.layout_result.position.left, px!(0.0));
+    }
+
+    #[test]
+    fn test_flex_grow_with_different_weights() {
+        // ┌─────────────────────────────────────────┐
+        // │ Root: 300px × 400px                     │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ fixed1: 100px × 50px                │ │
+        // │ └─────────────────────────────────────┘ │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ grow1 (flex_grow: 1): 100px         │ │
+        // │ │ (should get 1/4 of remaining space) │ │
+        // │ └─────────────────────────────────────┘ │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ grow2 (flex_grow: 2): 200px         │ │
+        // │ │ (should get 2/4 of remaining space) │ │
+        // │ └─────────────────────────────────────┘ │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ grow3 (flex_grow: 1): 100px         │ │
+        // │ │ (should get 1/4 of remaining space) │ │
+        // │ └─────────────────────────────────────┘ │
+        // │ ┌─────────────────────────────────────┐ │
+        // │ │ fixed2: 100px × 50px                │ │
+        // │ └─────────────────────────────────────┘ │
+        // └─────────────────────────────────────────┘
+        // Total: 50 + 100 + 200 + 100 + 50 = 500px (but container is 400px)
+        // Remaining after fixed: 400 - 50 - 50 = 300px
+        // Distribution: grow1=75px, grow2=150px, grow3=75px (1:2:1 ratio)
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0, 400.0], direction: Direction::Column, axis_alignment: Alignment::Stretch]
+        )
+        .push(node!(
+            FillBoundser::new(),
+            [size: [100.0, 50.0], flex_grow: 0.0, debug: "fixed1"]
+        ))
+        .push(node!(
+            Div::new(),
+            [size_pct: [100.0, Auto], flex_grow: 1.0, debug: "grow1"]
+        ))
+        .push(node!(
+            Div::new(),
+            [size_pct: [100.0, Auto], flex_grow: 2.0, debug: "grow2"]
+        ))
+        .push(node!(
+            Div::new(),
+            [size_pct: [100.0, Auto], flex_grow: 1.0, debug: "grow3"]
+        ))
+        .push(node!(
+            FillBoundser::new(),
+            // Because it's fixed size, flex_grow is ignored
+            [size: [100.0, 50.0], flex_grow: 1.0, debug: "fixed2"]
+        ));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+
+        // Root should be 300px × 400px
+        assert_eq!(nodes.layout_result.size, size!(300.0, 400.0));
+
+        // Fixed1 should be 100px × 50px
+        let fixed1 = &nodes.children[0];
+        assert_eq!(fixed1.layout_result.size, size!(100.0, 50.0));
+        assert_eq!(fixed1.layout_result.position.top, px!(0.0));
+
+        // Grow1 should be 300px × 75px (1/4 of 300px remaining)
+        let grow1 = &nodes.children[1];
+        assert_eq!(grow1.layout_result.size, size!(300.0, 75.0));
+        assert_eq!(grow1.layout_result.position.top, px!(50.0));
+
+        // Grow2 should be 300px × 150px (2/4 of 300px remaining)
+        let grow2 = &nodes.children[2];
+        assert_eq!(grow2.layout_result.size, size!(300.0, 150.0));
+        assert_eq!(grow2.layout_result.position.top, px!(125.0));
+
+        // Grow3 should be 300px × 75px (1/4 of 300px remaining)
+        let grow3 = &nodes.children[3];
+        assert_eq!(grow3.layout_result.size, size!(300.0, 75.0));
+        assert_eq!(grow3.layout_result.position.top, px!(275.0));
+
+        // Fixed2 should be 100px × 50px
+        let fixed2 = &nodes.children[4];
+        assert_eq!(fixed2.layout_result.size, size!(100.0, 50.0));
+        assert_eq!(fixed2.layout_result.position.top, px!(350.0));
+
+        // Verify total height: 50 + 75 + 150 + 75 + 50 = 400px
+        let total_height = match (
+            fixed1.layout_result.size.height,
+            grow1.layout_result.size.height,
+            grow2.layout_result.size.height,
+            grow3.layout_result.size.height,
+            fixed2.layout_result.size.height,
+        ) {
+            (
+                Dimension::Px(h1),
+                Dimension::Px(h2),
+                Dimension::Px(h3),
+                Dimension::Px(h4),
+                Dimension::Px(h5),
+            ) => f64::from(h1) + f64::from(h2) + f64::from(h3) + f64::from(h4) + f64::from(h5),
+            _ => panic!("All heights should be resolved"),
+        };
+        assert_eq!(total_height, 400.0);
     }
 
     #[test]

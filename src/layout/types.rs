@@ -187,6 +187,10 @@ impl core::fmt::Debug for Size {
 }
 
 impl Size {
+    pub fn new(width: Dimension, height: Dimension) -> Self {
+        Self { width, height }
+    }
+
     pub fn resolved(&self) -> bool {
         self.width.resolved() && self.height.resolved()
     }
@@ -537,6 +541,7 @@ pub struct Layout {
     // TODO employ this more consistently
     pub max_size: Size,
     pub min_size: Size,
+    pub flex_grow: f64,
     pub z_index: Option<f64>,
     pub z_index_increment: f64,
     pub debug: Option<String>,
@@ -559,6 +564,7 @@ impl Default for Layout {
                 width: Dimension::Px(10.0),
                 height: Dimension::Px(10.0),
             },
+            flex_grow: 1.0,
             z_index: None,
             z_index_increment: 0.0,
             debug: None,
