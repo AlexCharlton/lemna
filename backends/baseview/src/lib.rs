@@ -14,6 +14,8 @@ pub use window_options::WindowOptions;
 
 pub type Message = Box<dyn Any + Send>;
 
+const POINTS_PER_SCROLL_LINE: f32 = 32.0;
+
 #[derive(Debug)]
 pub enum ParentMessage {
     Resize,
@@ -304,8 +306,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 } => {
                     let (mut x, y) = match delta {
                         baseview::ScrollDelta::Lines { x, y } => {
-                            let points_per_scroll_line = 10.0;
-                            (x * points_per_scroll_line, -y * points_per_scroll_line)
+                            (x * POINTS_PER_SCROLL_LINE, -y * POINTS_PER_SCROLL_LINE)
                         }
                         baseview::ScrollDelta::Pixels { x, y } => (x, -y),
                     };
