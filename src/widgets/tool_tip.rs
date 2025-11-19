@@ -68,13 +68,25 @@ impl Component for ToolTip {
         _scale_factor: f32,
     ) {
         if aabb.bottom_right.y > frame.bottom_right.y {
-            // Flip up if there isn't enough room underneath
-            aabb.translate_mut(0.0, -aabb.height());
+            if aabb.pos.y - aabb.height() > 0.0 {
+                // Flip up if there isn't enough room underneath, but there is sufficient room above
+                aabb.translate_mut(0.0, -aabb.height());
+            } else {
+                // Otherwise, offset the tooltip from the bottom to as much as possible
+                aabb.pos.y = (frame.pos.y - aabb.height()).max(0.0);
+                aabb.bottom_right.y = frame.bottom_right.y;
+            }
         }
 
         if aabb.bottom_right.x > frame.bottom_right.x {
-            // Flip left if there isn't enough room to the right
-            aabb.translate_mut(-aabb.width() - Self::MOUSE_OFFSET.x * 2.0, 0.0);
+            if aabb.pos.x - aabb.width() > 0.0 {
+                // Flip left if there isn't enough room to the right
+                aabb.translate_mut(-aabb.width() - Self::MOUSE_OFFSET.x * 2.0, 0.0);
+            } else {
+                // Otherwise, offset the tooltip from the right to as much as possible
+                aabb.pos.x = (frame.pos.x - aabb.width()).max(0.0);
+                aabb.bottom_right.x = frame.bottom_right.x;
+            }
         }
     }
 }
