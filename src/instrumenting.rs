@@ -34,7 +34,7 @@ fn inst_stack_pop() -> Inst {
 }
 
 #[cfg(feature = "instrumented")]
-pub fn inst(name: &str) {
+pub fn inst(name: &'static str) {
     superluminal_perf::begin_event(name);
     let now = Instant::now();
     info!("{:?} {} START", &now, name);
@@ -43,7 +43,7 @@ pub fn inst(name: &str) {
 
 /// Start an instrumented span with the given name.
 #[cfg(not(feature = "instrumented"))]
-pub fn inst(_name: &str) {}
+pub fn inst(_name: &'static str) {}
 
 #[cfg(feature = "instrumented")]
 pub fn inst_end() {
@@ -54,7 +54,7 @@ pub fn inst_end() {
         "{:?} {} END; Took {}μs",
         now,
         name,
-        now.duration_since(prev).as_micros()
+        (now - prev).as_micros()
     );
 }
 

@@ -74,7 +74,7 @@ log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 
 # Feature-dependent dependencies
-superluminal-perf = { version = "0.1", optional = true }
+superluminal-perf = { version = "0.4", optional = true }
 crossbeam-channel = { version = "0.4", optional = true }
 tinyfiledialogs = { version = "3.9", optional = true }
 embed-doc-image = { version = "0.1", optional = true }
