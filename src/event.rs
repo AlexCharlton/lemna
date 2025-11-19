@@ -27,12 +27,18 @@ pub struct Event<T: EventInput> {
     /// The event-specific [`EventInput`]
     pub input: T,
     pub(crate) bubbles: bool,
+    // Does the node need to be re-computed?
+    // Implies render_dirty
     pub(crate) dirty: bool,
+    // Does the node need to be re-rendered?
+    pub(crate) render_dirty: bool,
     pub(crate) mouse_position: Point,
     /// What keyboard modifiers (Shift, Alt, Ctr, Meta) were held when this event was fired.
     pub modifiers_held: ModifiersHeld,
     pub(crate) current_node_id: Option<u64>,
+    // In physical coordinates
     pub(crate) current_aabb: Option<Rect>,
+    // In logical coordinates
     pub(crate) current_inner_scale: Option<Scale>,
     pub(crate) over_child_n: Option<usize>,
     pub(crate) over_subchild_n: Option<usize>,
@@ -315,6 +321,7 @@ impl<T: EventInput> Event<T> {
             input,
             bubbles: true,
             dirty: false,
+            render_dirty: false,
             modifiers_held: event_cache.modifiers_held,
             mouse_position: event_cache.mouse_position,
             focus: Some(event_cache.focus),
@@ -352,6 +359,11 @@ impl<T: EventInput> Event<T> {
         self.dirty = true;
     }
 
+    /// Mark the event as requiring a re-render (but not necessarily a full recompute)
+    pub fn render_dirty(&mut self) {
+        self.render_dirty = true;
+    }
+
     /// Send the [`Message`] to the ancestor Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#method.update] method.
     pub fn emit(&mut self, msg: Message) {
         self.messages.push(msg);
@@ -367,9 +379,15 @@ impl<T: EventInput> Event<T> {
         self.current_aabb.unwrap().unscale(self.scale_factor)
     }
 
-    /// For scrollable [`Component`s][crate::Component], returns the size of the children of the current Node.
-    pub fn current_inner_scale(&self) -> Option<Scale> {
+    /// For scrollable [`Component`s][crate::Component], returns the size of the children of the current Node, in logical coordinates.
+    pub fn current_logical_inner_scale(&self) -> Option<Scale> {
         self.current_inner_scale
+    }
+
+    /// For scrollable [`Component`s][crate::Component], returns the size of the children of the current Node, in physical coordinates.
+    pub fn current_physical_inner_scale(&self) -> Option<Scale> {
+        self.current_inner_scale
+            .map(|s| s.scale(self.scale_factor).round())
     }
 
     /// The current absolutely mouse position, in physical coordinates.

@@ -183,6 +183,10 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
             self.dirty = false;
             d
         }
+
+        fn set_dirty(&mut self, dirty: bool) {
+            self.dirty = dirty;
+        }
     };
 
     let mut i: Vec<_> = input.into_iter().collect();

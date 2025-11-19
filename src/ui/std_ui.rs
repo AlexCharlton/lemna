@@ -41,7 +41,8 @@ pub struct UI<A: Component + Default + Send + Sync> {
     physical_size: Arc<RwLock<PixelSize>>,
     logical_size: Arc<RwLock<PixelSize>>,
     event_cache: EventCache,
-    node_dirty: Arc<RwLock<bool>>,
+    // (node_dirty, node_render_dirty)
+    node_dirty: Arc<RwLock<(bool, bool)>>,
 }
 
 impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
@@ -84,7 +85,7 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
             *self.logical_size.write().unwrap() = current_window().as_ref().unwrap().logical_size();
             *self.scale_factor.write().unwrap() = scale_factor;
             self.event_cache.scale_factor = scale_factor;
-            *self.node_dirty.write().unwrap() = true;
+            *self.node_dirty.write().unwrap() = (true, true);
             current_window().as_ref().unwrap().redraw(); // Always redraw after resizing
         }
     }
@@ -101,7 +102,11 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
     }
 
     fn set_node_dirty(&mut self, dirty: bool) {
-        *self.node_dirty.write().unwrap() = dirty;
+        self.node_dirty.write().unwrap().0 = dirty;
+    }
+
+    fn set_node_render_dirty(&mut self) {
+        self.node_dirty.write().unwrap().1 = true;
     }
 
     fn registrations(&self) -> Vec<Registration> {
@@ -142,7 +147,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
             Layout::default(),
         )));
         let frame_dirty = Arc::new(RwLock::new(false));
-        let node_dirty = Arc::new(RwLock::new(true));
+        let node_dirty = Arc::new(RwLock::new((true, true)));
         let registrations: Arc<RwLock<Vec<Registration>>> = Default::default();
         let caches = Arc::new(RwLock::new(Caches::default()));
 
@@ -234,7 +239,6 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     draw_target.present();
 
                     *frame_dirty.write().unwrap() = false;
-                    // println!("rendered");
                     inst_end();
                 }
             }
@@ -248,14 +252,14 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         logical_size: Arc<RwLock<PixelSize>>,
         scale_factor: Arc<RwLock<f32>>,
         frame_dirty: Arc<RwLock<bool>>,
-        node_dirty: Arc<RwLock<bool>>,
+        node_dirty: Arc<RwLock<(bool, bool)>>,
         registrations: Arc<RwLock<Vec<Registration>>>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             for _ in receiver.iter() {
-                if *node_dirty.read().unwrap() {
+                if node_dirty.read().unwrap().0 {
                     // Set the node to clean right away so that concurrent events can reset it to dirty
-                    *node_dirty.write().unwrap() = false;
+                    *node_dirty.write().unwrap() = (false, false);
                     inst("UI::draw");
                     let logical_size = *logical_size.read().unwrap();
                     let scale_factor = *scale_factor.read().unwrap();
@@ -277,11 +281,11 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         inst_end();
 
                         inst("Node::layout");
-                        new.layout(&old, &caches, scale_factor);
+                        new.layout(&caches, scale_factor);
                         inst_end();
 
                         inst("Node::render");
-                        let do_render = new.render(&mut caches, Some(&mut old), scale_factor);
+                        let do_render = new.render(&mut caches, scale_factor);
                         inst_end();
 
                         *old = new;
@@ -292,6 +296,27 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         *frame_dirty.write().unwrap() = true;
                     }
 
+                    inst_end();
+                } else if node_dirty.read().unwrap().1 {
+                    // If the node is only render dirty, we don't need to re-compute it
+                    *node_dirty.write().unwrap() = (false, false);
+
+                    let mut caches = caches.write().unwrap();
+                    let mut node = node.write().unwrap();
+                    inst("UI::draw");
+                    let scale_factor = *scale_factor.read().unwrap();
+                    inst("Node::reposition");
+                    node.reposition(scale_factor);
+                    inst_end();
+
+                    inst("Node::render");
+                    let do_render = node.render(&mut caches, scale_factor);
+                    inst_end();
+
+                    if do_render {
+                        current_window().as_ref().unwrap().redraw();
+                    }
+                    *frame_dirty.write().unwrap() = true;
                     inst_end();
                 }
             }

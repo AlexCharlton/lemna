@@ -35,7 +35,7 @@ pub struct RenderContext<'a> {
     /// The `Rect` that contains the given [`Component`] instance.
     /// This is in physical units (i.e. it has been scaled by the scale factor), not logical units.
     pub aabb: Rect,
-    /// For scrollable Components (Components that return a `Some` value for [`#scroll_position`][Component#method.scroll_position]), this is the size of the child Nodes.
+    /// For scrollable Components (Components that return a `Some` value for [`#scroll_position`][Component#method.scroll_position]), this is the size of the child Nodes in physical units.
     pub inner_scale: Option<Scale>,
     /// The caches used by the renderer.
     pub caches: &'a mut Caches,
@@ -117,8 +117,14 @@ pub trait Component: fmt::Debug {
         false
     }
 
+    /// Implemented by the `component` attribute macro
+    #[doc(hidden)]
+    fn set_dirty(&mut self, _dirty: bool) {
+        // Do nothing by default
+    }
+
     /// Return the set of event types that you wish this Component to be sent. This lets
-    /// a Component to receive key events even if it isn't focused on the root node.
+    /// a Component receive key events even if it isn't focused
     fn register(&mut self) -> Vec<event::Register> {
         vec![]
     }

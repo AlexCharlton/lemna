@@ -113,6 +113,14 @@ impl Scale {
     pub fn new(width: f32, height: f32) -> Self {
         Self { width, height }
     }
+
+    /// Round the scale
+    pub fn round(&self) -> Self {
+        Self {
+            width: self.width.round(),
+            height: self.height.round(),
+        }
+    }
 }
 
 impl Sub for Scale {

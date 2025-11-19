@@ -97,7 +97,7 @@ impl Component for Div {
             let mut scroll_position = self.state_ref().scroll_position;
             let mut scrolled = false;
             let size = event.current_physical_aabb().size();
-            let inner_scale = event.current_inner_scale().unwrap();
+            let inner_scale = event.current_physical_inner_scale().unwrap();
 
             if self.y_scrollable() {
                 if event.input.y > 0.0 {
@@ -137,6 +137,9 @@ impl Component for Div {
 
             if scrolled {
                 self.state_mut().scroll_position = scroll_position;
+                // We don't need to re-compute the node, but we do need to re-render it
+                self.dirty = false;
+                event.render_dirty();
                 event.stop_bubbling();
             }
         }
@@ -167,8 +170,12 @@ impl Component for Div {
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         if self.scrollable() {
-            self.state_mut().over_y_bar = false;
-            self.state_mut().over_x_bar = false;
+            if self.state_ref().over_y_bar {
+                self.state_mut().over_y_bar = false;
+            }
+            if self.state_ref().over_x_bar {
+                self.state_mut().over_x_bar = false;
+            }
         }
     }
 
@@ -197,7 +204,7 @@ impl Component for Div {
         if self.scrollable() {
             let start_position = self.state_ref().drag_start_position;
             let size = event.current_physical_aabb().size();
-            let inner_scale = event.current_inner_scale().unwrap();
+            let inner_scale = event.current_physical_inner_scale().unwrap();
             let mut scroll_position = self.state_ref().scroll_position;
 
             if self.state_ref().y_bar_pressed {
@@ -221,6 +228,9 @@ impl Component for Div {
             }
 
             self.state_mut().scroll_position = scroll_position;
+            // We don't need to re-compute the node, but we do need to re-render it
+            self.dirty = false;
+            event.render_dirty();
         }
     }
 

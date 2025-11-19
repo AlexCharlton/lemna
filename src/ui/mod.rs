@@ -31,6 +31,7 @@ pub(crate) trait LemnaUI {
         F: FnOnce(&mut Node) -> R;
 
     fn set_node_dirty(&mut self, dirty: bool);
+    fn set_node_render_dirty(&mut self);
 
     fn registrations(&self) -> Vec<Registration>;
 
@@ -97,6 +98,8 @@ pub(crate) trait LemnaUI {
     fn handle_dirty_event<T: EventInput>(&mut self, event: &Event<T>) {
         if event.dirty {
             self.set_node_dirty(true);
+        } else if event.render_dirty {
+            self.set_node_render_dirty();
         }
     }
 

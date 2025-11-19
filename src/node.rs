@@ -93,8 +93,10 @@ pub struct Node {
     // TODO: Marking a node dirty should propagate to all its parents.
     //   Clean nodes can be fully recycled instead of performing a `view`
     // pub(crate) dirty: bool,
-    /// If the node is scrollable, how big are its children?
+    /// If the node is scrollable, how big are its children? In logical coordinates.
     pub(crate) inner_scale: Option<Scale>,
+    /// If the node is scrollable, how big are its children? In physical coordinates.
+    inner_scale_physical: Option<Scale>,
     pub(crate) props_hash: u64,
     pub(crate) render_hash: u64,
     pub(crate) key: u64,
@@ -140,10 +142,13 @@ impl Node {
             component,
             layout,
             key,
+            // In physical coordinates
             aabb: Default::default(),
             inclusive_aabb: Default::default(),
             // dirty: false,
             inner_scale: None,
+            inner_scale_physical: None,
+            // In logical coordinates
             layout_result: Default::default(),
             children: vec![],
             render_cache: None,
@@ -176,6 +181,12 @@ impl Node {
             self.id = prev.id;
             if let Some(state) = prev.component.take_state() {
                 self.component.replace_state(state);
+            }
+
+            // Transfer the render cache from the previous node to the new one
+            if let Some(prev_render_cache) = prev.render_cache.take() {
+                self.render_cache = Some(prev_render_cache);
+                self.render_hash = prev.render_hash;
             }
 
             self.component.props_hash(&mut hasher);
@@ -265,10 +276,6 @@ impl Node {
             self.aabb = self.layout_result.into();
             self.aabb = self.aabb.round();
             self.aabb *= scale_factor;
-            if let Some(s) = self.inner_scale.as_mut() {
-                s.width = (s.width * scale_factor).round();
-                s.height = (s.height * scale_factor).round();
-            }
         }
         self.aabb.pos += parent_pos;
         self.aabb.bottom_right += parent_pos.into();
@@ -283,20 +290,22 @@ impl Node {
                     c.aabb = c.layout_result.into();
                     c.aabb *= scale_factor;
                     c.aabb = c.aabb.round();
-                    if let Some(s) = c.inner_scale.as_mut() {
-                        s.width = (s.width * scale_factor).round();
-                        s.height = (s.height * scale_factor).round();
-                    }
 
-                    (&mut c.aabb, c.inner_scale, c.component.focus())
+                    (
+                        &mut c.aabb,
+                        c.inner_scale.map(|s| s.scale(scale_factor).round()),
+                        c.component.focus(),
+                    )
                 })
                 .collect();
             self.component
                 .set_aabb(&mut self.aabb, parent_aabb, children, frame, scale_factor);
         }
 
+        self.inner_scale_physical = self.inner_scale.map(|s| s.scale(scale_factor).round());
+
         self.inclusive_aabb = self.aabb;
-        if let Some(scale) = self.inner_scale {
+        if let Some(scale) = self.inner_scale_physical {
             self.inclusive_aabb.set_scale_mut(scale.width, scale.height);
         }
 
@@ -304,7 +313,7 @@ impl Node {
 
         if let Some(mut x) = self.scroll_x() {
             let width = self.aabb.width();
-            let inner_width = self.inner_scale.unwrap().width;
+            let inner_width = self.inner_scale_physical.unwrap().width;
             if x + width > inner_width {
                 x = inner_width - width;
             }
@@ -315,7 +324,7 @@ impl Node {
 
         if let Some(mut y) = self.scroll_y() {
             let height = self.aabb.height();
-            let inner_height = self.inner_scale.unwrap().height;
+            let inner_height = self.inner_scale_physical.unwrap().height;
             if y + height > inner_height {
                 y = inner_height - height;
             }
@@ -352,8 +361,12 @@ impl Node {
         }
     }
 
-    pub(crate) fn layout(&mut self, _prev: &Self, caches: &Caches, scale_factor: f32) {
+    pub(crate) fn layout(&mut self, caches: &Caches, scale_factor: f32) {
         self.calculate_layout(caches, scale_factor);
+        self.reposition(scale_factor);
+    }
+
+    pub(crate) fn reposition(&mut self, scale_factor: f32) {
         self.set_aabb(
             Pos::default(),
             self.aabb,
@@ -365,49 +378,42 @@ impl Node {
     }
 
     /// Return whether to redraw the screen
-    pub(crate) fn render(
-        &mut self,
-        caches: &mut Caches,
-        prev: Option<&mut Self>,
-        scale_factor: f32,
-    ) -> bool {
+    pub(crate) fn render(&mut self, caches: &mut Caches, scale_factor: f32) -> bool {
         // TODO: skip non-visible nodes
         let mut hasher = ComponentHasher::default();
-        if let Some(prev) = prev {
+        if let Some(prev_render_cache) = self.render_cache.take() {
+            let prev_render_hash = self.render_hash;
             let mut ret = false;
             self.component.render_hash(&mut hasher);
             self.aabb.size().hash(&mut hasher);
             self.inner_scale.hash(&mut hasher);
             self.render_hash = hasher.finish();
 
-            if self.render_hash != prev.render_hash {
+            if self.render_hash != prev_render_hash {
                 let context = RenderContext {
                     aabb: self.aabb,
-                    inner_scale: self.inner_scale,
+                    inner_scale: self.inner_scale_physical,
                     caches,
-                    prev_state: prev.render_cache.take(),
+                    prev_state: Some(prev_render_cache),
                     scale_factor,
                 };
                 self.render_cache = self.component.render(context);
                 ret = true;
             } else {
-                self.render_cache = prev.render_cache.take();
+                self.render_cache = Some(prev_render_cache);
             }
 
-            let prev_children = &mut prev.children;
             for child in self.children.iter_mut() {
-                ret |= child.render(
-                    caches,
-                    prev_children.iter_mut().find(|x| x.key == child.key),
-                    scale_factor,
-                )
+                ret |= child.render(caches, scale_factor)
             }
 
+            // Rendering shouldn't dirty the node
+            self.component.set_dirty(false);
             ret
         } else {
             let context = RenderContext {
                 aabb: self.aabb,
-                inner_scale: self.inner_scale,
+                inner_scale: self.inner_scale_physical,
                 caches,
                 prev_state: None,
                 scale_factor,
@@ -419,9 +425,11 @@ impl Node {
             self.render_hash = hasher.finish();
 
             for child in self.children.iter_mut() {
-                child.render(caches, None, scale_factor);
+                child.render(caches, scale_factor);
             }
 
+            // Rendering shouldn't dirty the node
+            self.component.set_dirty(false);
             true
         }
     }
@@ -541,7 +549,8 @@ impl Node {
 
         let is_mouse_over = self.component.is_mouse_over(
             event.mouse_position,
-            self.component.frame_bounds(self.aabb, self.inner_scale),
+            self.component
+                .frame_bounds(self.aabb, self.inner_scale_physical),
         );
 
         if self.scrollable() && !is_mouse_over {
@@ -830,7 +839,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
                     self.i = 0;
                     if n.scrollable() {
                         let mut f = self.current_frame.clone();
-                        f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
+                        f.push(n.component.frame_bounds(n.aabb, n.inner_scale_physical));
                         self.frame_queue.push((n, f));
                     } else {
                         self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
@@ -842,7 +851,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
                 }
             } else if n.scrollable() {
                 let mut f = self.current_frame.clone();
-                f.push(n.component.frame_bounds(n.aabb, n.inner_scale));
+                f.push(n.component.frame_bounds(n.aabb, n.inner_scale_physical));
                 self.frame_queue.push((n, f));
             } else {
                 self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
@@ -1072,7 +1081,7 @@ mod tests {
         let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
         n.view(None, &mut vec![]);
         //n.layout();
-        n.render(&mut caches, None, 1.0);
+        n.render(&mut caches, 1.0);
         //println!("{:#?}", n);
         assert_eq!(
             n.render_cache,
@@ -1103,7 +1112,7 @@ mod tests {
         assert_eq!(n.children[0].id, new_n.children[0].id);
 
         //new_n.layout();
-        new_n.render(&mut caches, Some(&mut n), 1.0);
+        new_n.render(&mut caches, 1.0);
         //println!("{:#?}", new_n);
         assert_eq!(
             new_n.render_cache,
@@ -1293,18 +1302,14 @@ mod tests {
     #[test]
     fn test_scroll() {
         let mut caches = Caches::default();
-        let m = Node::new(
-            Box::new(test_scroll_app::TestApp::default()),
-            0,
-            Layout::default(),
-        );
+
         let mut n = Node::new(
             Box::new(test_scroll_app::TestApp::default()),
             0,
             lay!(size: size!(300.0)),
         );
         n.view(None, &mut vec![]);
-        n.layout(&m, &caches, 1.0);
+        n.layout(&caches, 1.0);
 
         // Expect the inner_scale to be a real size
         let scroll_node = &mut n.children[0].children[0];
@@ -1312,7 +1317,7 @@ mod tests {
         assert_eq!(scroll_node.inner_scale.unwrap(), [200.0, 150.0].into());
 
         // Expect renderables to be laid out in the right order, with the correct Frames
-        n.render(&mut caches, None, 1.0);
+        n.render(&mut caches, 1.0);
         let renderables = n.iter_renderables().collect::<Vec<_>>();
         assert_eq!(renderables.len(), 9);
         // First three (App, Top Div, Scroll Div) do not have Frames

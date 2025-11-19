@@ -29,6 +29,7 @@ pub struct UI<
     caches: Caches,
     registrations: Vec<Registration>,
     node_dirty: bool,
+    node_render_dirty: bool,
     frame_dirty: bool,
     event_cache: EventCache,
 }
@@ -51,6 +52,10 @@ impl<
         self.node_dirty = dirty;
     }
 
+    fn set_node_render_dirty(&mut self) {
+        self.node_render_dirty = true;
+    }
+
     fn registrations(&self) -> Vec<Registration> {
         self.registrations.clone()
     }
@@ -58,6 +63,7 @@ impl<
     fn draw(&mut self) {
         if self.node_dirty {
             self.node_dirty = false;
+            self.node_render_dirty = false;
             let size = self.size;
             let mut new = Node::new(
                 Box::<A>::default(),
@@ -68,9 +74,14 @@ impl<
             new.view(Some(&mut self.node), &mut new_registrations);
             self.registrations = new_registrations;
 
-            new.layout(&self.node, &self.caches, 1.0);
-            let do_render = new.render(&mut self.caches, Some(&mut self.node), 1.0);
+            new.layout(&self.caches, 1.0);
+            let do_render = new.render(&mut self.caches, 1.0);
             self.node = new;
+            self.frame_dirty = do_render;
+        } else if self.node_render_dirty {
+            self.node_render_dirty = false;
+            self.node.reposition(1.0);
+            let do_render = self.node.render(&mut self.caches, 1.0);
             self.frame_dirty = do_render;
         }
     }
@@ -122,6 +133,7 @@ impl<
             caches: Caches::default(),
             registrations: vec![],
             node_dirty: true,
+            node_render_dirty: false,
             frame_dirty: false,
             event_cache: EventCache::new(1.0),
         }
