@@ -56,6 +56,10 @@ mod cpu_path {
             self.builder.close();
         }
 
+        pub fn end(&mut self) {
+            // No-op
+        }
+
         pub fn line_to(&mut self, p: Point) {
             self.builder.line_to(p.x, p.y);
             self.current_point = p;
@@ -142,6 +146,12 @@ mod gpu_path {
 
         pub fn close(&mut self) {
             self.builder.close();
+            self.ended = true;
+        }
+
+        pub fn end(&mut self) {
+            // End without closing the path
+            self.builder.end(false);
             self.ended = true;
         }
 
