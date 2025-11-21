@@ -28,7 +28,7 @@ A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerat
   - `Selection`, a dropdown menu
   - `RoundedRect`, a stylable-rectangle
   - `FileSelector`, a dialog for selecting files (feature: `file_dialogs`)
-- OpenIconic icons built-in (feature: `open_iconic`)
+- [OpenIconic icons](https://kordamp.org/ikonli/cheat-sheet-openiconic.html) built-in (feature: `open_iconic`)
 - wgpu rendering backend batches primitives together to minimize calls out to wgpu (which makes it a lot faster than things that don't do this!)
 - [nih-plug](https://github.com/robbert-vdh/nih-plug) support in the lemna-nih-plug package
 

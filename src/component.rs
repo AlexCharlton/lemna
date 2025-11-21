@@ -142,7 +142,7 @@ pub trait Component: fmt::Debug {
     }
 
     /// Called during layout, this can be used to set the size of the Component
-    /// based on some intrinsic properties, by returning a desired `(width, height)`. `None` values for width or height indicate that the layout engine should determine the size.
+    /// based on some intrinsic properties, by returning a desired `(width, height)` in logical units. `None` values for width or height indicate that the layout engine should determine the size.
     ///
     /// The input `width` and `height` is the size that the layout engine believes the component should have, if it does have an opinion. The size returned should not exceed the `max_` width or height. The [`Caches`] are also provided, so that text layout can inform the size of the Component. If laying out text, you should cache the glyphs so that you don't need to compute them every time `fill_bounds` is called.
     fn fill_bounds(
