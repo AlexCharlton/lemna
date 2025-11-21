@@ -103,9 +103,21 @@ impl Component for Text {
             } else {
                 max_width.unwrap() * scale
             };
-            // Force h to the next multiple of size, in order to account for some lines not otherwise having the same height as others
+            // Force h to the next multiple of size, in order to account for some lines not otherwise having the same height as others, unless we have final glyphs exceeding the expected line height (which will happen if using text segments with different sizes)
             let h = if last_glyph.y % line_height > 0.001 {
-                last_glyph.y + (line_height - last_glyph.y % line_height)
+                // Iterate backwards to find the maximum glyph.y + glyph.height
+                let mut max_height = last_glyph.y + last_glyph.height as f32;
+                for glyph in glyphs.iter().rev().skip(1) {
+                    let glyph_bottom = glyph.y + glyph.height as f32;
+                    if max_height - glyph_bottom > line_height {
+                        break;
+                    }
+                    if glyph_bottom > max_height {
+                        max_height = glyph_bottom;
+                    }
+                }
+
+                (last_glyph.y + (line_height - last_glyph.y % line_height)).max(max_height)
             } else {
                 line_height
             };
