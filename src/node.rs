@@ -274,7 +274,6 @@ impl Node {
 
         if !parent_full_control {
             self.aabb = self.layout_result.into();
-            self.aabb = self.aabb.round();
             self.aabb *= scale_factor;
         }
         self.aabb.pos += parent_pos;
@@ -288,12 +287,11 @@ impl Node {
                 .iter_mut()
                 .map(|c| {
                     c.aabb = c.layout_result.into();
-                    c.aabb = c.aabb.round();
                     c.aabb *= scale_factor;
 
                     (
                         &mut c.aabb,
-                        c.inner_scale.map(|s| s.round().scale(scale_factor)),
+                        c.inner_scale.map(|s| s.scale(scale_factor)),
                         c.component.focus(),
                     )
                 })
@@ -302,7 +300,7 @@ impl Node {
                 .set_aabb(&mut self.aabb, parent_aabb, children, frame, scale_factor);
         }
 
-        self.inner_scale_physical = self.inner_scale.map(|s| s.round().scale(scale_factor));
+        self.inner_scale_physical = self.inner_scale.map(|s| s.scale(scale_factor));
 
         self.inclusive_aabb = self.aabb;
         if let Some(scale) = self.inner_scale_physical {
@@ -372,7 +370,7 @@ impl Node {
             self.aabb,
             ScrollPosition::default(),
             false,
-            Rect::from(self.layout_result).round().scale(scale_factor),
+            Rect::from(self.layout_result).scale(scale_factor),
             scale_factor,
         );
     }

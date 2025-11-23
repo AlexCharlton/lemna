@@ -386,8 +386,7 @@ impl<T: EventInput> Event<T> {
 
     /// For scrollable [`Component`s][crate::Component], returns the size of the children of the current Node, in physical coordinates.
     pub fn current_physical_inner_scale(&self) -> Option<Scale> {
-        self.current_inner_scale
-            .map(|s| s.scale(self.scale_factor).round())
+        self.current_inner_scale.map(|s| s.scale(self.scale_factor))
     }
 
     /// The current absolutely mouse position, in physical coordinates.
