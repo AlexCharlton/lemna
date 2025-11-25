@@ -529,6 +529,14 @@ impl super::node::Node {
             size.height = children_size.height;
         }
 
+        // Ensure the size is at least the min_size
+        if !self.layout.size.width.resolved() {
+            size.width = size.width.max(self.layout.min_size.width);
+        }
+        if !self.layout.size.height.resolved() {
+            size.height = size.height.max(self.layout.min_size.height);
+        }
+
         self.layout_result.size = size;
     }
 
@@ -1732,6 +1740,127 @@ mod tests {
         );
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(250.0, 300.0));
+    }
+
+    #[test]
+    fn test_min_size_with_auto_size_and_small_children() {
+        // Node with auto size, min_size, and children smaller than min_size
+        // Should result in min_size
+        let mut nodes = node!(
+            Div::new(),
+            lay!(direction: Direction::Row, min_size: size!(250.0, 200.0))
+        )
+        .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))))
+        .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // Children total width is 100px, but min_size is 250px, so should be 250px
+        // Children total height is 50px, but min_size is 200px, so should be 200px
+        assert_eq!(nodes.layout_result.size, size!(250.0, 200.0));
+    }
+
+    #[test]
+    fn test_min_size_with_auto_size_and_large_children() {
+        // Node with auto size, min_size, and children larger than min_size
+        // Should result in children's size (min_size doesn't expand beyond content)
+        let mut nodes = node!(
+            Div::new(),
+            lay!(direction: Direction::Row, min_size: size!(100.0, 100.0))
+        )
+        .push(node!(Div::new(), lay!(size: size!(150.0, 150.0))))
+        .push(node!(Div::new(), lay!(size: size!(100.0, 100.0))));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // Children total width is 250px (larger than min_size 100px), so should be 250px
+        // Children total height is 150px (larger than min_size 100px), so should be 150px
+        assert_eq!(nodes.layout_result.size, size!(250.0, 150.0));
+    }
+
+    #[test]
+    fn test_min_size_width_only_with_auto_size() {
+        // Node with auto width, min_width, and children smaller than min_width
+        let mut nodes = node!(
+            Div::new(),
+            lay!(direction: Direction::Row, min_size: size!(200.0, Auto))
+        )
+        .push(node!(Div::new(), lay!(size: size!(50.0, 100.0))));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // Width should be at least 200px (min_size), height should be from children (100px)
+        assert_eq!(nodes.layout_result.size, size!(200.0, 100.0));
+    }
+
+    #[test]
+    fn test_min_size_height_only_with_auto_size() {
+        // Node with auto height, min_height, and children smaller than min_height
+        let mut nodes = node!(
+            Div::new(),
+            lay!(direction: Direction::Column, min_size: size!(Auto, 200.0))
+        )
+        .push(node!(Div::new(), lay!(size: size!(100.0, 50.0))));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // Width should be from children (100px), height should be at least 200px (min_size)
+        assert_eq!(nodes.layout_result.size, size!(100.0, 200.0));
+    }
+
+    #[test]
+    fn test_min_size_with_resolved_size() {
+        // Node with resolved size smaller than min_size
+        // min_size should NOT override resolved size (only applies when size is Auto)
+        let mut nodes = node!(
+            Div::new(),
+            lay!(size: size!(50.0, 50.0), min_size: size!(200.0, 200.0))
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // Should respect the resolved size, not min_size
+        assert_eq!(nodes.layout_result.size, size!(50.0, 50.0));
+    }
+
+    #[test]
+    fn test_min_size_with_column_direction() {
+        // Test min_size with Column direction
+        let mut nodes = node!(
+            Div::new(),
+            lay!(direction: Direction::Column, min_size: size!(150.0, 250.0))
+        )
+        .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))))
+        .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // Width should be at least 150px (min_size), height should be at least 250px (min_size)
+        // Children width is 50px, so width becomes 150px
+        // Children height is 100px, so height becomes 250px
+        assert_eq!(nodes.layout_result.size, size!(150.0, 250.0));
+    }
+
+    #[test]
+    fn test_min_size_with_wrapping() {
+        // Test min_size with wrapping enabled
+        let mut nodes = node!(
+            Div::new(),
+            lay!(
+                direction: Direction::Row,
+                wrap: true,
+                min_size: size!(300.0, 200.0)
+            )
+        )
+        .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))))
+        .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // With wrapping, children should fit in one row (50 + 50 = 100px width)
+        // But min_size is 300px, so width should be 300px
+        // Height should be at least 200px (min_size), but children are 50px tall
+        assert_eq!(nodes.layout_result.size, size!(300.0, 200.0));
+    }
+
+    #[test]
+    fn test_min_size_partial_auto() {
+        // Node with auto width but resolved height, and min_size
+        let mut nodes = node!(
+            Div::new(),
+            lay!(size: size!(Auto, 100.0), min_size: size!(200.0, 150.0))
+        )
+        .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        // Width is Auto, so min_size.width (200px) should apply
+        // Height is resolved (100px), so min_size.height should NOT apply
+        assert_eq!(nodes.layout_result.size, size!(200.0, 100.0));
     }
 
     #[test]
