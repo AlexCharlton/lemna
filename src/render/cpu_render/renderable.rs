@@ -47,7 +47,13 @@ impl Rectangle {
 }
 
 fn rect_from_pos_scale(pos: &Pos, scale: &Scale) -> tiny_skia::Rect {
-    tiny_skia::Rect::from_xywh(pos.x, pos.y, scale.width, scale.height).unwrap()
+    tiny_skia::Rect::from_xywh(
+        pos.x.round(),
+        pos.y.round(),
+        scale.width.round(),
+        scale.height.round(),
+    )
+    .unwrap()
 }
 
 //--------------------------------
