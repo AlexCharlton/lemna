@@ -365,13 +365,27 @@ impl TextBoxText {
     fn cursor_position_px(&self, pos: usize) -> f32 {
         let len = self.state_ref().text.len();
         let glyphs = &self.state_ref().glyphs;
+        let text = &self.state_ref().text;
         (if pos == 0 {
             0.0
         } else if pos < len {
             glyphs[pos].x - 1.0 // Provide a 1px gap between the next glyph and the cursor
         } else {
-            // Last glyph, need to add the advance
-            glyphs[pos - 1].x + self.state_ref().glyph_widths.last().map_or(0.0, |w| *w)
+            // Cursor is at the end of the text
+            // Special case: if the last character is a space, use the trailing space glyph's position
+            // (we always add a trailing space when laying out glyphs to handle this case)
+            if text.ends_with(' ') {
+                // Use the trailing space glyph (at index len, since we added it during layout)
+                glyphs[len].x - 1.0
+            } else {
+                // Normal case: use the last actual character's glyph
+                glyphs[pos - 1].x
+                    + self
+                        .state_ref()
+                        .glyph_widths
+                        .get(pos - 1)
+                        .map_or(0.0, |w| *w)
+            }
         }) + self.state_ref().padding_offset_px
     }
 
@@ -624,6 +638,8 @@ impl Component for TextBoxText {
                 self.state_ref().text.clone(),
             )))
         }
+        // We always reset the activation time when we handle a key event so that the cursor is visible
+        self.state_mut().activated_at = Instant::now();
     }
 
     fn on_text_entry(&mut self, event: &mut event::Event<event::TextEntry>) {
@@ -690,9 +706,13 @@ impl Component for TextBoxText {
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
         if self.state_ref().dirty {
             let font = self.style_val("font").map(|p| p.str().to_string());
+            // Append a trailing space to help with cursor positioning when text ends with a space
+            // (spaces have no width, so we need this reference point)
+            let mut text_with_trailing_space = self.state_ref().text.clone();
+            text_with_trailing_space.push(' ');
             self.state_mut().glyphs = caches.layout_text(
                 &[TextSegment {
-                    text: self.state_ref().text.clone(),
+                    text: text_with_trailing_space,
                     size: font_size.into(),
                     font: font.clone(),
                 }],
