@@ -38,6 +38,7 @@ A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerat
   - Use signals?
 - Debug detection of duplicate Node keys
 - Only re-view dirty nodes
+- Button inactive state
 
 **To fix:**
 - MSAA doesn't seem to be picking up clear color
