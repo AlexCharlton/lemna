@@ -7,7 +7,7 @@ use hashbrown::HashMap;
 use log::info;
 
 use crate::component::Component;
-use crate::event::EventCache;
+use crate::event::{self, Event, EventCache};
 use crate::focus::FocusState;
 use crate::instrumenting::*;
 use crate::layout::*;
@@ -302,8 +302,35 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                             &mut new_focus_state,
                             root_id, // Root node is the default focus
                         );
-                        if new_focus_state.active() == root_id {
+                        let prev_focus = focus_state.read().unwrap().active();
+                        let new_focus = new_focus_state.active();
+                        if new_focus == root_id {
                             new_focus_state.inherit_active(&focus_state.read().unwrap());
+                        } else if new_focus != prev_focus {
+                            // Blur the previously focused node
+                            let mut blur_event =
+                                Event::new(event::Blur, &EventCache::new(scale_factor), prev_focus);
+                            let prev_focus_stack = focus_state.read().unwrap().stack().to_vec();
+                            blur_event.set_focus_stack(prev_focus_stack);
+                            blur_event.target = Some(prev_focus);
+                            new.blur(&mut blur_event);
+                            if blur_event.dirty {
+                                node_dirty.write().unwrap().0 = true;
+                            } else if blur_event.render_dirty {
+                                node_dirty.write().unwrap().1 = true;
+                            }
+                            // Focus the new node
+                            let mut focus_event =
+                                Event::new(event::Focus, &EventCache::new(scale_factor), new_focus);
+                            let new_focus_stack = new_focus_state.stack().to_vec();
+                            focus_event.set_focus_stack(new_focus_stack);
+                            focus_event.target = Some(new_focus);
+                            new.set_focus(&mut focus_event);
+                            if focus_event.dirty {
+                                node_dirty.write().unwrap().0 = true;
+                            } else if focus_event.render_dirty {
+                                node_dirty.write().unwrap().1 = true;
+                            }
                         }
                         *references.write().unwrap() = new_references;
                         *focus_state.write().unwrap() = new_focus_state;

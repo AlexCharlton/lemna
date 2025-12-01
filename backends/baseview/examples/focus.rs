@@ -3,32 +3,11 @@ use lemna::*;
 // MARK: App
 //
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum PaneId {
-    Left = 0,
-    Right = 1,
-}
-
-#[derive(Debug)]
-pub struct AppState {
-    active_pane: PaneId,
-}
-
-#[component(State = "AppState")]
 #[derive(Debug, Default)]
 pub struct App {}
 
-#[state_component_impl(AppState)]
 impl lemna::Component for App {
-    fn init(&mut self) {
-        self.state = Some(AppState {
-            active_pane: PaneId::Left,
-        });
-    }
-
     fn view(&self) -> Option<Node> {
-        let state = self.state_ref();
-
         // Main container
         let container = node!(
             widgets::Div::new().bg(Color::new(0.95, 0.95, 0.95, 1.0)),
@@ -41,9 +20,7 @@ impl lemna::Component for App {
 
         // Instructions
         let instructions = node!(
-            widgets::Text::new(txt!(
-                "Press Ctrl+1 for Left Pane, Ctrl+2 for Right Pane\nType in the textboxes to see focus in action"
-            )),
+            widgets::Text::new(txt!("Press Ctrl+1 for Left Pane, Ctrl+2 for Right Pane")),
             lay![
                 size_pct: [100.0, Auto],
                 margin: [0.0, 0.0, 20.0, 0.0],
@@ -61,7 +38,7 @@ impl lemna::Component for App {
 
         // Left pane
         let left_pane = node!(
-            Pane::new("Left Pane", state.active_pane == PaneId::Left,),
+            Pane::new("Left Pane"),
             lay![
                 size_pct: [50.0, 80.0],
                 margin: [0.0, 10.0, 0.0, 0.0],
@@ -71,7 +48,7 @@ impl lemna::Component for App {
 
         // Right pane
         let right_pane = node!(
-            Pane::new("Right Pane", state.active_pane == PaneId::Right,),
+            Pane::new("Right Pane"),
             lay![
                 size_pct: [50.0, 80.0],
                 margin: [0.0, 0.0, 0.0, 10.0],
@@ -93,10 +70,10 @@ impl lemna::Component for App {
         if event.modifiers_held.ctrl {
             match event.input.0 {
                 input::Key::D1 => {
-                    self.state_mut().active_pane = PaneId::Left;
+                    // TODO: Set focus to left pane
                 }
                 input::Key::D2 => {
-                    self.state_mut().active_pane = PaneId::Right;
+                    // TODO: Set focus to right pane
                 }
                 _ => {}
             }
@@ -109,24 +86,35 @@ impl lemna::Component for App {
 //
 
 #[derive(Debug)]
+struct PaneState {
+    focused: bool,
+}
+
+#[component(State = "PaneState")]
+#[derive(Debug)]
 pub struct Pane {
     title: String,
-    is_active: bool,
 }
 
 impl Pane {
-    pub fn new(title: &str, is_active: bool) -> Self {
+    pub fn new(title: &str) -> Self {
         Self {
             title: title.to_string(),
-            is_active,
+            state: None,
+            dirty: false,
         }
     }
 }
 
+#[state_component_impl(PaneState)]
 impl Component for Pane {
+    fn init(&mut self) {
+        self.state = Some(PaneState { focused: false });
+    }
+
     fn view(&self) -> Option<Node> {
         // Choose colors based on active state
-        let (bg_color, border_color, border_width) = if self.is_active {
+        let (bg_color, border_color, border_width) = if self.state_ref().focused {
             (Color::WHITE, Color::new(0.2, 0.5, 0.8, 1.0), 3.0)
         } else {
             (
@@ -157,7 +145,7 @@ impl Component for Pane {
         );
 
         // Status text
-        let status = if self.is_active {
+        let status = if self.state_ref().focused {
             "Active (has focus)"
         } else {
             "Inactive"
@@ -187,6 +175,15 @@ impl Component for Pane {
 
     fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
         println!("{} got {:?}", self.title, event.input);
+    }
+
+    fn on_focus(&mut self, _event: &mut event::Event<event::Focus>) {
+        println!("{} got focus", self.title);
+        self.state_mut().focused = true;
+    }
+
+    fn on_blur(&mut self, _event: &mut event::Event<event::Blur>) {
+        self.state_mut().focused = false;
     }
 }
 

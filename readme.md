@@ -36,8 +36,6 @@ A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerat
 - More robust and more widgets (e.g. text selection support on `Text` widget)
 - "scroll to" functionality
 - Better keyboard support
-  - Track the stack of nodes an event has bubbled through
-    - In this way, we can determine the best node to focus when clicking or bluring
   - Create a ActionSignaller struct and attach to events
     - Has `focus(ref)` and `scroll_to(ref)` methods
     - Pass this to `update` as well

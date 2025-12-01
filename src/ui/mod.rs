@@ -72,7 +72,7 @@ pub(crate) trait LemnaUI {
         self.set_node_dirty(dirty);
     }
 
-    fn blur(&mut self, event_stack: &[NodeId]) {
+    fn send_blur_event(&mut self, event_stack: &[NodeId]) {
         let focus = self.active_focus();
         let mut blur_event = Event::new(event::Blur, self.event_cache(), focus);
         blur_event.set_focus_stack(self.focus_stack());
@@ -84,17 +84,38 @@ pub(crate) trait LemnaUI {
         self.set_focus(None, event_stack)
     }
 
+    fn blur(&mut self, event_stack: &[NodeId]) {
+        let prev_focus = self.active_focus();
+        self.send_blur_event(event_stack);
+        // Blur means we're removing focus, pass None
+        self.set_focus(None, event_stack);
+
+        let new_focus = self.active_focus();
+        // We've passed focus to some new Node, so focus it
+        if new_focus != prev_focus {
+            self.send_focus_event();
+        }
+    }
+
+    fn send_focus_event(&mut self) {
+        let focus = self.active_focus();
+        let mut focus_event = Event::new(event::Focus, self.event_cache(), focus);
+        focus_event.set_focus_stack(self.focus_stack());
+        focus_event.target = Some(focus);
+        self.with_node(|node| node.set_focus(&mut focus_event));
+        self.handle_dirty_event(&focus_event);
+    }
+
     fn handle_focus_or_blur<T: EventInput>(&mut self, event: &Event<T>) {
         if event.focus.is_none() {
             self.blur(&event.stack);
         } else if event.focus != Some(self.active_focus()) {
+            // First blur the old focus
+            self.send_blur_event(&event.stack);
+
+            // Then set the new focus
             self.set_focus(event.focus, &event.stack);
-            let focus = self.active_focus();
-            let mut focus_event = Event::new(event::Focus, self.event_cache(), focus);
-            focus_event.set_focus_stack(self.focus_stack());
-            focus_event.target = Some(focus);
-            self.with_node(|node| node.set_focus(&mut focus_event));
-            self.handle_dirty_event(&focus_event);
+            self.send_focus_event();
         }
     }
 
