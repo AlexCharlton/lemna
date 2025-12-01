@@ -122,7 +122,7 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
         self.focus_state.read().unwrap().stack().to_vec()
     }
 
-    fn active_focus(&self) -> Option<NodeId> {
+    fn active_focus(&self) -> NodeId {
         self.focus_state.read().unwrap().active()
     }
 
@@ -295,14 +295,14 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         inst("Node::view");
                         let mut new_references = HashMap::new();
                         let mut new_focus_state = FocusState::default();
-                        let old_id = old.id;
+                        let root_id = old.id;
                         new.view(
                             Some(&mut old),
                             &mut new_references,
                             &mut new_focus_state,
-                            old_id, // Root node is the default focus
+                            root_id, // Root node is the default focus
                         );
-                        if new_focus_state.active().is_none() {
+                        if new_focus_state.active() == root_id {
                             new_focus_state.inherit_active(&focus_state.read().unwrap());
                         }
                         *references.write().unwrap() = new_references;

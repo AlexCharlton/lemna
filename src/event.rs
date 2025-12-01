@@ -284,7 +284,7 @@ impl Scalable for DragEnd {
 }
 
 impl<T: EventInput> Event<T> {
-    pub(crate) fn new(input: T, event_cache: &EventCache, focus: Option<NodeId>) -> Self {
+    pub(crate) fn new(input: T, event_cache: &EventCache, focus: NodeId) -> Self {
         Self {
             input,
             bubbles: true,
@@ -292,7 +292,7 @@ impl<T: EventInput> Event<T> {
             render_dirty: false,
             modifiers_held: event_cache.modifiers_held,
             mouse_position: event_cache.mouse_position,
-            focus,
+            focus: Some(focus),
             focus_stack: vec![],
             target: None,
             current_node_id: None,

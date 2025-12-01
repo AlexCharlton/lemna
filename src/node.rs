@@ -1124,7 +1124,7 @@ mod tests {
         let mut event = Event::new(
             event::Click(crate::input::MouseButton::Left),
             &crate::event::EventCache::new(1.0),
-            Some(0),
+            0,
         );
         n.click(&mut event);
 

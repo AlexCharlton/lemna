@@ -38,7 +38,7 @@ pub(crate) trait LemnaUI {
     fn exit(&mut self);
 
     fn focus_stack(&self) -> Vec<NodeId>;
-    fn active_focus(&self) -> Option<NodeId>;
+    fn active_focus(&self) -> NodeId;
     fn set_focus(&mut self, focus: Option<NodeId>, event_stack: &[NodeId]);
 
     fn root_id(&mut self) -> NodeId {
@@ -76,7 +76,7 @@ pub(crate) trait LemnaUI {
         let focus = self.active_focus();
         let mut blur_event = Event::new(event::Blur, self.event_cache(), focus);
         blur_event.set_focus_stack(self.focus_stack());
-        blur_event.target = focus;
+        blur_event.target = Some(focus);
         self.with_node(|node| node.blur(&mut blur_event));
         self.handle_dirty_event(&blur_event);
 
@@ -87,12 +87,12 @@ pub(crate) trait LemnaUI {
     fn handle_focus_or_blur<T: EventInput>(&mut self, event: &Event<T>) {
         if event.focus.is_none() {
             self.blur(&event.stack);
-        } else if event.focus != self.active_focus() {
+        } else if event.focus != Some(self.active_focus()) {
             self.set_focus(event.focus, &event.stack);
             let focus = self.active_focus();
             let mut focus_event = Event::new(event::Focus, self.event_cache(), focus);
             focus_event.set_focus_stack(self.focus_stack());
-            focus_event.target = focus;
+            focus_event.target = Some(focus);
             self.with_node(|node| node.set_focus(&mut focus_event));
             self.handle_dirty_event(&focus_event);
         }
@@ -271,9 +271,9 @@ pub(crate) trait LemnaUI {
                     self.handle_event(Node::drag_end, &mut drag_end_event, target);
 
                     // Unfocus when clicking a thing not focused
-                    if drag_end_event.current_node_id != self.active_focus()
+                    if drag_end_event.current_node_id != Some(self.active_focus())
                     // Ignore the root node, which is the default focus
-                        && self.active_focus() != Some(self.root_id())
+                        && self.active_focus() != self.root_id()
                     {
                         self.blur(&drag_end_event.stack);
                     }
@@ -294,9 +294,9 @@ pub(crate) trait LemnaUI {
                     };
 
                     // Unfocus when clicking a thing not focused
-                    if event_current_node_id != self.active_focus()
+                    if event_current_node_id != Some(self.active_focus())
                         // Ignore the root node, which is the default focus
-                            && self.active_focus() != Some(self.root_id())
+                            && self.active_focus() != self.root_id()
                     {
                         self.blur(&event_stack);
                     }
@@ -311,7 +311,7 @@ pub(crate) trait LemnaUI {
                 let focus = self.active_focus();
                 let mut event = Event::new(event::KeyDown(*k), self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
-                self.handle_event(Node::key_down, &mut event, focus);
+                self.handle_event(Node::key_down, &mut event, Some(focus));
             }
             Input::Release(Button::Keyboard(k)) => {
                 if self.event_cache().key_held(*k) {
@@ -319,13 +319,13 @@ pub(crate) trait LemnaUI {
                     let focus = self.active_focus();
                     let mut event = Event::new(event::KeyPress(*k), self.event_cache(), focus);
                     event.set_focus_stack(self.focus_stack());
-                    self.handle_event(Node::key_press, &mut event, focus);
+                    self.handle_event(Node::key_press, &mut event, Some(focus));
                 }
 
                 let focus = self.active_focus();
                 let mut event = Event::new(event::KeyUp(*k), self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
-                self.handle_event(Node::key_up, &mut event, focus);
+                self.handle_event(Node::key_up, &mut event, Some(focus));
             }
             Input::Text(s) => {
                 let mods = self.event_cache().modifiers_held;
@@ -334,7 +334,7 @@ pub(crate) trait LemnaUI {
                     let mut event =
                         Event::new(event::TextEntry(s.clone()), self.event_cache(), focus);
                     event.set_focus_stack(self.focus_stack());
-                    self.handle_event(Node::text_entry, &mut event, focus);
+                    self.handle_event(Node::text_entry, &mut event, Some(focus));
                 }
             }
             Input::Focus(false) => {
