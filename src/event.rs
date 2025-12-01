@@ -9,7 +9,7 @@ use hashbrown::HashSet;
 
 use super::base_types::*;
 use super::input::{Key, MouseButton};
-use crate::Message;
+use crate::{Message, NodeId};
 
 /// How much time (ms) can elapse between clicks before it's no longer considered a double click.
 pub const DOUBLE_CLICK_INTERVAL_MS: i64 = 500; // ms
@@ -35,18 +35,18 @@ pub struct Event<T: EventInput> {
     pub(crate) mouse_position: Point,
     /// What keyboard modifiers (Shift, Alt, Ctr, Meta) were held when this event was fired.
     pub modifiers_held: ModifiersHeld,
-    pub(crate) current_node_id: Option<u64>,
+    pub(crate) current_node_id: Option<NodeId>,
     // In physical coordinates
     pub(crate) current_aabb: Option<Rect>,
     // In logical coordinates
     pub(crate) current_inner_scale: Option<Scale>,
     pub(crate) over_child_n: Option<usize>,
     pub(crate) over_subchild_n: Option<usize>,
-    pub(crate) target: Option<u64>,
-    pub(crate) focus: Option<u64>,
+    pub(crate) target: Option<NodeId>,
+    pub(crate) focus: Option<NodeId>,
+    pub(crate) focus_stack: Vec<NodeId>,
     pub(crate) scale_factor: f32,
     pub(crate) messages: Vec<Message>,
-    pub(crate) registrations: Vec<crate::node::Registration>,
 }
 
 impl<T: EventInput> fmt::Debug for Event<T> {
@@ -64,19 +64,14 @@ impl<T: EventInput> fmt::Debug for Event<T> {
             .field("over_subchild_n", &self.over_subchild_n)
             .field("target", &self.target)
             .field("focus", &self.focus)
+            .field("focus_stack", &self.focus_stack)
             .field("scale_factor", &self.scale_factor)
             .finish()
     }
 }
 
 /// Types that can be an [`Event::input`].
-pub trait EventInput: fmt::Debug {
-    #[doc(hidden)]
-    // For internal use only
-    fn matching_registrations(&self, _: &[crate::node::Registration]) -> Vec<u64> {
-        vec![]
-    }
-}
+pub trait EventInput: fmt::Debug {}
 
 /// [`EventInput`] type for focus events.
 #[derive(Debug)]
@@ -146,17 +141,7 @@ pub struct KeyDown(
     /// The [`Key`] pressed.
     pub Key,
 );
-impl EventInput for KeyDown {
-    fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
-        registrations
-            .iter()
-            .filter_map(|(r, node_id)| match r {
-                Register::KeyDown => Some(*node_id),
-                _ => None,
-            })
-            .collect()
-    }
-}
+impl EventInput for KeyDown {}
 
 /// [`EventInput`] type for key up events.
 #[derive(Debug)]
@@ -164,17 +149,7 @@ pub struct KeyUp(
     /// The [`Key`] released.
     pub Key,
 );
-impl EventInput for KeyUp {
-    fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
-        registrations
-            .iter()
-            .filter_map(|(r, node_id)| match r {
-                Register::KeyUp => Some(*node_id),
-                _ => None,
-            })
-            .collect()
-    }
-}
+impl EventInput for KeyUp {}
 
 /// [`EventInput`] type for key press (up and down) events.
 #[derive(Debug)]
@@ -182,17 +157,7 @@ pub struct KeyPress(
     /// The [`Key`] pressed.
     pub Key,
 );
-impl EventInput for KeyPress {
-    fn matching_registrations(&self, registrations: &[crate::node::Registration]) -> Vec<u64> {
-        registrations
-            .iter()
-            .filter_map(|(r, node_id)| match r {
-                Register::KeyPress => Some(*node_id),
-                _ => None,
-            })
-            .collect()
-    }
-}
+impl EventInput for KeyPress {}
 
 /// [`EventInput`] type for text entry events.
 #[derive(Debug)]
@@ -316,7 +281,7 @@ impl Scalable for DragEnd {
 }
 
 impl<T: EventInput> Event<T> {
-    pub(crate) fn new(input: T, event_cache: &EventCache) -> Self {
+    pub(crate) fn new(input: T, event_cache: &EventCache, focus: Option<NodeId>) -> Self {
         Self {
             input,
             bubbles: true,
@@ -324,7 +289,8 @@ impl<T: EventInput> Event<T> {
             render_dirty: false,
             modifiers_held: event_cache.modifiers_held,
             mouse_position: event_cache.mouse_position,
-            focus: Some(event_cache.focus),
+            focus,
+            focus_stack: vec![],
             target: None,
             current_node_id: None,
             current_aabb: None,
@@ -333,16 +299,16 @@ impl<T: EventInput> Event<T> {
             over_subchild_n: None,
             scale_factor: event_cache.scale_factor,
             messages: vec![],
-            registrations: vec![],
         }
     }
 
     /// Set the current Node to be "focused".
     /// This will cause it to receive [`Blur`], [`KeyDown`], [`KeyUp`], [`KeyPress`], [`TextEntry`], [`Drag`], and [`DragEnd`] events.
     ///
-    /// Note that any other Nodes may also request focus.
+    /// Implies `stop_bubbling`. Note that any other Nodes may also request focus.
     pub fn focus(&mut self) {
         self.focus = self.current_node_id;
+        self.bubbles = false;
     }
 
     /// Remove focus from this Node, if applicable.
@@ -357,6 +323,10 @@ impl<T: EventInput> Event<T> {
 
     pub(crate) fn dirty(&mut self) {
         self.dirty = true;
+    }
+
+    pub(crate) fn set_focus_stack(&mut self, focus_stack: Vec<NodeId>) {
+        self.focus_stack = focus_stack;
     }
 
     /// Mark the event as requiring a re-render (but not necessarily a full recompute)
@@ -419,10 +389,6 @@ impl<T: EventInput> Event<T> {
     /// Returns which child of the child of this Node the mouse is over, if any.
     pub fn over_subchild_n(&self) -> Option<usize> {
         self.over_subchild_n
-    }
-
-    pub(crate) fn matching_registrations(&self) -> Vec<u64> {
-        self.input.matching_registrations(&self.registrations)
     }
 }
 
@@ -488,9 +454,12 @@ pub struct ModifiersHeld {
     pub meta: bool,
 }
 
+//-------------------------------------------------------
+// MARK: EventCache
+//-------------------------------------------------------
+
 /// Points are all logical positions.
 pub(crate) struct EventCache {
-    pub focus: u64,
     pub keys_held: HashSet<Key>,
     pub modifiers_held: ModifiersHeld,
     pub mouse_buttons_held: MouseButtonsHeld,
@@ -511,7 +480,6 @@ pub(crate) struct EventCache {
 impl fmt::Debug for EventCache {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("EventCache")
-            .field("focus", &self.focus)
             .field("keys_held", &self.keys_held)
             .field("modifiers_held", &self.modifiers_held)
             .field("mouse_buttons_held", &self.mouse_buttons_held)
@@ -529,7 +497,6 @@ impl fmt::Debug for EventCache {
 impl EventCache {
     pub fn new(scale_factor: f32) -> Self {
         Self {
-            focus: 0,
             keys_held: Default::default(),
             modifiers_held: Default::default(),
             mouse_buttons_held: Default::default(),

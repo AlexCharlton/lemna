@@ -6,7 +6,8 @@ use quote::quote;
 use std::iter::FromIterator;
 use syn::{self, Lit, Meta, MetaNameValue, NestedMeta, parse_macro_input};
 
-static ID_COUNTER: CounterU64 = CounterU64::new(0);
+// We start the ID_COUNTER halfway through the ID space, to avoid collisions with custom keys
+static ID_COUNTER: CounterU64 = CounterU64::new(u32::MAX as u64);
 
 /// TODO document
 ///

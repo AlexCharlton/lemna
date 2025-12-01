@@ -31,6 +31,8 @@ pub use render::*;
 
 pub mod input;
 
+pub(crate) mod focus;
+
 pub mod event;
 #[doc(inline)]
 pub use event::Event;
@@ -78,6 +80,8 @@ pub use open_iconic::Icon;
 pub mod lemna_baseview {
     use super::*;
     pub struct Window {}
+    use super::focus::FocusState;
+    use hashbrown::HashMap;
 
     impl Window {
         pub fn open_blocking<A>(_options: WindowOptions)
@@ -86,8 +90,9 @@ pub mod lemna_baseview {
         {
             let app = A::default();
             let mut node = Node::new(Box::new(app), 0, layout::Layout::default());
-            let mut registrations: Vec<(event::Register, u64)> = vec![];
-            node.view(None, &mut registrations);
+            let mut references = HashMap::new();
+            let mut focus_state = FocusState::new();
+            node.view(None, &mut references, &mut focus_state, 0);
         }
     }
 

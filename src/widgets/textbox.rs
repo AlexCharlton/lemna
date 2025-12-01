@@ -501,12 +501,10 @@ impl Component for TextBoxText {
             _ => (),
         }
 
-        event.stop_bubbling();
         event.focus();
     }
 
     fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
-        event.stop_bubbling();
         event.focus();
         self.select_word();
     }
@@ -656,7 +654,6 @@ impl Component for TextBoxText {
         self.state_mut().selection_from = Some(self.position(event.relative_physical_position().x));
         self.state_mut().dragging = true;
         event.focus();
-        event.stop_bubbling();
     }
 
     fn on_drag_end(&mut self, _event: &mut event::Event<event::DragEnd>) {

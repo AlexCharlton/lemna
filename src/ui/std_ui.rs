@@ -3,18 +3,20 @@ use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
+use hashbrown::HashMap;
 use log::info;
 
-use crate::base_types::*;
 use crate::component::Component;
 use crate::event::EventCache;
+use crate::focus::FocusState;
 use crate::instrumenting::*;
 use crate::layout::*;
-use crate::node::{Node, Registration};
+use crate::node::Node;
 use crate::render::{ActiveRenderer, Renderer};
 use crate::renderable::Caches;
 use crate::window::Window;
 use crate::window::{clear_current_window, current_window, set_current_window};
+use crate::{NodeId, base_types::*};
 
 /// `UI` is the main struct that holds the [`Window`], `Renderer` and [`Node`]s of an app.
 /// It handles events and drawing+rendering.
@@ -36,7 +38,8 @@ pub struct UI<A: Component + Default + Send + Sync> {
     draw_channel: Sender<()>,
     node: Arc<RwLock<Node>>,
     phantom_app: PhantomData<A>,
-    registrations: Arc<RwLock<Vec<Registration>>>,
+    references: Arc<RwLock<HashMap<String, u64>>>,
+    focus_state: Arc<RwLock<FocusState>>,
     scale_factor: Arc<RwLock<f32>>,
     physical_size: Arc<RwLock<PixelSize>>,
     logical_size: Arc<RwLock<PixelSize>>,
@@ -52,7 +55,6 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
     ///   - State is transferred from the old graph to the new one, where possible. Some new Nodes will not have existed in the old graph.
     ///   - For net new Nodes (not present in the old graph), [`init`][Component#method.init] is called, and then a hash of input values is computed with [`props_hash`][Component#method.props_hash].
     ///   - For Nodes that existed in the old graph, [`props_hash`][Component#method.props_hash] is called on the new Component. If the new hash is not equal to the old one, then [`new_props`][Component#method.new_props] is called.
-    ///   - [`register`][Component#method.register] is also called on all Nodes.
     /// - Layout, which calculates the positions and sizes all of the Nodes in the graph. See [`layout`][crate::layout] for how it interacts with the [`Component`] interface.
     /// - Render Nodes, which generates new [`Renderable`][crate::renderable::Renderable]s for each Node, or else recycles the previously generated ones. [`render_hash`][Component#method.render_hash] is called and compared to the old value -- if any -- to decide whether or not [`render`][Component#method.render] needs to be called.
     ///
@@ -109,15 +111,23 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
         self.node_dirty.write().unwrap().1 = true;
     }
 
-    fn registrations(&self) -> Vec<Registration> {
-        self.registrations.read().unwrap().clone()
-    }
-
     fn with_node<F, R>(&mut self, f: F) -> R
     where
         F: FnOnce(&mut Node) -> R,
     {
         f(&mut self.node.write().unwrap())
+    }
+
+    fn focus_stack(&self) -> Vec<NodeId> {
+        self.focus_state.read().unwrap().stack().to_vec()
+    }
+
+    fn active_focus(&self) -> Option<NodeId> {
+        self.focus_state.read().unwrap().active()
+    }
+
+    fn set_focus(&mut self, node_id: Option<NodeId>) {
+        self.focus_state.write().unwrap().set_active(node_id);
     }
 }
 
@@ -148,7 +158,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         )));
         let frame_dirty = Arc::new(RwLock::new(false));
         let node_dirty = Arc::new(RwLock::new((true, true)));
-        let registrations: Arc<RwLock<Vec<Registration>>> = Default::default();
+        let references = Arc::new(RwLock::new(HashMap::new()));
+        let focus_state = Arc::new(RwLock::new(FocusState::default()));
         let caches = Arc::new(RwLock::new(Caches::default()));
 
         // Create a channel to speak to the renderer. Every time we send to this channel we want to trigger a render;
@@ -172,7 +183,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
             scale_factor.clone(),
             frame_dirty,
             node_dirty.clone(),
-            registrations.clone(),
+            references.clone(),
+            focus_state.clone(),
         );
 
         let n = Self {
@@ -184,7 +196,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
             _draw_thread: draw_thread,
             node,
             phantom_app: PhantomData,
-            registrations,
+            references,
+            focus_state,
             scale_factor,
             physical_size,
             logical_size,
@@ -253,7 +266,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         scale_factor: Arc<RwLock<f32>>,
         frame_dirty: Arc<RwLock<bool>>,
         node_dirty: Arc<RwLock<(bool, bool)>>,
-        registrations: Arc<RwLock<Vec<Registration>>>,
+        references: Arc<RwLock<HashMap<String, u64>>>,
+        focus_state: Arc<RwLock<FocusState>>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             for _ in receiver.iter() {
@@ -275,9 +289,20 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         // We need to acquire a lock on the node once we `view` it, because we remove its state at this point
                         let mut old = node.write().unwrap();
                         inst("Node::view");
-                        let mut new_registrations: Vec<Registration> = vec![];
-                        new.view(Some(&mut old), &mut new_registrations);
-                        *registrations.write().unwrap() = new_registrations;
+                        let mut new_references = HashMap::new();
+                        let mut new_focus_state = FocusState::default();
+                        let old_id = old.id;
+                        new.view(
+                            Some(&mut old),
+                            &mut new_references,
+                            &mut new_focus_state,
+                            old_id, // Root node is the default focus
+                        );
+                        if new_focus_state.active().is_none() {
+                            new_focus_state.set_active(focus_state.read().unwrap().active());
+                        }
+                        *references.write().unwrap() = new_references;
+                        *focus_state.write().unwrap() = new_focus_state;
                         inst_end();
 
                         inst("Node::layout");

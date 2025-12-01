@@ -192,7 +192,6 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
         event.focus();
-        event.stop_bubbling();
         event.emit(Box::new(SelectMessage::OpenClose));
     }
 
@@ -266,7 +265,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                 })
-                .key(i as u64),
+                .key(i as u32),
             );
         }
         Some(l)

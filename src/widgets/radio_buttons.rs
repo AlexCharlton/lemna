@@ -146,7 +146,7 @@ impl Component for RadioButtons {
 
         let mut i: usize = 0;
         let mut j: usize = 0;
-        let mut container = node!(super::Div::new(), [direction: self.direction]).key(i as u64);
+        let mut container = node!(super::Div::new(), [direction: self.direction]).key(i as u32);
         for (position, b) in self.buttons.iter().enumerate() {
             if j >= limit {
                 j = 0;
@@ -160,7 +160,7 @@ impl Component for RadioButtons {
                         // axis_alignment: Alignment::Stretch, // TODO: This is broken
                     ]
                 )
-                .key(i as u64);
+                .key(i as u32);
                 base = base.push(old_container);
             }
             let row = match self.direction {
@@ -199,7 +199,7 @@ impl Component for RadioButtons {
                     class: self.class,
                     style_overrides: self.style_overrides.clone(),
                 })
-                .key(j as u64),
+                .key(j as u32),
             );
 
             j += 1;

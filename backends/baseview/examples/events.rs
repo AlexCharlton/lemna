@@ -65,7 +65,7 @@ impl lemna::Component for App {
                     name: "SomeWidget".to_string(),
                 },
                 [size: [100]]
-            ))
+            ).focus())
             .push(node!(Sorter {}, [size: [100, 200]]))
             .push(node!(
                 widgets::Button::new(txt!("Click me!")).on_click(
@@ -296,11 +296,6 @@ impl Component for EventReactor {
 
     fn on_text_entry(&mut self, event: &mut Event<event::TextEntry>) {
         println!("{} got a some text: {:?})", &self.name, event.input.0);
-    }
-
-    // Without this declaration, the widget would not get KeyDown events (unless it is focused)
-    fn register(&mut self) -> Vec<event::Register> {
-        vec![event::Register::KeyDown]
     }
 
     fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {

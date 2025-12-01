@@ -123,12 +123,6 @@ pub trait Component: fmt::Debug {
         // Do nothing by default
     }
 
-    /// Return the set of event types that you wish this Component to be sent. This lets
-    /// a Component receive key events even if it isn't focused
-    fn register(&mut self) -> Vec<event::Register> {
-        vec![]
-    }
-
     /// Is the `mouse_position` over this Component? Implement if the Component has
     /// non-rectangular geometry. Otherwise will default to `aabb.is_under(mouse_position)`.
     fn is_mouse_over(&self, mouse_position: Point, aabb: Rect) -> bool {

@@ -4,19 +4,20 @@ use alloc::{boxed::Box, vec, vec::Vec};
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::sync::atomic::{AtomicU64, Ordering};
+use hashbrown::HashMap;
 
 use crate::base_types::*;
 use crate::component::*;
 use crate::event::{self, Event, EventInput};
+use crate::focus::FocusState;
 use crate::layout::*;
 use crate::renderable::{Caches, Renderable};
 
+pub type NodeId = u64;
+
 static NODE_ID_ATOMIC: AtomicU64 = AtomicU64::new(1);
 
-// (<Event that the node desires to receive>, <Node ID>)
-pub(crate) type Registration = (event::Register, u64);
-
-fn new_node_id() -> u64 {
+fn new_node_id() -> NodeId {
     NODE_ID_ATOMIC.fetch_add(1, Ordering::SeqCst)
 }
 
@@ -80,7 +81,7 @@ macro_rules! node {
 ///
 /// When combined together, `Node`s form a graph that represents the application: the graph is responsible for handling events, it knows how to render itself, and it holds all of the required state. See the [tutorial][crate] for an explanation of how to use Nodes to create an application.
 pub struct Node {
-    pub(crate) id: u64,
+    pub(crate) id: NodeId,
     pub(crate) component: Box<dyn Component + Send + Sync>,
     pub(crate) render_cache: Option<Vec<Renderable>>,
     pub(crate) children: Vec<Node>,
@@ -100,6 +101,8 @@ pub struct Node {
     pub(crate) props_hash: u64,
     pub(crate) render_hash: u64,
     pub(crate) key: u64,
+    pub(crate) reference: Option<String>,
+    pub(crate) auto_focus: bool,
 }
 
 impl fmt::Debug for Node {
@@ -114,6 +117,7 @@ impl fmt::Debug for Node {
             .field("props_hash", &self.props_hash)
             .field("render_hash", &self.render_hash)
             .field("key", &self.key)
+            .field("reference", &self.reference)
             .field("children", &self.children)
             .finish()
     }
@@ -154,6 +158,8 @@ impl Node {
             render_cache: None,
             props_hash: u64::MAX,
             render_hash: u64::MAX,
+            reference: None,
+            auto_focus: false,
         }
     }
 
@@ -164,19 +170,34 @@ impl Node {
     }
 
     /// Set the key of the current Node, returns itself. `key` must be set on Nodes that are part of a dynamically-generated list of Nodes, pushed to some parent. The key should be unique within that set of child nodes, and it should be stable for the lifetime of the Node. This is used to associate state between the previously generated Node graph and a newly generated one.
-    pub fn key(mut self, key: u64) -> Self {
-        self.key = key;
+    ///
+    /// The key can only be set to a u32 value. Keys generated automatically by the `node` macro will always be greater than `u32::MAX`.
+    pub fn key(mut self, key: u32) -> Self {
+        self.key = key as u64;
+        self
+    }
+
+    pub fn reference<S: Into<String>>(mut self, name: S) -> Self {
+        self.reference = Some(name.into());
+        self
+    }
+
+    pub fn focus(mut self) -> Self {
+        self.auto_focus = true;
         self
     }
 
     pub(crate) fn view(
         &mut self,
         mut prev: Option<&mut Self>,
-        registrations: &mut Vec<Registration>,
+        references: &mut HashMap<String, NodeId>,
+        focus_state: &mut FocusState,
+        parent_focus_id: NodeId,
     ) {
         // TODO: skip non-visible (out of frame) nodes
         // Set up state and props
         let mut hasher = ComponentHasher::default();
+        let mut new = false;
         if let Some(prev) = &mut prev {
             self.id = prev.id;
             if let Some(state) = prev.component.take_state() {
@@ -200,7 +221,28 @@ impl Node {
             self.component.init();
             self.component.props_hash(&mut hasher);
             self.props_hash = hasher.finish();
+            new = true;
         }
+
+        if let Some(refr) = self.reference.clone() {
+            references.insert(refr, self.id);
+        }
+
+        let focus_id = if self.auto_focus {
+            // Register this node as a focus context
+            focus_state.tree_mut().register(
+                self.id,
+                parent_focus_id,
+                0, // TODO: Use priority?
+            );
+            // If the node is new, focus it
+            if new {
+                focus_state.set_active(Some(self.id));
+            }
+            self.id
+        } else {
+            parent_focus_id // Pass through parent's focus context
+        };
 
         // Create children
         if let Some(mut child) = self.component.view() {
@@ -241,24 +283,16 @@ impl Node {
             for child in self.children.iter_mut() {
                 child.view(
                     prev_children.iter_mut().find(|x| x.key == child.key),
-                    registrations,
+                    references,
+                    focus_state,
+                    focus_id,
                 )
             }
         } else {
             for child in self.children.iter_mut() {
-                child.view(None, registrations)
+                child.view(None, references, focus_state, focus_id)
             }
         }
-
-        // Children's registrations come first, so they can prevent bubbling
-        registrations.append(
-            &mut self
-                .component
-                .register()
-                .drain(..)
-                .map(|r| (r, self.id))
-                .collect::<Vec<_>>(),
-        );
     }
 
     fn set_aabb(
@@ -629,50 +663,38 @@ impl Node {
         event: &mut Event<E>,
         handler: fn(&mut Self, &mut Event<E>),
     ) {
-        match event.target {
-            Some(0) => {
-                // If the target is the root node, allow registration to accept the event
-                let matching_registrations = event.matching_registrations();
-                if matching_registrations.is_empty() {
-                    // Go ahead and send to the root, if there are no registrations
-                    self.handle_targeted_event_inner(event, handler)
-                } else {
-                    for node_id in event.matching_registrations().iter() {
-                        // We don't reset this event, since we want to carry forward any signals: dirty, focus
-                        event.target = Some(*node_id);
-                        self.handle_targeted_event_inner(event, handler);
-                        if !event.bubbles {
-                            break;
-                        }
-                    }
-                }
-            }
-            Some(_) => self.handle_targeted_event_inner(event, handler),
-            None => (),
-        }
-    }
-
-    fn handle_targeted_event_inner<E: EventInput>(
-        &mut self,
-        event: &mut Event<E>,
-        handler: fn(&mut Self, &mut Event<E>),
-    ) {
-        if let Some(mut stack) = self.get_target_stack(event.target.unwrap()) {
+        if let Some(mut stack) = event
+            .target
+            .and_then(|target| self.get_target_stack(target))
+        {
             let node = self.get_target_from_stack(&stack);
             event.current_node_id = Some(node.id);
             event.current_aabb = Some(node.aabb);
             event.current_inner_scale = node.inner_scale;
             handler(node, event);
-            if self.component.is_dirty() {
+            if node.component.is_dirty() {
                 event.dirty();
             }
             if stack.is_empty() {
                 return;
             }
+            if event.focus_stack.last() == Some(&node.id) {
+                event.focus_stack.pop();
+            }
             stack.pop();
-
             loop {
                 let node = self.get_target_from_stack(&stack);
+
+                if event.bubbles && event.focus_stack.last() == Some(&node.id) {
+                    event.current_node_id = Some(node.id);
+                    event.current_aabb = Some(node.aabb);
+                    event.current_inner_scale = node.inner_scale;
+                    handler(node, event);
+                    if node.component.is_dirty() {
+                        event.dirty();
+                    }
+                    event.focus_stack.pop();
+                }
                 let mut dirty = false;
                 let mut next_messages: Vec<Message> = vec![];
                 for message in event.messages.drain(..) {
@@ -684,17 +706,13 @@ impl Node {
                 if dirty {
                     event.dirty();
                 }
-                if next_messages.is_empty() || stack.is_empty() {
+                if next_messages.is_empty() && event.focus_stack.is_empty() || stack.is_empty() {
                     return;
                 }
                 event.messages = next_messages;
                 stack.pop();
             }
         }
-    }
-
-    pub(crate) fn signal(&mut self, event: &mut Event<event::Signal>) {
-        self.handle_targeted_event(event, |node, e| node.component.on_signal(e));
     }
 
     pub(crate) fn mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
@@ -732,7 +750,7 @@ impl Node {
         self.handle_event_under_mouse(event, |node, e| node.component.on_double_click(e));
     }
 
-    pub(crate) fn focus(&mut self, event: &mut Event<event::Focus>) {
+    pub(crate) fn set_focus(&mut self, event: &mut Event<event::Focus>) {
         self.handle_targeted_event(event, |node, e| node.component.on_focus(e));
     }
 
@@ -1077,7 +1095,7 @@ mod tests {
     fn test_caching() {
         let mut caches = Caches::default();
         let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
-        n.view(None, &mut vec![]);
+        n.view(None, &mut HashMap::new(), &mut FocusState::default(), 0);
         //n.layout();
         n.render(&mut caches, 1.0);
         //println!("{:#?}", n);
@@ -1101,11 +1119,17 @@ mod tests {
         let mut event = Event::new(
             event::Click(crate::input::MouseButton::Left),
             &crate::event::EventCache::new(1.0),
+            Some(0),
         );
         n.click(&mut event);
 
         let mut new_n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
-        new_n.view(Some(&mut n), &mut vec![]);
+        new_n.view(
+            Some(&mut n),
+            &mut HashMap::new(),
+            &mut FocusState::default(),
+            0,
+        );
         assert_eq!(n.id, new_n.id);
         assert_eq!(n.children[0].id, new_n.children[0].id);
 
@@ -1306,7 +1330,7 @@ mod tests {
             0,
             lay!(size: size!(300.0)),
         );
-        n.view(None, &mut vec![]);
+        n.view(None, &mut HashMap::new(), &mut FocusState::default(), 0);
         n.layout(&caches, 1.0);
 
         // Expect the inner_scale to be a real size
@@ -1324,55 +1348,5 @@ mod tests {
         // The rest have Frames
         assert_eq!(renderables[3].2.len(), 1);
         assert_eq!(renderables[8].2.len(), 1);
-    }
-
-    mod test_registration_app {
-        use super::*;
-
-        #[derive(Debug)]
-        pub struct Registerer {
-            registration: event::Register,
-        }
-
-        impl Component for Registerer {
-            fn register(&mut self) -> Vec<event::Register> {
-                vec![self.registration]
-            }
-        }
-
-        #[derive(Debug, Default)]
-        pub struct TestApp {}
-
-        impl Component for TestApp {
-            fn view(&self) -> Option<Node> {
-                Some(
-                    node!(Registerer {
-                        registration: event::Register::KeyDown
-                    })
-                    .push(node!(Registerer {
-                        registration: event::Register::KeyUp,
-                    }))
-                    .push(node!(Registerer {
-                        registration: event::Register::KeyPress,
-                    })),
-                )
-            }
-        }
-    }
-
-    #[test]
-    fn test_registration() {
-        let mut n = Node::new(
-            Box::new(test_registration_app::TestApp::default()),
-            0,
-            Layout::default(),
-        );
-
-        let mut registrations: Vec<(event::Register, u64)> = vec![];
-        n.view(None, &mut registrations);
-        assert_eq!(registrations.len(), 3);
-        assert_eq!(registrations[0].0, event::Register::KeyUp);
-        assert_eq!(registrations[1].0, event::Register::KeyPress);
-        assert_eq!(registrations[2].0, event::Register::KeyDown);
     }
 }

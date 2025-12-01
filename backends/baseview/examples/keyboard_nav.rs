@@ -1,6 +1,6 @@
 use lemna::*;
 //-----------------------------------
-// App
+// MARK: App
 //
 pub enum AppEvent {
     ItemClick(String),
