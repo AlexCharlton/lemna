@@ -12,16 +12,6 @@ pub struct FocusTree {
 }
 
 impl FocusTree {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Clear the tree (called before rebuilding during view phase)
-    pub fn clear(&mut self) {
-        self.parents.clear();
-        self.priorities.clear();
-    }
-
     /// Register a focus context during view traversal
     /// `parent_focus_id` is the node_id of the nearest ancestor that also has focus
     pub fn register(&mut self, node_id: u64, parent_focus_id: u64, priority: i32) {
@@ -32,11 +22,6 @@ impl FocusTree {
     /// Check if a node is registered as a focus context
     pub fn contains(&self, node_id: u64) -> bool {
         self.parents.contains_key(&node_id)
-    }
-
-    /// Get parent focus context for a node
-    pub fn parent(&self, node_id: u64) -> Option<u64> {
-        self.parents.get(&node_id).copied()
     }
 
     /// Compute the path from root to the given node, including only focus contexts
@@ -73,19 +58,48 @@ pub struct FocusState {
 }
 
 impl FocusState {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Access the tree for registration during view phase
     pub fn tree_mut(&mut self) -> &mut FocusTree {
         &mut self.tree
     }
 
-    /// Set the active focus and recompute the stack
-    pub fn set_active(&mut self, node_id: Option<u64>) {
-        self.active = node_id;
-        self.recompute_stack();
+    /// Check if a node is registered as a focus context
+    pub fn tree_contains(&self, node_id: u64) -> bool {
+        self.tree.contains(node_id)
+    }
+
+    pub fn inherit_active(&mut self, old_state: &Self) {
+        self.stack = old_state.stack.clone();
+        self.active = old_state.active;
+    }
+
+    /// Set the active focus and compute the stack based on the event stack
+    /// If event_stack is provided and not empty, finds the most specific registered node in it
+    /// and builds a stack ending with the explicitly focused node (even if not registered)
+    /// If event_stack is None or empty, uses root_id as fallback
+    pub fn set_active(&mut self, node_id: Option<u64>, event_stack: &[u64], root_id: u64) {
+        if let Some(focused_node) = node_id
+            && self.tree_contains(focused_node)
+        {
+            self.stack = self.tree.path_to(focused_node);
+            self.active = node_id;
+        } else {
+            let event_stack = if event_stack.is_empty() {
+                &[root_id]
+            } else {
+                event_stack
+            };
+            let base_focused_node = self.most_specific_focus_node(event_stack);
+            let mut stack = self.tree.path_to(base_focused_node.unwrap_or(root_id));
+            if let Some(focused_node) = node_id {
+                stack.push(focused_node);
+                self.stack = stack;
+                self.active = Some(focused_node);
+            } else {
+                self.active = stack.last().cloned();
+                self.stack = stack;
+            }
+        }
     }
 
     /// Get the currently active focus
@@ -98,10 +112,15 @@ impl FocusState {
         &self.stack
     }
 
-    fn recompute_stack(&mut self) {
-        self.stack = match self.active {
-            Some(id) => self.tree.path_to(id),
-            None => Vec::new(),
-        };
+    /// Find the most specific (deepest) node in the event stack that is registered as a focus context
+    /// Searches from the end of the stack (most specific) to the beginning (least specific)
+    pub fn most_specific_focus_node(&self, event_stack: &[u64]) -> Option<u64> {
+        // Iterate from most specific (end) to least specific (beginning)
+        for &node_id in event_stack.iter().rev() {
+            if self.tree.contains(node_id) {
+                return Some(node_id);
+            }
+        }
+        None
     }
 }

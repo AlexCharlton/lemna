@@ -530,6 +530,8 @@ impl Component for TextBoxText {
         let pos = self.state_ref().cursor_pos;
         let len = self.state_ref().text.len();
         let mut changed = false;
+        // Assume we've handled the input, unless we explicitly set handled to false
+        let mut handled = true;
         match event.input.0 {
             Key::Backspace => {
                 if let Some((a, b)) = self.selection() {
@@ -630,7 +632,9 @@ impl Component for TextBoxText {
                     changed = self.paste();
                 }
             }
-            _ => (),
+            _ => {
+                handled = false;
+            }
         }
 
         if changed {
@@ -638,6 +642,9 @@ impl Component for TextBoxText {
             event.emit(Box::new(TextBoxMessage::Change(
                 self.state_ref().text.clone(),
             )))
+        }
+        if handled {
+            event.stop_bubbling();
         }
         // We always reset the activation time when we handle a key event so that the cursor is visible
         self.state_mut().activated_at = Instant::now();

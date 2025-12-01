@@ -237,7 +237,7 @@ impl Node {
             );
             // If the node is new, focus it
             if new {
-                focus_state.set_active(Some(self.id));
+                focus_state.set_active(Some(self.id), &[], parent_focus_id);
             }
             self.id
         } else {
@@ -503,6 +503,7 @@ impl Node {
     ) {
         let mut nodes_under = self.nodes_under(event);
         while !nodes_under.is_empty() && event.bubbles {
+            event.stack.clear();
             self._handle_event_under_mouse(event, handler, &mut nodes_under);
         }
     }
@@ -511,8 +512,9 @@ impl Node {
         &mut self,
         event: &mut Event<E>,
         handler: fn(&mut Self, &mut Event<E>),
-        node_order: &mut Vec<(u64, f32)>,
+        node_order: &mut Vec<(NodeId, f32)>,
     ) -> Vec<Message> {
+        event.stack.push(self.id);
         let mut m: Vec<Message> = vec![];
         event.over_child_n = None;
         event.over_subchild_n = None;
@@ -562,8 +564,8 @@ impl Node {
         m
     }
 
-    fn nodes_under<E: EventInput>(&self, event: &Event<E>) -> Vec<(u64, f32)> {
-        let mut collector: Vec<(u64, f32)> = vec![];
+    fn nodes_under<E: EventInput>(&self, event: &Event<E>) -> Vec<(NodeId, f32)> {
+        let mut collector: Vec<(NodeId, f32)> = vec![];
 
         self._nodes_under(event, &mut collector);
         // Maybe TODO: Discard siblings?
@@ -571,7 +573,7 @@ impl Node {
         collector
     }
 
-    fn _nodes_under<E: EventInput>(&self, event: &Event<E>, collector: &mut Vec<(u64, f32)>) {
+    fn _nodes_under<E: EventInput>(&self, event: &Event<E>, collector: &mut Vec<(NodeId, f32)>) {
         if self
             .component
             .is_mouse_over(event.mouse_position, self.aabb)
@@ -668,6 +670,7 @@ impl Node {
             .and_then(|target| self.get_target_stack(target))
         {
             let node = self.get_target_from_stack(&stack);
+            event.stack.push(node.id);
             event.current_node_id = Some(node.id);
             event.current_aabb = Some(node.aabb);
             event.current_inner_scale = node.inner_scale;
@@ -684,6 +687,7 @@ impl Node {
             stack.pop();
             loop {
                 let node = self.get_target_from_stack(&stack);
+                event.stack.push(node.id);
 
                 if event.bubbles && event.focus_stack.last() == Some(&node.id) {
                     event.current_node_id = Some(node.id);
@@ -707,6 +711,7 @@ impl Node {
                     event.dirty();
                 }
                 if next_messages.is_empty() && event.focus_stack.is_empty() || stack.is_empty() {
+                    event.stack.reverse();
                     return;
                 }
                 event.messages = next_messages;

@@ -87,6 +87,8 @@ impl lemna::Component for App {
     }
 
     fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
+        println!("App on_key_down: {:?}", event.input.0);
+
         // Global shortcuts for switching panes
         if event.modifiers_held.ctrl {
             match event.input.0 {
@@ -208,10 +210,10 @@ fn main() {
     lemna_baseview::Window::open_blocking::<App>(
         lemna_baseview::WindowOptions::new("Focus Example - Two Panes", (800, 400))
             .resizable(true)
-            .fonts(vec![
-                ("noto sans regular".to_string(), ttf_noto_sans::REGULAR),
-                ("open iconic".to_string(), open_iconic::ICONS),
-            ]),
+            .fonts(vec![(
+                "noto sans regular".to_string(),
+                ttf_noto_sans::REGULAR,
+            )]),
     );
     println!("Focus Example Ended");
 }

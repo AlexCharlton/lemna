@@ -47,6 +47,8 @@ pub struct Event<T: EventInput> {
     pub(crate) focus_stack: Vec<NodeId>,
     pub(crate) scale_factor: f32,
     pub(crate) messages: Vec<Message>,
+    /// Stack of nodes that the event passed through. If the event is targeted, then this is the nodes on the way to the target. If the event is a mouse event, the this is the nodes through which the mouse passed (and in particular, the nodes on the way to whatever stopped the event from bubbling).
+    pub(crate) stack: Vec<NodeId>,
 }
 
 impl<T: EventInput> fmt::Debug for Event<T> {
@@ -66,6 +68,7 @@ impl<T: EventInput> fmt::Debug for Event<T> {
             .field("focus", &self.focus)
             .field("focus_stack", &self.focus_stack)
             .field("scale_factor", &self.scale_factor)
+            .field("stack", &self.stack)
             .finish()
     }
 }
@@ -299,6 +302,7 @@ impl<T: EventInput> Event<T> {
             over_subchild_n: None,
             scale_factor: event_cache.scale_factor,
             messages: vec![],
+            stack: vec![],
         }
     }
 

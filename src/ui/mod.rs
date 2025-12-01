@@ -39,7 +39,7 @@ pub(crate) trait LemnaUI {
 
     fn focus_stack(&self) -> Vec<NodeId>;
     fn active_focus(&self) -> Option<NodeId>;
-    fn set_focus(&mut self, focus: Option<NodeId>);
+    fn set_focus(&mut self, focus: Option<NodeId>, event_stack: &[NodeId]);
 
     fn root_id(&mut self) -> NodeId {
         self.with_node(|node| node.id)
@@ -72,24 +72,26 @@ pub(crate) trait LemnaUI {
         self.set_node_dirty(dirty);
     }
 
-    fn blur(&mut self) {
+    fn blur(&mut self, event_stack: &[NodeId]) {
         let focus = self.active_focus();
         let mut blur_event = Event::new(event::Blur, self.event_cache(), focus);
+        blur_event.set_focus_stack(self.focus_stack());
         blur_event.target = focus;
         self.with_node(|node| node.blur(&mut blur_event));
         self.handle_dirty_event(&blur_event);
 
-        let root_id = self.root_id();
-        self.set_focus(Some(root_id))
+        // Blur means we're removing focus, pass None
+        self.set_focus(None, event_stack)
     }
 
     fn handle_focus_or_blur<T: EventInput>(&mut self, event: &Event<T>) {
         if event.focus.is_none() {
-            self.blur();
+            self.blur(&event.stack);
         } else if event.focus != self.active_focus() {
-            self.set_focus(event.focus);
+            self.set_focus(event.focus, &event.stack);
             let focus = self.active_focus();
             let mut focus_event = Event::new(event::Focus, self.event_cache(), focus);
+            focus_event.set_focus_stack(self.focus_stack());
             focus_event.target = focus;
             self.with_node(|node| node.set_focus(&mut focus_event));
             self.handle_dirty_event(&focus_event);
@@ -273,22 +275,22 @@ pub(crate) trait LemnaUI {
                     // Ignore the root node, which is the default focus
                         && self.active_focus() != Some(self.root_id())
                     {
-                        self.blur();
+                        self.blur(&drag_end_event.stack);
                     }
 
                 // Clean up event cache
                 } else if self.event_cache().is_mouse_button_held(*b) {
                     // Resolve click
                     let focus = self.active_focus();
-                    let event_current_node_id = if is_double_click {
+                    let (event_current_node_id, event_stack) = if is_double_click {
                         let mut event =
                             Event::new(event::DoubleClick(*b), self.event_cache(), focus);
                         self.handle_event(Node::double_click, &mut event, None);
-                        event.current_node_id
+                        (event.current_node_id, event.stack)
                     } else {
                         let mut event = Event::new(event::Click(*b), self.event_cache(), focus);
                         self.handle_event(Node::click, &mut event, None);
-                        event.current_node_id
+                        (event.current_node_id, event.stack)
                     };
 
                     // Unfocus when clicking a thing not focused
@@ -296,7 +298,7 @@ pub(crate) trait LemnaUI {
                         // Ignore the root node, which is the default focus
                             && self.active_focus() != Some(self.root_id())
                     {
-                        self.blur();
+                        self.blur(&event_stack);
                     }
                 }
                 // Clean up cache state
@@ -339,12 +341,14 @@ pub(crate) trait LemnaUI {
                 self.event_cache().clear();
                 let focus = self.active_focus();
                 let mut event = Event::new(event::Blur, self.event_cache(), focus);
+                event.set_focus_stack(self.focus_stack());
                 self.with_node(|node| node.component.on_blur(&mut event));
                 self.handle_dirty_event(&event);
             }
             Input::Focus(true) => {
                 let focus = self.active_focus();
                 let mut event = Event::new(event::Focus, self.event_cache(), focus);
+                event.set_focus_stack(self.focus_stack());
                 self.with_node(|node| node.component.on_focus(&mut event));
                 self.handle_dirty_event(&event);
             }

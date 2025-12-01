@@ -126,8 +126,12 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
         self.focus_state.read().unwrap().active()
     }
 
-    fn set_focus(&mut self, node_id: Option<NodeId>) {
-        self.focus_state.write().unwrap().set_active(node_id);
+    fn set_focus(&mut self, node_id: Option<NodeId>, event_stack: &[NodeId]) {
+        let root_id = self.with_node(|node| node.id);
+        self.focus_state
+            .write()
+            .unwrap()
+            .set_active(node_id, event_stack, root_id);
     }
 }
 
@@ -299,7 +303,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                             old_id, // Root node is the default focus
                         );
                         if new_focus_state.active().is_none() {
-                            new_focus_state.set_active(focus_state.read().unwrap().active());
+                            new_focus_state.inherit_active(&focus_state.read().unwrap());
                         }
                         *references.write().unwrap() = new_references;
                         *focus_state.write().unwrap() = new_focus_state;
