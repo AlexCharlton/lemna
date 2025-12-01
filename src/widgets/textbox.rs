@@ -612,6 +612,9 @@ impl Component for TextBoxText {
             Key::Return => {
                 event.blur();
             }
+            Key::Escape => {
+                event.blur();
+            }
             Key::X => {
                 if event.modifiers_held.ctrl {
                     changed = self.cut();
