@@ -132,7 +132,8 @@ impl Component for Button {
     }
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
-        if self.state_ref().hover_start.is_some()
+        if self.tool_tip.is_some()
+            && self.state_mut().hover
             && self
                 .state_ref()
                 .hover_start

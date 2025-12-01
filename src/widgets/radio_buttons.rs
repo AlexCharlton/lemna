@@ -323,7 +323,8 @@ impl Component for RadioButton {
     }
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
-        if self.state_ref().hover_start.is_some()
+        if self.tool_tip.is_some()
+            && self.state_ref().hover
             && self
                 .state_ref()
                 .hover_start
