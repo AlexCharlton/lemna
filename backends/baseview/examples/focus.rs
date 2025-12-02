@@ -164,8 +164,7 @@ impl Component for Pane {
                 padding: [5.0],
             ]
         )
-        .reference(format!("{}::Textbox", self.title))
-        .focus(); // Mark textbox as focus context
+        .reference(format!("{}::Textbox", self.title));
 
         let result = container.push(title).push(status_text).push(textbox);
 

@@ -1,0 +1,194 @@
+//! Helper functions for focus change handling that can work without requiring
+//! `&mut self` reference to the UI. This allows sharing focus logic between
+//! the LemnaUI trait methods and the draw_thread.
+
+extern crate alloc;
+use alloc::vec::Vec;
+
+use hashbrown::{HashMap, HashSet};
+
+use crate::NodeId;
+use crate::event::{self, Event, EventCache, EventInput, Signal, Target};
+use crate::focus::FocusState;
+use crate::node::Node;
+
+/// Tracks dirty state changes from events
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DirtyState {
+    pub node_dirty: bool,
+    pub render_dirty: bool,
+}
+
+impl DirtyState {
+    pub fn mark_from_event<T: EventInput>(&mut self, event: &Event<T>) {
+        if event.dirty {
+            self.node_dirty = true;
+        } else if event.render_dirty {
+            self.render_dirty = true;
+        }
+    }
+}
+
+/// Context for focus operations containing all the state needed.
+/// This can be used by both the LemnaUI trait methods and the draw_thread.
+pub struct FocusContext<'a> {
+    pub node: &'a mut Node,
+    pub focus_state: &'a mut FocusState,
+    pub references: &'a HashMap<String, u64>,
+    pub scale_factor: f32,
+    pub dirty: DirtyState,
+}
+
+impl<'a> FocusContext<'a> {
+    pub fn new(
+        node: &'a mut Node,
+        focus_state: &'a mut FocusState,
+        references: &'a HashMap<String, u64>,
+        scale_factor: f32,
+    ) -> Self {
+        Self {
+            node,
+            focus_state,
+            references,
+            scale_factor,
+            dirty: DirtyState::default(),
+        }
+    }
+
+    /// Get the currently active focus
+    pub fn active_focus(&self) -> NodeId {
+        self.focus_state.active()
+    }
+
+    /// Get the focus stack
+    pub fn focus_stack(&self) -> Vec<NodeId> {
+        self.focus_state.stack().to_vec()
+    }
+
+    /// Set focus on a node
+    pub fn set_focus(&mut self, focus: Option<NodeId>, event_stack: &[NodeId]) {
+        self.focus_state
+            .set_active(focus, event_stack, self.node.id);
+    }
+
+    /// Get a reference node id by name
+    pub fn get_reference(&self, reference: &str) -> Option<NodeId> {
+        self.references.get(reference).copied()
+    }
+
+    /// Send a blur event to the specified target node
+    pub fn send_blur_event_to(
+        &mut self,
+        target: NodeId,
+        focus_stack: Vec<NodeId>,
+        previously_focused_nodes: &mut HashSet<NodeId>,
+    ) {
+        let event_cache = EventCache::new(self.scale_factor);
+        let mut blur_event = Event::new(event::Blur, &event_cache, target);
+        blur_event.set_focus_stack(focus_stack);
+        blur_event.target = Some(target);
+        self.node.blur(&mut blur_event);
+        self.dirty.mark_from_event(&blur_event);
+        self.handle_event_signals(&blur_event, previously_focused_nodes);
+    }
+
+    /// Send a blur event to the currently focused node and clear focus
+    pub fn send_blur_event(
+        &mut self,
+        event_stack: &[NodeId],
+        previously_focused_nodes: &mut HashSet<NodeId>,
+    ) {
+        let focus = self.active_focus();
+        let focus_stack = self.focus_stack();
+        self.send_blur_event_to(focus, focus_stack, previously_focused_nodes);
+        // Blur means we're removing focus, pass None
+        self.set_focus(None, event_stack);
+    }
+
+    /// Send a focus event to the specified target node
+    pub fn send_focus_event_to(
+        &mut self,
+        target: NodeId,
+        focus_stack: Vec<NodeId>,
+        previously_focused_nodes: &mut HashSet<NodeId>,
+    ) {
+        let event_cache = EventCache::new(self.scale_factor);
+        let mut focus_event = Event::new(event::Focus, &event_cache, target);
+        focus_event.set_focus_stack(focus_stack);
+        focus_event.target = Some(target);
+        self.node.set_focus(&mut focus_event);
+        self.dirty.mark_from_event(&focus_event);
+        self.handle_event_signals(&focus_event, previously_focused_nodes);
+    }
+
+    /// Send a focus event to the currently focused node
+    pub fn send_focus_event(&mut self, previously_focused_nodes: &mut HashSet<NodeId>) {
+        let focus = self.active_focus();
+        let focus_stack = self.focus_stack();
+        self.send_focus_event_to(focus, focus_stack, previously_focused_nodes);
+    }
+
+    /// Handle signals from an event (like Signal::Focus)
+    pub fn handle_event_signals<T: EventInput>(
+        &mut self,
+        event: &Event<T>,
+        previously_focused_nodes: &mut HashSet<NodeId>,
+    ) {
+        for signal in event.signals.signals.iter() {
+            let node_id = match signal {
+                Signal::Focus(target) | Signal::ScrollTo(target) => match target {
+                    Target::Ref(r) => self.get_reference(r),
+                    Target::Child(_, node) => *node,
+                },
+            };
+            if let Some(node_id) = node_id {
+                match signal {
+                    Signal::Focus(_) => {
+                        if node_id != self.active_focus()
+                            && !previously_focused_nodes.contains(&node_id)
+                        {
+                            if let Some(stack_to_node) = self.node.get_target_stack(node_id, false)
+                            {
+                                let stack: Vec<NodeId> =
+                                    stack_to_node.iter().map(|n| (*n) as u64).collect();
+                                previously_focused_nodes.insert(node_id);
+                                self.send_blur_event(&event.stack, previously_focused_nodes);
+                                self.set_focus(Some(node_id), &stack);
+                                self.send_focus_event(previously_focused_nodes);
+                            }
+                        }
+                    }
+                    Signal::ScrollTo(_) => {
+                        // TODO Scroll to
+                    }
+                }
+            }
+        }
+    }
+
+    /// Handle a focus change that occurred during view().
+    /// This is the main entry point for handling focus changes in the draw thread.
+    ///
+    /// Parameters:
+    /// - prev_focus: The focus before view() was called
+    /// - prev_focus_stack: The focus stack before view() was called
+    /// - new_focus: The focus after view() was called (from new_focus_state)
+    /// - new_focus_stack: The focus stack after view() (from new_focus_state)
+    pub fn handle_focus_change(
+        &mut self,
+        prev_focus: NodeId,
+        prev_focus_stack: Vec<NodeId>,
+        new_focus: NodeId,
+        new_focus_stack: Vec<NodeId>,
+    ) {
+        if new_focus != prev_focus {
+            let mut previously_focused_nodes = HashSet::new();
+
+            // Blur the previously focused node
+            self.send_blur_event_to(prev_focus, prev_focus_stack, &mut previously_focused_nodes);
+
+            // Focus the new node
+            self.send_focus_event_to(new_focus, new_focus_stack, &mut previously_focused_nodes);
+        }
+    }
+}
