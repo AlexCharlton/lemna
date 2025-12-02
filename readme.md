@@ -37,8 +37,7 @@ A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerat
 - "scroll to" functionality
 - Better keyboard support
   - Create a ActionSignaller struct and attach to events
-    - Has `focus(ref)` and `scroll_to(ref)` methods
-    - Pass this to `update` as well
+    - Pass this to `update` as well?
 - Debug detection of duplicate Node keys
 - Only re-view dirty nodes
 - Button inactive state

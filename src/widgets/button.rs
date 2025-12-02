@@ -8,6 +8,7 @@ use crate::base_types::*;
 use crate::component::{Component, Message};
 use crate::event;
 use crate::font_cache::TextSegment;
+use crate::input::Key;
 use crate::layout::*;
 use crate::style::{HorizontalPosition, Styled};
 use crate::{Node, node};
@@ -17,6 +18,7 @@ use lemna_macros::{component, state_component_impl};
 struct ButtonState {
     hover: bool,
     pressed: bool,
+    focused: bool,
     tool_tip_open: Option<Point>,
     hover_start: Option<Instant>,
 }
@@ -26,6 +28,7 @@ pub struct Button {
     pub label: Vec<TextSegment>,
     pub on_click: Option<Box<dyn Fn() -> Message + Send + Sync>>,
     pub tool_tip: Option<String>,
+    focus_on_click: bool,
 }
 
 impl core::fmt::Debug for Button {
@@ -42,6 +45,7 @@ impl Button {
             label,
             on_click: None,
             tool_tip: None,
+            focus_on_click: false,
             state: Some(ButtonState::default()),
             dirty: false,
             class: Default::default(),
@@ -56,6 +60,11 @@ impl Button {
 
     pub fn tool_tip(mut self, t: String) -> Self {
         self.tool_tip = Some(t);
+        self
+    }
+
+    pub fn focus_on_click(mut self) -> Self {
+        self.focus_on_click = true;
         self
     }
 }
@@ -81,7 +90,11 @@ impl Component for Button {
                     background_color
                 },
                 border_color,
-                border_width,
+                border_width: if self.state_ref().focused {
+                    border_width * 1.5
+                } else {
+                    border_width
+                },
                 radii: BorderRadii::all(radius),
             },
             lay!(
@@ -127,7 +140,11 @@ impl Component for Button {
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
-        *self.state_mut() = ButtonState::default();
+        let focused = self.state_ref().focused;
+        *self.state_mut() = ButtonState {
+            focused,
+            ..Default::default()
+        };
         crate::window::unset_cursor();
     }
 
@@ -157,11 +174,39 @@ impl Component for Button {
         if let Some(f) = &self.on_click {
             event.emit(f());
         }
+        if self.focus_on_click {
+            event.focus();
+        }
     }
 
     fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
         if let Some(f) = &self.on_click {
             event.emit(f());
+        }
+        if self.focus_on_click {
+            event.focus();
+        }
+    }
+
+    fn on_focus(&mut self, _event: &mut event::Event<event::Focus>) {
+        self.state_mut().focused = true;
+    }
+
+    fn on_blur(&mut self, _event: &mut crate::Event<event::Blur>) {
+        self.state_mut().focused = false;
+    }
+
+    fn on_key_press(&mut self, event: &mut crate::Event<event::KeyPress>) {
+        match event.input.0 {
+            Key::Return => {
+                if let Some(f) = &self.on_click {
+                    event.emit(f());
+                }
+            }
+            Key::Escape => {
+                event.blur();
+            }
+            _ => {}
         }
     }
 }

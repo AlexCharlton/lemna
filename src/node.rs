@@ -103,6 +103,7 @@ pub struct Node {
     pub(crate) key: u64,
     pub(crate) reference: Option<String>,
     pub(crate) auto_focus: bool,
+    pub(crate) new_focus: bool,
     pub(crate) focus_priority: i32,
 }
 
@@ -161,6 +162,7 @@ impl Node {
             render_hash: u64::MAX,
             reference: None,
             auto_focus: false,
+            new_focus: false,
             focus_priority: 0,
         }
     }
@@ -183,9 +185,15 @@ impl Node {
         self.reference = Some(name.into());
         self
     }
-
+    /// Node is focused when created and will be part of the focus stack.
     pub fn focus(mut self) -> Self {
         self.auto_focus = true;
+        self
+    }
+
+    /// Node is focused when created.
+    pub fn focus_when_new(mut self) -> Self {
+        self.new_focus = true;
         self
     }
 
@@ -194,7 +202,6 @@ impl Node {
     /// unless the lower priority node is requesting focus and is a descendant
     /// of the higher priority node.
     pub fn focus_priority(mut self, priority: i32) -> Self {
-        self.auto_focus = true;
         self.focus_priority = priority;
         self
     }
@@ -245,14 +252,15 @@ impl Node {
             focus_state
                 .tree_mut()
                 .register(self.id, parent_focus_id, self.focus_priority);
-            // If the node is new, focus it (respecting priorities)
-            if new {
-                focus_state.try_set_active(Some(self.id), &[], parent_focus_id);
-            }
+
             self.id
         } else {
             parent_focus_id // Pass through parent's focus context
         };
+        // If the node is new, focus it (respecting priorities)
+        if new && (self.auto_focus || self.new_focus) {
+            focus_state.try_set_active(Some(self.id), &[], parent_focus_id);
+        }
 
         // Create children
         if let Some(mut child) = self.component.view() {
@@ -630,7 +638,7 @@ impl Node {
     //     }
     // }
 
-    fn get_target_from_stack(&mut self, target: &[usize]) -> &mut Self {
+    pub(crate) fn get_target_from_stack(&mut self, target: &[usize]) -> &mut Self {
         let mut current = self;
         for t in target.iter() {
             current = &mut current.children[*t];

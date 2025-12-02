@@ -46,13 +46,16 @@ impl lemna::Component for App {
                     padding: [10.0],
                 ], id as u64 + 2));
         }
-        main = main.push(node!(
-            widgets::Button::new(txt!("New Item"))
-                .style("padding", 4.0)
-                .on_click(Box::new(|| msg!(ModalEvent::OpenModal))),
-            [],
-            1
-        ));
+        main = main.push(
+            node!(
+                widgets::Button::new(txt!("New Item"))
+                    .style("padding", 4.0)
+                    .on_click(Box::new(|| msg!(ModalEvent::OpenModal))),
+                [],
+                1
+            )
+            .focus(),
+        );
 
         // Add modal overlay if open
         let mut result = main;
@@ -65,7 +68,7 @@ impl lemna::Component for App {
                         "Item",
                     ),
                     [position: [0.0], position_type: Absolute, size_pct: [100.0], z_index: 1000.0]
-                ));
+                ).focus());
         }
 
         Some(result)
@@ -135,9 +138,17 @@ enum ModalMessage {
     Submit,
 }
 
+#[derive(Debug, PartialEq, Copy, Clone)]
+enum ModalFocus {
+    Input,
+    Submit,
+    Cancel,
+}
+
 #[derive(Debug)]
 struct NewNamedModalState {
     name: String,
+    focused: ModalFocus,
 }
 
 #[component(State = "NewNamedModalState")]
@@ -164,6 +175,7 @@ impl Component for NewNamedModal {
         println!("Initializing modal");
         self.state = Some(NewNamedModalState {
             name: self.name.clone(),
+            focused: ModalFocus::Input,
         });
     }
 
@@ -198,7 +210,7 @@ impl Component for NewNamedModal {
             widgets::TextBox::new(Some(self.name.clone()))
                 .on_change(Box::new(|text: &str| msg!(ModalMessage::UpdateName(text.to_string())))),
             [size_pct: [90.0, Auto], padding: [5.0]]
-        ))
+        ).focus_when_new().reference("input"))
         .push(
             node!(
                 widgets::Div::new(),
@@ -208,12 +220,12 @@ impl Component for NewNamedModal {
                 widgets::Button::new(txt!("Cancel"))
                     .on_click(Box::new(|| msg!(ModalEvent::CloseModal))),
                 [margin: [0.0, 5.0]]
-            ))
+            ).reference("cancel_button"))
             .push(node!(
                 widgets::Button::new(txt!("Create"))
                     .on_click(Box::new(|| msg!(ModalMessage::Submit))),
                 [margin: [0.0, 5.0]]
-            )),
+            ).reference("submit_button")),
         );
 
         Some(overlay.push(modal_content))
@@ -260,5 +272,48 @@ impl Component for NewNamedModal {
 
     fn on_mouse_enter(&mut self, event: &mut Event<event::MouseEnter>) {
         event.stop_bubbling();
+    }
+
+    fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) {
+        let focused = self.state_ref().focused;
+        match event.input.0 {
+            input::Key::Escape if focused != ModalFocus::Input => {
+                event.emit(msg!(ModalEvent::CloseModal));
+            }
+            input::Key::Return | input::Key::Escape => {
+                if focused == ModalFocus::Input {
+                    event.focus_ref("submit_button");
+                    self.state_mut().focused = ModalFocus::Submit;
+                }
+            }
+            input::Key::Tab => {
+                if focused == ModalFocus::Input {
+                    if event.modifiers_held.shift {
+                        event.focus_ref("cancel_button");
+                        self.state_mut().focused = ModalFocus::Cancel;
+                    } else {
+                        event.focus_ref("submit_button");
+                        self.state_mut().focused = ModalFocus::Submit;
+                    }
+                } else if focused == ModalFocus::Submit {
+                    if event.modifiers_held.shift {
+                        event.focus_ref("input");
+                        self.state_mut().focused = ModalFocus::Input;
+                    } else {
+                        event.focus_ref("cancel_button");
+                        self.state_mut().focused = ModalFocus::Cancel;
+                    }
+                } else if focused == ModalFocus::Cancel {
+                    if event.modifiers_held.shift {
+                        event.focus_ref("submit_button");
+                        self.state_mut().focused = ModalFocus::Submit;
+                    } else {
+                        event.focus_ref("input");
+                        self.state_mut().focused = ModalFocus::Input;
+                    }
+                }
+            }
+            _ => (),
+        }
     }
 }
