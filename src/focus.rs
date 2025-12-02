@@ -26,6 +26,23 @@ impl FocusTree {
         self.parents.contains_key(&node_id)
     }
 
+    /// Get the priority of a node
+    pub fn priority(&self, node_id: NodeId) -> Option<i32> {
+        self.priorities.get(&node_id).copied()
+    }
+
+    /// Check if node_a is an ancestor of node_b in the focus tree
+    pub fn is_ancestor_of(&self, ancestor: NodeId, descendant: NodeId) -> bool {
+        let mut current = Some(descendant);
+        while let Some(id) = current {
+            if id == ancestor {
+                return true;
+            }
+            current = self.parents.get(&id).copied();
+        }
+        false
+    }
+
     /// Compute the path from root to the given node, including only focus contexts
     pub fn path_to(&self, node_id: NodeId) -> Vec<NodeId> {
         let mut path = Vec::new();
@@ -104,6 +121,50 @@ impl FocusState {
                 self.active = stack.last().cloned().unwrap();
                 self.stack = stack;
             }
+        }
+    }
+
+    /// Try to set the active focus, respecting priority rules.
+    /// A focus change is allowed if:
+    /// 1. The new node has equal or higher priority than the current node, OR
+    /// 2. The current node is an ancestor of the new node (child can take focus from parent)
+    ///
+    /// Returns true if the focus was changed, false if it was blocked by priority rules.
+    pub fn try_set_active(
+        &mut self,
+        node_id: Option<NodeId>,
+        event_stack: &[NodeId],
+        root_id: NodeId,
+    ) -> bool {
+        // If trying to set no focus, allow it
+        if node_id.is_none() {
+            self.set_active(node_id, event_stack, root_id);
+            return true;
+        }
+
+        let new_node = node_id.unwrap();
+        let current_node = self.active;
+
+        // If it's the same node, no change needed
+        if new_node == current_node {
+            return false;
+        }
+
+        // Get priorities
+        let new_priority = self.tree.priority(new_node).unwrap_or(0);
+        let current_priority = self.tree.priority(current_node).unwrap_or(0);
+
+        // Allow focus change if:
+        // 1. New node has equal or higher priority, OR
+        // 2. Current node is an ancestor of new node (descendant can take focus)
+        let allow_change =
+            new_priority >= current_priority || self.tree.is_ancestor_of(current_node, new_node);
+
+        if allow_change {
+            self.set_active(node_id, event_stack, root_id);
+            true
+        } else {
+            false
         }
     }
 

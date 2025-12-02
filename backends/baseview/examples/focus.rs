@@ -45,7 +45,8 @@ impl lemna::Component for App {
             ]
         )
         .reference("left_pane")
-        .focus(); // Mark as focus context
+        .focus() // Mark as focus context
+        .focus_priority(1); // Higher priority than the right pane
 
         // Right pane
         let right_pane = node!(

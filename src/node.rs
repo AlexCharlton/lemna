@@ -103,6 +103,7 @@ pub struct Node {
     pub(crate) key: u64,
     pub(crate) reference: Option<String>,
     pub(crate) auto_focus: bool,
+    pub(crate) focus_priority: i32,
 }
 
 impl fmt::Debug for Node {
@@ -160,6 +161,7 @@ impl Node {
             render_hash: u64::MAX,
             reference: None,
             auto_focus: false,
+            focus_priority: 0,
         }
     }
 
@@ -184,6 +186,16 @@ impl Node {
 
     pub fn focus(mut self) -> Self {
         self.auto_focus = true;
+        self
+    }
+
+    /// Mark this node as focusable with a specific priority.
+    /// Higher priority nodes will retain focus over lower priority ones,
+    /// unless the lower priority node is requesting focus and is a descendant
+    /// of the higher priority node.
+    pub fn focus_priority(mut self, priority: i32) -> Self {
+        self.auto_focus = true;
+        self.focus_priority = priority;
         self
     }
 
@@ -230,14 +242,12 @@ impl Node {
 
         let focus_id = if self.auto_focus {
             // Register this node as a focus context
-            focus_state.tree_mut().register(
-                self.id,
-                parent_focus_id,
-                0, // TODO: Use priority?
-            );
-            // If the node is new, focus it
+            focus_state
+                .tree_mut()
+                .register(self.id, parent_focus_id, self.focus_priority);
+            // If the node is new, focus it (respecting priorities)
             if new {
-                focus_state.set_active(Some(self.id), &[], parent_focus_id);
+                focus_state.try_set_active(Some(self.id), &[], parent_focus_id);
             }
             self.id
         } else {
