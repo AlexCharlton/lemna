@@ -553,6 +553,7 @@ impl Node {
             event.current_aabb = Some(self.aabb);
             event.current_inner_scale = self.inner_scale;
             handler(self, event);
+            event.resolve_signal_children(self);
             if self.component.is_dirty() {
                 event.dirty();
             }
@@ -627,7 +628,9 @@ impl Node {
         current
     }
 
-    pub(crate) fn get_target_stack(&self, target: u64) -> Option<Vec<usize>> {
+    // If child mode, return the stack of child indexes that lead to the target
+    // Otherwise, return the stack of NodeIds
+    pub(crate) fn get_target_stack(&self, target: u64, child_mode: bool) -> Option<Vec<usize>> {
         struct Frame<'a> {
             node: &'a Node,
             child: usize,
@@ -641,7 +644,18 @@ impl Node {
         loop {
             if current.node.id == target {
                 // Unwind
-                return Some(stack.iter().map(|f| f.child - 1).collect());
+                return Some(
+                    stack
+                        .iter()
+                        .map(|f| {
+                            if child_mode {
+                                f.child - 1
+                            } else {
+                                f.node.id as usize
+                            }
+                        })
+                        .collect(),
+                );
             }
             if current.child < current.node.children.len() {
                 stack.push(Frame {
@@ -667,7 +681,7 @@ impl Node {
     ) {
         if let Some(mut stack) = event
             .target
-            .and_then(|target| self.get_target_stack(target))
+            .and_then(|target| self.get_target_stack(target, true))
         {
             let node = self.get_target_from_stack(&stack);
             event.stack.push(node.id);
@@ -675,6 +689,7 @@ impl Node {
             event.current_aabb = Some(node.aabb);
             event.current_inner_scale = node.inner_scale;
             handler(node, event);
+            event.resolve_signal_children(&node);
             if node.component.is_dirty() {
                 event.dirty();
             }
@@ -694,6 +709,7 @@ impl Node {
                     event.current_aabb = Some(node.aabb);
                     event.current_inner_scale = node.inner_scale;
                     handler(node, event);
+                    event.resolve_signal_children(&node);
                     if node.component.is_dirty() {
                         event.dirty();
                     }
@@ -821,6 +837,7 @@ impl Node {
             for message in child.tick(event).drain(..) {
                 m.append(&mut self.component.update(message));
             }
+            event.resolve_signal_children(child);
         }
 
         event.current_node_id = Some(self.id);

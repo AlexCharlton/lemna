@@ -1,8 +1,8 @@
 extern crate alloc;
-use alloc::{string::String, vec::Vec};
+use alloc::{string::String, vec, vec::Vec};
 
 use crate::component::Component;
-use crate::event::{self, Event, EventCache, EventInput};
+use crate::event::{self, Event, EventCache, EventInput, Signal, Target};
 use crate::input::*;
 use crate::instrumenting::{inst, inst_end};
 use crate::node::Node;
@@ -41,6 +41,8 @@ pub(crate) trait LemnaUI {
     fn active_focus(&self) -> NodeId;
     fn set_focus(&mut self, focus: Option<NodeId>, event_stack: &[NodeId]);
 
+    fn get_reference(&self, reference: &str) -> Option<NodeId>;
+
     fn root_id(&mut self) -> NodeId {
         self.with_node(|node| node.id)
     }
@@ -72,7 +74,11 @@ pub(crate) trait LemnaUI {
         self.set_node_dirty(dirty);
     }
 
-    fn send_blur_event(&mut self, event_stack: &[NodeId]) {
+    fn send_blur_event(
+        &mut self,
+        event_stack: &[NodeId],
+        previously_focused_nodes: &mut Vec<NodeId>,
+    ) {
         let focus = self.active_focus();
         let mut blur_event = Event::new(event::Blur, self.event_cache(), focus);
         blur_event.set_focus_stack(self.focus_stack());
@@ -81,41 +87,53 @@ pub(crate) trait LemnaUI {
         self.handle_dirty_event(&blur_event);
 
         // Blur means we're removing focus, pass None
-        self.set_focus(None, event_stack)
-    }
-
-    fn blur(&mut self, event_stack: &[NodeId]) {
-        let prev_focus = self.active_focus();
-        self.send_blur_event(event_stack);
-        // Blur means we're removing focus, pass None
         self.set_focus(None, event_stack);
-
-        let new_focus = self.active_focus();
-        // We've passed focus to some new Node, so focus it
-        if new_focus != prev_focus {
-            self.send_focus_event();
-        }
+        self.handle_event_signals(&blur_event, previously_focused_nodes);
     }
 
-    fn send_focus_event(&mut self) {
+    fn send_focus_event(&mut self, previously_focused_nodes: &mut Vec<NodeId>) {
         let focus = self.active_focus();
         let mut focus_event = Event::new(event::Focus, self.event_cache(), focus);
         focus_event.set_focus_stack(self.focus_stack());
         focus_event.target = Some(focus);
         self.with_node(|node| node.set_focus(&mut focus_event));
         self.handle_dirty_event(&focus_event);
+        self.handle_event_signals(&focus_event, previously_focused_nodes);
     }
 
-    fn handle_focus_or_blur<T: EventInput>(&mut self, event: &Event<T>) {
+    fn blur(&mut self, event_stack: &[NodeId]) {
+        let mut previously_focused_nodes = vec![];
+        self.do_blur(event_stack, &mut previously_focused_nodes);
+    }
+
+    fn do_blur(&mut self, event_stack: &[NodeId], previously_focused_nodes: &mut Vec<NodeId>) {
+        let prev_focus = self.active_focus();
+        self.send_blur_event(event_stack, previously_focused_nodes);
+        // Blur means we're removing focus, pass None
+        self.set_focus(None, event_stack);
+
+        let new_focus = self.active_focus();
+        // We've passed focus to some new Node, so focus it
+        if new_focus != prev_focus {
+            self.send_focus_event(previously_focused_nodes);
+        }
+    }
+
+    fn handle_focus_or_blur<T: EventInput>(
+        &mut self,
+        event: &Event<T>,
+        previously_focused_nodes: &mut Vec<NodeId>,
+    ) {
         if event.focus.is_none() {
-            self.blur(&event.stack);
+            self.do_blur(&event.stack, previously_focused_nodes);
         } else if event.focus != Some(self.active_focus()) {
             // First blur the old focus
-            self.send_blur_event(&event.stack);
+            self.send_blur_event(&event.stack, previously_focused_nodes);
 
             // Then set the new focus
-            self.set_focus(event.focus, &event.stack);
-            self.send_focus_event();
+            let focus_node = event.focus.unwrap_or(self.root_id());
+            self.set_focus(Some(focus_node), &event.stack);
+            self.send_focus_event(previously_focused_nodes);
         }
     }
 
@@ -137,8 +155,10 @@ pub(crate) trait LemnaUI {
     {
         event.target = target;
         self.with_node(|node| handler(node, event));
-        self.handle_focus_or_blur(event);
+        let mut previously_focused_nodes = Vec::new();
+        self.handle_focus_or_blur(event, &mut previously_focused_nodes);
         self.handle_dirty_event(event);
+        self.handle_event_signals(event, &mut previously_focused_nodes);
     }
 
     fn handle_event_without_focus<T: EventInput, F>(
@@ -152,6 +172,46 @@ pub(crate) trait LemnaUI {
         event.target = target;
         self.with_node(|node| handler(node, event));
         self.handle_dirty_event(event);
+        let mut previously_focused_nodes = Vec::new();
+        self.handle_event_signals(event, &mut previously_focused_nodes);
+    }
+
+    fn handle_event_signals<T: EventInput>(
+        &mut self,
+        event: &Event<T>,
+        previously_focused_nodes: &mut Vec<NodeId>,
+    ) {
+        for signal in event.signals.signals.iter() {
+            let node = match signal {
+                Signal::Focus(target) | Signal::ScrollTo(target) => match target {
+                    Target::Ref(r) => self.get_reference(r),
+                    Target::Child(_, node) => node.map(|n| n),
+                },
+            };
+            if let Some(node_id) = node {
+                match signal {
+                    Signal::Focus(_) => {
+                        if node_id != self.active_focus()
+                            && !previously_focused_nodes.contains(&node_id)
+                        {
+                            if let Some(stack_to_node) =
+                                self.with_node(|node| node.get_target_stack(node_id, false))
+                            {
+                                previously_focused_nodes.push(node_id);
+                                let stack: Vec<NodeId> =
+                                    stack_to_node.iter().map(|n| (*n) as u64).collect();
+                                self.send_blur_event(&event.stack, previously_focused_nodes);
+                                self.set_focus(Some(node_id), &stack);
+                                self.send_focus_event(previously_focused_nodes);
+                            }
+                        }
+                    }
+                    Signal::ScrollTo(_) => {
+                        // TODO Scroll to
+                    }
+                }
+            }
+        }
     }
 
     /// Handle [`Input`]s coming from the [`Window`] backend.

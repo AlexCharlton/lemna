@@ -44,6 +44,7 @@ impl lemna::Component for App {
                 margin: [0.0, 10.0, 0.0, 0.0],
             ]
         )
+        .reference("left_pane")
         .focus(); // Mark as focus context
 
         // Right pane
@@ -54,6 +55,7 @@ impl lemna::Component for App {
                 margin: [0.0, 0.0, 0.0, 10.0],
             ]
         )
+        .reference("right_pane")
         .focus(); // Mark as focus context
 
         panes_container = panes_container.push(left_pane).push(right_pane);
@@ -69,12 +71,8 @@ impl lemna::Component for App {
         // Global shortcuts for switching panes
         if event.modifiers_held.ctrl {
             match event.input.0 {
-                input::Key::D1 => {
-                    // TODO: Set focus to left pane
-                }
-                input::Key::D2 => {
-                    // TODO: Set focus to right pane
-                }
+                input::Key::D1 => event.focus_ref("left_pane"),
+                input::Key::D2 => event.focus_ref("right_pane"),
                 _ => {}
             }
         }
@@ -166,6 +164,7 @@ impl Component for Pane {
                 padding: [5.0],
             ]
         )
+        .reference(format!("{}::Textbox", self.title))
         .focus(); // Mark textbox as focus context
 
         let result = container.push(title).push(status_text).push(textbox);
@@ -177,8 +176,13 @@ impl Component for Pane {
         println!("{} got {:?}", self.title, event.input);
     }
 
-    fn on_focus(&mut self, _event: &mut event::Event<event::Focus>) {
+    fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {
+        // When (directly) focusing a new pane, this will fire three times:
+        // 1. When the pane is focused directly
+        // 2. When the TextBox is focused and the focus bubbles
+        // 3. When the TextBoxText is focused and the focus bubbles
         println!("{} got focus", self.title);
+        event.focus_ref(format!("{}::Textbox", self.title));
         self.state_mut().focused = true;
     }
 

@@ -9,7 +9,7 @@ use hashbrown::HashSet;
 
 use super::base_types::*;
 use super::input::{Key, MouseButton};
-use crate::{Message, NodeId};
+use crate::{Message, Node, NodeId};
 
 /// How much time (ms) can elapse between clicks before it's no longer considered a double click.
 pub const DOUBLE_CLICK_INTERVAL_MS: i64 = 500; // ms
@@ -47,6 +47,7 @@ pub struct Event<T: EventInput> {
     pub(crate) focus_stack: Vec<NodeId>,
     pub(crate) scale_factor: f32,
     pub(crate) messages: Vec<Message>,
+    pub(crate) signals: Signaller,
     /// Stack of nodes that the event passed through. If the event is targeted, then this is the nodes on the way to the target. If the event is a mouse event, the this is the nodes through which the mouse passed (and in particular, the nodes on the way to whatever stopped the event from bubbling).
     pub(crate) stack: Vec<NodeId>,
 }
@@ -69,6 +70,7 @@ impl<T: EventInput> fmt::Debug for Event<T> {
             .field("focus_stack", &self.focus_stack)
             .field("scale_factor", &self.scale_factor)
             .field("stack", &self.stack)
+            .field("signals", &self.signals)
             .finish()
     }
 }
@@ -234,28 +236,6 @@ pub struct DragDrop(
 );
 impl EventInput for DragDrop {}
 
-/// Returned by [`Component#register`][crate::Component#method.register].
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Register {
-    KeyDown,
-    KeyUp,
-    KeyPress,
-    // Maybe TODO: Include Tick?
-}
-
-/// [`EventInput`] type for signal events.
-pub struct Signal {
-    /// The [`Message`] being sent.
-    pub msg: Message,
-}
-impl EventInput for Signal {}
-
-impl fmt::Debug for Signal {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Message").finish()
-    }
-}
-
 impl Scalable for Scroll {
     fn scale(self, scale_factor: f32) -> Self {
         Self {
@@ -302,6 +282,7 @@ impl<T: EventInput> Event<T> {
             over_subchild_n: None,
             scale_factor: event_cache.scale_factor,
             messages: vec![],
+            signals: Signaller::default(),
             stack: vec![],
         }
     }
@@ -393,6 +374,30 @@ impl<T: EventInput> Event<T> {
     /// Returns which child of the child of this Node the mouse is over, if any.
     pub fn over_subchild_n(&self) -> Option<usize> {
         self.over_subchild_n
+    }
+
+    /// Signal that the given child (or self if the child vector is empty) should be focused.
+    pub fn focus_child(&mut self, child: Vec<usize>) {
+        self.signals.focus_child(child);
+    }
+
+    /// Signal that the given reference should be focused.
+    pub fn focus_ref<S: Into<String>>(&mut self, target: S) {
+        self.signals.focus_ref(target)
+    }
+
+    /// Signal that the given child (or self if the child vector is empty) should be scrolled to.
+    pub fn scroll_to_child(&mut self, child: Vec<usize>) {
+        self.signals.scroll_to_child(child)
+    }
+
+    /// Signal that the given reference should be scrolled to.
+    pub fn scroll_to_ref<S: Into<String>>(&mut self, target: S) {
+        self.signals.scroll_to_ref(target)
+    }
+
+    pub(crate) fn resolve_signal_children(&mut self, current_node: &Node) {
+        self.signals.resolve_children(current_node);
     }
 }
 
@@ -615,6 +620,85 @@ impl EventCache {
             Some(MouseButton::Aux2)
         } else {
             None
+        }
+    }
+}
+
+//---------------------------------------------
+// MARK: Signaller
+//---------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Target {
+    Ref(String),
+    // The child node ID gets resolved when event handling
+    Child(Vec<usize>, Option<NodeId>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Signal {
+    Focus(Target),
+    ScrollTo(Target),
+}
+
+impl Signal {
+    fn target_mut(&mut self) -> &mut Target {
+        match self {
+            Signal::Focus(target) | Signal::ScrollTo(target) => target,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Signaller {
+    pub(crate) signals: Vec<Signal>,
+}
+
+impl Signaller {
+    fn focus_ref<S: Into<String>>(&mut self, ref_id: S) {
+        self.signals.push(Signal::Focus(Target::Ref(ref_id.into())));
+    }
+
+    fn focus_child(&mut self, child_index: Vec<usize>) {
+        self.signals
+            .push(Signal::Focus(Target::Child(child_index, None)));
+    }
+
+    fn scroll_to_ref<S: Into<String>>(&mut self, ref_id: S) {
+        self.signals
+            .push(Signal::ScrollTo(Target::Ref(ref_id.into())));
+    }
+
+    fn scroll_to_child(&mut self, child_index: Vec<usize>) {
+        self.signals
+            .push(Signal::ScrollTo(Target::Child(child_index, None)));
+    }
+
+    fn resolve_children(&mut self, current_node: &Node) {
+        for signal in self.signals.iter_mut() {
+            let mut node = current_node;
+            let mut found_child = false;
+            if let Signal::ScrollTo(Target::Child(child_index, None))
+            | Signal::Focus(Target::Child(child_index, None)) = signal
+            {
+                found_child = true;
+                for i in child_index.iter() {
+                    if let Some(child) = node.children.get(*i) {
+                        node = child;
+                    } else {
+                        found_child = false;
+                        break;
+                    }
+                }
+            }
+            if found_child {
+                match signal.target_mut() {
+                    Target::Child(_, id) => {
+                        *id = Some(node.id);
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 }

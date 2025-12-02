@@ -133,6 +133,10 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
             .unwrap()
             .set_active(node_id, event_stack, root_id);
     }
+
+    fn get_reference(&self, reference: &str) -> Option<NodeId> {
+        self.references.read().unwrap().get(reference).cloned()
+    }
 }
 
 impl<A: 'static + Component + Default + Send + Sync> UI<A> {

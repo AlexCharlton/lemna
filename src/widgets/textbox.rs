@@ -141,6 +141,11 @@ impl Component for TextBox {
         }
         m
     }
+
+    fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {
+        // Focus the TextBoxText
+        event.focus_child(vec![0, 0])
+    }
 }
 
 #[derive(Debug, Default)]
@@ -512,6 +517,7 @@ impl Component for TextBoxText {
     fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {
         self.state_mut().focused = true;
         self.state_mut().cursor_visible = true;
+        self.state_mut().activated_at = Instant::now();
         event.emit(Box::new(TextBoxMessage::Open))
     }
 
@@ -519,7 +525,6 @@ impl Component for TextBoxText {
         self.state_mut().focused = false;
         self.state_mut().cursor_visible = false;
         self.state_mut().selection_from = None;
-        self.state_mut().cursor_pos = 0;
         event.emit(Box::new(TextBoxMessage::Close));
         event.emit(Box::new(TextBoxMessage::Commit(
             self.state_ref().text.clone(),
