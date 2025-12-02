@@ -91,7 +91,7 @@ pub mod lemna_baseview {
             let app = A::default();
             let mut node = Node::new(Box::new(app), 0, layout::Layout::default());
             let mut references = HashMap::new();
-            let mut focus_state = FocusState::new();
+            let mut focus_state = FocusState::default();
             node.view(None, &mut references, &mut focus_state, 0);
         }
     }

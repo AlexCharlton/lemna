@@ -4,7 +4,7 @@ use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::sync::atomic::{AtomicU64, Ordering};
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 
 use crate::base_types::*;
 use crate::component::*;
@@ -211,6 +211,7 @@ impl Node {
         mut prev: Option<&mut Self>,
         references: &mut HashMap<String, NodeId>,
         focus_state: &mut FocusState,
+        all_nodes: &mut HashSet<NodeId>,
         parent_focus_id: NodeId,
     ) {
         // TODO: skip non-visible (out of frame) nodes
@@ -242,6 +243,8 @@ impl Node {
             self.props_hash = hasher.finish();
             new = true;
         }
+
+        all_nodes.insert(self.id);
 
         if let Some(refr) = self.reference.clone() {
             references.insert(refr, self.id);
@@ -303,12 +306,13 @@ impl Node {
                     prev_children.iter_mut().find(|x| x.key == child.key),
                     references,
                     focus_state,
+                    all_nodes,
                     focus_id,
                 )
             }
         } else {
             for child in self.children.iter_mut() {
-                child.view(None, references, focus_state, focus_id)
+                child.view(None, references, focus_state, all_nodes, focus_id)
             }
         }
     }
@@ -1135,7 +1139,13 @@ mod tests {
     fn test_caching() {
         let mut caches = Caches::default();
         let mut n = Node::new(Box::new(test_app::TestApp::default()), 0, Layout::default());
-        n.view(None, &mut HashMap::new(), &mut FocusState::default(), 0);
+        n.view(
+            None,
+            &mut HashMap::new(),
+            &mut FocusState::default(),
+            &mut HashSet::new(),
+            0,
+        );
         //n.layout();
         n.render(&mut caches, 1.0);
         //println!("{:#?}", n);
@@ -1168,6 +1178,7 @@ mod tests {
             Some(&mut n),
             &mut HashMap::new(),
             &mut FocusState::default(),
+            &mut HashSet::new(),
             0,
         );
         assert_eq!(n.id, new_n.id);
@@ -1370,7 +1381,13 @@ mod tests {
             0,
             lay!(size: size!(300.0)),
         );
-        n.view(None, &mut HashMap::new(), &mut FocusState::default(), 0);
+        n.view(
+            None,
+            &mut HashMap::new(),
+            &mut FocusState::default(),
+            &mut HashSet::new(),
+            0,
+        );
         n.layout(&caches, 1.0);
 
         // Expect the inner_scale to be a real size

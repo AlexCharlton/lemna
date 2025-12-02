@@ -1,7 +1,8 @@
 extern crate alloc;
+
 use alloc::vec::Vec;
 
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 
 use crate::NodeId;
 
@@ -90,9 +91,23 @@ impl FocusState {
         self.tree.contains(node_id)
     }
 
-    pub fn inherit_active(&mut self, old_state: &Self) {
+    pub fn inherit_active(&mut self, old_state: &Self, all_new_nodes: &HashSet<NodeId>) {
         self.stack = old_state.stack.clone();
         self.active = old_state.active;
+        let mut nodes_to_remove = 0;
+        for node in self.stack.iter().rev() {
+            if !all_new_nodes.contains(node) {
+                nodes_to_remove += 1;
+            }
+        }
+        self.stack = self.stack[..self.stack.len() - nodes_to_remove].to_vec();
+        if !all_new_nodes.contains(&self.active) {
+            self.active = self
+                .stack
+                .last()
+                .cloned()
+                .expect("The stack should always contain at least the root node")
+        }
     }
 
     /// Set the active focus and compute the stack based on the event stack

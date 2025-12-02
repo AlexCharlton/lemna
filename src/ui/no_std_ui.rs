@@ -114,12 +114,14 @@ impl<
             );
             let mut new_references = HashMap::new();
             let mut new_focus_state = FocusState::default();
+            let mut all_nodes = HashSet::new();
             let root_id = self.node.id;
 
             new.view(
                 Some(&mut self.node),
                 &mut new_references,
                 &mut new_focus_state,
+                &mut all_nodes,
                 root_id,
             );
 
@@ -127,8 +129,9 @@ impl<
             let prev_focus = self.focus_state.active();
             let new_focus = new_focus_state.active();
             if new_focus == root_id {
-                new_focus_state.inherit_active(&self.focus_state);
-            } else if new_focus != prev_focus {
+                new_focus_state.inherit_active(&self.focus_state, &all_nodes);
+            }
+            if new_focus_state.active() != prev_focus {
                 // Focus changed during view - handle it with FocusContext
                 let prev_focus_stack = self.focus_state.stack().to_vec();
                 let new_focus_stack = new_focus_state.stack().to_vec();

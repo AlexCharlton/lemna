@@ -1,4 +1,6 @@
+use lemna::input::Key;
 use lemna::*;
+
 //-----------------------------------
 // MARK: App
 //
@@ -10,6 +12,8 @@ pub enum AppEvent {
 pub struct AppState {
     modal_open: bool,
     items: Vec<String>,
+    // items.len() means the new button is focused
+    item_focused: usize,
 }
 
 #[component(State = "AppState")]
@@ -26,6 +30,7 @@ impl lemna::Component for App {
                 "Item 2".to_string(),
                 "Item 3".to_string(),
             ],
+            item_focused: 0,
         })
     }
 
@@ -44,18 +49,14 @@ impl lemna::Component for App {
                     .on_click(Box::new(move || msg!(AppEvent::ItemClick(cloned_item.clone())))).style("padding", 4.0), [
                     size_pct: [80.0, Auto],
                     padding: [10.0],
-                ], id as u64 + 2));
+                ], id as u64));
         }
-        main = main.push(
-            node!(
-                widgets::Button::new(txt!("New Item"))
-                    .style("padding", 4.0)
-                    .on_click(Box::new(|| msg!(ModalEvent::OpenModal))),
-                [],
-                1
-            )
-            .focus(),
-        );
+        main = main.push(node!(
+            widgets::Button::new(txt!("New Item"))
+                .style("padding", 4.0)
+                .on_click(Box::new(|| msg!(ModalEvent::OpenModal))),
+            [],
+        ));
 
         // Add modal overlay if open
         let mut result = main;
@@ -86,6 +87,9 @@ impl lemna::Component for App {
                 ModalEvent::Submit(name) => {
                     if !name.trim().is_empty() {
                         self.state_mut().modal_open = false;
+                        if self.state_ref().item_focused >= self.state_ref().items.len() {
+                            self.state_mut().item_focused += 1;
+                        }
                         self.state_mut().items.push(name.clone());
                         return vec![];
                     }
@@ -94,6 +98,40 @@ impl lemna::Component for App {
             _ => return vec![message],
         }
         vec![]
+    }
+
+    fn on_focus(&mut self, event: &mut Event<event::Focus>) {
+        if !self.state_ref().modal_open {
+            let focused = self.state_ref().item_focused;
+            event.focus_child(vec![0, focused]);
+            // event.scroll_to_child(vec![0, focused]);
+        }
+    }
+
+    fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) {
+        match event.input.0 {
+            Key::Up => {
+                let focused = self.state_ref().item_focused;
+                if focused > 0 {
+                    let focused = focused - 1;
+                    self.state_mut().item_focused = focused;
+                    event.focus_child(vec![0, focused]);
+                } else {
+                    event.focus_child(vec![0, focused]);
+                }
+            }
+            Key::Down => {
+                let focused = self.state_ref().item_focused;
+                if focused < self.state_ref().items.len() {
+                    let focused = focused + 1;
+                    self.state_mut().item_focused = focused;
+                    event.focus_child(vec![0, focused]);
+                } else {
+                    event.focus_child(vec![0, focused]);
+                }
+            }
+            _ => {}
+        }
     }
 }
 

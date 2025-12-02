@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use std::thread::{self, JoinHandle};
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 use log::info;
 
 use crate::component::Component;
@@ -322,12 +322,14 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         let mut old = node.write().unwrap();
                         inst("Node::view");
                         let mut new_references = HashMap::new();
+                        let mut all_nodes = HashSet::new();
                         let mut new_focus_state = FocusState::default();
                         let root_id = old.id;
                         new.view(
                             Some(&mut old),
                             &mut new_references,
                             &mut new_focus_state,
+                            &mut all_nodes,
                             root_id, // Root node is the default focus
                         );
 
@@ -338,8 +340,10 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         let new_focus_stack = new_focus_state.stack().to_vec();
 
                         if new_focus == root_id {
-                            new_focus_state.inherit_active(&focus_state.read().unwrap());
-                        } else if new_focus != prev_focus {
+                            new_focus_state
+                                .inherit_active(&focus_state.read().unwrap(), &all_nodes);
+                        }
+                        if new_focus_state.active() != prev_focus {
                             // Use FocusContext to handle blur/focus events with signal support
                             let mut focus_ctx = super::FocusContext::new(
                                 &mut new,
