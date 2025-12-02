@@ -1,15 +1,18 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 use core::marker::PhantomData;
 
 use embedded_graphics::draw_target::DrawTarget;
+use hashbrown::HashMap;
 
+use crate::NodeId;
 use crate::base_types::PixelSize;
 use crate::component::Component;
 use crate::event::EventCache;
+use crate::focus::FocusState;
 use crate::layout::Layout;
-use crate::node::{Node, Registration};
+use crate::node::Node;
 use crate::render::{ActiveRenderer, Renderer, RgbColor};
 use crate::renderable::Caches;
 use crate::window::Window;
@@ -27,7 +30,8 @@ pub struct UI<
     renderer: ActiveRenderer,
     size: PixelSize,
     caches: Caches,
-    registrations: Vec<Registration>,
+    references: HashMap<String, NodeId>,
+    focus_state: FocusState,
     node_dirty: bool,
     node_render_dirty: bool,
     frame_dirty: bool,
@@ -56,8 +60,46 @@ impl<
         self.node_render_dirty = true;
     }
 
-    fn registrations(&self) -> Vec<Registration> {
-        self.registrations.clone()
+    fn focus_stack(&self) -> Vec<NodeId> {
+        self.focus_state.stack().to_vec()
+    }
+
+    fn active_focus(&self) -> NodeId {
+        self.focus_state.active()
+    }
+
+    fn set_focus(&mut self, node_id: Option<NodeId>, event_stack: &[NodeId]) {
+        let root_id = self.node.id;
+        self.focus_state
+            .try_set_active(node_id, event_stack, root_id);
+    }
+
+    fn get_reference(&self, reference: &str) -> Option<NodeId> {
+        self.references.get(reference).cloned()
+    }
+
+    fn with_focus_context<F, R>(&mut self, f: F) -> R
+    where
+        F: FnOnce(&mut super::FocusContext) -> R,
+    {
+        let scale_factor = self.event_cache.scale_factor;
+        let mut ctx = super::FocusContext::new(
+            &mut self.node,
+            &mut self.focus_state,
+            &self.references,
+            scale_factor,
+        );
+
+        let result = f(&mut ctx);
+
+        // Apply dirty state
+        if ctx.dirty.node_dirty {
+            self.node_dirty = true;
+        } else if ctx.dirty.render_dirty {
+            self.node_render_dirty = true;
+        }
+
+        result
     }
 
     fn draw(&mut self) {
@@ -70,9 +112,45 @@ impl<
                 0,
                 lay!(size: size!(size.width as f32, size.height as f32)),
             );
-            let mut new_registrations: Vec<Registration> = vec![];
-            new.view(Some(&mut self.node), &mut new_registrations);
-            self.registrations = new_registrations;
+            let mut new_references = HashMap::new();
+            let mut new_focus_state = FocusState::default();
+            let root_id = self.node.id;
+
+            new.view(
+                Some(&mut self.node),
+                &mut new_references,
+                &mut new_focus_state,
+                root_id,
+            );
+
+            // Handle focus changes if needed
+            let prev_focus = self.focus_state.active();
+            let new_focus = new_focus_state.active();
+            if new_focus == root_id {
+                new_focus_state.inherit_active(&self.focus_state);
+            } else if new_focus != prev_focus {
+                // Focus changed during view - handle it with FocusContext
+                let prev_focus_stack = self.focus_state.stack().to_vec();
+                let new_focus_stack = new_focus_state.stack().to_vec();
+
+                let mut ctx = super::FocusContext::new(
+                    &mut new,
+                    &mut new_focus_state,
+                    &new_references,
+                    self.event_cache.scale_factor,
+                );
+
+                ctx.handle_focus_change(prev_focus, prev_focus_stack, new_focus, new_focus_stack);
+
+                if ctx.dirty.node_dirty {
+                    self.node_dirty = true;
+                } else if ctx.dirty.render_dirty {
+                    self.node_render_dirty = true;
+                }
+            }
+
+            self.references = new_references;
+            self.focus_state = new_focus_state;
 
             new.layout(&self.caches, 1.0);
             let do_render = new.render(&mut self.caches, 1.0);
@@ -105,6 +183,7 @@ impl<
     fn event_cache(&mut self) -> &mut EventCache {
         &mut self.event_cache
     }
+
     fn exit(&mut self) {
         clear_current_window();
     }
@@ -131,7 +210,8 @@ impl<
             size,
             renderer,
             caches: Caches::default(),
-            registrations: vec![],
+            references: HashMap::new(),
+            focus_state: FocusState::default(),
             node_dirty: true,
             node_render_dirty: false,
             frame_dirty: false,

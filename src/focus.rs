@@ -1,3 +1,6 @@
+extern crate alloc;
+use alloc::vec::Vec;
+
 use hashbrown::HashMap;
 
 use crate::NodeId;

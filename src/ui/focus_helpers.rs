@@ -3,7 +3,7 @@
 //! the LemnaUI trait methods and the draw_thread.
 
 extern crate alloc;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use hashbrown::{HashMap, HashSet};
 

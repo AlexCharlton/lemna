@@ -580,9 +580,4 @@ impl<
     pub fn handle_input(&mut self, input: &Input) {
         LemnaUI::handle_input(self, input)
     }
-
-    /// Send a signal to the application.
-    pub fn signal(&mut self, msg: crate::Message, target: u64) {
-        LemnaUI::signal(self, msg, target)
-    }
 }

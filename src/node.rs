@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, vec, vec::Vec};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::sync::atomic::{AtomicU64, Ordering};
