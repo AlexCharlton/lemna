@@ -125,6 +125,9 @@ impl<
                 root_id,
             );
 
+            // Layout the new node
+            new.layout(&self.caches, 1.0);
+
             // Handle focus changes if needed
             let prev_focus = self.focus_state.active();
             let new_focus = new_focus_state.active();
@@ -155,7 +158,6 @@ impl<
             self.references = new_references;
             self.focus_state = new_focus_state;
 
-            new.layout(&self.caches, 1.0);
             let do_render = new.render(&mut self.caches, 1.0);
             self.node = new;
             self.frame_dirty = do_render;

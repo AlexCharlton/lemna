@@ -332,8 +332,15 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                             &mut all_nodes,
                             root_id, // Root node is the default focus
                         );
+                        inst_end();
 
+                        inst("Node::layout");
+                        new.layout(&caches, scale_factor);
+                        inst_end();
+
+                        inst("Node::update_focus");
                         // Handle focus changes
+                        // We layout first, since this may trigger ScrollTo Signals, which require the layout to be up-to-date
                         let prev_focus = focus_state.read().unwrap().active();
                         let prev_focus_stack = focus_state.read().unwrap().stack().to_vec();
                         let new_focus = new_focus_state.active();
@@ -365,10 +372,6 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         }
                         *references.write().unwrap() = new_references;
                         *focus_state.write().unwrap() = new_focus_state;
-                        inst_end();
-
-                        inst("Node::layout");
-                        new.layout(&caches, scale_factor);
                         inst_end();
 
                         inst("Node::render");

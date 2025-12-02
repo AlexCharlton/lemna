@@ -8,6 +8,8 @@ use alloc::{string::String, vec::Vec};
 use hashbrown::{HashMap, HashSet};
 
 use crate::NodeId;
+
+use crate::Scalable;
 use crate::event::{self, Event, EventCache, EventInput, Signal, Target};
 use crate::focus::FocusState;
 use crate::node::Node;
@@ -158,8 +160,8 @@ impl<'a> FocusContext<'a> {
                             }
                         }
                     }
-                    Signal::ScrollTo(_) => {
-                        // TODO Scroll to
+                    Signal::ScrollTo(_target) => {
+                        self.process_scroll_to_signal(node_id, event.scale_factor);
                     }
                 }
             }
@@ -189,6 +191,57 @@ impl<'a> FocusContext<'a> {
 
             // Focus the new node
             self.send_focus_event_to(new_focus, new_focus_stack, &mut previously_focused_nodes);
+        }
+    }
+
+    /// Process a single ScrollTo signal for the given node_id
+    fn process_scroll_to_signal(&mut self, node_id: NodeId, scale_factor: f32) {
+        // Get the stack of child indices leading to the target node
+        if let Some(target_stack) = self.node.get_target_stack(node_id, true) {
+            // First pass: collect info about target and scrollable ancestors
+            let mut scroll_info = Vec::new();
+
+            // Helper function to navigate to a node at a given depth
+            fn get_node_at_depth<'a>(root: &'a Node, stack: &[usize], depth: usize) -> &'a Node {
+                let mut current = root;
+                for &child_idx in stack[..depth].iter() {
+                    current = &current.children[child_idx];
+                }
+                current
+            }
+
+            // Get target AABB
+            let target_node = get_node_at_depth(&self.node, &target_stack, target_stack.len());
+            let target_aabb = target_node.aabb;
+
+            // Walk up ancestors and collect scrollable ones
+            for depth in (0..target_stack.len()).rev() {
+                let ancestor = get_node_at_depth(&self.node, &target_stack, depth);
+
+                if ancestor.component.scroll_position().is_some() {
+                    scroll_info.push((
+                        depth,
+                        // Physical dimension
+                        ancestor.aabb,
+                        // Scale to physical dimension
+                        ancestor.inner_scale.map(|s| s.scale(scale_factor)),
+                    ));
+                }
+            }
+
+            // Second pass: mutate scrollable ancestors
+            for (depth, ancestor_aabb, inner_scale) in scroll_info {
+                // Navigate to the ancestor and call on_scroll_to
+                let ancestor_stack = &target_stack[..depth];
+                let ancestor = self.node.get_target_from_stack(ancestor_stack);
+                if ancestor
+                    .component
+                    .on_scroll_to(target_aabb, ancestor_aabb, inner_scale)
+                {
+                    // Recalculate the position of the nodes
+                    self.node.reposition(scale_factor)
+                }
+            }
         }
     }
 }

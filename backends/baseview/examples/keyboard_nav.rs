@@ -29,6 +29,8 @@ impl lemna::Component for App {
                 "Item 1".to_string(),
                 "Item 2".to_string(),
                 "Item 3".to_string(),
+                "Item 4".to_string(),
+                "Item 5".to_string(),
             ],
             item_focused: 0,
         })
@@ -104,11 +106,11 @@ impl lemna::Component for App {
         if !self.state_ref().modal_open {
             let focused = self.state_ref().item_focused;
             event.focus_child(vec![0, focused]);
-            // event.scroll_to_child(vec![0, focused]);
+            event.scroll_to_child(vec![0, focused]);
         }
     }
 
-    fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) {
+    fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
         match event.input.0 {
             Key::Up => {
                 let focused = self.state_ref().item_focused;
@@ -210,7 +212,6 @@ impl NewNamedModal {
 #[state_component_impl(NewNamedModalState)]
 impl Component for NewNamedModal {
     fn init(&mut self) {
-        println!("Initializing modal");
         self.state = Some(NewNamedModalState {
             name: self.name.clone(),
             focused: ModalFocus::Input,

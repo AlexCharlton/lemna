@@ -191,6 +191,21 @@ pub trait Component: fmt::Debug {
         aabb
     }
 
+    /// Called when a descendant node requests to be scrolled into view via [`Event#scroll_to_child`][Event#method.scroll_to_child] or [`Event#scroll_to_ref`][Event#method.scroll_to_ref].
+    /// Only called on scrollable components (those that return `Some` from [`#scroll_position`][Component#method.scroll_position]).
+    ///
+    /// The `target_aabb` is the physical bounds of the target node that should be made visible.
+    /// The `aabb` is this component's physical bounds, and `inner_scale` is the physical size of its scrollable content.
+    /// Returns whether the component actually scrolled.
+    fn on_scroll_to(
+        &mut self,
+        _target_aabb: Rect,
+        _aabb: Rect,
+        _inner_scale: Option<Scale>,
+    ) -> bool {
+        false
+    }
+
     // Event handlers
     /// Handle mouse click events. These events will only be sent if the mouse is over the Component.
     fn on_click(&mut self, _event: &mut Event<event::Click>) {}

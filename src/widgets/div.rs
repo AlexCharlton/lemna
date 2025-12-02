@@ -246,6 +246,49 @@ impl Component for Div {
         }
     }
 
+    fn on_scroll_to(&mut self, target_aabb: Rect, aabb: Rect, inner_scale: Option<Scale>) -> bool {
+        let mut scrolled = false;
+        // Calculate our own frame bounds
+        let frame = self.frame_bounds(aabb, inner_scale);
+
+        // Calculate how much to scroll to bring target into view
+        // Only scroll if the target is outside the current frame
+
+        if self.y_scrollable() {
+            // Check if target is above the visible frame
+            if target_aabb.pos.y < frame.pos.y {
+                // Scroll up to show the top of the target
+                self.state_mut().scroll_position.y += target_aabb.pos.y - frame.pos.y;
+                scrolled = true;
+            }
+            // Check if target is below the visible frame
+            else if target_aabb.bottom_right.y > frame.bottom_right.y {
+                // Scroll down to show the bottom of the target
+                self.state_mut().scroll_position.y +=
+                    target_aabb.bottom_right.y - frame.bottom_right.y;
+                scrolled = true;
+            }
+        }
+
+        if self.x_scrollable() {
+            // Check if target is left of the visible frame
+            if target_aabb.pos.x < frame.pos.x {
+                // Scroll left to show the left of the target
+                self.state_mut().scroll_position.x += target_aabb.pos.x - frame.pos.x;
+                scrolled = true;
+            }
+            // Check if target is right of the visible frame
+            else if target_aabb.bottom_right.x > frame.bottom_right.x {
+                // Scroll right to show the right of the target
+                self.state_mut().scroll_position.x +=
+                    target_aabb.bottom_right.x - frame.bottom_right.x;
+                scrolled = true;
+            }
+        }
+
+        scrolled
+    }
+
     fn frame_bounds(&self, rect: Rect, inner_scale: Option<Scale>) -> Rect {
         let mut rect = rect;
         if self.scrollable() {
