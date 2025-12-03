@@ -711,7 +711,7 @@ impl Node {
             event.current_aabb = Some(node.aabb);
             event.current_inner_scale = node.inner_scale;
             handler(node, event);
-            event.resolve_signal_children(&node);
+            event.resolve_signal_children(node);
             if node.component.is_dirty() {
                 event.dirty();
             }
@@ -731,7 +731,7 @@ impl Node {
                     event.current_aabb = Some(node.aabb);
                     event.current_inner_scale = node.inner_scale;
                     handler(node, event);
-                    event.resolve_signal_children(&node);
+                    event.resolve_signal_children(node);
                     if node.component.is_dirty() {
                         event.dirty();
                     }

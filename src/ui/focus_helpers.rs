@@ -148,16 +148,14 @@ impl<'a> FocusContext<'a> {
                     Signal::Focus(_) => {
                         if node_id != self.active_focus()
                             && !previously_focused_nodes.contains(&node_id)
+                            && let Some(stack_to_node) = self.node.get_target_stack(node_id, false)
                         {
-                            if let Some(stack_to_node) = self.node.get_target_stack(node_id, false)
-                            {
-                                let stack: Vec<NodeId> =
-                                    stack_to_node.iter().map(|n| (*n) as u64).collect();
-                                previously_focused_nodes.insert(node_id);
-                                self.send_blur_event(&event.stack, previously_focused_nodes);
-                                self.set_focus(Some(node_id), &stack);
-                                self.send_focus_event(previously_focused_nodes);
-                            }
+                            let stack: Vec<NodeId> =
+                                stack_to_node.iter().map(|n| (*n) as u64).collect();
+                            previously_focused_nodes.insert(node_id);
+                            self.send_blur_event(&event.stack, previously_focused_nodes);
+                            self.set_focus(Some(node_id), &stack);
+                            self.send_focus_event(previously_focused_nodes);
                         }
                     }
                     Signal::ScrollTo(_target) => {
@@ -211,12 +209,12 @@ impl<'a> FocusContext<'a> {
             }
 
             // Get target AABB
-            let target_node = get_node_at_depth(&self.node, &target_stack, target_stack.len());
+            let target_node = get_node_at_depth(self.node, &target_stack, target_stack.len());
             let target_aabb = target_node.aabb;
 
             // Walk up ancestors and collect scrollable ones
             for depth in (0..target_stack.len()).rev() {
-                let ancestor = get_node_at_depth(&self.node, &target_stack, depth);
+                let ancestor = get_node_at_depth(self.node, &target_stack, depth);
 
                 if ancestor.component.scroll_position().is_some() {
                     scroll_info.push((

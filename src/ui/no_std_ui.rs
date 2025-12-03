@@ -4,7 +4,7 @@ use alloc::{boxed::Box, string::String, vec::Vec};
 use core::marker::PhantomData;
 
 use embedded_graphics::draw_target::DrawTarget;
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 
 use crate::NodeId;
 use crate::base_types::PixelSize;

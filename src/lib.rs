@@ -81,7 +81,7 @@ pub mod lemna_baseview {
     use super::*;
     pub struct Window {}
     use super::focus::FocusState;
-    use hashbrown::HashMap;
+    use hashbrown::{HashMap, HashSet};
 
     impl Window {
         pub fn open_blocking<A>(_options: WindowOptions)
@@ -91,8 +91,9 @@ pub mod lemna_baseview {
             let app = A::default();
             let mut node = Node::new(Box::new(app), 0, layout::Layout::default());
             let mut references = HashMap::new();
+            let mut nodes = HashSet::new();
             let mut focus_state = FocusState::default();
-            node.view(None, &mut references, &mut focus_state, 0);
+            node.view(None, &mut references, &mut focus_state, &mut nodes, 0);
         }
     }
 
