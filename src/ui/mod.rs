@@ -87,34 +87,49 @@ pub(crate) trait LemnaUI {
     fn send_blur_event(
         &mut self,
         event_stack: &[NodeId],
+        suppress_scroll_to: bool,
+        previously_focused_nodes: &mut HashSet<NodeId>,
+    ) -> Event<event::Blur> {
+        self.with_focus_context(|ctx| {
+            ctx.send_blur_event(event_stack, suppress_scroll_to, previously_focused_nodes)
+        })
+    }
+
+    fn send_focus_event(
+        &mut self,
+        suppress_scroll_to: bool,
         previously_focused_nodes: &mut HashSet<NodeId>,
     ) {
         self.with_focus_context(|ctx| {
-            ctx.send_blur_event(event_stack, previously_focused_nodes);
+            ctx.send_focus_event(suppress_scroll_to, previously_focused_nodes);
         });
     }
 
-    fn send_focus_event(&mut self, previously_focused_nodes: &mut HashSet<NodeId>) {
-        self.with_focus_context(|ctx| {
-            ctx.send_focus_event(previously_focused_nodes);
-        });
-    }
-
-    fn blur(&mut self, event_stack: &[NodeId]) {
+    fn blur(&mut self, event_stack: &[NodeId], suppress_scroll_to: bool) {
         let mut previously_focused_nodes = HashSet::new();
-        self.do_blur(event_stack, &mut previously_focused_nodes);
+        self.do_blur(
+            event_stack,
+            suppress_scroll_to,
+            &mut previously_focused_nodes,
+        );
     }
 
-    fn do_blur(&mut self, event_stack: &[NodeId], previously_focused_nodes: &mut HashSet<NodeId>) {
+    fn do_blur(
+        &mut self,
+        event_stack: &[NodeId],
+        suppress_scroll_to: bool,
+        previously_focused_nodes: &mut HashSet<NodeId>,
+    ) {
         let prev_focus = self.active_focus();
-        self.send_blur_event(event_stack, previously_focused_nodes);
+        let blur_event =
+            self.send_blur_event(event_stack, suppress_scroll_to, previously_focused_nodes);
         // Blur means we're removing focus, pass None
         self.set_focus(None, event_stack);
 
         let new_focus = self.active_focus();
         // We've passed focus to some new Node, so focus it
         if new_focus != prev_focus {
-            self.send_focus_event(previously_focused_nodes);
+            self.send_focus_event(blur_event.suppress_scroll_to, previously_focused_nodes);
         }
     }
 
@@ -124,15 +139,23 @@ pub(crate) trait LemnaUI {
         previously_focused_nodes: &mut HashSet<NodeId>,
     ) {
         if event.focus.is_none() {
-            self.do_blur(&event.stack, previously_focused_nodes);
+            self.do_blur(
+                &event.stack,
+                event.suppress_scroll_to,
+                previously_focused_nodes,
+            );
         } else if event.focus != Some(self.active_focus()) {
             // First blur the old focus
-            self.send_blur_event(&event.stack, previously_focused_nodes);
+            let blur_event = self.send_blur_event(
+                &event.stack,
+                event.suppress_scroll_to,
+                previously_focused_nodes,
+            );
 
             // Then set the new focus
             let focus_node = event.focus.unwrap_or(self.root_id());
             self.set_focus(Some(focus_node), &event.stack);
-            self.send_focus_event(previously_focused_nodes);
+            self.send_focus_event(blur_event.suppress_scroll_to, previously_focused_nodes);
         }
     }
 
@@ -320,7 +343,8 @@ pub(crate) trait LemnaUI {
                     // Ignore the root node, which is the default focus
                         && self.active_focus() != self.root_id()
                     {
-                        self.blur(&drag_end_event.stack);
+                        // We don't want this to cause a scroll_to
+                        self.blur(&drag_end_event.stack, true);
                     }
 
                 // Clean up event cache
@@ -343,7 +367,8 @@ pub(crate) trait LemnaUI {
                         // Ignore the root node, which is the default focus
                             && self.active_focus() != self.root_id()
                     {
-                        self.blur(&event_stack);
+                        // We don't want this to cause a scroll_to
+                        self.blur(&event_stack, true);
                     }
                 }
                 // Clean up cache state

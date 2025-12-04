@@ -31,6 +31,15 @@ impl lemna::Component for App {
                 "Item 3".to_string(),
                 "Item 4".to_string(),
                 "Item 5".to_string(),
+                "Item 6".to_string(),
+                "Item 7".to_string(),
+                "Item 8".to_string(),
+                "Item 9".to_string(),
+                "Item 10".to_string(),
+                "Item 11".to_string(),
+                "Item 12".to_string(),
+                "Item 13".to_string(),
+                "Item 14".to_string(),
             ],
             item_focused: 0,
         })
@@ -106,7 +115,6 @@ impl lemna::Component for App {
         if !self.state_ref().modal_open {
             let focused = self.state_ref().item_focused;
             event.focus_child(vec![0, focused]);
-            event.scroll_to_child(vec![0, focused]);
         }
     }
 

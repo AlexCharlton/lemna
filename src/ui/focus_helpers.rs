@@ -64,8 +64,9 @@ impl<'a> FocusContext<'a> {
         &mut self,
         target: NodeId,
         focus_stack: Vec<NodeId>,
+        suppress_scroll_to: bool,
         previously_focused_nodes: &mut HashSet<NodeId>,
-    ) {
+    ) -> Event<event::Blur> {
         let event_cache = EventCache::new(self.scale_factor);
         let mut blur_event = Event::new(event::Blur, &event_cache, target);
         blur_event.set_focus_stack(focus_stack);
@@ -73,19 +74,30 @@ impl<'a> FocusContext<'a> {
         self.node.blur(&mut blur_event);
         self.dirty += blur_event.dirty;
         self.handle_event_signals(&blur_event, previously_focused_nodes);
+        if suppress_scroll_to {
+            blur_event.suppress_scroll_to();
+        }
+        blur_event
     }
 
     /// Send a blur event to the currently focused node and clear focus
     pub fn send_blur_event(
         &mut self,
         event_stack: &[NodeId],
+        suppress_scroll_to: bool,
         previously_focused_nodes: &mut HashSet<NodeId>,
-    ) {
+    ) -> Event<event::Blur> {
         let focus = self.active_focus();
         let focus_stack = self.focus_stack();
-        self.send_blur_event_to(focus, focus_stack, previously_focused_nodes);
+        let blur_event = self.send_blur_event_to(
+            focus,
+            focus_stack,
+            suppress_scroll_to,
+            previously_focused_nodes,
+        );
         // Blur means we're removing focus, pass None
         self.set_focus(None, event_stack);
+        blur_event
     }
 
     /// Send a focus event to the specified target node
@@ -93,22 +105,42 @@ impl<'a> FocusContext<'a> {
         &mut self,
         target: NodeId,
         focus_stack: Vec<NodeId>,
+        suppress_scroll_to: bool,
         previously_focused_nodes: &mut HashSet<NodeId>,
-    ) {
+    ) -> Event<event::Focus> {
         let event_cache = EventCache::new(self.scale_factor);
         let mut focus_event = Event::new(event::Focus, &event_cache, target);
         focus_event.set_focus_stack(focus_stack);
         focus_event.target = Some(target);
         self.node.set_focus(&mut focus_event);
         self.dirty += focus_event.dirty;
+
+        if suppress_scroll_to {
+            focus_event.suppress_scroll_to();
+        }
         self.handle_event_signals(&focus_event, previously_focused_nodes);
+
+        // Scroll to the focused node if it's not already in view
+        if !focus_event.suppress_scroll_to {
+            self.process_scroll_to_signal(target, self.scale_factor);
+        }
+        focus_event
     }
 
     /// Send a focus event to the currently focused node
-    pub fn send_focus_event(&mut self, previously_focused_nodes: &mut HashSet<NodeId>) {
+    pub fn send_focus_event(
+        &mut self,
+        suppress_scroll_to: bool,
+        previously_focused_nodes: &mut HashSet<NodeId>,
+    ) {
         let focus = self.active_focus();
         let focus_stack = self.focus_stack();
-        self.send_focus_event_to(focus, focus_stack, previously_focused_nodes);
+        self.send_focus_event_to(
+            focus,
+            focus_stack,
+            suppress_scroll_to,
+            previously_focused_nodes,
+        );
     }
 
     /// Handle signals from an event (like Signal::Focus)
@@ -134,9 +166,16 @@ impl<'a> FocusContext<'a> {
                             let stack: Vec<NodeId> =
                                 stack_to_node.iter().map(|n| (*n) as u64).collect();
                             previously_focused_nodes.insert(node_id);
-                            self.send_blur_event(&event.stack, previously_focused_nodes);
+                            let blur_event = self.send_blur_event(
+                                &event.stack,
+                                event.suppress_scroll_to,
+                                previously_focused_nodes,
+                            );
                             self.set_focus(Some(node_id), &stack);
-                            self.send_focus_event(previously_focused_nodes);
+                            self.send_focus_event(
+                                blur_event.suppress_scroll_to,
+                                previously_focused_nodes,
+                            );
                         }
                     }
                     Signal::ScrollTo(_target) => {
@@ -166,10 +205,20 @@ impl<'a> FocusContext<'a> {
             let mut previously_focused_nodes = HashSet::new();
 
             // Blur the previously focused node
-            self.send_blur_event_to(prev_focus, prev_focus_stack, &mut previously_focused_nodes);
+            let blur_event = self.send_blur_event_to(
+                prev_focus,
+                prev_focus_stack,
+                false,
+                &mut previously_focused_nodes,
+            );
 
             // Focus the new node
-            self.send_focus_event_to(new_focus, new_focus_stack, &mut previously_focused_nodes);
+            self.send_focus_event_to(
+                new_focus,
+                new_focus_stack,
+                blur_event.suppress_scroll_to,
+                &mut previously_focused_nodes,
+            );
         }
     }
 
@@ -180,7 +229,7 @@ impl<'a> FocusContext<'a> {
             // First pass: collect info about target and scrollable ancestors
             let mut scroll_info = Vec::new();
 
-            // Helper function to navigate to a node at a given depth
+            // Helper function to navigate to a node at a given depth (for reading ancestors)
             fn get_node_at_depth<'a>(root: &'a Node, stack: &[usize], depth: usize) -> &'a Node {
                 let mut current = root;
                 for &child_idx in stack[..depth].iter() {
@@ -189,8 +238,8 @@ impl<'a> FocusContext<'a> {
                 current
             }
 
-            // Get target AABB
-            let target_node = get_node_at_depth(self.node, &target_stack, target_stack.len());
+            // Get target AABB using get_target_from_stack
+            let target_node = self.node.get_target_from_stack(&target_stack);
             let target_aabb = target_node.aabb;
 
             // Walk up ancestors and collect scrollable ones
