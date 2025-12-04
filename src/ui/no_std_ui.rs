@@ -6,7 +6,6 @@ use core::marker::PhantomData;
 use embedded_graphics::draw_target::DrawTarget;
 use hashbrown::{HashMap, HashSet};
 
-use crate::NodeId;
 use crate::base_types::PixelSize;
 use crate::component::Component;
 use crate::event::EventCache;
@@ -17,6 +16,7 @@ use crate::render::{ActiveRenderer, Renderer, RgbColor};
 use crate::renderable::Caches;
 use crate::window::Window;
 use crate::window::{clear_current_window, set_current_window};
+use crate::{Dirty, NodeId};
 
 pub struct UI<
     A: Component + Default,
@@ -32,8 +32,7 @@ pub struct UI<
     caches: Caches,
     references: HashMap<String, NodeId>,
     focus_state: FocusState,
-    node_dirty: bool,
-    node_render_dirty: bool,
+    node_dirty: Dirty,
     frame_dirty: bool,
     event_cache: EventCache,
 }
@@ -52,12 +51,8 @@ impl<
         f(&mut self.node)
     }
 
-    fn set_node_dirty(&mut self, dirty: bool) {
-        self.node_dirty = dirty;
-    }
-
-    fn set_node_render_dirty(&mut self) {
-        self.node_render_dirty = true;
+    fn set_node_dirty(&mut self, dirty: Dirty) {
+        self.node_dirty += dirty;
     }
 
     fn focus_stack(&self) -> Vec<NodeId> {
@@ -93,19 +88,14 @@ impl<
         let result = f(&mut ctx);
 
         // Apply dirty state
-        if ctx.dirty.node_dirty {
-            self.node_dirty = true;
-        } else if ctx.dirty.render_dirty {
-            self.node_render_dirty = true;
-        }
+        self.node_dirty += ctx.dirty;
 
         result
     }
 
     fn draw(&mut self) {
-        if self.node_dirty {
-            self.node_dirty = false;
-            self.node_render_dirty = false;
+        if self.node_dirty == Dirty::Full {
+            self.node_dirty = Dirty::No;
             let size = self.size;
             let mut new = Node::new(
                 Box::<A>::default(),
@@ -148,11 +138,7 @@ impl<
 
                 ctx.handle_focus_change(prev_focus, prev_focus_stack, new_focus, new_focus_stack);
 
-                if ctx.dirty.node_dirty {
-                    self.node_dirty = true;
-                } else if ctx.dirty.render_dirty {
-                    self.node_render_dirty = true;
-                }
+                self.node_dirty += ctx.dirty;
             }
 
             self.references = new_references;
@@ -161,8 +147,8 @@ impl<
             let do_render = new.render(&mut self.caches, 1.0);
             self.node = new;
             self.frame_dirty = do_render;
-        } else if self.node_render_dirty {
-            self.node_render_dirty = false;
+        } else if self.node_dirty == Dirty::RenderOnly {
+            self.node_dirty = Dirty::No;
             self.node.reposition(1.0);
             let do_render = self.node.render(&mut self.caches, 1.0);
             self.frame_dirty = do_render;
@@ -217,8 +203,7 @@ impl<
             caches: Caches::default(),
             references: HashMap::new(),
             focus_state: FocusState::default(),
-            node_dirty: true,
-            node_render_dirty: false,
+            node_dirty: Dirty::Full,
             frame_dirty: false,
             event_cache: EventCache::new(1.0),
         }

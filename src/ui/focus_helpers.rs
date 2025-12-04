@@ -7,29 +7,10 @@ use alloc::{string::String, vec::Vec};
 
 use hashbrown::{HashMap, HashSet};
 
-use crate::NodeId;
-
-use crate::Scalable;
 use crate::event::{self, Event, EventCache, EventInput, Signal, Target};
 use crate::focus::FocusState;
 use crate::node::Node;
-
-/// Tracks dirty state changes from events
-#[derive(Debug, Default, Clone, Copy)]
-pub struct DirtyState {
-    pub node_dirty: bool,
-    pub render_dirty: bool,
-}
-
-impl DirtyState {
-    pub fn mark_from_event<T: EventInput>(&mut self, event: &Event<T>) {
-        if event.dirty {
-            self.node_dirty = true;
-        } else if event.render_dirty {
-            self.render_dirty = true;
-        }
-    }
-}
+use crate::{Dirty, NodeId, Scalable};
 
 /// Context for focus operations containing all the state needed.
 /// This can be used by both the LemnaUI trait methods and the draw_thread.
@@ -38,7 +19,7 @@ pub struct FocusContext<'a> {
     pub focus_state: &'a mut FocusState,
     pub references: &'a HashMap<String, u64>,
     pub scale_factor: f32,
-    pub dirty: DirtyState,
+    pub dirty: Dirty,
 }
 
 impl<'a> FocusContext<'a> {
@@ -53,7 +34,7 @@ impl<'a> FocusContext<'a> {
             focus_state,
             references,
             scale_factor,
-            dirty: DirtyState::default(),
+            dirty: Dirty::No,
         }
     }
 
@@ -90,7 +71,7 @@ impl<'a> FocusContext<'a> {
         blur_event.set_focus_stack(focus_stack);
         blur_event.target = Some(target);
         self.node.blur(&mut blur_event);
-        self.dirty.mark_from_event(&blur_event);
+        self.dirty += blur_event.dirty;
         self.handle_event_signals(&blur_event, previously_focused_nodes);
     }
 
@@ -119,7 +100,7 @@ impl<'a> FocusContext<'a> {
         focus_event.set_focus_stack(focus_stack);
         focus_event.target = Some(target);
         self.node.set_focus(&mut focus_event);
-        self.dirty.mark_from_event(&focus_event);
+        self.dirty += focus_event.dirty;
         self.handle_event_signals(&focus_event, previously_focused_nodes);
     }
 

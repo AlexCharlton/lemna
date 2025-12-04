@@ -6,6 +6,7 @@ use core::fmt;
 
 use ahash::AHasher;
 
+use crate::Dirty;
 use crate::base_types::*;
 use crate::event::{self, Event};
 use crate::layout::*;
@@ -113,13 +114,13 @@ pub trait Component: fmt::Debug {
 
     /// Implemented by the `component` attribute macro
     #[doc(hidden)]
-    fn is_dirty(&mut self) -> bool {
-        false
+    fn is_dirty(&mut self) -> Dirty {
+        Dirty::No
     }
 
     /// Implemented by the `component` attribute macro
     #[doc(hidden)]
-    fn set_dirty(&mut self, _dirty: bool) {
+    fn set_dirty(&mut self, _dirty: Dirty) {
         // Do nothing by default
     }
 

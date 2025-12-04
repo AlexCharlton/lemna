@@ -47,7 +47,7 @@ impl Button {
             tool_tip: None,
             focus_on_click: false,
             state: Some(ButtonState::default()),
-            dirty: false,
+            dirty: crate::Dirty::No,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -69,7 +69,7 @@ impl Button {
     }
 }
 
-#[state_component_impl(ButtonState)]
+#[state_component_impl(ButtonState, Internal)]
 impl Component for Button {
     fn view(&self) -> Option<Node> {
         let radius: f32 = self.style_val("radius").unwrap().f32();
@@ -127,10 +127,9 @@ impl Component for Button {
     }
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
-        let dirty = self.dirty;
         self.state_mut().hover_start = Some(Instant::now());
-        // This state mutation should not trigger a redraw. We use whatever value was previously set.
-        self.dirty = dirty;
+        // This state mutation should not trigger a redraw.
+        self.dirty = crate::Dirty::No;
         event.stop_bubbling();
     }
 
@@ -150,7 +149,7 @@ impl Component for Button {
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
         if self.tool_tip.is_some()
-            && self.state_mut().hover
+            && self.state_ref().hover
             && self
                 .state_ref()
                 .hover_start

@@ -57,7 +57,7 @@ impl<M: ToString + Send + Sync> Select<M> {
             class: Default::default(),
             style_overrides: Default::default(),
             state: Some(SelectState::default()),
-            dirty: false,
+            dirty: crate::Dirty::No,
         }
     }
 
@@ -67,7 +67,7 @@ impl<M: ToString + Send + Sync> Select<M> {
     }
 }
 
-#[state_component_impl(SelectState)]
+#[state_component_impl(SelectState, Internal)]
 impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Send + Sync> Component
     for Select<M>
 {

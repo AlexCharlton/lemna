@@ -66,7 +66,7 @@ impl TextBox {
             on_commit: None,
             on_focus: None,
             state: Some(TextBoxState::default()),
-            dirty: false,
+            dirty: crate::Dirty::No,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -88,7 +88,7 @@ impl TextBox {
     }
 }
 
-#[state_component_impl(TextBoxState)]
+#[state_component_impl(TextBoxState, Internal)]
 impl Component for TextBox {
     fn view(&self) -> Option<Node> {
         let background_color: Color = self.style_val("background_color").into();
@@ -110,7 +110,7 @@ impl Component for TextBox {
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                     state: None,
-                    dirty: false,
+                    dirty: crate::Dirty::No,
                 },
                 lay!(size: size_pct!(100.0),)
             )),
@@ -156,7 +156,7 @@ struct TextBoxContainerState {
     width_px: f32,
 }
 
-#[component(State = "TextBoxContainerState", Internal)]
+#[component(State = "TextBoxContainerState", Internal, NoView)]
 #[derive(Debug)]
 struct TextBoxContainer {
     background_color: Color,
@@ -171,7 +171,7 @@ impl TextBoxContainer {
             border_color: border_color.into(),
             border_width,
             state: Some(Default::default()),
-            dirty: false,
+            dirty: crate::Dirty::No,
         }
     }
 
@@ -180,7 +180,7 @@ impl TextBoxContainer {
     }
 }
 
-#[state_component_impl(TextBoxContainerState)]
+#[state_component_impl(TextBoxContainerState, Internal)]
 impl Component for TextBoxContainer {
     fn full_control(&self) -> bool {
         true
@@ -276,6 +276,7 @@ struct TextBoxTextState {
     dirty: bool,
 }
 
+// Component can't be `NoView`, because updates to text can trigger a re-layout, which requires a view.
 #[component(State = "TextBoxTextState", Styled = "TextBox", Internal)]
 #[derive(Debug)]
 pub struct TextBoxText {
@@ -444,7 +445,7 @@ impl TextBoxText {
     }
 }
 
-#[state_component_impl(TextBoxTextState)]
+#[state_component_impl(TextBoxTextState, Internal)]
 impl Component for TextBoxText {
     fn init(&mut self) {
         self.reset_state();
@@ -485,6 +486,8 @@ impl Component for TextBoxText {
                     == 0;
             if visible != self.state_ref().cursor_visible {
                 self.state_mut().cursor_visible = visible;
+                // This should not trigger a recompute
+                self.dirty = crate::Dirty::RenderOnly;
             }
         }
     }
@@ -501,6 +504,8 @@ impl Component for TextBoxText {
                 let new_pos = self.position(event.relative_physical_position().x);
                 if new_pos != self.state_ref().cursor_pos {
                     self.state_mut().cursor_pos = new_pos;
+                    // This should not trigger a recompute
+                    self.dirty = crate::Dirty::RenderOnly;
                 }
             }
             _ => (),
@@ -518,7 +523,7 @@ impl Component for TextBoxText {
         self.state_mut().focused = true;
         self.state_mut().cursor_visible = true;
         self.state_mut().activated_at = Instant::now();
-        event.emit(Box::new(TextBoxMessage::Open))
+        event.emit(Box::new(TextBoxMessage::Open));
     }
 
     fn on_blur(&mut self, event: &mut event::Event<event::Blur>) {
@@ -647,6 +652,9 @@ impl Component for TextBoxText {
             event.emit(Box::new(TextBoxMessage::Change(
                 self.state_ref().text.clone(),
             )))
+        } else {
+            // This should not trigger a recompute
+            self.dirty = crate::Dirty::RenderOnly;
         }
         if handled {
             event.stop_bubbling();
@@ -669,6 +677,8 @@ impl Component for TextBoxText {
         self.state_mut().selection_from = Some(self.position(event.relative_physical_position().x));
         self.state_mut().dragging = true;
         event.focus();
+        // This should not trigger a recompute
+        self.dirty = crate::Dirty::RenderOnly;
     }
 
     fn on_drag_end(&mut self, _event: &mut event::Event<event::DragEnd>) {
@@ -676,12 +686,16 @@ impl Component for TextBoxText {
         if self.selection().is_none() {
             self.state_mut().selection_from = None;
         }
+        // This should not trigger a recompute
+        self.dirty = crate::Dirty::RenderOnly;
     }
 
     fn on_drag(&mut self, event: &mut event::Event<event::Drag>) {
         let new_pos = self.position(event.relative_physical_position().x);
         if new_pos != self.state_ref().cursor_pos {
             self.state_mut().cursor_pos = new_pos;
+            // This should not trigger a recompute
+            self.dirty = crate::Dirty::RenderOnly;
         }
     }
 

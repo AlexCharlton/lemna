@@ -27,7 +27,7 @@ struct CanvasState {
 }
 
 /// Supports 8 bit rgba. E.g. `Color Into [u8; 4]`
-#[component(State = "CanvasState", Internal)]
+#[component(State = "CanvasState", Internal, NoView)]
 pub struct Canvas {
     scale: f32,
     on_draw: Option<Box<dyn Fn(PixelPoint) -> Vec<(PixelPoint, [u8; 4])> + Send + Sync>>,
@@ -54,7 +54,7 @@ impl Canvas {
             scale: 1.0,
             on_draw: None,
             state: Some(Default::default()),
-            dirty: false,
+            dirty: crate::Dirty::No,
         }
     }
 
@@ -63,7 +63,7 @@ impl Canvas {
     /// the canvas to be a particular logical size, you need to multiply the width and height by the window [`scale_factor`][crate::window::scale_factor].
     pub fn set<D: Into<RasterData>>(mut self, data: D, size: PixelSize) -> Self {
         self.reset(data, size);
-        self.dirty = false;
+        self.dirty = crate::Dirty::No;
         self
     }
 
@@ -72,7 +72,7 @@ impl Canvas {
             .updates
             .push(CanvasUpdate::New((color.into(), size)));
         self.state_mut().size = size;
-        self.dirty = false;
+        self.dirty = crate::Dirty::No;
         self
     }
 
@@ -113,7 +113,7 @@ impl Canvas {
     }
 }
 
-#[state_component_impl(CanvasState)]
+#[state_component_impl(CanvasState, Internal)]
 impl Component for Canvas {
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         if self.state_ref().drawing {

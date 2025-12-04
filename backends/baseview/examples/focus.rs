@@ -100,7 +100,7 @@ impl Pane {
         Self {
             title: title.to_string(),
             state: None,
-            dirty: false,
+            dirty: lemna::Dirty::No,
         }
     }
 }

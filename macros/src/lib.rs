@@ -31,6 +31,13 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
             false
         }
     });
+    let is_no_view = attr.iter().any(|v| {
+        if let NestedMeta::Meta(m) = v {
+            m.path().segments.last().unwrap().ident == "NoView"
+        } else {
+            false
+        }
+    });
     let state_type = attr
         .iter()
         .find_map(|v| {
@@ -77,6 +84,12 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
         quote! { lemna::style::Styled }
     };
 
+    let dirty_ref = if is_internal {
+        quote! { crate::Dirty }
+    } else {
+        quote! { lemna::Dirty }
+    };
+
     // Add in fields
     let mut i: Vec<_> = input.clone().into_iter().collect();
     if let Some(TokenTree::Group(g)) = i.last() {
@@ -85,7 +98,7 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
         if let Some(state) = &state_type {
             let state_field = quote! {
                 state: Option<#state>,
-                dirty: bool,
+                dirty: #dirty_ref,
             };
 
             s.extend(TokenStream::from(state_field));
@@ -108,11 +121,16 @@ pub fn component(attr: TokenStream, input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     if let Some(state) = &state_type {
+        let dirty_value = if is_no_view {
+            quote! { RenderOnly }
+        } else {
+            quote! { Full }
+        };
         let expanded = quote!(
             impl #impl_generics #struct_name #ty_generics #where_clause {
                 #[allow(dead_code)]
                 fn state_mut(&mut self) -> &mut #state {
-                    self.dirty = true;
+                    self.dirty = #dirty_ref::#dirty_value;
                     self.state.as_mut().expect("Expected state to exist")
                 }
 
@@ -164,6 +182,20 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
     let attr = parse_macro_input!(attr as syn::AttributeArgs);
     let state_type = attr.first().unwrap();
 
+    let is_internal = attr.iter().skip(1).any(|v| {
+        if let NestedMeta::Meta(m) = v {
+            m.path().segments.last().unwrap().ident == "Internal"
+        } else {
+            false
+        }
+    });
+
+    let dirty_ref = if is_internal {
+        quote! { crate::Dirty }
+    } else {
+        quote! { lemna::Dirty }
+    };
+
     let expanded = quote! {
         fn replace_state(&mut self, other_state: Box<dyn core::any::Any>) {
             if let Ok(s) = other_state.downcast::<#state_type>() {
@@ -179,13 +211,13 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
             }
         }
 
-        fn is_dirty(&mut self) -> bool {
+        fn is_dirty(&mut self) -> #dirty_ref {
             let d = self.dirty;
-            self.dirty = false;
+            self.dirty = #dirty_ref::No;
             d
         }
 
-        fn set_dirty(&mut self, dirty: bool) {
+        fn set_dirty(&mut self, dirty: #dirty_ref) {
             self.dirty = dirty;
         }
     };

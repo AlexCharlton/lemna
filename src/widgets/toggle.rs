@@ -19,7 +19,7 @@ struct ToggleState {
     pressed: bool,
 }
 
-#[component(State = "ToggleState", Styled, Internal)]
+#[component(State = "ToggleState", Styled, Internal, NoView)]
 pub struct Toggle {
     active: bool,
     on_change: Option<Box<dyn Fn(bool) -> Message + Send + Sync>>,
@@ -39,7 +39,7 @@ impl Toggle {
             active,
             on_change: None,
             state: Some(ToggleState::default()),
-            dirty: false,
+            dirty: crate::Dirty::No,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -51,7 +51,7 @@ impl Toggle {
     }
 }
 
-#[state_component_impl(ToggleState)]
+#[state_component_impl(ToggleState, Internal)]
 impl Component for Toggle {
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
         self.state_mut().pressed = false;

@@ -9,7 +9,7 @@ use hashbrown::HashSet;
 
 use super::base_types::*;
 use super::input::{Key, MouseButton};
-use crate::{Message, Node, NodeId};
+use crate::{Dirty, Message, Node, NodeId};
 
 /// How much time (ms) can elapse between clicks before it's no longer considered a double click.
 pub const DOUBLE_CLICK_INTERVAL_MS: i64 = 500; // ms
@@ -27,11 +27,8 @@ pub struct Event<T: EventInput> {
     /// The event-specific [`EventInput`]
     pub input: T,
     pub(crate) bubbles: bool,
-    // Does the node need to be re-computed?
-    // Implies render_dirty
-    pub(crate) dirty: bool,
-    // Does the node need to be re-rendered?
-    pub(crate) render_dirty: bool,
+    // Does the node need to be re-computed or re-rendered?
+    pub(crate) dirty: Dirty,
     pub(crate) mouse_position: Point,
     /// What keyboard modifiers (Shift, Alt, Ctr, Meta) were held when this event was fired.
     pub modifiers_held: ModifiersHeld,
@@ -268,8 +265,7 @@ impl<T: EventInput> Event<T> {
         Self {
             input,
             bubbles: true,
-            dirty: false,
-            render_dirty: false,
+            dirty: Dirty::No,
             modifiers_held: event_cache.modifiers_held,
             mouse_position: event_cache.mouse_position,
             focus: Some(focus),
@@ -306,17 +302,13 @@ impl<T: EventInput> Event<T> {
         self.bubbles = false;
     }
 
-    pub(crate) fn dirty(&mut self) {
-        self.dirty = true;
+    /// Mark the event as requiring a re-compute or re-render
+    pub fn dirty(&mut self, dirty: Dirty) {
+        self.dirty += dirty;
     }
 
     pub(crate) fn set_focus_stack(&mut self, focus_stack: Vec<NodeId>) {
         self.focus_stack = focus_stack;
-    }
-
-    /// Mark the event as requiring a re-render (but not necessarily a full recompute)
-    pub fn render_dirty(&mut self) {
-        self.render_dirty = true;
     }
 
     /// Send the [`Message`] to the ancestor Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#method.update] method.

@@ -5,11 +5,10 @@ use hashbrown::HashSet;
 
 use crate::component::Component;
 use crate::event::{self, Event, EventCache, EventInput};
-use crate::input::*;
 use crate::instrumenting::{inst, inst_end};
 use crate::node::Node;
 use crate::time::Instant;
-use crate::{NodeId, base_types::*};
+use crate::{Dirty, NodeId, base_types::*, input::*};
 
 mod focus_helpers;
 use focus_helpers::FocusContext;
@@ -35,8 +34,7 @@ pub(crate) trait LemnaUI {
     where
         F: FnOnce(&mut Node) -> R;
 
-    fn set_node_dirty(&mut self, dirty: bool);
-    fn set_node_render_dirty(&mut self);
+    fn set_node_dirty(&mut self, dirty: Dirty);
 
     fn event_cache(&mut self) -> &mut EventCache;
     fn resize(&mut self) {}
@@ -62,7 +60,7 @@ pub(crate) trait LemnaUI {
     /// Calls [`Component#update`][Component#method.update] with `msg` on the root Node of the application. This will always trigger a redraw.
     fn update(&mut self, msg: crate::Message) {
         self.with_node(|node| node.component.update(msg));
-        self.set_node_dirty(true);
+        self.set_node_dirty(Dirty::Full);
     }
 
     /// Calls the equivalent of [`state_mut`][crate::state_component_impl] on the root Node of the application, and passes it as an arg to given closure `f`.
@@ -71,7 +69,7 @@ pub(crate) trait LemnaUI {
         F: Fn(&mut S),
         S: 'static,
     {
-        let mut dirty = false;
+        let mut dirty = Dirty::No;
         {
             self.with_node(|node| {
                 if let Some(mut state) = node.component.take_state() {
@@ -79,7 +77,7 @@ pub(crate) trait LemnaUI {
                         f(s);
                     }
                     node.component.replace_state(state);
-                    dirty = true;
+                    dirty = Dirty::Full;
                 }
             });
         }
@@ -138,14 +136,6 @@ pub(crate) trait LemnaUI {
         }
     }
 
-    fn handle_dirty_event<T: EventInput>(&mut self, event: &Event<T>) {
-        if event.dirty {
-            self.set_node_dirty(true);
-        } else if event.render_dirty {
-            self.set_node_render_dirty();
-        }
-    }
-
     fn handle_event<T: EventInput, F>(
         &mut self,
         handler: F,
@@ -158,7 +148,7 @@ pub(crate) trait LemnaUI {
         self.with_node(|node| handler(node, event));
         let mut previously_focused_nodes = HashSet::new();
         self.handle_focus_or_blur(event, &mut previously_focused_nodes);
-        self.handle_dirty_event(event);
+        self.set_node_dirty(event.dirty);
         self.handle_event_signals(event, &mut previously_focused_nodes);
     }
 
@@ -172,7 +162,7 @@ pub(crate) trait LemnaUI {
     {
         event.target = target;
         self.with_node(|node| handler(node, event));
-        self.handle_dirty_event(event);
+        self.set_node_dirty(event.dirty);
         let mut previously_focused_nodes = HashSet::new();
         self.handle_event_signals(event, &mut previously_focused_nodes);
     }
@@ -398,20 +388,20 @@ pub(crate) trait LemnaUI {
                 let mut event = Event::new(event::Blur, self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
                 self.with_node(|node| node.component.on_blur(&mut event));
-                self.handle_dirty_event(&event);
+                self.set_node_dirty(event.dirty);
             }
             Input::Focus(true) => {
                 let focus = self.active_focus();
                 let mut event = Event::new(event::Focus, self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
                 self.with_node(|node| node.component.on_focus(&mut event));
-                self.handle_dirty_event(&event);
+                self.set_node_dirty(event.dirty);
             }
             Input::Timer => {
                 let focus = self.active_focus();
                 let mut event = Event::new(event::Tick, self.event_cache(), focus);
                 self.with_node(|node| node.tick(&mut event));
-                self.handle_dirty_event(&event);
+                self.set_node_dirty(event.dirty);
             }
             Input::MouseLeaveWindow => {
                 if self.event_cache().mouse_over.is_some() {

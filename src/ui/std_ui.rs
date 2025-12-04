@@ -16,7 +16,7 @@ use crate::render::{ActiveRenderer, Renderer};
 use crate::renderable::Caches;
 use crate::window::Window;
 use crate::window::{clear_current_window, current_window, set_current_window};
-use crate::{NodeId, base_types::*};
+use crate::{Dirty, NodeId, base_types::*};
 
 /// `UI` is the main struct that holds the [`Window`], `Renderer` and [`Node`]s of an app.
 /// It handles events and drawing+rendering.
@@ -44,8 +44,7 @@ pub struct UI<A: Component + Default + Send + Sync> {
     physical_size: Arc<RwLock<PixelSize>>,
     logical_size: Arc<RwLock<PixelSize>>,
     event_cache: EventCache,
-    // (node_dirty, node_render_dirty)
-    node_dirty: Arc<RwLock<(bool, bool)>>,
+    node_dirty: Arc<RwLock<Dirty>>,
 }
 
 impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
@@ -87,7 +86,7 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
             *self.logical_size.write().unwrap() = current_window().as_ref().unwrap().logical_size();
             *self.scale_factor.write().unwrap() = scale_factor;
             self.event_cache.scale_factor = scale_factor;
-            *self.node_dirty.write().unwrap() = (true, true);
+            *self.node_dirty.write().unwrap() = Dirty::Full;
             current_window().as_ref().unwrap().redraw(); // Always redraw after resizing
         }
     }
@@ -103,12 +102,10 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
         &mut self.event_cache
     }
 
-    fn set_node_dirty(&mut self, dirty: bool) {
-        self.node_dirty.write().unwrap().0 = dirty;
-    }
-
-    fn set_node_render_dirty(&mut self) {
-        self.node_dirty.write().unwrap().1 = true;
+    fn set_node_dirty(&mut self, dirty: Dirty) {
+        if dirty != Dirty::No {
+            *self.node_dirty.write().unwrap() += dirty;
+        }
     }
 
     fn with_node<F, R>(&mut self, f: F) -> R
@@ -153,11 +150,7 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
         let result = f(&mut ctx);
 
         // Apply dirty state
-        if ctx.dirty.node_dirty {
-            self.node_dirty.write().unwrap().0 = true;
-        } else if ctx.dirty.render_dirty {
-            self.node_dirty.write().unwrap().1 = true;
-        }
+        *self.node_dirty.write().unwrap() += ctx.dirty;
 
         result
     }
@@ -189,7 +182,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
             Layout::default(),
         )));
         let frame_dirty = Arc::new(RwLock::new(false));
-        let node_dirty = Arc::new(RwLock::new((true, true)));
+        let node_dirty = Arc::new(RwLock::new(Dirty::Full));
         let references = Arc::new(RwLock::new(HashMap::new()));
         let focus_state = Arc::new(RwLock::new(FocusState::default()));
         let caches = Arc::new(RwLock::new(Caches::default()));
@@ -297,15 +290,15 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         logical_size: Arc<RwLock<PixelSize>>,
         scale_factor: Arc<RwLock<f32>>,
         frame_dirty: Arc<RwLock<bool>>,
-        node_dirty: Arc<RwLock<(bool, bool)>>,
+        node_dirty: Arc<RwLock<Dirty>>,
         references: Arc<RwLock<HashMap<String, u64>>>,
         focus_state: Arc<RwLock<FocusState>>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             for _ in receiver.iter() {
-                if node_dirty.read().unwrap().0 {
+                if *node_dirty.read().unwrap() == Dirty::Full {
                     // Set the node to clean right away so that concurrent events can reset it to dirty
-                    *node_dirty.write().unwrap() = (false, false);
+                    *node_dirty.write().unwrap() = Dirty::No;
                     inst("UI::draw");
                     let logical_size = *logical_size.read().unwrap();
                     let scale_factor = *scale_factor.read().unwrap();
@@ -364,11 +357,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                                 new_focus,
                                 new_focus_stack,
                             );
-                            if focus_ctx.dirty.node_dirty {
-                                node_dirty.write().unwrap().0 = true;
-                            } else if focus_ctx.dirty.render_dirty {
-                                node_dirty.write().unwrap().1 = true;
-                            }
+                            *node_dirty.write().unwrap() += focus_ctx.dirty;
                         }
                         *references.write().unwrap() = new_references;
                         *focus_state.write().unwrap() = new_focus_state;
@@ -387,9 +376,9 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     }
 
                     inst_end();
-                } else if node_dirty.read().unwrap().1 {
+                } else if *node_dirty.read().unwrap() == Dirty::RenderOnly {
                     // If the node is only render dirty, we don't need to re-compute it
-                    *node_dirty.write().unwrap() = (false, false);
+                    *node_dirty.write().unwrap() = Dirty::No;
 
                     let mut caches = caches.write().unwrap();
                     let mut node = node.write().unwrap();

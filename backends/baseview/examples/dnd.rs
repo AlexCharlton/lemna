@@ -40,7 +40,7 @@ impl DropTarget {
     fn new() -> Self {
         Self {
             state: Some(DropTargetState::default()),
-            dirty: false,
+            dirty: lemna::Dirty::No,
         }
     }
 }

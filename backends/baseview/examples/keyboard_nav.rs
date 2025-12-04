@@ -204,7 +204,7 @@ impl NewNamedModal {
             name: name.to_string(),
             target_name: target_name.to_string(),
             state: None,
-            dirty: false,
+            dirty: lemna::Dirty::No,
         }
     }
 }

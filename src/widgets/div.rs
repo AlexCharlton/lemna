@@ -27,7 +27,7 @@ pub struct DivState {
     scaled_scroll_bar_width: f32,
 }
 
-#[component(State = "DivState", Styled = "Scroll", Internal)]
+#[component(State = "DivState", Styled = "Scroll", Internal, NoView)]
 #[derive(Debug, Default)]
 pub struct Div {
     pub background: Option<Color>,
@@ -76,7 +76,7 @@ impl Div {
     }
 }
 
-#[state_component_impl(DivState)]
+#[state_component_impl(DivState, Internal)]
 impl Component for Div {
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         if self.state.is_some() {
@@ -137,9 +137,6 @@ impl Component for Div {
 
             if scrolled {
                 self.state_mut().scroll_position = scroll_position;
-                // We don't need to re-compute the node, but we do need to re-render it
-                self.dirty = false;
-                event.render_dirty();
                 event.stop_bubbling();
             }
         }
@@ -228,9 +225,6 @@ impl Component for Div {
             }
 
             self.state_mut().scroll_position = scroll_position;
-            // We don't need to re-compute the node, but we do need to re-render it
-            self.dirty = false;
-            event.render_dirty();
         }
     }
 

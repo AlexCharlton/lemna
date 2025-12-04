@@ -462,7 +462,7 @@ impl Node {
             }
 
             // Rendering shouldn't dirty the node
-            self.component.set_dirty(false);
+            self.component.set_dirty(crate::Dirty::No);
             ret
         } else {
             let context = RenderContext {
@@ -483,7 +483,7 @@ impl Node {
             }
 
             // Rendering shouldn't dirty the node
-            self.component.set_dirty(false);
+            self.component.set_dirty(crate::Dirty::No);
             true
         }
     }
@@ -550,9 +550,7 @@ impl Node {
                     .drain(..)
                 {
                     m.append(&mut self.component.update(message));
-                    if self.component.is_dirty() {
-                        event.dirty();
-                    }
+                    event.dirty(self.component.is_dirty());
                 }
                 if child
                     .component
@@ -576,9 +574,7 @@ impl Node {
             event.current_inner_scale = self.inner_scale;
             handler(self, event);
             event.resolve_signal_children(self);
-            if self.component.is_dirty() {
-                event.dirty();
-            }
+            event.dirty(self.component.is_dirty());
             m.append(&mut event.messages);
         } else if Some(self.id) == node_order.last().map(|x| x.0) {
             node_order.pop();
@@ -712,9 +708,7 @@ impl Node {
             event.current_inner_scale = node.inner_scale;
             handler(node, event);
             event.resolve_signal_children(node);
-            if node.component.is_dirty() {
-                event.dirty();
-            }
+            event.dirty(node.component.is_dirty());
             if stack.is_empty() {
                 return;
             }
@@ -732,21 +726,28 @@ impl Node {
                     event.current_inner_scale = node.inner_scale;
                     handler(node, event);
                     event.resolve_signal_children(node);
-                    if node.component.is_dirty() {
-                        event.dirty();
-                    }
+                    event.dirty(node.component.is_dirty());
                     event.focus_stack.pop();
                 }
                 let mut dirty = false;
+                let mut render_dirty = false;
                 let mut next_messages: Vec<Message> = vec![];
                 for message in event.messages.drain(..) {
                     next_messages.append(&mut node.component.update(message));
-                    if node.component.is_dirty() {
-                        dirty = true;
+                    match node.component.is_dirty() {
+                        crate::Dirty::Full => {
+                            dirty = true;
+                        }
+                        crate::Dirty::RenderOnly => {
+                            render_dirty = true;
+                        }
+                        crate::Dirty::No => {}
                     }
                 }
                 if dirty {
-                    event.dirty();
+                    event.dirty(crate::Dirty::Full);
+                } else if render_dirty {
+                    event.dirty(crate::Dirty::RenderOnly);
                 }
                 if next_messages.is_empty() && event.focus_stack.is_empty() || stack.is_empty() {
                     event.stack.reverse();
@@ -866,9 +867,7 @@ impl Node {
         event.current_aabb = Some(self.aabb);
         event.current_inner_scale = self.inner_scale;
         self.component.on_tick(event);
-        if self.component.is_dirty() {
-            event.dirty();
-        }
+        event.dirty(self.component.is_dirty());
         m.append(&mut event.messages);
 
         m

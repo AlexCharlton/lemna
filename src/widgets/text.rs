@@ -24,6 +24,7 @@ pub struct TextState {
     bounds_cache: BoundsCache,
 }
 
+// Text can't be `NoView`, because updates to text can trigger a re-layout, which requires a view.
 #[component(State = "TextState", Styled, Internal)]
 #[derive(Debug)]
 pub struct Text {
@@ -37,12 +38,12 @@ impl Text {
             class: Default::default(),
             style_overrides: Default::default(),
             state: Some(TextState::default()),
-            dirty: false,
+            dirty: crate::Dirty::No,
         }
     }
 }
 
-#[state_component_impl(TextState)]
+#[state_component_impl(TextState, Internal)]
 impl Component for Text {
     fn new_props(&mut self) {
         self.state = Some(TextState::default());

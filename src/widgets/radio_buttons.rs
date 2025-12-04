@@ -195,7 +195,7 @@ impl Component for RadioButtons {
                         },
                     ),
                     state: Some(Default::default()),
-                    dirty: false,
+                    dirty: crate::Dirty::No,
                     class: self.class,
                     style_overrides: self.style_overrides.clone(),
                 })
@@ -252,7 +252,7 @@ struct RadioButton {
     radii: BorderRadii,
 }
 
-#[state_component_impl(RadioButtonState)]
+#[state_component_impl(RadioButtonState, Internal)]
 impl Component for RadioButton {
     fn props_hash(&self, hasher: &mut ComponentHasher) {
         self.selected.hash(hasher);
@@ -310,7 +310,7 @@ impl Component for RadioButton {
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
         self.state_mut().hover_start = Some(Instant::now());
         // This state mutation should not trigger a redraw
-        self.dirty = false;
+        self.dirty = crate::Dirty::No;
         event.stop_bubbling();
     }
 

@@ -74,6 +74,33 @@ pub mod open_iconic;
 #[cfg(feature = "open_iconic")]
 pub use open_iconic::Icon;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Dirty {
+    #[default]
+    No,
+    Full,
+    RenderOnly,
+}
+
+impl core::ops::Add<Dirty> for Dirty {
+    type Output = Dirty;
+    fn add(self, other: Dirty) -> Dirty {
+        match (self, other) {
+            (Dirty::Full, _) => Dirty::Full,
+            (_, Dirty::Full) => Dirty::Full,
+            (Dirty::RenderOnly, _) => Dirty::RenderOnly,
+            (_, Dirty::RenderOnly) => Dirty::RenderOnly,
+            _ => Dirty::No,
+        }
+    }
+}
+
+impl core::ops::AddAssign<Dirty> for Dirty {
+    fn add_assign(&mut self, other: Dirty) {
+        *self = *self + other;
+    }
+}
+
 // Test stub window
 #[cfg(feature = "docs")]
 #[doc(hidden)]
