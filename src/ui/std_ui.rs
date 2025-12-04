@@ -342,16 +342,16 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         // Handle focus changes
                         // We layout first, since this may trigger ScrollTo Signals, which require the layout to be up-to-date
                         let prev_focus = focus_state.read().unwrap().active();
-                        let prev_focus_stack = focus_state.read().unwrap().stack().to_vec();
-                        let new_focus = new_focus_state.active();
-                        let new_focus_stack = new_focus_state.stack().to_vec();
 
-                        if new_focus == root_id {
+                        if new_focus_state.active() == root_id {
                             new_focus_state
                                 .inherit_active(&focus_state.read().unwrap(), &all_nodes);
                         }
                         if new_focus_state.active() != prev_focus {
                             // Use FocusContext to handle blur/focus events with signal support
+                            let prev_focus_stack = focus_state.read().unwrap().stack().to_vec();
+                            let new_focus_stack = new_focus_state.stack().to_vec();
+                            let new_focus = new_focus_state.active();
                             let mut focus_ctx = super::FocusContext::new(
                                 &mut new,
                                 &mut new_focus_state,
