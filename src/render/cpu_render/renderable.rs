@@ -28,9 +28,8 @@ impl Rectangle {
     pub(crate) fn render(&self, aabb: &Rect, mask: Option<&Mask>, pixmap: &mut Pixmap) {
         let paint = Paint {
             shader: Shader::SolidColor(self.color.into()),
-            anti_alias: true,
             blend_mode: BlendMode::SourceOver,
-            force_hq_pipeline: false,
+            ..Default::default()
         };
 
         pixmap.fill_rect(
@@ -47,13 +46,7 @@ impl Rectangle {
 }
 
 fn rect_from_pos_scale(pos: &Pos, scale: &Scale) -> tiny_skia::Rect {
-    tiny_skia::Rect::from_xywh(
-        pos.x.round(),
-        pos.y.round(),
-        scale.width.round(),
-        scale.height.round(),
-    )
-    .unwrap()
+    tiny_skia::Rect::from_xywh(pos.x, pos.y, scale.width.max(1.0), scale.height.max(1.0)).unwrap()
 }
 
 //--------------------------------
@@ -95,7 +88,7 @@ impl Shape {
                 shader: Shader::SolidColor(self.fill_color.into()),
                 anti_alias: cfg!(feature = "antialiased_shapes"),
                 blend_mode: BlendMode::SourceOver,
-                force_hq_pipeline: false,
+                ..Default::default()
             };
 
             pixmap.fill_path(
@@ -111,7 +104,7 @@ impl Shape {
                 shader: Shader::SolidColor(self.stroke_color.into()),
                 anti_alias: cfg!(feature = "antialiased_shapes"),
                 blend_mode: BlendMode::SourceOver,
-                force_hq_pipeline: false,
+                ..Default::default()
             };
             let stroke = Stroke {
                 width: self.stroke_width,
@@ -208,7 +201,7 @@ impl Text {
             shader: Shader::SolidColor(self.color.into()),
             anti_alias: false,
             blend_mode: BlendMode::SourceOver,
-            force_hq_pipeline: false,
+            ..Default::default()
         };
         pixmap.fill_rect(aabb.into(), &paint, Transform::identity(), Some(&text_mask));
     }

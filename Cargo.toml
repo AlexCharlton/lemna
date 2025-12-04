@@ -82,7 +82,7 @@ kurbo = { version = "0.12", default-features = false, features = ["libm"] }
 lyon = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
 softbuffer = { version = "0.3", optional = true }
-tiny-skia = { version = "0.11", optional = true }
+tiny-skia = { git = "https://github.com/AlexCharlton/tiny-skia.git", optional = true }
 
 [workspace.dependencies]
 raw-window-handle = "0.5"
