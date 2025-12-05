@@ -111,8 +111,8 @@ impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Node")
             .field("id", &self.id)
-            .field("component", &self.component)
-            .field("render_cache", &self.render_cache)
+            .field("component", &self.component.type_name())
+            .field("render_cache?", &self.render_cache.is_some())
             // .field("layout", &self.layout) // This is often TMI
             .field("aabb", &self.aabb)
             .field("inclusive_aabb", &self.inclusive_aabb)
