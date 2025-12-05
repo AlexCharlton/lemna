@@ -42,6 +42,7 @@ pub struct Event<T: EventInput> {
     pub(crate) target: Option<NodeId>,
     pub(crate) focus: Option<NodeId>,
     pub(crate) focus_stack: Vec<NodeId>,
+    pub(crate) is_primary_target: bool,
     pub(crate) suppress_scroll_to: bool,
     pub(crate) scale_factor: f32,
     pub(crate) messages: Vec<Message>,
@@ -66,6 +67,7 @@ impl<T: EventInput> fmt::Debug for Event<T> {
             .field("target", &self.target)
             .field("focus", &self.focus)
             .field("focus_stack", &self.focus_stack)
+            .field("is_primary_focus", &self.is_primary_target)
             .field("suppress_scroll_to", &self.suppress_scroll_to)
             .field("scale_factor", &self.scale_factor)
             .field("stack", &self.stack)
@@ -272,6 +274,7 @@ impl<T: EventInput> Event<T> {
             mouse_position: event_cache.mouse_position,
             focus: Some(focus),
             focus_stack: vec![],
+            is_primary_target: true,
             suppress_scroll_to: false,
             target: None,
             current_node_id: None,
@@ -298,6 +301,13 @@ impl<T: EventInput> Event<T> {
     /// Remove focus from this Node, if applicable.
     pub fn blur(&mut self) {
         self.focus = None;
+    }
+
+    /// Is the Node receiving the Event the Node that is currently being targeted (as opposed to an ancestor in the focus stack getting a bubbled event)?
+    ///
+    /// Always true for non-focused events.
+    pub fn is_primary_target(&self) -> bool {
+        self.is_primary_target
     }
 
     /// Prevent focus changes caused by this Event from resulting in a scroll_to.

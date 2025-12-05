@@ -716,6 +716,8 @@ impl Node {
                 event.focus_stack.pop();
             }
             stack.pop();
+            // The event is no longer going to be passed to the targeted node but it can still bubble to ancestors in the focus stack.
+            event.is_primary_target = false;
             loop {
                 let node = self.get_target_from_stack(&stack);
                 event.stack.push(node.id);
