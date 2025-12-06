@@ -230,7 +230,7 @@ pub(crate) trait LemnaUI {
                         self.event_cache().drag_button = Some(button);
                         let focus = self.active_focus();
                         let mut drag_start_event =
-                            Event::new(event::DragStart(button), self.event_cache(), focus);
+                            Event::new(event::DragStart { button }, self.event_cache(), focus);
                         drag_start_event.mouse_position = self.event_cache().drag_started.unwrap();
                         self.handle_event(Node::drag_start, &mut drag_start_event, None);
                         self.event_cache().drag_target = drag_start_event.target;
@@ -284,12 +284,14 @@ pub(crate) trait LemnaUI {
             Input::Press(Button::Mouse(b)) => {
                 self.event_cache().mouse_down(*b);
                 let focus = self.active_focus();
-                let mut event = Event::new(event::MouseDown(*b), self.event_cache(), focus);
+                let mut event =
+                    Event::new(event::MouseDown { button: *b }, self.event_cache(), focus);
                 self.handle_event(Node::mouse_down, &mut event, None);
             }
             Input::Release(Button::Mouse(b)) => {
                 let focus = self.active_focus();
-                let mut event = Event::new(event::MouseUp(*b), self.event_cache(), focus);
+                let mut event =
+                    Event::new(event::MouseUp { button: *b }, self.event_cache(), focus);
                 self.handle_event(Node::mouse_up, &mut event, None);
 
                 let mut is_double_click = false;
@@ -322,7 +324,7 @@ pub(crate) trait LemnaUI {
                         // We send it before the drag end event, so that widgets can choose to ignore it
                         let focus = self.active_focus();
                         let mut click_event =
-                            Event::new(event::Click(*b), self.event_cache(), focus);
+                            Event::new(event::Click { button: *b }, self.event_cache(), focus);
                         self.handle_event(Node::click, &mut click_event, None);
                     }
 
@@ -352,12 +354,16 @@ pub(crate) trait LemnaUI {
                     // Resolve click
                     let focus = self.active_focus();
                     let (event_current_node_id, event_stack) = if is_double_click {
-                        let mut event =
-                            Event::new(event::DoubleClick(*b), self.event_cache(), focus);
+                        let mut event = Event::new(
+                            event::DoubleClick { button: *b },
+                            self.event_cache(),
+                            focus,
+                        );
                         self.handle_event(Node::double_click, &mut event, None);
                         (event.current_node_id, event.stack)
                     } else {
-                        let mut event = Event::new(event::Click(*b), self.event_cache(), focus);
+                        let mut event =
+                            Event::new(event::Click { button: *b }, self.event_cache(), focus);
                         self.handle_event(Node::click, &mut event, None);
                         (event.current_node_id, event.stack)
                     };
@@ -379,7 +385,7 @@ pub(crate) trait LemnaUI {
             Input::Press(Button::Keyboard(k)) => {
                 self.event_cache().key_down(*k);
                 let focus = self.active_focus();
-                let mut event = Event::new(event::KeyDown(*k), self.event_cache(), focus);
+                let mut event = Event::new(event::KeyDown { key: *k }, self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
                 self.handle_event(Node::key_down, &mut event, Some(focus));
             }
@@ -387,13 +393,14 @@ pub(crate) trait LemnaUI {
                 if self.event_cache().key_held(*k) {
                     self.event_cache().key_up(*k);
                     let focus = self.active_focus();
-                    let mut event = Event::new(event::KeyPress(*k), self.event_cache(), focus);
+                    let mut event =
+                        Event::new(event::KeyPress { key: *k }, self.event_cache(), focus);
                     event.set_focus_stack(self.focus_stack());
                     self.handle_event(Node::key_press, &mut event, Some(focus));
                 }
 
                 let focus = self.active_focus();
-                let mut event = Event::new(event::KeyUp(*k), self.event_cache(), focus);
+                let mut event = Event::new(event::KeyUp { key: *k }, self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
                 self.handle_event(Node::key_up, &mut event, Some(focus));
             }
@@ -401,8 +408,11 @@ pub(crate) trait LemnaUI {
                 let mods = self.event_cache().modifiers_held;
                 if !mods.alt && !mods.ctrl && !mods.meta {
                     let focus = self.active_focus();
-                    let mut event =
-                        Event::new(event::TextEntry(s.clone()), self.event_cache(), focus);
+                    let mut event = Event::new(
+                        event::TextEntry { text: s.clone() },
+                        self.event_cache(),
+                        focus,
+                    );
                     event.set_focus_stack(self.focus_stack());
                     self.handle_event(Node::text_entry, &mut event, Some(focus));
                 }
@@ -477,7 +487,9 @@ pub(crate) trait LemnaUI {
                         }
                         if drag_event.target.is_some() {
                             let mut enter_event = Event::new(
-                                event::DragEnter(self.event_cache().drag_data.clone()),
+                                event::DragEnter {
+                                    data: self.event_cache().drag_data.clone(),
+                                },
                                 self.event_cache(),
                                 focus,
                             );
@@ -502,8 +514,11 @@ pub(crate) trait LemnaUI {
                 }
                 Drag::Drop(data) => {
                     let focus = self.active_focus();
-                    let mut event =
-                        Event::new(event::DragDrop(data.clone()), self.event_cache(), focus);
+                    let mut event = Event::new(
+                        event::DragDrop { data: data.clone() },
+                        self.event_cache(),
+                        focus,
+                    );
                     let target = self.event_cache().drag_target.or(Some(self.root_id()));
                     self.handle_event_without_focus(Node::drag_drop, &mut event, target);
                     self.event_cache().clear();

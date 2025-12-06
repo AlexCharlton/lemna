@@ -67,11 +67,11 @@ impl lemna::Component for App {
     }
 
     fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
-        println!("App on_key_down: {:?}", event.input.0);
+        println!("App on_key_down: {:?}", event.input.key);
 
         // Global shortcuts for switching panes
         if event.modifiers_held.ctrl {
-            match event.input.0 {
+            match event.input.key {
                 input::Key::D1 => event.focus_ref("left_pane"),
                 input::Key::D2 => event.focus_ref("right_pane"),
                 _ => {}

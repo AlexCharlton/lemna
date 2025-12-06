@@ -19,7 +19,7 @@ impl Component for App {
 
     fn on_drag_drop(&mut self, event: &mut Event<event::DragDrop>) {
         // This will never print, because this is not a valid target per `on_drag_target`
-        println!("Oops, you missed the target. Got {:?}", event.input.0);
+        println!("Oops, you missed the target. Got {:?}", event.input.data);
     }
 
     fn on_drag_target(&mut self, _event: &mut Event<event::DragTarget>) {
@@ -73,7 +73,7 @@ impl Component for DropTarget {
     }
 
     fn on_drag_drop(&mut self, event: &mut Event<event::DragDrop>) {
-        println!("Got {:?}", event.input.0);
+        println!("Got {:?}", event.input.data);
         self.state_mut().active = false;
     }
 

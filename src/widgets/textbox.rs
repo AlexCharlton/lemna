@@ -493,7 +493,7 @@ impl Component for TextBoxText {
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
-        match event.input.0 {
+        match event.input.button {
             crate::input::MouseButton::Left => {
                 if self.state_ref().dragging {
                     // Short drags also send click events, before the drag end event is sent
@@ -542,7 +542,7 @@ impl Component for TextBoxText {
         let mut changed = false;
         // Assume we've handled the input, unless we explicitly set handled to false
         let mut handled = true;
-        match event.input.0 {
+        match event.input.key {
             Key::Backspace => {
                 if let Some((a, b)) = self.selection() {
                     self.state_mut().text.replace_range(a..b, "");
@@ -664,7 +664,7 @@ impl Component for TextBoxText {
     }
 
     fn on_text_entry(&mut self, event: &mut event::Event<event::TextEntry>) {
-        self.insert_text(&event.input.0);
+        self.insert_text(&event.input.text);
         self.state_mut().dirty = true;
         event.stop_bubbling();
         event.emit(Box::new(TextBoxMessage::Change(

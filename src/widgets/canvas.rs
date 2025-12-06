@@ -129,13 +129,13 @@ impl Component for Canvas {
     }
 
     fn on_mouse_down(&mut self, event: &mut event::Event<event::MouseDown>) {
-        if event.input.0 == MouseButton::Left {
+        if event.input.button == MouseButton::Left {
             self.state_mut().drawing = true;
         }
     }
 
     fn on_mouse_up(&mut self, event: &mut event::Event<event::MouseUp>) {
-        if event.input.0 == MouseButton::Left {
+        if event.input.button == MouseButton::Left {
             self.state_mut().drawing = false;
         }
     }

@@ -168,7 +168,7 @@ impl lemna::Component for App {
     fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) {
         println!(
             "The app got a key press: {:?} (Modifiers: {:?})",
-            event.input.0, event.modifiers_held
+            event.input.key, event.modifiers_held
         );
     }
 }
@@ -268,8 +268,8 @@ impl Component for EventReactor {
     }
 
     fn on_click(&mut self, event: &mut Event<event::Click>) {
-        println!("Clicked on {} with {:?}", &self.name, event.input.0);
-        match event.input.0 {
+        println!("Clicked on {} with {:?}", &self.name, event.input.button);
+        match event.input.button {
             input::MouseButton::Left => {
                 println!("Got {:?} from the clipboard", window::get_from_clipboard())
             }
@@ -283,7 +283,7 @@ impl Component for EventReactor {
     }
 
     fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) {
-        println!("Double clicked on {} with {:?}", &self.name, event.input.0);
+        println!("Double clicked on {} with {:?}", &self.name, event.input.button);
     }
 
     fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) {
@@ -295,11 +295,11 @@ impl Component for EventReactor {
     }
 
     fn on_text_entry(&mut self, event: &mut Event<event::TextEntry>) {
-        println!("{} got a some text: {:?})", &self.name, event.input.0);
+        println!("{} got a some text: {:?})", &self.name, event.input.text);
     }
 
     fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
-        println!("The EventReactor got a key down: {:?}", event.input.0);
+        println!("The EventReactor got a key down: {:?}", event.input.key);
     }
 }
 

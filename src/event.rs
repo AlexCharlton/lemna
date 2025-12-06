@@ -101,18 +101,18 @@ impl EventInput for MouseMotion {}
 
 /// [`EventInput`] type for mouse down events.
 #[derive(Debug)]
-pub struct MouseDown(
+pub struct MouseDown {
     /// The [`MouseButton`] pressed.
-    pub MouseButton,
-);
+    pub button: MouseButton,
+}
 impl EventInput for MouseDown {}
 
 /// [`EventInput`] type for mouse up events.
 #[derive(Debug)]
-pub struct MouseUp(
+pub struct MouseUp {
     /// The [`MouseButton`] released.
-    pub MouseButton,
-);
+    pub button: MouseButton,
+}
 impl EventInput for MouseUp {}
 
 /// [`EventInput`] type for mouse enter events.
@@ -127,50 +127,50 @@ impl EventInput for MouseLeave {}
 
 /// [`EventInput`] type for mouse click events.
 #[derive(Debug)]
-pub struct Click(
+pub struct Click {
     /// The [`MouseButton`] clicked.
-    pub MouseButton,
-);
+    pub button: MouseButton,
+}
 impl EventInput for Click {}
 
 /// [`EventInput`] type for mouse double click events.
 #[derive(Debug)]
-pub struct DoubleClick(
+pub struct DoubleClick {
     ///  The [`MouseButton`] clicked.
-    pub MouseButton,
-);
+    pub button: MouseButton,
+}
 impl EventInput for DoubleClick {}
 
 /// [`EventInput`] type for key down events.
 #[derive(Debug)]
-pub struct KeyDown(
+pub struct KeyDown {
     /// The [`Key`] pressed.
-    pub Key,
-);
+    pub key: Key,
+}
 impl EventInput for KeyDown {}
 
 /// [`EventInput`] type for key up events.
 #[derive(Debug)]
-pub struct KeyUp(
+pub struct KeyUp {
     /// The [`Key`] released.
-    pub Key,
-);
+    pub key: Key,
+}
 impl EventInput for KeyUp {}
 
 /// [`EventInput`] type for key press (up and down) events.
 #[derive(Debug)]
-pub struct KeyPress(
+pub struct KeyPress {
     /// The [`Key`] pressed.
-    pub Key,
-);
+    pub key: Key,
+}
 impl EventInput for KeyPress {}
 
 /// [`EventInput`] type for text entry events.
 #[derive(Debug)]
-pub struct TextEntry(
+pub struct TextEntry {
     /// The string entered.
-    pub String,
-);
+    pub text: String,
+}
 impl EventInput for TextEntry {}
 
 /// [`EventInput`] type for scroll events.
@@ -195,10 +195,10 @@ impl EventInput for Drag {}
 
 /// [`EventInput`] type for drag start events.
 #[derive(Debug)]
-pub struct DragStart(
+pub struct DragStart {
     /// The [`MouseButton`] that initiated the drag.
-    pub MouseButton,
-);
+    pub button: MouseButton,
+}
 impl EventInput for DragStart {}
 
 /// [`EventInput`] type for drag end events.
@@ -218,10 +218,10 @@ impl EventInput for DragTarget {}
 
 /// [`EventInput`] type for drag enter events.
 #[derive(Debug)]
-pub struct DragEnter(
+pub struct DragEnter {
     /// The [`Data`] being dragged.
-    pub Vec<Data>,
-);
+    pub data: Vec<Data>,
+}
 impl EventInput for DragEnter {}
 
 /// [`EventInput`] type for drag leave events.
@@ -231,10 +231,10 @@ impl EventInput for DragLeave {}
 
 /// [`EventInput`] type for drag drop events.
 #[derive(Debug)]
-pub struct DragDrop(
+pub struct DragDrop {
     /// The [`Data`] being dragged.
-    pub Data,
-);
+    pub data: Data,
+}
 impl EventInput for DragDrop {}
 
 impl Scalable for Scroll {

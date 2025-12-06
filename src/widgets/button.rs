@@ -196,7 +196,7 @@ impl Component for Button {
     }
 
     fn on_key_down(&mut self, event: &mut crate::Event<event::KeyDown>) {
-        match event.input.0 {
+        match event.input.key {
             Key::Return => {
                 if let Some(f) = &self.on_click {
                     event.emit(f());

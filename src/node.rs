@@ -1168,7 +1168,9 @@ mod tests {
         assert_eq!(n.iter_renderables().count(), 3);
 
         let mut event = Event::new(
-            event::Click(crate::input::MouseButton::Left),
+            event::Click {
+                button: crate::input::MouseButton::Left,
+            },
             &crate::event::EventCache::new(1.0),
             0,
         );

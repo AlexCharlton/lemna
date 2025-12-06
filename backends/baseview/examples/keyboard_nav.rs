@@ -112,7 +112,7 @@ impl lemna::Component for App {
     }
 
     fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
-        match event.input.0 {
+        match event.input.key {
             Key::Up => {
                 let focused = self.state_ref().item_focused;
                 if focused > 0 {
@@ -300,7 +300,7 @@ impl Component for NewNamedModal {
 
     fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
         let focused = self.state_ref().focused;
-        match event.input.0 {
+        match event.input.key {
             input::Key::Escape => {
                 event.emit(msg!(ModalEvent::CloseModal));
             }
