@@ -33,13 +33,6 @@ impl lemna::Component for App {
                 "Item 5".to_string(),
                 "Item 6".to_string(),
                 "Item 7".to_string(),
-                "Item 8".to_string(),
-                "Item 9".to_string(),
-                "Item 10".to_string(),
-                "Item 11".to_string(),
-                "Item 12".to_string(),
-                "Item 13".to_string(),
-                "Item 14".to_string(),
             ],
             item_focused: 0,
         })
@@ -293,45 +286,23 @@ impl Component for NewNamedModal {
         }
     }
 
-    fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
-        event.stop_bubbling();
-    }
-
-    fn on_click(&mut self, event: &mut Event<event::Click>) {
-        event.stop_bubbling();
-    }
-
-    fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) {
-        event.stop_bubbling();
-    }
-
-    fn on_mouse_down(&mut self, event: &mut Event<event::MouseDown>) {
-        event.stop_bubbling();
-    }
-
-    fn on_mouse_up(&mut self, event: &mut Event<event::MouseUp>) {
-        event.stop_bubbling();
-    }
-
-    fn on_mouse_leave(&mut self, event: &mut Event<event::MouseLeave>) {
-        event.stop_bubbling();
-    }
-
-    fn on_mouse_enter(&mut self, event: &mut Event<event::MouseEnter>) {
-        event.stop_bubbling();
-    }
-
-    fn on_key_press(&mut self, event: &mut Event<event::KeyPress>) {
-        let focused = self.state_ref().focused;
-        match event.input.0 {
-            input::Key::Escape if focused != ModalFocus::Input => {
+    fn on_focus(&mut self, event: &mut Event<event::Focus>) {
+        // If the input is focused and the event is primary target, this means the textbox or button has been blurred
+        if event.is_primary_target() {
+            if self.state_ref().focused == ModalFocus::Input && !self.state_ref().name.is_empty() {
+                event.focus_ref("submit_button");
+                self.state_mut().focused = ModalFocus::Submit;
+            } else {
                 event.emit(msg!(ModalEvent::CloseModal));
             }
-            input::Key::Return | input::Key::Escape => {
-                if focused == ModalFocus::Input {
-                    event.focus_ref("submit_button");
-                    self.state_mut().focused = ModalFocus::Submit;
-                }
+        }
+    }
+
+    fn on_key_down(&mut self, event: &mut Event<event::KeyDown>) {
+        let focused = self.state_ref().focused;
+        match event.input.0 {
+            input::Key::Escape => {
+                event.emit(msg!(ModalEvent::CloseModal));
             }
             input::Key::Tab => {
                 if focused == ModalFocus::Input {
@@ -362,5 +333,33 @@ impl Component for NewNamedModal {
             }
             _ => (),
         }
+    }
+
+    fn on_mouse_motion(&mut self, event: &mut Event<event::MouseMotion>) {
+        event.stop_bubbling();
+    }
+
+    fn on_click(&mut self, event: &mut Event<event::Click>) {
+        event.stop_bubbling();
+    }
+
+    fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) {
+        event.stop_bubbling();
+    }
+
+    fn on_mouse_down(&mut self, event: &mut Event<event::MouseDown>) {
+        event.stop_bubbling();
+    }
+
+    fn on_mouse_up(&mut self, event: &mut Event<event::MouseUp>) {
+        event.stop_bubbling();
+    }
+
+    fn on_mouse_leave(&mut self, event: &mut Event<event::MouseLeave>) {
+        event.stop_bubbling();
+    }
+
+    fn on_mouse_enter(&mut self, event: &mut Event<event::MouseEnter>) {
+        event.stop_bubbling();
     }
 }

@@ -195,15 +195,17 @@ impl Component for Button {
         self.state_mut().focused = false;
     }
 
-    fn on_key_press(&mut self, event: &mut crate::Event<event::KeyPress>) {
+    fn on_key_down(&mut self, event: &mut crate::Event<event::KeyDown>) {
         match event.input.0 {
             Key::Return => {
                 if let Some(f) = &self.on_click {
                     event.emit(f());
                 }
+                event.stop_bubbling();
             }
             Key::Escape => {
                 event.blur();
+                event.stop_bubbling();
             }
             _ => {}
         }
