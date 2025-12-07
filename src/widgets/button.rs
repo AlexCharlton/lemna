@@ -29,6 +29,7 @@ pub struct Button {
     pub on_click: Option<Box<dyn Fn() -> Message + Send + Sync>>,
     pub tool_tip: Option<String>,
     focus_on_click: bool,
+    disabled: bool,
 }
 
 impl core::fmt::Debug for Button {
@@ -46,6 +47,7 @@ impl Button {
             on_click: None,
             tool_tip: None,
             focus_on_click: false,
+            disabled: false,
             state: Some(ButtonState::default()),
             dirty: crate::Dirty::No,
             class: Default::default(),
@@ -67,6 +69,11 @@ impl Button {
         self.focus_on_click = true;
         self
     }
+
+    pub fn disabled(mut self) -> Self {
+        self.disabled = true;
+        self
+    }
 }
 
 #[state_component_impl(ButtonState, Internal)]
@@ -79,18 +86,30 @@ impl Component for Button {
         let background_color: Color = self.style_val("background_color").into();
         let border_color: Color = self.style_val("border_color").into();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
+        let text_color: Color = self.style_val("text_color").unwrap().into();
+
+        let (bg_color, txt_color, brd_color) = if self.disabled {
+            (
+                self.style_val("disabled_background_color").unwrap().into(),
+                self.style_val("disabled_text_color").unwrap().into(),
+                self.style_val("disabled_border_color").unwrap().into(),
+            )
+        } else {
+            let bg = if self.state_ref().pressed {
+                active_color
+            } else if self.state_ref().hover {
+                highlight_color
+            } else {
+                background_color
+            };
+            (bg, text_color, border_color)
+        };
 
         let mut base = node!(
             super::RoundedRect {
-                background_color: if self.state_ref().pressed {
-                    active_color
-                } else if self.state_ref().hover {
-                    highlight_color
-                } else {
-                    background_color
-                },
-                border_color,
-                border_width: if self.state_ref().focused {
+                background_color: bg_color,
+                border_color: brd_color,
+                border_width: if self.state_ref().focused && !self.disabled {
                     border_width * 1.5
                 } else {
                     border_width
@@ -108,7 +127,7 @@ impl Component for Button {
         .push(node!(
             super::Text::new(self.label.clone())
                 .style("size", self.style_val("font_size").unwrap())
-                .style("color", self.style_val("text_color").unwrap())
+                .style("color", txt_color)
                 .style("h_alignment", HorizontalPosition::Center)
                 .maybe_style("font", self.style_val("font"))
         ));
@@ -127,6 +146,9 @@ impl Component for Button {
     }
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {
+        if self.disabled {
+            return;
+        }
         self.state_mut().hover_start = Some(Instant::now());
         // This state mutation should not trigger a redraw.
         self.dirty = crate::Dirty::No;
@@ -134,11 +156,17 @@ impl Component for Button {
     }
 
     fn on_mouse_enter(&mut self, _event: &mut event::Event<event::MouseEnter>) {
+        if self.disabled {
+            return;
+        }
         self.state_mut().hover = true;
         crate::window::set_cursor("PointingHand");
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
+        if self.disabled {
+            return;
+        }
         let focused = self.state_ref().focused;
         *self.state_mut() = ButtonState {
             focused,
@@ -148,6 +176,9 @@ impl Component for Button {
     }
 
     fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
+        if self.disabled {
+            return;
+        }
         if self.tool_tip.is_some()
             && self.state_ref().hover
             && self
@@ -162,14 +193,23 @@ impl Component for Button {
     }
 
     fn on_mouse_down(&mut self, _event: &mut event::Event<event::MouseDown>) {
+        if self.disabled {
+            return;
+        }
         self.state_mut().pressed = true;
     }
 
     fn on_mouse_up(&mut self, _event: &mut event::Event<event::MouseUp>) {
+        if self.disabled {
+            return;
+        }
         self.state_mut().pressed = false;
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
+        if self.disabled {
+            return;
+        }
         if let Some(f) = &self.on_click {
             event.emit(f());
         }
@@ -179,6 +219,9 @@ impl Component for Button {
     }
 
     fn on_double_click(&mut self, event: &mut event::Event<event::DoubleClick>) {
+        if self.disabled {
+            return;
+        }
         if let Some(f) = &self.on_click {
             event.emit(f());
         }
@@ -187,7 +230,12 @@ impl Component for Button {
         }
     }
 
-    fn on_focus(&mut self, _event: &mut event::Event<event::Focus>) {
+    fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {
+        if self.disabled {
+            // Blur immediately if disabled
+            event.blur();
+            return;
+        }
         self.state_mut().focused = true;
     }
 
@@ -196,6 +244,9 @@ impl Component for Button {
     }
 
     fn on_key_down(&mut self, event: &mut crate::Event<event::KeyDown>) {
+        if self.disabled {
+            return;
+        }
         match event.input.key {
             Key::Return => {
                 if let Some(f) = &self.on_click {

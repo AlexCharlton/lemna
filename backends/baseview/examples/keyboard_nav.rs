@@ -69,7 +69,6 @@ impl lemna::Component for App {
                 .push(result)
                 .push(node!(
                     NewNamedModal::new(
-                        "",
                         "Item",
                     ),
                     [position: [0.0], position_type: Absolute, size_pct: [100.0], z_index: 1000.0]
@@ -186,6 +185,24 @@ enum ModalFocus {
     Cancel,
 }
 
+impl ModalFocus {
+    pub fn reference(&self) -> &str {
+        match self {
+            ModalFocus::Input => "input",
+            ModalFocus::Submit => "submit_button",
+            ModalFocus::Cancel => "cancel_button",
+        }
+    }
+
+    fn get_focus_order(can_submit: bool) -> Vec<ModalFocus> {
+        if can_submit {
+            vec![ModalFocus::Input, ModalFocus::Submit, ModalFocus::Cancel]
+        } else {
+            vec![ModalFocus::Input, ModalFocus::Cancel]
+        }
+    }
+}
+
 #[derive(Debug)]
 struct NewNamedModalState {
     name: String,
@@ -195,14 +212,12 @@ struct NewNamedModalState {
 #[component(State = "NewNamedModalState")]
 #[derive(Debug)]
 pub struct NewNamedModal {
-    name: String,
     target_name: String,
 }
 
 impl NewNamedModal {
-    pub fn new(name: &str, target_name: &str) -> Self {
+    pub fn new(target_name: &str) -> Self {
         Self {
-            name: name.to_string(),
             target_name: target_name.to_string(),
             state: None,
             dirty: lemna::Dirty::No,
@@ -214,7 +229,7 @@ impl NewNamedModal {
 impl Component for NewNamedModal {
     fn init(&mut self) {
         self.state = Some(NewNamedModalState {
-            name: self.name.clone(),
+            name: "".to_string(),
             focused: ModalFocus::Input,
         });
     }
@@ -230,6 +245,13 @@ impl Component for NewNamedModal {
                 axis_alignment: Center,
             ]
         );
+
+        let mut create_button =
+            widgets::Button::new(txt!("Create")).on_click(Box::new(|| msg!(ModalMessage::Submit)));
+
+        if self.state_ref().name.is_empty() {
+            create_button = create_button.disabled();
+        }
 
         // Create the modal content box
         let modal_content = node!(
@@ -247,7 +269,7 @@ impl Component for NewNamedModal {
             self.target_name
         ))),))
         .push(node!(
-            widgets::TextBox::new(Some(self.name.clone()))
+            widgets::TextBox::new(None)
                 .on_change(Box::new(|text: &str| msg!(ModalMessage::UpdateName(text.to_string())))),
             [size_pct: [90.0, Auto], padding: [5.0]]
         ).focus_when_new().reference("input"))
@@ -261,11 +283,7 @@ impl Component for NewNamedModal {
                     .on_click(Box::new(|| msg!(ModalEvent::CloseModal))),
                 [margin: [0.0, 5.0]]
             ).reference("cancel_button"))
-            .push(node!(
-                widgets::Button::new(txt!("Create"))
-                    .on_click(Box::new(|| msg!(ModalMessage::Submit))),
-                [margin: [0.0, 5.0]]
-            ).reference("submit_button")),
+            .push(node!(create_button, [margin: [0.0, 5.0]]).reference("submit_button")),
         );
 
         Some(overlay.push(modal_content))
@@ -305,31 +323,17 @@ impl Component for NewNamedModal {
                 event.emit(msg!(ModalEvent::CloseModal));
             }
             input::Key::Tab => {
-                if focused == ModalFocus::Input {
-                    if event.modifiers_held.shift {
-                        event.focus_ref("cancel_button");
-                        self.state_mut().focused = ModalFocus::Cancel;
-                    } else {
-                        event.focus_ref("submit_button");
-                        self.state_mut().focused = ModalFocus::Submit;
-                    }
-                } else if focused == ModalFocus::Submit {
-                    if event.modifiers_held.shift {
-                        event.focus_ref("input");
-                        self.state_mut().focused = ModalFocus::Input;
-                    } else {
-                        event.focus_ref("cancel_button");
-                        self.state_mut().focused = ModalFocus::Cancel;
-                    }
-                } else if focused == ModalFocus::Cancel {
-                    if event.modifiers_held.shift {
-                        event.focus_ref("submit_button");
-                        self.state_mut().focused = ModalFocus::Submit;
-                    } else {
-                        event.focus_ref("input");
-                        self.state_mut().focused = ModalFocus::Input;
-                    }
-                }
+                let can_submit = !self.state_ref().name.is_empty();
+                let order = ModalFocus::get_focus_order(can_submit);
+                let current_idx = order.iter().position(|&f| f == focused).unwrap_or(0);
+                let next_idx = if event.modifiers_held.shift {
+                    (current_idx + order.len() - 1) % order.len()
+                } else {
+                    (current_idx + 1) % order.len()
+                };
+                let next_focus = order[next_idx];
+                event.focus_ref(next_focus.reference());
+                self.state_mut().focused = next_focus;
             }
             _ => (),
         }

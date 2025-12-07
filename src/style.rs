@@ -142,6 +142,18 @@ impl Default for Style {
                 StyleKey::new("Button", "border_color", None),
                 Color::BLACK.into(),
             ),
+            (
+                StyleKey::new("Button", "disabled_background_color", None),
+                Color::LIGHT_GREY.into(),
+            ),
+            (
+                StyleKey::new("Button", "disabled_text_color", None),
+                Color::MID_GREY.into(),
+            ),
+            (
+                StyleKey::new("Button", "disabled_border_color", None),
+                Color::MID_GREY.into(),
+            ),
             (StyleKey::new("Button", "border_width", None), 1.0.into()),
             (StyleKey::new("Button", "radius", None), 4.0.into()),
             (StyleKey::new("Button", "padding", None), 2.0.into()),
