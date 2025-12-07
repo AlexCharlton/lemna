@@ -283,7 +283,10 @@ impl Component for EventReactor {
     }
 
     fn on_double_click(&mut self, event: &mut Event<event::DoubleClick>) {
-        println!("Double clicked on {} with {:?}", &self.name, event.input.button);
+        println!(
+            "Double clicked on {} with {:?}",
+            &self.name, event.input.button
+        );
     }
 
     fn on_mouse_enter(&mut self, _event: &mut Event<event::MouseEnter>) {

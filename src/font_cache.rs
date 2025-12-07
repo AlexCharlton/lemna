@@ -124,7 +124,7 @@ impl FontCache {
             layout.append(
                 &self.fonts,
                 &TextStyle {
-                    text: &text,
+                    text,
                     px: size.map_or(scaled_size, |s| s * scale_factor),
                     font_index: font
                         .as_ref()
