@@ -738,7 +738,7 @@ impl Component for TextBoxText {
             text_with_trailing_space.push(' ');
             self.state_mut().glyphs = caches.layout_text(
                 &[TextSegment {
-                    text: text_with_trailing_space,
+                    text: alloc::borrow::Cow::Owned(text_with_trailing_space),
                     size: font_size.into(),
                     font: font.clone(),
                 }],

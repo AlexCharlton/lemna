@@ -9,6 +9,7 @@
 extern crate alloc;
 
 use alloc::{
+    borrow::Cow,
     string::{String, ToString},
     vec::Vec,
 };
@@ -123,7 +124,7 @@ impl FontCache {
             layout.append(
                 &self.fonts,
                 &TextStyle {
-                    text: text.as_str(),
+                    text: &text,
                     px: size.map_or(scaled_size, |s| s * scale_factor),
                     font_index: font
                         .as_ref()
@@ -159,23 +160,38 @@ impl FontCache {
 #[derive(Debug, Clone)]
 pub struct TextSegment {
     /// The text to be laid out.
-    pub text: String,
+    pub text: Cow<'static, str>,
     /// An optional size. A default will be selected if `None`.
     pub size: Option<f32>,
     /// An optional font name. A default will be selected if `None`.
     pub font: Option<String>,
 }
 
+impl TextSegment {
+    /// Create a `TextSegment` from a static string without allocation.
+    pub fn from_static(s: &'static str) -> Self {
+        TextSegment {
+            text: Cow::Borrowed(s),
+            size: None,
+            font: None,
+        }
+    }
+}
+
 impl From<&str> for TextSegment {
     fn from(s: &str) -> TextSegment {
-        s.to_string().into()
+        TextSegment {
+            text: Cow::Owned(s.to_string()),
+            size: None,
+            font: None,
+        }
     }
 }
 
 impl From<String> for TextSegment {
     fn from(text: String) -> TextSegment {
         TextSegment {
-            text,
+            text: Cow::Owned(text),
             size: None,
             font: None,
         }
@@ -248,23 +264,48 @@ macro_rules! txt {
     // End split_comma
 
     // Operation performed per comma-separated expr
-    (@as_txt_seg  ($text:expr, None, $size:expr)) => { $crate::TextSegment {
-        text: $text.into(),
+    // Special case for string literals to avoid allocation
+    (@as_txt_seg  ($text:literal, None, $size:expr)) => { $crate::TextSegment {
+        text: $crate::TextSegment::from_static($text).text,
         size: Some($size),
         font: None,
     } };
 
-    (@as_txt_seg  ($text:expr, $font:expr, $size:expr)) => { $crate::TextSegment {
-        text: $text.into(),
+    (@as_txt_seg  ($text:literal, $font:expr, $size:expr)) => { $crate::TextSegment {
+        text: $crate::TextSegment::from_static($text).text,
         size: Some($size),
         font: Some($font.into()),
     } };
 
-    (@as_txt_seg  ($text:expr, $font:expr)) => { $crate::TextSegment {
-        text: $text.into(),
+    (@as_txt_seg  ($text:literal, $font:expr)) => { $crate::TextSegment {
+        text: $crate::TextSegment::from_static($text).text,
         size: None,
         font: Some($font.into()),
     } };
+
+    (@as_txt_seg  ($text:expr, None, $size:expr)) => { {
+        let mut ts: $crate::TextSegment = $text.into();
+        ts.size = Some($size);
+        ts
+    } };
+
+    (@as_txt_seg  ($text:expr, $font:expr, $size:expr)) => { {
+        let mut ts: $crate::TextSegment = $text.into();
+        ts.size = Some($size);
+        ts.font = Some($font.into());
+        ts
+    } };
+
+    (@as_txt_seg  ($text:expr, $font:expr)) => { {
+        let mut ts: $crate::TextSegment = $text.into();
+        ts.font = Some($font.into());
+        ts
+    } };
+
+    // Special case for string literals to avoid allocation
+    (@as_txt_seg  $text:literal) => {
+        $crate::TextSegment::from_static($text)
+    };
 
     (@as_txt_seg  $e:expr) => {
         $e.into()
