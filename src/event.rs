@@ -473,6 +473,16 @@ pub struct ModifiersHeld {
     pub meta: bool,
 }
 
+impl ModifiersHeld {
+    pub fn any(&self) -> bool {
+        self.shift || self.alt || self.ctrl || self.meta
+    }
+
+    pub fn none(&self) -> bool {
+        !self.shift && !self.alt && !self.ctrl && !self.meta
+    }
+}
+
 //-------------------------------------------------------
 // MARK: EventCache
 //-------------------------------------------------------
