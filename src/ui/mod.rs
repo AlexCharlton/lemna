@@ -139,12 +139,11 @@ pub(crate) trait LemnaUI {
             event_stack
         );
         self.set_focus(None, event_stack);
+        #[cfg(debug_assertions)]
+        log::debug!("new focus: {}", self.active_focus());
 
-        let new_focus = self.active_focus();
-        // We've passed focus to some new Node, so focus it
-        if new_focus != prev_focus {
-            self.send_focus_event(blur_event.suppress_scroll_to, previously_focused_nodes);
-        }
+        // Always send a focus event (even if the focus didn't change) because we have sent a blur event which may have triggered a focus change
+        self.send_focus_event(blur_event.suppress_scroll_to, previously_focused_nodes);
     }
 
     fn handle_focus_or_blur<T: EventInput>(
