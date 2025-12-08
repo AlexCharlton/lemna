@@ -123,8 +123,8 @@ pub(crate) trait LemnaUI {
         let prev_focus = self.active_focus();
         let blur_event =
             self.send_blur_event(event_stack, suppress_scroll_to, previously_focused_nodes);
-        // Blur means we're removing focus, pass None
-        self.set_focus(None, event_stack);
+        // Blur means we're removing focus, pass None, and remove the last element from the event stack
+        self.set_focus(None, &event_stack[..event_stack.len() - 1]);
 
         let new_focus = self.active_focus();
         // We've passed focus to some new Node, so focus it

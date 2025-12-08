@@ -119,7 +119,6 @@ impl Component for Button {
             lay!(
                 size: size_pct!(100.0),
                 padding: bounds!(padding),
-                margin: bounds!(border_width / 2.0),
                 cross_alignment: crate::layout::Alignment::Center,
                 axis_alignment: crate::layout::Alignment::Center,
             )

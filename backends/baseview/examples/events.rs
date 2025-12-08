@@ -73,7 +73,7 @@ impl lemna::Component for App {
                         name: "It me, a button!".to_string()
                     }))
                 ),
-                [size: [100, 50]]
+                [size: [100, 50], margin: [2.0]]
             ))
             .push(node!(
                 widgets::Button::new(
@@ -87,7 +87,7 @@ impl lemna::Component for App {
                 .on_click(Box::new(|| msg!(HelloEvent::Button {
                     name: "jk, I'm just another button!".to_string()
                 }))),
-                [size: [Auto]]
+                [size: [Auto], margin: [2.0]]
             ))
             .push(node!(
                 widgets::Select::<String>::new(
@@ -101,7 +101,8 @@ impl lemna::Component for App {
                 .on_change(Box::new(|_, s| msg!(HelloEvent::Selection {
                     name: "My selection".to_string(),
                     value: s.clone(),
-                })))
+                }))),
+                [margin: [2.0]]
             ))
             .push(node!(
                 widgets::TextBox::new(Some("Hello".to_string()))
@@ -115,7 +116,7 @@ impl lemna::Component for App {
                         value: s.to_string(),
                         update_type: "commit".to_string(),
                     }))),
-                [size: [100, Auto]]
+                [size: [100, Auto], margin: [2.0]]
             ))
             .push(node!(
                 widgets::RadioButtons::new(
