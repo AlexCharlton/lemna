@@ -623,6 +623,19 @@ impl From<StyleVal> for f64 {
         }
     }
 }
+impl From<f32> for StyleVal {
+    fn from(c: f32) -> Self {
+        Self::Float(c as f64)
+    }
+}
+impl From<StyleVal> for f32 {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Float(c) => c as f32,
+            x => panic!("Tried to coerce {x:?} into a float"),
+        }
+    }
+}
 impl From<u32> for StyleVal {
     fn from(c: u32) -> Self {
         Self::Int(c)
