@@ -268,7 +268,7 @@ impl Node {
         // Create children
         if let Some(mut child) = self.component.view() {
             if let Some(indexes) = self.component.container() {
-                // Pull out the children that were pushed onto this node, since we need to moves
+                // Pull out the children that were pushed onto this node, since we need to move
                 // them to the correct position.
                 let mut container_children = vec![];
                 container_children.append(&mut self.children);

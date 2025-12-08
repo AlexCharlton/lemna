@@ -95,8 +95,8 @@ impl<'a> FocusContext<'a> {
             suppress_scroll_to,
             previously_focused_nodes,
         );
-        // Blur means we're removing focus, pass None
-        self.set_focus(None, event_stack);
+        // Blur means we're removing focus, pass None, and remove the last element from the event stack
+        self.set_focus(None, &event_stack[..event_stack.len() - 1]);
         blur_event
     }
 
