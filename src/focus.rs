@@ -1,6 +1,9 @@
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use hashbrown::{HashMap, HashSet};
 

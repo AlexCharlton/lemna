@@ -57,6 +57,10 @@ impl Component for Toggle {
         self.state_mut().pressed = false;
     }
 
+    fn on_drag_start(&mut self, _event: &mut event::Event<event::DragStart>) {
+        self.state_mut().pressed = false;
+    }
+
     fn on_mouse_down(&mut self, _event: &mut event::Event<event::MouseDown>) {
         self.state_mut().pressed = true;
     }

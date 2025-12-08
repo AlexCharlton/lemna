@@ -194,7 +194,7 @@ impl<'a> FocusContext<'a> {
     /// Handle a focus change that occurred during view().
     /// This is the main entry point for handling focus changes in the draw thread.
     ///
-    /// - prev_focus: The FocusState before view() was called
+    /// prev_focus: The FocusState before view() was called
     /// self.focus_state is the new FocusState after view() was called
     pub fn handle_focus_change(&mut self, prev_focus: &FocusState) {
         if self.focus_state.active() != prev_focus.active() {

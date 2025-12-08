@@ -2,7 +2,7 @@
 extern crate alloc;
 
 use crate::time::Instant;
-use alloc::{string::String, vec, vec::Vec};
+use alloc::{format, string::String, vec, vec::Vec};
 use core::fmt;
 
 use hashbrown::HashSet;
@@ -46,6 +46,8 @@ pub struct Event<T: EventInput> {
     pub(crate) focus_stack: Vec<NodeId>,
     pub(crate) is_primary_target: bool,
     pub(crate) suppress_scroll_to: bool,
+    // Suppress focus changes due to clicks generating a blur event without an explicit focus/blur.
+    pub(crate) suppress_passive_focus_change: bool,
     pub(crate) scale_factor: f32,
     pub(crate) messages: Vec<Message>,
     pub(crate) signals: Signaller,
@@ -75,6 +77,10 @@ impl<T: EventInput> fmt::Debug for Event<T> {
             .field("focus_stack", &self.focus_stack)
             .field("is_primary_focus", &self.is_primary_target)
             .field("suppress_scroll_to", &self.suppress_scroll_to)
+            .field(
+                "suppress_passive_focus_change",
+                &self.suppress_passive_focus_change,
+            )
             .field("scale_factor", &self.scale_factor)
             .field("signals", &self.signals);
 
@@ -298,6 +304,7 @@ impl<T: EventInput> Event<T> {
             focus_stack: vec![],
             is_primary_target: true,
             suppress_scroll_to: false,
+            suppress_passive_focus_change: false,
             target: None,
             current_node_id: None,
             current_aabb: None,
@@ -338,6 +345,11 @@ impl<T: EventInput> Event<T> {
     /// Prevent focus changes caused by this Event from resulting in a scroll_to.
     pub fn suppress_scroll_to(&mut self) {
         self.suppress_scroll_to = true;
+    }
+
+    /// Prevent focus changes caused by this Event from resulting in a focus change.
+    pub fn suppress_passive_focus_change(&mut self) {
+        self.suppress_passive_focus_change = true;
     }
 
     /// Prevent this Event from being sent to one of the ancestor Nodes of the current one.

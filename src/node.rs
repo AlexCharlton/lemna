@@ -1,6 +1,11 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, vec, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -104,6 +109,7 @@ pub struct Node {
     pub(crate) reference: Option<String>,
     pub(crate) auto_focus: bool,
     pub(crate) new_focus: bool,
+    pub(crate) suppress_passive_focus_change: bool,
     pub(crate) focus_priority: i32,
 }
 
@@ -163,6 +169,7 @@ impl Node {
             reference: None,
             auto_focus: false,
             new_focus: false,
+            suppress_passive_focus_change: false,
             focus_priority: 0,
         }
     }
@@ -194,6 +201,12 @@ impl Node {
     /// Node is focused when created.
     pub fn focus_when_new(mut self) -> Self {
         self.new_focus = true;
+        self
+    }
+
+    /// Prevent focus changes caused by clicking on this Node generating an implied blur
+    pub fn suppress_passive_focus_change(mut self) -> Self {
+        self.suppress_passive_focus_change = true;
         self
     }
 
@@ -541,6 +554,9 @@ impl Node {
         let mut m: Vec<Message> = vec![];
         event.over_child_n = None;
         event.over_subchild_n = None;
+        if self.suppress_passive_focus_change {
+            event.suppress_passive_focus_change();
+        }
         for (n, child) in self.children.iter_mut().enumerate() {
             if child
                 .component

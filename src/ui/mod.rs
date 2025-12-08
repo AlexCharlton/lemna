@@ -105,6 +105,9 @@ pub(crate) trait LemnaUI {
     }
 
     fn blur<T: EventInput>(&mut self, event: &Event<T>, suppress_scroll_to: bool) {
+        if event.suppress_passive_focus_change {
+            return;
+        }
         let mut previously_focused_nodes = HashSet::new();
         #[cfg(debug_assertions)]
         log::debug!("blurring due to click (will not trigger scroll)");
@@ -117,7 +120,6 @@ pub(crate) trait LemnaUI {
         suppress_scroll_to: bool,
         previously_focused_nodes: &mut HashSet<NodeId>,
     ) {
-        let prev_focus = self.active_focus();
         let blur_event = self.send_blur_event(suppress_scroll_to, previously_focused_nodes);
         // Blur means we're removing focus, pass None, and remove the last element from the event stack
         let event_stack = if let Some(blur_node) = event.blur {
@@ -348,16 +350,7 @@ pub(crate) trait LemnaUI {
                     let target = self.event_cache().drag_target;
                     self.handle_event(Node::drag_end, &mut drag_end_event, target);
 
-                    // Unfocus when clicking a thing not focused
-                    if drag_end_event.current_node_id != Some(self.active_focus())
-                    // Ignore the root node, which is the default focus
-                        && self.active_focus() != self.root_id()
-                    {
-                        // We don't want this to cause a scroll_to
-                        self.blur(&drag_end_event, true);
-                    }
-
-                // Clean up event cache
+                    // Clean up event cache
                 } else if self.event_cache().is_mouse_button_held(*b) {
                     // Resolve click
                     let focus = self.active_focus();

@@ -125,10 +125,6 @@ impl<
             }
             if new_focus_state.active() != prev_focus {
                 // Focus changed during view - handle it with FocusContext
-                let prev_focus_stack = self.focus_state.stack().to_vec();
-                let new_focus_stack = new_focus_state.stack().to_vec();
-                let new_focus = new_focus_state.active();
-
                 let mut ctx = super::FocusContext::new(
                     &mut new,
                     &mut new_focus_state,
@@ -136,7 +132,7 @@ impl<
                     self.event_cache.scale_factor,
                 );
 
-                ctx.handle_focus_change(prev_focus, prev_focus_stack, new_focus, new_focus_stack);
+                ctx.handle_focus_change(&self.focus_state);
 
                 self.node_dirty += ctx.dirty;
             }
