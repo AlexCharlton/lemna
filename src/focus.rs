@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 
 use hashbrown::{HashMap, HashSet};
 
-use crate::NodeId;
+use crate::{Node, NodeId};
 
 /// Tracks all focus contexts and their parent-child relationships
 /// This is rebuilt during the view phase
@@ -12,17 +12,22 @@ use crate::NodeId;
 pub struct FocusTree {
     /// Map from node_id -> parent focus context's node_id
     parents: HashMap<NodeId, NodeId>,
-
     /// Map from node_id -> priority (higher = handles events first among siblings)
     priorities: HashMap<NodeId, i32>,
+
+    #[cfg(debug_assertions)]
+    names: HashMap<NodeId, String>,
 }
 
 impl FocusTree {
     /// Register a focus context during view traversal
     /// `parent_focus_id` is the node_id of the nearest ancestor that also has focus
-    pub fn register(&mut self, node_id: NodeId, parent_focus_id: NodeId, priority: i32) {
-        self.parents.insert(node_id, parent_focus_id);
-        self.priorities.insert(node_id, priority);
+    pub fn register(&mut self, node: &Node, parent_focus_id: NodeId) {
+        self.parents.insert(node.id, parent_focus_id);
+        self.priorities.insert(node.id, node.focus_priority);
+        #[cfg(debug_assertions)]
+        self.names
+            .insert(node.id, node.component.name().to_string());
     }
 
     /// Check if a node is registered as a focus context
@@ -194,6 +199,23 @@ impl FocusState {
     /// Get the focus stack root first
     pub fn stack(&self) -> &[NodeId] {
         &self.stack
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn stack_names(&self) -> Vec<(NodeId, String)> {
+        self.stack
+            .iter()
+            .map(|node_id| {
+                (
+                    *node_id,
+                    self.tree
+                        .names
+                        .get(node_id)
+                        .cloned()
+                        .unwrap_or("unknown".to_string()),
+                )
+            })
+            .collect()
     }
 
     /// Find the most specific (deepest) node in the event stack that is registered as a focus context

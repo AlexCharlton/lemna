@@ -342,21 +342,14 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         }
                         if new_focus_state.active() != prev_focus {
                             // Use FocusContext to handle blur/focus events with signal support
-                            let prev_focus_stack = focus_state.read().unwrap().stack().to_vec();
-                            let new_focus_stack = new_focus_state.stack().to_vec();
-                            let new_focus = new_focus_state.active();
+                            let prev_focus = focus_state.read().unwrap();
                             let mut focus_ctx = super::FocusContext::new(
                                 &mut new,
                                 &mut new_focus_state,
                                 &new_references,
                                 scale_factor,
                             );
-                            focus_ctx.handle_focus_change(
-                                prev_focus,
-                                prev_focus_stack,
-                                new_focus,
-                                new_focus_stack,
-                            );
+                            focus_ctx.handle_focus_change(&prev_focus);
                             *node_dirty.write().unwrap() += focus_ctx.dirty;
                         }
                         *references.write().unwrap() = new_references;

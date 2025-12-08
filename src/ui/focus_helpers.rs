@@ -83,21 +83,17 @@ impl<'a> FocusContext<'a> {
     /// Send a blur event to the currently focused node and clear focus
     pub fn send_blur_event(
         &mut self,
-        event_stack: &[NodeId],
         suppress_scroll_to: bool,
         previously_focused_nodes: &mut HashSet<NodeId>,
     ) -> Event<event::Blur> {
         let focus = self.active_focus();
         let focus_stack = self.focus_stack();
-        let blur_event = self.send_blur_event_to(
+        self.send_blur_event_to(
             focus,
             focus_stack,
             suppress_scroll_to,
             previously_focused_nodes,
-        );
-        // Blur means we're removing focus, pass None, and remove the last element from the event stack
-        self.set_focus(None, &event_stack[..event_stack.len() - 1]);
-        blur_event
+        )
     }
 
     /// Send a focus event to the specified target node
@@ -165,12 +161,21 @@ impl<'a> FocusContext<'a> {
                         {
                             let stack: Vec<NodeId> =
                                 stack_to_node.iter().map(|n| (*n) as u64).collect();
+
+                            #[cfg(debug_assertions)]
+                            log::debug!(
+                                "Changing focus from {} to {} (stack: {:?}) due to signal from event: {:?}",
+                                self.focus_state.active(),
+                                node_id,
+                                stack,
+                                event
+                            );
                             previously_focused_nodes.insert(node_id);
                             let blur_event = self.send_blur_event(
-                                &event.stack,
                                 event.suppress_scroll_to,
                                 previously_focused_nodes,
                             );
+
                             self.set_focus(Some(node_id), &stack);
                             self.send_focus_event(
                                 blur_event.suppress_scroll_to,
@@ -189,33 +194,33 @@ impl<'a> FocusContext<'a> {
     /// Handle a focus change that occurred during view().
     /// This is the main entry point for handling focus changes in the draw thread.
     ///
-    /// Parameters:
-    /// - prev_focus: The focus before view() was called
-    /// - prev_focus_stack: The focus stack before view() was called
-    /// - new_focus: The focus after view() was called (from new_focus_state)
-    /// - new_focus_stack: The focus stack after view() (from new_focus_state)
-    pub fn handle_focus_change(
-        &mut self,
-        prev_focus: NodeId,
-        prev_focus_stack: Vec<NodeId>,
-        new_focus: NodeId,
-        new_focus_stack: Vec<NodeId>,
-    ) {
-        if new_focus != prev_focus {
+    /// - prev_focus: The FocusState before view() was called
+    /// self.focus_state is the new FocusState after view() was called
+    pub fn handle_focus_change(&mut self, prev_focus: &FocusState) {
+        if self.focus_state.active() != prev_focus.active() {
+            #[cfg(debug_assertions)]
+            log::debug!(
+                "Focus changed from {} (stack: {:?}) to {} (stack: {:?}) due to changes to the view tree",
+                prev_focus.active(),
+                prev_focus.stack_names(),
+                self.focus_state.active(),
+                self.focus_state.stack_names()
+            );
+
             let mut previously_focused_nodes = HashSet::new();
 
             // Blur the previously focused node
             let blur_event = self.send_blur_event_to(
-                prev_focus,
-                prev_focus_stack,
+                prev_focus.active(),
+                prev_focus.stack().to_vec(),
                 false,
                 &mut previously_focused_nodes,
             );
 
             // Focus the new node
             self.send_focus_event_to(
-                new_focus,
-                new_focus_stack,
+                self.focus_state.active(),
+                self.focus_state.stack().to_vec(),
                 blur_event.suppress_scroll_to,
                 &mut previously_focused_nodes,
             );

@@ -41,6 +41,8 @@ pub struct Event<T: EventInput> {
     pub(crate) over_subchild_n: Option<usize>,
     pub(crate) target: Option<NodeId>,
     pub(crate) focus: Option<NodeId>,
+    // Which node triggered the blur event
+    pub(crate) blur: Option<NodeId>,
     pub(crate) focus_stack: Vec<NodeId>,
     pub(crate) is_primary_target: bool,
     pub(crate) suppress_scroll_to: bool,
@@ -49,12 +51,15 @@ pub struct Event<T: EventInput> {
     pub(crate) signals: Signaller,
     /// Stack of nodes that the event passed through. If the event is targeted, then this is the nodes on the way to the target. If the event is a mouse event, the this is the nodes through which the mouse passed (and in particular, the nodes on the way to whatever stopped the event from bubbling).
     pub(crate) stack: Vec<NodeId>,
+    #[cfg(debug_assertions)]
+    pub(crate) stack_names: Vec<String>,
 }
 
 impl<T: EventInput> fmt::Debug for Event<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("Event")
-            .field("input", &self.input)
+        let mut s = f.debug_struct("Event");
+
+        s.field("input", &self.input)
             .field("bubbles", &self.bubbles)
             .field("dirty", &self.dirty)
             .field("mouse_position", &self.mouse_position)
@@ -66,13 +71,29 @@ impl<T: EventInput> fmt::Debug for Event<T> {
             .field("over_subchild_n", &self.over_subchild_n)
             .field("target", &self.target)
             .field("focus", &self.focus)
+            .field("blur", &self.blur)
             .field("focus_stack", &self.focus_stack)
             .field("is_primary_focus", &self.is_primary_target)
             .field("suppress_scroll_to", &self.suppress_scroll_to)
             .field("scale_factor", &self.scale_factor)
-            .field("stack", &self.stack)
-            .field("signals", &self.signals)
-            .finish()
+            .field("signals", &self.signals);
+
+        if cfg!(debug_assertions) {
+            #[cfg(debug_assertions)]
+            s.field(
+                "stack",
+                &self
+                    .stack
+                    .iter()
+                    .zip(self.stack_names.iter())
+                    .map(|(s, n)| format!("{}: {}", s, n))
+                    .collect::<Vec<String>>(),
+            );
+        } else {
+            s.field("stack", &self.stack);
+        }
+
+        s.finish()
     }
 }
 
@@ -273,6 +294,7 @@ impl<T: EventInput> Event<T> {
             modifiers_held: event_cache.modifiers_held,
             mouse_position: event_cache.mouse_position,
             focus: Some(focus),
+            blur: None,
             focus_stack: vec![],
             is_primary_target: true,
             suppress_scroll_to: false,
@@ -286,6 +308,8 @@ impl<T: EventInput> Event<T> {
             messages: vec![],
             signals: Signaller::default(),
             stack: vec![],
+            #[cfg(debug_assertions)]
+            stack_names: vec![],
         }
     }
 
@@ -301,6 +325,7 @@ impl<T: EventInput> Event<T> {
     /// Remove focus from this Node, if applicable.
     pub fn blur(&mut self) {
         self.focus = None;
+        self.blur = self.current_node_id;
     }
 
     /// Is the Node receiving the Event the Node that is currently being targeted (as opposed to an ancestor in the focus stack getting a bubbled event)?

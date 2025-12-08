@@ -111,7 +111,7 @@ impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Node")
             .field("id", &self.id)
-            .field("component", &self.component.type_name())
+            .field("component", &self.component.name())
             .field("render_cache?", &self.render_cache.is_some())
             // .field("layout", &self.layout) // This is often TMI
             .field("aabb", &self.aabb)
@@ -252,9 +252,7 @@ impl Node {
 
         let focus_id = if self.auto_focus {
             // Register this node as a focus context
-            focus_state
-                .tree_mut()
-                .register(self.id, parent_focus_id, self.focus_priority);
+            focus_state.tree_mut().register(self, parent_focus_id);
 
             self.id
         } else {
@@ -537,6 +535,9 @@ impl Node {
         node_order: &mut Vec<(NodeId, f32)>,
     ) -> Vec<Message> {
         event.stack.push(self.id);
+        #[cfg(debug_assertions)]
+        event.stack_names.push(self.component.name().to_string());
+
         let mut m: Vec<Message> = vec![];
         event.over_child_n = None;
         event.over_subchild_n = None;
@@ -703,6 +704,10 @@ impl Node {
         {
             let node = self.get_target_from_stack(&stack);
             event.stack.push(node.id);
+
+            #[cfg(debug_assertions)]
+            event.stack_names.push(node.component.name().to_string());
+
             event.current_node_id = Some(node.id);
             event.current_aabb = Some(node.aabb);
             event.current_inner_scale = node.inner_scale;
@@ -721,6 +726,8 @@ impl Node {
             loop {
                 let node = self.get_target_from_stack(&stack);
                 event.stack.push(node.id);
+                #[cfg(debug_assertions)]
+                event.stack_names.push(node.component.name().to_string());
 
                 if event.bubbles && event.focus_stack.last() == Some(&node.id) {
                     event.current_node_id = Some(node.id);
@@ -753,6 +760,8 @@ impl Node {
                 }
                 if next_messages.is_empty() && event.focus_stack.is_empty() || stack.is_empty() {
                     event.stack.reverse();
+                    #[cfg(debug_assertions)]
+                    event.stack_names.reverse();
                     return;
                 }
                 event.messages = next_messages;

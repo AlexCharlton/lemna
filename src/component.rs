@@ -254,8 +254,8 @@ pub trait Component: fmt::Debug {
     /// Handle a drag and drop event dropping onto this component.
     fn on_drag_drop(&mut self, _event: &mut Event<event::DragDrop>) {}
 
-    /// Returns the type name of this component. Used for debugging purposes.
-    fn type_name(&self) -> &'static str {
+    /// Returns the name of this component. Used for debugging purposes.
+    fn name(&self) -> &'static str {
         core::any::type_name::<Self>()
     }
 }
