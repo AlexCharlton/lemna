@@ -268,21 +268,28 @@ impl Component for NewNamedModal {
             "New {}",
             self.target_name
         ))),))
-        .push(node!(
-            widgets::TextBox::new(None)
-                .on_change(Box::new(|text: &str| msg!(ModalMessage::UpdateName(text.to_string())))),
-            [size_pct: [90.0, Auto], padding: [5.0]]
-        ).focus_when_new().reference("input"))
+        .push(
+            node!(
+                widgets::TextBox::new(None)
+                    .on_change(Box::new(|text: String| msg!(ModalMessage::UpdateName(text)))),
+                [size_pct: [90.0, Auto], padding: [5.0]]
+            )
+            .focus_when_new()
+            .reference("input"),
+        )
         .push(
             node!(
                 widgets::Div::new(),
                 [size_pct: [100.0, Auto], axis_alignment: End, padding: [10.0, 0.0, 4.0]]
             )
-            .push(node!(
-                widgets::Button::new(txt!("Cancel"))
-                    .on_click(Box::new(|| msg!(ModalEvent::CloseModal))),
-                [margin: [0.0, 5.0]]
-            ).reference("cancel_button"))
+            .push(
+                node!(
+                    widgets::Button::new(txt!("Cancel"))
+                        .on_click(Box::new(|| msg!(ModalEvent::CloseModal))),
+                    [margin: [0.0, 5.0]]
+                )
+                .reference("cancel_button"),
+            )
             .push(node!(create_button, [margin: [0.0, 5.0]]).reference("submit_button")),
         );
 

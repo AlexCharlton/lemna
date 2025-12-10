@@ -47,8 +47,8 @@ struct TextBoxState {
 #[component(State = "TextBoxState", Styled, Internal)]
 pub struct TextBox {
     text: Option<String>,
-    on_change: Option<Box<dyn Fn(&str) -> Message + Send + Sync>>,
-    on_commit: Option<Box<dyn Fn(&str) -> Message + Send + Sync>>,
+    on_change: Option<Box<dyn Fn(String) -> Message + Send + Sync>>,
+    on_commit: Option<Box<dyn Fn(String) -> Message + Send + Sync>>,
     on_focus: Option<Box<dyn Fn() -> Message + Send + Sync>>,
 }
 
@@ -72,12 +72,12 @@ impl TextBox {
         }
     }
 
-    pub fn on_change(mut self, change_fn: Box<dyn Fn(&str) -> Message + Send + Sync>) -> Self {
+    pub fn on_change(mut self, change_fn: Box<dyn Fn(String) -> Message + Send + Sync>) -> Self {
         self.on_change = Some(change_fn);
         self
     }
 
-    pub fn on_commit(mut self, commit_fn: Box<dyn Fn(&str) -> Message + Send + Sync>) -> Self {
+    pub fn on_commit(mut self, commit_fn: Box<dyn Fn(String) -> Message + Send + Sync>) -> Self {
         self.on_commit = Some(commit_fn);
         self
     }
@@ -118,28 +118,32 @@ impl Component for TextBox {
     }
 
     fn update(&mut self, message: Message) -> Vec<Message> {
-        let mut m: Vec<Message> = vec![];
-        match message.downcast_ref::<TextBoxMessage>() {
-            Some(TextBoxMessage::Open) => {
-                self.state_mut().focused = true;
-                if let Some(focus_fn) = &self.on_focus {
-                    m.push(focus_fn())
+        match message.downcast::<TextBoxMessage>() {
+            Ok(msg) => match *msg {
+                TextBoxMessage::Open => {
+                    self.state_mut().focused = true;
+                    if let Some(focus_fn) = &self.on_focus {
+                        return vec![focus_fn()];
+                    }
                 }
-            }
-            Some(TextBoxMessage::Close) => self.state_mut().focused = false,
-            Some(TextBoxMessage::Change(s)) => {
-                if let Some(change_fn) = &self.on_change {
-                    m.push(change_fn(s))
+                TextBoxMessage::Close => {
+                    self.state_mut().focused = false;
+                    return vec![];
                 }
-            }
-            Some(TextBoxMessage::Commit(s)) => {
-                if let Some(commit_fn) = &self.on_commit {
-                    m.push(commit_fn(s))
+                TextBoxMessage::Change(s) => {
+                    if let Some(change_fn) = &self.on_change {
+                        return vec![change_fn(s)];
+                    }
                 }
-            }
-            _ => m.push(message),
+                TextBoxMessage::Commit(s) => {
+                    if let Some(commit_fn) = &self.on_commit {
+                        return vec![commit_fn(s)];
+                    }
+                }
+            },
+            Err(m) => return vec![m],
         }
-        m
+        vec![]
     }
 
     fn on_focus(&mut self, event: &mut event::Event<event::Focus>) {
