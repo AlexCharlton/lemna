@@ -130,12 +130,21 @@ impl super::node::Node {
 
             let child_margin = child.layout.margin.maybe_resolve(&inner_size);
 
-            child.layout_result.size = child
+            let resolved_size = child
                 .layout
                 .size
                 .more_specific(&child.layout_result.size.plus_bounds(&child_margin))
-                .maybe_resolve(&inner_size)
-                .minus_bounds(&child_margin);
+                .maybe_resolve(&inner_size);
+
+            // Only subtract margins if the size was computed (not explicitly set as pixels)
+            // We can detect this by checking if layout.size.main(dir) was resolved before maybe_resolve
+            child.layout_result.size = if child.layout.size.main(dir).resolved() {
+                // Explicit pixel size is content size, don't subtract margin
+                resolved_size
+            } else {
+                // Computed size (percentages, etc.) might be bounds size, subtract margin
+                resolved_size.minus_bounds(&child_margin)
+            };
 
             if self.layout.axis_alignment == Alignment::Stretch
                 && child.layout.size.main(dir) == Dimension::Auto
@@ -182,7 +191,7 @@ impl super::node::Node {
                     || child.layout.size.main(dir).resolved()
                     || child.layout.flex_grow == 0.0)
             {
-                main_remaining -= x;
+                main_remaining -= x + f64::from(child_margin.main_total(dir));
             } else {
                 unresolved += 1;
                 unresolved_flex_grow += child.layout.flex_grow;
@@ -198,9 +207,7 @@ impl super::node::Node {
                 let margin = child.layout.margin.maybe_resolve(&inner_size);
                 let flex_ratio = child.layout.flex_grow / unresolved_flex_grow;
                 *child.layout_result.size.main_mut(dir) =
-                    Dimension::Px(main_remaining * flex_ratio)
-                        - margin.main(dir, Alignment::Start)
-                        - margin.main(dir, Alignment::End);
+                    Dimension::Px(main_remaining * flex_ratio) - margin.main_total(dir);
             } else if unresolved == 1
                 && !child.layout.size.main(dir).resolved()
                 && child.layout.wrap
@@ -1498,7 +1505,9 @@ mod tests {
         .push(node!(
             FillBoundser::new(),
             // Because it's fixed size, flex_grow is ignored
-            [size: [100.0, 50.0], flex_grow: 1.0, debug: "fixed2"]
+            [size: [90.0, 40.0], margin: [5.0], flex_grow: 1.0, debug: "fixed2"]
+            // Previous value
+            // [size: [100.0, 50.0], flex_grow: 1.0, debug: "fixed2"]
         ));
         nodes.calculate_layout(&Caches::default(), 1.0);
 
@@ -1525,12 +1534,13 @@ mod tests {
         assert_eq!(grow3.layout_result.size, size!(300.0, 75.0));
         assert_eq!(grow3.layout_result.position.top, px!(275.0));
 
-        // Fixed2 should be 100px × 50px
+        // Fixed2 should be 90px × 40px (the specified size, margin is separate)
+        // Position is 355px because it includes the 5px top margin (350 + 5)
         let fixed2 = &nodes.children[4];
-        assert_eq!(fixed2.layout_result.size, size!(100.0, 50.0));
-        assert_eq!(fixed2.layout_result.position.top, px!(350.0));
+        assert_eq!(fixed2.layout_result.size, size!(90.0, 40.0));
+        assert_eq!(fixed2.layout_result.position.top, px!(355.0));
 
-        // Verify total height: 50 + 75 + 150 + 75 + 50 = 400px
+        // Verify total height: 50 + 75 + 150 + 75 + 40 = 390px (content sizes only, margins not included in sum)
         let total_height = match (
             fixed1.layout_result.size.height,
             grow1.layout_result.size.height,
@@ -1547,7 +1557,7 @@ mod tests {
             ) => f64::from(h1) + f64::from(h2) + f64::from(h3) + f64::from(h4) + f64::from(h5),
             _ => panic!("All heights should be resolved"),
         };
-        assert_eq!(total_height, 400.0);
+        assert_eq!(total_height, 390.0);
     }
 
     #[test]

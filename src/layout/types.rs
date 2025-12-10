@@ -312,6 +312,13 @@ impl Bounds {
         }
     }
 
+    pub fn main_total(&self, dir: Direction) -> Dimension {
+        match dir {
+            Direction::Row => self.left + self.right,
+            Direction::Column => self.top + self.bottom,
+        }
+    }
+
     pub fn main_mut(&mut self, dir: Direction, align: Alignment) -> &mut Dimension {
         match (dir, align) {
             (Direction::Row, Alignment::End) => &mut self.right,
