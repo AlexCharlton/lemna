@@ -231,8 +231,10 @@ impl Node {
         // Set up state and props
         let mut hasher = ComponentHasher::default();
         let mut new = false;
+        let mut prev_was_auto_focus = false;
         if let Some(prev) = &mut prev {
             self.id = prev.id;
+            prev_was_auto_focus = prev.auto_focus;
             if let Some(state) = prev.component.take_state() {
                 self.component.replace_state(state);
             }
@@ -271,8 +273,8 @@ impl Node {
         } else {
             parent_focus_id // Pass through parent's focus context
         };
-        // If the node is new, focus it (respecting priorities)
-        if new && (self.auto_focus || self.new_focus) {
+        // If the node is new or newly focused, focus it (respecting priorities)
+        if (new && self.new_focus) || (self.auto_focus && !prev_was_auto_focus) {
             focus_state.try_set_active(Some(self.id), &[], parent_focus_id);
         }
 
@@ -308,6 +310,8 @@ impl Node {
                 self.children.push(child);
             }
         }
+        // Viewing a node shouldn't dirty it
+        self.component.set_dirty(crate::Dirty::No);
 
         // View children
         if let Some(prev) = prev.as_mut() {
