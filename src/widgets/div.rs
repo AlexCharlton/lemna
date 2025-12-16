@@ -249,33 +249,56 @@ impl Component for Div {
         // Only scroll if the target is outside the current frame
 
         if self.y_scrollable() {
-            // Check if target is above the visible frame
+            let target_height = target_aabb.size().height;
+            let frame_height = frame.size().height;
+
+            // Check if target is above the visible frame (same logic regardless of size)
             if target_aabb.pos.y < frame.pos.y {
                 // Scroll up to show the top of the target
                 self.state_mut().scroll_position.y += target_aabb.pos.y - frame.pos.y;
                 scrolled = true;
             }
-            // Check if target is below the visible frame
-            else if target_aabb.bottom_right.y > frame.bottom_right.y {
+            // If target fits entirely in frame, try to show the whole target
+            else if target_height <= frame_height
+                && target_aabb.bottom_right.y > frame.bottom_right.y
+            {
                 // Scroll down to show the bottom of the target
                 self.state_mut().scroll_position.y +=
                     target_aabb.bottom_right.y - frame.bottom_right.y;
+                scrolled = true;
+            } else if target_aabb.pos.y > frame.bottom_right.y {
+                // Target is too large to fit, always prioritize showing the top
+                // Check if target top is below the visible frame
+                // Scroll down to show the top of the target
+                self.state_mut().scroll_position.y += target_aabb.pos.y - frame.bottom_right.y;
                 scrolled = true;
             }
         }
 
         if self.x_scrollable() {
-            // Check if target is left of the visible frame
+            let target_width = target_aabb.size().width;
+            let frame_width = frame.size().width;
+
+            // Check if target is left of the visible frame (same logic regardless of size)
             if target_aabb.pos.x < frame.pos.x {
                 // Scroll left to show the left of the target
                 self.state_mut().scroll_position.x += target_aabb.pos.x - frame.pos.x;
                 scrolled = true;
             }
-            // Check if target is right of the visible frame
-            else if target_aabb.bottom_right.x > frame.bottom_right.x {
+            // If target fits entirely in frame, try to show the whole target
+            else if target_width <= frame_width
+                && target_aabb.bottom_right.x > frame.bottom_right.x
+            {
+                // Check if target is right of the visible frame
                 // Scroll right to show the right of the target
                 self.state_mut().scroll_position.x +=
                     target_aabb.bottom_right.x - frame.bottom_right.x;
+                scrolled = true;
+            } else if target_aabb.pos.x > frame.bottom_right.x {
+                // Target is too large to fit, always prioritize showing the left
+                // Check if target left is right of the visible frame
+                // Scroll right to show the left of the target
+                self.state_mut().scroll_position.x += target_aabb.pos.x - frame.bottom_right.x;
                 scrolled = true;
             }
         }
@@ -494,5 +517,194 @@ impl Component for Div {
         }
 
         Some(rs)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_scroll_to_small_target_above_frame() {
+        let mut div = Div::new().scroll_y();
+        // Start with no scroll
+        div.state_mut().scroll_position.y = 0.0;
+
+        // Container aabb: 0,0 to 100,100, frame is also 0,0 to 100,100 (no scroll bars)
+        // Target at y=-10 is above the frame
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(0.0, -10.0, 0.0), Scale::new(100.0, 20.0));
+        let inner_scale = Some(Scale::new(100.0, 200.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // target.pos.y (-10) < frame.pos.y (0), so we scroll by -10 - 0 = -10
+        // scroll_position becomes 0 + (-10) = -10
+        assert_eq!(div.state_ref().scroll_position.y, -10.0);
+    }
+
+    #[test]
+    fn test_scroll_to_small_target_below_frame() {
+        let mut div = Div::new().scroll_y();
+        div.state_mut().scroll_position.y = 0.0;
+
+        // Frame: 0,0 to 100,100 (visible area)
+        // Target: 0,150 to 100,170 (small target below visible frame)
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(0.0, 150.0, 0.0), Scale::new(100.0, 20.0));
+        let inner_scale = Some(Scale::new(100.0, 200.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // Should scroll down to show bottom of target
+        // Target bottom is at 170, frame bottom is at 100
+        // So we need to scroll by 170 - 100 = 70
+        assert_eq!(div.state_ref().scroll_position.y, 70.0);
+    }
+
+    #[test]
+    fn test_scroll_to_large_target_above_frame() {
+        let mut div = Div::new().scroll_y();
+        div.state_mut().scroll_position.y = 50.0;
+
+        // Container aabb: 0,0 to 100,100
+        // Target at y=-10 is above the frame
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(0.0, -10.0, 0.0), Scale::new(100.0, 130.0));
+        let inner_scale = Some(Scale::new(100.0, 200.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // target.pos.y (-10) < frame.pos.y (0), so we scroll by -10 - 0 = -10
+        // scroll_position becomes 50 + (-10) = 40
+        assert_eq!(div.state_ref().scroll_position.y, 40.0);
+    }
+
+    #[test]
+    fn test_scroll_to_large_target_below_frame() {
+        let mut div = Div::new().scroll_y();
+        div.state_mut().scroll_position.y = 0.0;
+
+        // Frame: 0,0 to 100,100 (visible area)
+        // Target: 0,120 to 100,250 (large target, 130px tall, below visible frame)
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(0.0, 120.0, 0.0), Scale::new(100.0, 130.0));
+        let inner_scale = Some(Scale::new(100.0, 250.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // Should scroll down to show top of target (not bottom, since it's too large)
+        // Target top is at 120, frame bottom is at 100
+        // So we scroll by 120 - 100 = 20
+        assert_eq!(div.state_ref().scroll_position.y, 20.0);
+    }
+
+    #[test]
+    fn test_scroll_to_target_already_visible() {
+        let mut div = Div::new().scroll_y();
+        div.state_mut().scroll_position.y = 50.0;
+
+        // Frame: 50,0 to 150,100 (visible area at scroll position 50)
+        // Target: 0,60 to 100,80 (small target already visible in frame)
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(0.0, 60.0, 0.0), Scale::new(100.0, 20.0));
+        let inner_scale = Some(Scale::new(100.0, 200.0));
+
+        let initial_scroll = div.state_ref().scroll_position.y;
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(!scrolled);
+        assert_eq!(div.state_ref().scroll_position.y, initial_scroll);
+    }
+
+    #[test]
+    fn test_scroll_to_x_axis_small_target_left() {
+        let mut div = Div::new().scroll_x();
+        div.state_mut().scroll_position.x = 50.0;
+
+        // Target at x=-10 is left of the frame
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(-10.0, 0.0, 0.0), Scale::new(20.0, 100.0));
+        let inner_scale = Some(Scale::new(200.0, 100.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // target.pos.x (-10) < frame.pos.x (0), so we scroll by -10 - 0 = -10
+        // scroll_position becomes 50 + (-10) = 40
+        assert_eq!(div.state_ref().scroll_position.x, 40.0);
+    }
+
+    #[test]
+    fn test_scroll_to_x_axis_small_target_right() {
+        let mut div = Div::new().scroll_x();
+        div.state_mut().scroll_position.x = 0.0;
+
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(150.0, 0.0, 0.0), Scale::new(20.0, 100.0));
+        let inner_scale = Some(Scale::new(200.0, 100.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // Should scroll to show right edge: 170 - 100 = 70
+        assert_eq!(div.state_ref().scroll_position.x, 70.0);
+    }
+
+    #[test]
+    fn test_scroll_to_x_axis_large_target_right() {
+        let mut div = Div::new().scroll_x();
+        div.state_mut().scroll_position.x = 0.0;
+
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(120.0, 0.0, 0.0), Scale::new(130.0, 100.0));
+        let inner_scale = Some(Scale::new(250.0, 100.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // Should scroll to show left edge (prioritize left for large targets)
+        // Target left is at 120, frame right is at 100
+        // So we scroll by 120 - 100 = 20
+        assert_eq!(div.state_ref().scroll_position.x, 20.0);
+    }
+
+    #[test]
+    fn test_scroll_to_both_axes() {
+        let mut div = Div::new().scroll_x().scroll_y();
+        div.state_mut().scroll_position = Point::new(50.0, 50.0);
+
+        // Target at (-10, -10) is above and left of the frame
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(-10.0, -10.0, 0.0), Scale::new(20.0, 20.0));
+        let inner_scale = Some(Scale::new(200.0, 200.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(scrolled);
+        // Should scroll both axes
+        // x: 50 + (-10 - 0) = 40
+        // y: 50 + (-10 - 0) = 40
+        assert_eq!(div.state_ref().scroll_position.x, 40.0);
+        assert_eq!(div.state_ref().scroll_position.y, 40.0);
+    }
+
+    #[test]
+    fn test_scroll_to_no_scroll_enabled() {
+        let mut div = Div::new(); // No scrolling enabled
+        // When scroll is not enabled, state is None, so we can't access it
+        // But on_scroll_to should just return false without panicking
+
+        let aabb = Rect::new(Pos::new(0.0, 0.0, 0.0), Scale::new(100.0, 100.0));
+        let target_aabb = Rect::new(Pos::new(0.0, 20.0, 0.0), Scale::new(100.0, 20.0));
+        let inner_scale = Some(Scale::new(100.0, 200.0));
+
+        let scrolled = div.on_scroll_to(target_aabb, aabb, inner_scale);
+
+        assert!(!scrolled);
     }
 }

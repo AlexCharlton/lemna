@@ -65,8 +65,7 @@ impl<
 
     fn set_focus(&mut self, node_id: Option<NodeId>, event_stack: &[NodeId]) {
         let root_id = self.node.id;
-        self.focus_state
-            .try_set_active(node_id, event_stack, root_id);
+        self.focus_state.set_active(node_id, event_stack, root_id);
     }
 
     fn get_reference(&self, reference: &str) -> Option<NodeId> {

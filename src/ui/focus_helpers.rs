@@ -118,6 +118,11 @@ impl<'a> FocusContext<'a> {
 
         // Scroll to the focused node if it's not already in view
         if !focus_event.suppress_scroll_to {
+            #[cfg(debug_assertions)]
+            log::debug!(
+                "Processing scroll to signal for node {:?} due to focus event",
+                target
+            );
             self.process_scroll_to_signal(target, self.scale_factor);
         }
         focus_event
@@ -184,6 +189,12 @@ impl<'a> FocusContext<'a> {
                         }
                     }
                     Signal::ScrollTo(_target) => {
+                        #[cfg(debug_assertions)]
+                        log::debug!(
+                            "Processing scroll to signal for node {:?} due to event: {:?}",
+                            node_id,
+                            event
+                        );
                         self.process_scroll_to_signal(node_id, event.scale_factor);
                     }
                 }
