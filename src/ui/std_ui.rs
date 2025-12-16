@@ -336,10 +336,11 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         // We layout first, since this may trigger ScrollTo Signals, which require the layout to be up-to-date
                         let prev_focus = focus_state.read().unwrap().active();
 
-                        if new_focus_state.active() == root_id {
-                            new_focus_state
-                                .inherit_active(&focus_state.read().unwrap(), &all_nodes);
-                        }
+                        new_focus_state.inherit_active(
+                            &focus_state.read().unwrap(),
+                            &all_nodes,
+                            root_id,
+                        );
                         if new_focus_state.active() != prev_focus {
                             // Use FocusContext to handle blur/focus events with signal support
                             let prev_focus = focus_state.read().unwrap();

@@ -80,8 +80,15 @@ pub struct FocusState {
     /// The tree of all focus contexts (rebuilt each view phase)
     tree: FocusTree,
 
-    /// The node_id of the currently focused leaf element
+    /// The node_id of the currently focused element
     active: NodeId,
+
+    /// The node_id of the most specific focus context
+    active_focus_context: Option<NodeId>,
+    /// Was there a new node that requested focus?
+    focus_from_new_node: Option<NodeId>,
+    /// Was there an event that requested focus?
+    focus_from_event: Option<NodeId>,
 
     /// The computed focus stack from root to active leaf
     /// Cached and recomputed when active changes
@@ -99,7 +106,66 @@ impl FocusState {
         self.tree.contains(node_id)
     }
 
-    pub fn inherit_active(&mut self, old_state: &Self, all_new_nodes: &HashSet<NodeId>) {
+    /// Decide whether to inherit the active focus from the previous state, or to use the new focus from the new nodes. Order of inheritance is:
+    /// 1. New node focus
+    /// 2. Keep existing event-based focus if the node is still there
+    /// 3. Use the active focus context if it has changed
+    /// 4. Inherit the active focus from the previous state
+    pub fn inherit_active(
+        &mut self,
+        old_state: &Self,
+        all_new_nodes: &HashSet<NodeId>,
+        root_id: NodeId,
+    ) {
+        // log::debug!(
+        //     "Inheriting active focus from previous state: {:?}\nstarting state: {:?}",
+        //     old_state,
+        //     self
+        // );
+        if let Some(focus_from_new_node) = self.focus_from_new_node {
+            // If the focus was from a new node, use that
+            log::debug!(
+                "Inheriting active focus from new node: {:?}",
+                focus_from_new_node
+            );
+            self.active = focus_from_new_node;
+            self.stack = self.tree.path_to(focus_from_new_node);
+        } else if let Some(focus_from_event) = old_state.focus_from_event
+            && all_new_nodes.contains(&focus_from_event)
+        {
+            // If the previous focus is from an event, and the node is still there, we can inherit the active focus
+            // log::debug!("Inheriting active focus from event: {:?}", focus_from_event);
+
+            if self._inherit_active(old_state, all_new_nodes, root_id) {
+                self.focus_from_event = None;
+            } else {
+                self.focus_from_event = Some(self.active);
+            }
+        } else if let Some(focus_from_context) = self.active_focus_context
+            && (self.active_focus_context != old_state.active_focus_context
+                || !all_new_nodes.contains(&old_state.active))
+        {
+            // If the active focus context has changed, or the previous active focus is not in the new nodes, use the focus context
+            // log::debug!(
+            //     "Inheriting active focus from active focus context: {:?}",
+            //     focus_from_context
+            // );
+            self.active = focus_from_context;
+            self.stack = self.tree.path_to(focus_from_context);
+        } else {
+            // Inherit the active focus from the previous state
+            // log::debug!("Inheriting active focus from previous state");
+            self._inherit_active(old_state, all_new_nodes, root_id);
+        }
+    }
+
+    // Returns whether the active focus was changed
+    fn _inherit_active(
+        &mut self,
+        old_state: &Self,
+        all_new_nodes: &HashSet<NodeId>,
+        root_id: NodeId,
+    ) -> bool {
         self.stack = old_state.stack.clone();
         self.active = old_state.active;
         let mut nodes_to_remove = 0;
@@ -109,13 +175,23 @@ impl FocusState {
             }
         }
         self.stack = self.stack[..self.stack.len() - nodes_to_remove].to_vec();
+        if self.stack.is_empty() {
+            self.stack = vec![root_id];
+        }
         if !all_new_nodes.contains(&self.active) {
             self.active = self
                 .stack
                 .last()
                 .cloned()
-                .expect("The stack should always contain at least the root node")
+                .expect("The stack should always contain at least the root node");
+            true
+        } else {
+            false
         }
+    }
+
+    pub fn focus_new_node(&mut self, node_id: NodeId) {
+        self.focus_from_new_node = Some(node_id);
     }
 
     /// Set the active focus and compute the stack based on the event stack
@@ -128,6 +204,7 @@ impl FocusState {
         {
             self.stack = self.tree.path_to(focused_node);
             self.active = focused_node;
+            self.focus_from_event = Some(focused_node);
         } else {
             let event_stack = if event_stack.is_empty() {
                 &[root_id]
@@ -140,57 +217,41 @@ impl FocusState {
                 stack.push(focused_node);
                 self.stack = stack;
                 self.active = focused_node;
+                self.focus_from_event = Some(focused_node);
             } else {
                 if stack.is_empty() {
                     stack.push(root_id);
                 }
                 self.active = stack.last().cloned().unwrap();
                 self.stack = stack;
+                self.focus_from_event = None;
             }
         }
     }
 
-    /// Try to set the active focus, respecting priority rules.
-    /// A focus change is allowed if:
-    /// 1. The new node has equal or higher priority than the current node, OR
-    /// 2. The current node is an ancestor of the new node (child can take focus from parent)
-    ///
-    /// Returns true if the focus was changed, false if it was blocked by priority rules.
-    pub fn try_set_active(
-        &mut self,
-        node_id: Option<NodeId>,
-        event_stack: &[NodeId],
-        root_id: NodeId,
-    ) -> bool {
-        // If trying to set no focus, allow it
-        if node_id.is_none() {
-            self.set_active(node_id, event_stack, root_id);
-            return true;
-        }
+    pub fn try_set_active_context(&mut self, new_node: NodeId) {
+        if let Some(current_node) = self.active_focus_context {
+            // If it's the same node, no change needed
+            if new_node == current_node {
+                return;
+            }
 
-        let new_node = node_id.unwrap();
-        let current_node = self.active;
+            // Get priorities
+            let new_priority = self.tree.priority(new_node).unwrap_or(0);
+            let current_priority = self.tree.priority(current_node).unwrap_or(0);
 
-        // If it's the same node, no change needed
-        if new_node == current_node {
-            return false;
-        }
+            // Allow focus change if:
+            // 1. New node has equal or higher priority, OR
+            // 2. Current node is an ancestor of new node (descendant can take focus)
+            let allow_change = new_priority >= current_priority
+                || self.tree.is_ancestor_of(current_node, new_node);
 
-        // Get priorities
-        let new_priority = self.tree.priority(new_node).unwrap_or(0);
-        let current_priority = self.tree.priority(current_node).unwrap_or(0);
-
-        // Allow focus change if:
-        // 1. New node has equal or higher priority, OR
-        // 2. Current node is an ancestor of new node (descendant can take focus)
-        let allow_change =
-            new_priority >= current_priority || self.tree.is_ancestor_of(current_node, new_node);
-
-        if allow_change {
-            self.set_active(node_id, event_stack, root_id);
-            true
+            if allow_change {
+                self.active_focus_context = Some(new_node);
+            }
         } else {
-            false
+            // No current focus context, so just set the new one
+            self.active_focus_context = Some(new_node);
         }
     }
 

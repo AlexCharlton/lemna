@@ -120,9 +120,7 @@ impl<
 
             // Handle focus changes if needed
             let prev_focus = self.focus_state.active();
-            if new_focus_state.active() == root_id {
-                new_focus_state.inherit_active(&self.focus_state, &all_nodes);
-            }
+            new_focus_state.inherit_active(&self.focus_state, &all_nodes, root_id);
             if new_focus_state.active() != prev_focus {
                 // Focus changed during view - handle it with FocusContext
                 let mut ctx = super::FocusContext::new(

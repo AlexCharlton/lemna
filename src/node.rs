@@ -231,10 +231,8 @@ impl Node {
         // Set up state and props
         let mut hasher = ComponentHasher::default();
         let mut new = false;
-        let mut prev_was_auto_focus = false;
         if let Some(prev) = &mut prev {
             self.id = prev.id;
-            prev_was_auto_focus = prev.auto_focus;
             if let Some(state) = prev.component.take_state() {
                 self.component.replace_state(state);
             }
@@ -268,16 +266,16 @@ impl Node {
         let focus_id = if self.auto_focus {
             // Register this node as a focus context
             focus_state.tree_mut().register(self, parent_focus_id);
+            focus_state.try_set_active_context(self.id);
 
             self.id
         } else {
             parent_focus_id // Pass through parent's focus context
         };
-        // If the node is new or newly focused, focus it (respecting priorities)
-        if (new && self.new_focus) || (self.auto_focus && !prev_was_auto_focus) {
-            focus_state.try_set_active(Some(self.id), &[], parent_focus_id);
-        }
 
+        if new && self.new_focus {
+            focus_state.focus_new_node(self.id);
+        }
         // Create children
         if let Some(mut child) = self.component.view() {
             if let Some(indexes) = self.component.container() {
