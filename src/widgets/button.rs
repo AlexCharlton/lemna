@@ -4,6 +4,7 @@ use crate::time::Instant;
 use alloc::{boxed::Box, string::String, vec::Vec};
 
 use super::ToolTip;
+use crate::Node;
 use crate::base_types::*;
 use crate::component::{Component, Message};
 use crate::event;
@@ -11,7 +12,6 @@ use crate::font_cache::TextSegment;
 use crate::input::Key;
 use crate::layout::*;
 use crate::style::{HorizontalPosition, Styled};
-use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug, Default)]

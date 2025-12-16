@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::component::{Component, Message};
-use crate::{Node, Styled, node, txt};
+use crate::{Node, Styled, txt};
 use lemna_macros::component;
 
 #[component(Styled, Internal)]

@@ -5,7 +5,7 @@ use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use crate::base_types::*;
 use crate::component::Component;
 use crate::style::{HorizontalPosition, Styled};
-use crate::{Node, node, txt};
+use crate::{Node, txt};
 use lemna_macros::component;
 
 #[component(Styled, Internal)]

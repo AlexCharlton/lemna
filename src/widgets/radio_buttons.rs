@@ -6,13 +6,13 @@ use core::fmt;
 use core::hash::Hash;
 
 use super::ToolTip;
+use crate::Node;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message};
 use crate::event;
 use crate::font_cache::TextSegment;
 use crate::layout::*;
 use crate::style::Styled;
-use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
 #[component(Styled = "RadioButton", Internal)]

@@ -9,7 +9,7 @@ use crate::event;
 use crate::layout::*;
 use crate::renderable::Renderable;
 use crate::style::{HorizontalPosition, Styled, current_style};
-use crate::{Node, node, txt};
+use crate::{Node, txt};
 use lemna_macros::{component, state_component_impl};
 
 #[derive(Debug)]

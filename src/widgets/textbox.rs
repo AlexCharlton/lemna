@@ -10,6 +10,7 @@ use alloc::{
 use core::cmp::Ordering;
 use core::hash::Hash;
 
+use crate::Node;
 use crate::TextSegment;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
@@ -19,7 +20,6 @@ use crate::layout::ScrollPosition;
 use crate::renderable::{Caches, Rectangle, Renderable};
 use crate::style::{HorizontalPosition, Styled};
 use crate::time::Instant;
-use crate::{Node, node};
 use lemna_macros::{component, state_component_impl};
 
 const CURSOR_BLINK_PERIOD: i64 = 500; // millis

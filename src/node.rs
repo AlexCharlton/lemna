@@ -198,6 +198,12 @@ impl Node {
         self
     }
 
+    /// Like `focus`, but set the focus state with a boolean.
+    pub fn do_focus(mut self, focus: bool) -> Self {
+        self.auto_focus = focus;
+        self
+    }
+
     /// Node is focused when created.
     pub fn focus_when_new(mut self) -> Self {
         self.new_focus = true;
