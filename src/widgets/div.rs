@@ -89,6 +89,12 @@ impl Component for Div {
         if let Some(color) = self.background {
             color.hash(hasher);
         }
+        if let Some(width) = self.border_width {
+            ((width * 10.0) as i32).hash(hasher);
+        }
+        if let Some(color) = self.border_color {
+            color.hash(hasher);
+        }
         // Maybe TODO: Should hash scroll_descriptor
     }
 
