@@ -65,6 +65,15 @@ impl Dimension {
         matches!(self, Self::Px(_))
     }
 
+    pub fn min(&self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Px(a), Self::Px(b)) => Self::Px(a.min(b)),
+            (Self::Px(a), _) => Self::Px(*a),
+            (_, Self::Px(b)) => Self::Px(b),
+            _ => Dimension::Auto,
+        }
+    }
+
     pub(crate) fn maybe_resolve(&self, relative_to: &Self) -> Self {
         match self {
             Dimension::Px(px) => Dimension::Px(*px),
@@ -579,10 +588,26 @@ impl Default for Layout {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone, PartialEq)]
+pub enum LayoutType {
+    #[default]
+    Auto,
+    Fixed,
+    Percent,
+    Flex,
+    Wrapping,
+    Intrinsic,
+}
+
 #[derive(Debug, Default, Copy, Clone)]
 pub struct LayoutResult {
     pub size: Size,
     pub position: Bounds,
+    // Direction of the main axis for this layout result, i.e. the parent's direction
+    pub(crate) direction: Direction,
+    pub(crate) main_layout_type: LayoutType,
+    // Used by the layout engine to track if this node's layout has been resolved
+    pub(crate) main_resolved: bool,
 }
 
 impl From<LayoutResult> for crate::base_types::Rect {
