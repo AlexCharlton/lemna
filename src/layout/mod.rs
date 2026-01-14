@@ -18,22 +18,11 @@ use crate::renderable::Caches;
 //--------------------------------
 impl super::node::Node {
     /// Returns the best available dimension for a child's bounds, preferring:
-    /// 1. Child's resolved size (minus padding) if available
-    /// 2. Parent's inner_size if resolved
-    /// 3. Ancestor's bounds_size as fallback
+    /// 1. Parent's inner_size if resolved
+    /// 2. Ancestor's bounds_size as fallback
     /// Will not exceed the bounds_dim.
-    fn best_available_dimension(
-        child_dim: Dimension,
-        inner_dim: Dimension,
-        bounds_dim: Dimension,
-        padding_start: Dimension,
-        padding_end: Dimension,
-    ) -> Dimension {
-        if child_dim.resolved() {
-            (child_dim - padding_start - padding_end)
-                .max(Dimension::Px(0.0))
-                .min(bounds_dim)
-        } else if inner_dim.resolved() {
+    fn best_available_dimension(inner_dim: Dimension, bounds_dim: Dimension) -> Dimension {
+        if inner_dim.resolved() {
             inner_dim.min(bounds_dim)
         } else {
             bounds_dim
@@ -41,43 +30,50 @@ impl super::node::Node {
     }
 
     // Used to pass bounds from parent to children. Use the most specific available size for each dimension:
-    // 1. Child's resolved size (minus padding) - if child was just resolved, use its size
-    // 2. inner_size - parent's actual inner size if resolved
-    // 3. bounds_size - fallback from ancestor
+    // 1. inner_size - parent's actual inner size if resolved
+    // 2. bounds_size - fallback from ancestor
     // For wrapping nodes resolved from remaining space, use that remaining space as the constraint
-
     fn bounds_size(
         &self,
         parent_inner_size: Size,
         parent_bounds_size: Size,
+        // Direction of the main axis for this layout result, i.e. the parent's direction
+        dir: Direction,
         remaining_space_main: Dimension,
     ) -> Size {
-        let dir = self.layout.direction;
-        let padding = self.layout.padding.maybe_resolve(&parent_bounds_size);
-
-        let main_dim = if !parent_inner_size.main(dir).resolved() {
+        let main_dim = if self.layout_result.main_resolved {
+            // remaining_space_main does not include this node's size, so we can't use that.
+            // So if we're already resolved, use the resolved size.
+            self.layout_result.size.main(dir)
+        } else if !parent_inner_size.main(dir).resolved() {
             // Use remaining space if parent_inner_size is not resolved
             remaining_space_main
         } else {
             Self::best_available_dimension(
-                self.layout_result.size.main(dir),
                 parent_inner_size.main(dir),
                 parent_bounds_size.main(dir).min(remaining_space_main),
-                padding.main(dir, self.layout.axis_alignment),
-                padding.main_reverse(dir, self.layout.axis_alignment),
             )
         };
 
-        dir.size(
+        let size = dir.size(
             main_dim,
             Self::best_available_dimension(
-                self.layout_result.size.cross(dir),
                 parent_inner_size.cross(dir),
                 parent_bounds_size.cross(dir),
-                padding.cross(dir, self.layout.cross_alignment),
-                padding.cross_reverse(dir, self.layout.cross_alignment),
             ),
-        )
+        );
+        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+            log::debug!(
+                "bounds_size: <{}> with parent inner size {:?}, parent bounds size {:?}, remaining space on main axis ({:?}) {:?}, resulting bounds: {:?}",
+                self.layout.debug.as_ref().unwrap(),
+                &parent_inner_size,
+                &parent_bounds_size,
+                dir,
+                &remaining_space_main,
+                &size,
+            );
+        }
+        size
     }
 
     fn resolve_child_sizes(
@@ -93,13 +89,24 @@ impl super::node::Node {
             self.layout.size
         };
 
-        let mut inner_size = size.minus_bounds(&self.layout.padding.maybe_resolve(&bounds_size));
+        let mut inner_size = size
+            .maybe_resolve(&bounds_size)
+            .minus_bounds(&self.layout.padding.maybe_resolve(&bounds_size));
         if self.scroll_x().is_some() {
             inner_size.width = Dimension::Auto;
         };
         if self.scroll_y().is_some() {
             inner_size.height = Dimension::Auto;
         };
+
+        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+            log::debug!(
+                "resolve_child_sizes: <{}> in bounds {:?}, inner_size: {:?}",
+                self.layout.debug.as_ref().unwrap(),
+                &bounds_size,
+                &inner_size,
+            );
+        }
 
         let dir = self.layout.direction;
         let axis_align = self.layout.axis_alignment;
@@ -135,16 +142,18 @@ impl super::node::Node {
 
             if cfg!(debug_assertions) && child.layout.debug.is_some() {
                 log::debug!(
-                    "{} Resolving child position of {} - Basing off child.layout.size {:?}, child.layout_result.size {:?}, inner_size {:?})",
+                    "resolve_child_sizes: {} of <{}> with parent <{:?}> - Basing off child.layout.size {:?}, child.layout_result.size {:?}, inner_size {:?}), bounds_size {:?}",
                     if final_pass {
                         "Final pass"
                     } else {
                         "First pass"
                     },
                     child.layout.debug.as_ref().unwrap(),
+                    self.layout.debug.as_ref(),
                     &child.layout.size,
                     &child.layout_result.size,
                     &inner_size,
+                    &bounds_size,
                 );
             }
 
@@ -288,7 +297,7 @@ impl super::node::Node {
             let remaining_space_passed = Dimension::Px(main_remaining_before_this_child);
 
             child.resolve_layout(
-                child.bounds_size(inner_size, bounds_size, remaining_space_passed),
+                child.bounds_size(inner_size, bounds_size, dir, remaining_space_passed),
                 caches,
                 scale_factor,
                 final_pass,
@@ -416,7 +425,7 @@ impl super::node::Node {
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
                     log::debug!(
-                        "Setting relative position of {} to {:#?} - Basing off ...",
+                        "set_children_position: setting relative position of <{}> to {:#?} - Basing off ...",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
                     );
@@ -438,7 +447,7 @@ impl super::node::Node {
                 // TODO: More of these
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
                     log::debug!(
-                        "Setting absolute position of {} to {:#?} - Basing off explicit position ({:#?}), parent size ({:#?}))",
+                        "set_children_position: setting absolute position of <{}> to {:#?} - Basing off explicit position ({:#?}), parent size ({:#?}))",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
                         &child.layout.position,
@@ -521,7 +530,7 @@ impl super::node::Node {
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
                     log::debug!(
-                        "Resolved aligned position of {} to {:#?} - Basing off ...)",
+                        "set_children_position: resolved aligned position of <{}> to {:#?} - Basing off ...)",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position
                     );
@@ -533,7 +542,7 @@ impl super::node::Node {
     }
 
     /// Make sure the node has a size, either taken from its children or from itself
-    fn resolve_size(&mut self, children_size: Size, final_pass: bool) {
+    fn resolve_size(&mut self, children_size: Size, final_pass: bool, bounds_size: Size) {
         if self
             .layout
             .size
@@ -542,6 +551,18 @@ impl super::node::Node {
         {
             // Needed because root nodes can have a fixed size. Otherwise, only children have this set
             self.layout_result.main_layout_type = LayoutType::Fixed;
+        }
+
+        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+            log::debug!(
+                "resolve_size: <{}> - final_pass: {:?}, layout_result: {:?}, layout.size: {:?}, children size: {:?}, bounds size: {:?}",
+                self.layout.debug.as_ref().unwrap(),
+                final_pass,
+                &self.layout_result,
+                &self.layout.size,
+                &children_size,
+                &bounds_size,
+            );
         }
 
         let mut size = self.layout.size.most_specific(&self.layout_result.size);
@@ -569,6 +590,9 @@ impl super::node::Node {
         if !size.width.resolved() || f64::from(size.width) < 0.0 {
             if self.scroll_x().is_none() && children_size.width.resolved() {
                 size.width = children_size.width;
+            } else if self.scroll_x().is_some() && bounds_size.width.resolved() {
+                // Resolve the outer width of scrollable nodes
+                size.width = size.width.maybe_resolve(&bounds_size.width)
             } else if min_size.width.resolved() {
                 size.width = min_size.width
             } else {
@@ -586,6 +610,9 @@ impl super::node::Node {
         if !size.height.resolved() || f64::from(size.height) < 0.0 {
             if self.scroll_y().is_none() && children_size.height.resolved() {
                 size.height = children_size.height;
+            } else if self.scroll_y().is_some() && bounds_size.height.resolved() {
+                // Resolve the outer height of scrollable nodes
+                size.height = size.height.maybe_resolve(&bounds_size.height)
             } else if min_size.height.resolved() {
                 size.height = min_size.height
             } else {
@@ -647,7 +674,7 @@ impl super::node::Node {
     ) {
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
             log::debug!(
-                "{} Laying out {} in bounds {:?}: {:#?}",
+                "resolve_layout START: {} of <{}> in bounds {:?}: {:#?}",
                 if final_pass {
                     "Final pass"
                 } else {
@@ -661,7 +688,7 @@ impl super::node::Node {
 
         self.resolve_child_sizes(bounds_size, caches, scale_factor, final_pass);
         let children_size = self.set_children_position(bounds_size);
-        self.resolve_size(children_size, final_pass);
+        self.resolve_size(children_size, final_pass, bounds_size);
         self.set_inner_scale(children_size);
 
         if !final_pass
@@ -678,7 +705,7 @@ impl super::node::Node {
 
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
             log::debug!(
-                "{} Layout result of {}: {:?}",
+                "resolve_layout END: {} of <{}> - layout_result: {:?}",
                 if final_pass {
                     "Final pass"
                 } else {
@@ -741,6 +768,53 @@ mod tests {
 
     //---------------------------------------------------------------------------------
 
+    /// A dummy widget for layout tests that fills bounds with a variable number of 10x10px squares, wrapping as needed. Simulate the Text widget.
+    #[derive(Debug, Default)]
+    struct FillBoundsWithSquares {
+        n: usize,
+    }
+
+    impl FillBoundsWithSquares {
+        const SQUARE_SIZE: f32 = 10.0;
+
+        fn new(n: usize) -> Self {
+            Self { n }
+        }
+    }
+
+    impl Component for FillBoundsWithSquares {
+        fn fill_bounds(
+            &mut self,
+            width: Option<f32>,
+            _height: Option<f32>,
+            max_width: Option<f32>,
+            _max_height: Option<f32>,
+            _caches: &Caches,
+            _scale_factor: f32,
+        ) -> (Option<f32>, Option<f32>) {
+            if let Some(width) = width.or(max_width) {
+                let columns =
+                    (width.min(self.n as f32 * Self::SQUARE_SIZE) / Self::SQUARE_SIZE).floor();
+                let rows = (self.n as f32 / columns).ceil();
+                println!(
+                    "FillBoundsWithSquares: n: {}, columns: {}, rows: {}, width: {}, max_width: {:?}",
+                    self.n, columns, rows, width, max_width
+                );
+                (
+                    Some(columns * Self::SQUARE_SIZE),
+                    Some(rows * Self::SQUARE_SIZE),
+                )
+            } else {
+                (
+                    Some(self.n as f32 * Self::SQUARE_SIZE),
+                    Some(Self::SQUARE_SIZE),
+                )
+            }
+        }
+    }
+
+    //---------------------------------------------------------------------------------
+
     /// A dummy widget for layout tests that always returns the provided width, unless it's None/0, in which case it returns 666px.
     #[derive(Debug, Default)]
     struct FillBoundsWithWidth;
@@ -783,18 +857,24 @@ mod tests {
     }
 
     #[test]
-    fn test_fill_bounds_with_parent() {
+    fn test_fill_bounds_with_parents() {
         let mut nodes = node!(Div::new(), [size: [300.0, 300.0]]).push(
-            // This node should become the size of its grandchild
-            node!(Div::new(), [debug: "fake_button"])
-                .push(node!(Div::new(), [size_pct: [100.0]]).push(node!(FillBoundser::new(), []))),
+            node!(Div::new(), [debug: "container", size_pct: [100.0]]).push(
+                node!(Div::new(), [debug: "container2", size_pct: [100.0]]).push(
+                    // This node should become the size of its grandchild
+                    node!(Div::new(), [debug: "fake_button"]).push(
+                        node!(Div::new(), [size_pct: [100.0]])
+                            .push(node!(FillBoundsWithSquares::new(10), [])),
+                    ),
+                ),
+            ),
         );
         nodes.calculate_layout(&Caches::default(), 1.0);
-        let fake_button = &nodes.children[0];
+        let fake_button = &nodes.children[0].children[0].children[0];
         let child = &fake_button.children[0];
         let grandchild = &child.children[0];
-        assert_eq!(grandchild.layout_result.size, size!(100.0));
-        assert_eq!(fake_button.layout_result.size, size!(100.0));
+        assert_eq!(grandchild.layout_result.size, size!(100.0, 10.0));
+        assert_eq!(fake_button.layout_result.size, size!(100.0, 10.0));
     }
 
     #[test]
@@ -1765,8 +1845,8 @@ mod tests {
     #[test]
     fn test_pct() {
         let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
-            node!(Div::new(), lay!(size: size_pct!(50.0, 100.0)))
-                .push(node!(Div::new(), lay!(size: size_pct!(50.0, 100.0)))),
+            node!(Div::new(), [size_pct: [50.0, 100.0], debug: "parent"])
+                .push(node!(Div::new(), [size_pct: [50.0, 100.0], debug: "child"])),
         );
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
@@ -1775,6 +1855,26 @@ mod tests {
             nodes.children[0].children[0].layout_result.size,
             size!(75.0, 300.0)
         );
+    }
+
+    #[test]
+    fn test_pct_more_nested() {
+        let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
+            node!(Div::new(), [size_pct: [100.0]]).push(
+                node!(Div::new(), [size_pct: [100.0], debug: "parent"]).push(
+                    node!(Div::new(), [size_pct: [50.0, 100.0], debug: "child"])
+                        .push(node!(Div::new(), [size_pct: [50.0, 100.0], debug: "grandchild"])),
+                ),
+            ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let parent = &nodes.children[0].children[0];
+        assert_eq!(parent.layout_result.size, size!(300.0));
+        let child = &parent.children[0];
+        assert_eq!(child.layout_result.size, size!(150.0, 300.0));
+        let grandchild = &child.children[0];
+        assert_eq!(grandchild.layout_result.size, size!(75.0, 300.0));
     }
 
     #[test]
@@ -2162,5 +2262,36 @@ mod tests {
         assert_eq!(nodes.children[2].layout_result.position.top, px!(150.0));
         assert_eq!(nodes.children[3].layout_result.position.left, px!(190.0));
         assert_eq!(nodes.children[3].layout_result.position.top, px!(190.0));
+    }
+
+    #[test]
+    fn test_scrollable() {
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0]]
+        )
+        .push(
+            node!(Div::new().scroll_y(), [size_pct: [100.0], direction: Direction::Column, debug: "scrollable"])
+                .push(node!(Div::new(), [size: [150.0], debug: "child0"])) // Child 0
+                .push(node!(Div::new(), [size: [100.0], debug: "child1"])) // Child 1
+                .push(node!(Div::new(), [size: [200.0], debug: "child2"])), // Child 2
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let scrollable = &nodes.children[0];
+        let child0 = &scrollable.children[0];
+        let child1 = &scrollable.children[1];
+        let child2 = &scrollable.children[2];
+        assert_eq!(scrollable.layout_result.size, size!(300.0));
+        assert_eq!(
+            scrollable.inner_scale,
+            Some(crate::base_types::Scale {
+                width: 300.0,
+                height: 450.0 // 150px + 100px + 200px
+            })
+        );
+        assert_eq!(child0.layout_result.size, size!(150.0));
+        assert_eq!(child1.layout_result.size, size!(100.0));
+        assert_eq!(child2.layout_result.size, size!(200.0));
     }
 }
