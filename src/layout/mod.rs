@@ -339,7 +339,8 @@ impl super::node::Node {
         }
     }
 
-    fn set_children_position(&mut self, bounds_size: Size) -> Size {
+    // Return the children size and the row lengths
+    fn set_children_position(&mut self, bounds_size: Size) -> (Size, Vec<(f64, usize)>) {
         let dir = self.layout.direction;
         let size = self.layout.size.most_specific(&self.layout_result.size);
         let axis_align = self.layout.axis_alignment;
@@ -444,7 +445,6 @@ impl super::node::Node {
 
                 child.resolve_position(size);
 
-                // TODO: More of these
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
                     log::debug!(
                         "set_children_position: setting absolute position of <{}> to {:#?} - Basing off explicit position ({:#?}), parent size ({:#?}))",
@@ -477,7 +477,27 @@ impl super::node::Node {
 
         // TODO Alignment::Stretch when not all space is filled
 
+        (children_size, row_lengths)
+    }
+
+    // Done after the children have been positioned (initially) and after the node has be sized (possibly based on its children's sizes), so that we know the actual space available for centering.
+    fn reposition_centered_children(
+        &mut self,
+        children_size: Size,
+        row_lengths: Vec<(f64, usize)>,
+    ) {
+        let axis_align = self.layout.axis_alignment;
+        let cross_align = self.layout.cross_alignment;
         if axis_align == Alignment::Center || cross_align == Alignment::Center {
+            let size = self.layout_result.size;
+            let dir = self.layout.direction;
+            let main_end_padding: f64 = self
+                .layout
+                .padding
+                .main_reverse(dir, axis_align)
+                .maybe_resolve(&size.main(dir))
+                .into();
+
             // Reposition center alignment
             let main_offset = if axis_align == Alignment::Center && size.main(dir).resolved() {
                 // This is only accurate when for non-wrapped elements.
@@ -530,15 +550,14 @@ impl super::node::Node {
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
                     log::debug!(
-                        "set_children_position: resolved aligned position of <{}> to {:#?} - Basing off ...)",
+                        "set_children_position: resolved aligned position of <{}> to {:#?} - Basing off parent size ({:#?})",
                         child.layout.debug.as_ref().unwrap(),
-                        &child.layout_result.position
+                        &child.layout_result.position,
+                        &size
                     );
                 }
             }
         }
-
-        children_size
     }
 
     /// Make sure the node has a size, either taken from its children or from itself
@@ -687,8 +706,9 @@ impl super::node::Node {
         }
 
         self.resolve_child_sizes(bounds_size, caches, scale_factor, final_pass);
-        let children_size = self.set_children_position(bounds_size);
+        let (children_size, row_lengths) = self.set_children_position(bounds_size);
         self.resolve_size(children_size, final_pass, bounds_size);
+        self.reposition_centered_children(children_size, row_lengths);
         self.set_inner_scale(children_size);
 
         if !final_pass
