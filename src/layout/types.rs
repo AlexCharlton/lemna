@@ -3,6 +3,8 @@ use alloc::string::String;
 
 use core::ops::{Add, AddAssign, Div, DivAssign, Sub, SubAssign};
 
+pub const MIN_SIZE: Dimension = Dimension::Px(10.0);
+
 //--------------------------------
 // MARK: Types
 //--------------------------------
@@ -106,6 +108,10 @@ impl Dimension {
 
     pub fn is_pct(&self) -> bool {
         matches!(self, Self::Pct(_))
+    }
+
+    pub fn is_auto(&self) -> bool {
+        matches!(self, Self::Auto)
     }
 }
 
@@ -312,6 +318,14 @@ impl Bounds {
         }
     }
 
+    pub fn width_total(&self) -> Dimension {
+        self.left + self.right
+    }
+
+    pub fn height_total(&self) -> Dimension {
+        self.top + self.bottom
+    }
+
     pub fn main(&self, dir: Direction, align: Alignment) -> Dimension {
         match (dir, align) {
             (Direction::Row, Alignment::End) => self.right,
@@ -469,6 +483,30 @@ impl Bounds {
     // }
 }
 
+impl Add for Bounds {
+    type Output = Bounds;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            top: self.top + other.top,
+            left: self.left + other.left,
+            bottom: self.bottom + other.bottom,
+            right: self.right + other.right,
+        }
+    }
+}
+
+impl AddAssign for Bounds {
+    fn add_assign(&mut self, other: Self) {
+        *self = Self {
+            top: self.top + other.top,
+            left: self.left + other.left,
+            bottom: self.bottom + other.bottom,
+            right: self.right + other.right,
+        };
+    }
+}
+
 impl From<crate::base_types::Point> for Bounds {
     fn from(p: crate::base_types::Point) -> Self {
         Self {
@@ -577,8 +615,8 @@ impl Default for Layout {
             size: Default::default(),
             max_size: Default::default(),
             min_size: Size {
-                width: Dimension::Px(10.0),
-                height: Dimension::Px(10.0),
+                width: MIN_SIZE,
+                height: MIN_SIZE,
             },
             flex_grow: 1.0,
             z_index: None,
