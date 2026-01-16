@@ -89,9 +89,9 @@ impl super::node::Node {
             self.layout.size
         };
 
-        let mut inner_size = size
-            .maybe_resolve(&bounds_size)
-            .minus_bounds(&self.layout.padding.maybe_resolve(&bounds_size));
+        let padding = self.layout.padding.maybe_resolve(&bounds_size);
+        let mut inner_size = size.maybe_resolve(&bounds_size).minus_bounds(&padding);
+        let bounds_less_padding = bounds_size.minus_bounds(&padding);
         if self.scroll_x().is_some() {
             inner_size.width = Dimension::Auto;
         };
@@ -109,16 +109,12 @@ impl super::node::Node {
         }
 
         let dir = self.layout.direction;
-        let axis_align = self.layout.axis_alignment;
         // Calculate maximum available space - always constrained by bounds_size from parent
         // even if inner_size is resolved (which might be from a previous pass)
         let max_available = if bounds_size.main(dir).resolved() {
             // Always use bounds_size as the constraint from the parent, not inner_size
             // which might be from a previous pass and exceed the parent's constraint
-            let padding = self.layout.padding.maybe_resolve(&bounds_size);
-            let main_start_padding = padding.main(dir, axis_align);
-            let main_end_padding = padding.main_reverse(dir, axis_align);
-            (bounds_size.main(dir) - main_start_padding - main_end_padding).max(Dimension::Px(0.0))
+            (bounds_less_padding.main(dir)).max(Dimension::Px(0.0))
         } else if inner_size.main(dir).resolved() {
             // Fallback to inner_size if bounds_size is not resolved
             inner_size.main(dir)
@@ -193,7 +189,7 @@ impl super::node::Node {
             }
             if !child.layout_result.size.resolved() {
                 // Use bounds_size as fallback when inner_size is not resolved (for fill_bounds constraints)
-                let fill_bounds_size = inner_size.most_specific(&bounds_size);
+                let fill_bounds_size = inner_size.most_specific(&bounds_less_padding);
                 let fill_bounds_inner_size = fill_bounds_size
                     .minus_bounds(&child.layout.margin.maybe_resolve(&fill_bounds_size));
                 let (w, h) = child.component.fill_bounds(
@@ -297,7 +293,7 @@ impl super::node::Node {
             let remaining_space_passed = Dimension::Px(main_remaining_before_this_child);
 
             child.resolve_layout(
-                child.bounds_size(inner_size, bounds_size, dir, remaining_space_passed),
+                child.bounds_size(inner_size, bounds_less_padding, dir, remaining_space_passed),
                 caches,
                 scale_factor,
                 final_pass,
@@ -609,8 +605,7 @@ impl super::node::Node {
         if !size.width.resolved() || f64::from(size.width) < 0.0 {
             if self.scroll_x().is_none() && children_size.width.resolved() {
                 size.width = children_size.width;
-            } else if self.scroll_x().is_some() && bounds_size.width.resolved() {
-                // Resolve the outer width of scrollable nodes
+            } else if bounds_size.width.resolved() {
                 size.width = size.width.maybe_resolve(&bounds_size.width)
             } else if min_size.width.resolved() {
                 size.width = min_size.width
@@ -629,8 +624,7 @@ impl super::node::Node {
         if !size.height.resolved() || f64::from(size.height) < 0.0 {
             if self.scroll_y().is_none() && children_size.height.resolved() {
                 size.height = children_size.height;
-            } else if self.scroll_y().is_some() && bounds_size.height.resolved() {
-                // Resolve the outer height of scrollable nodes
+            } else if bounds_size.height.resolved() {
                 size.height = size.height.maybe_resolve(&bounds_size.height)
             } else if min_size.height.resolved() {
                 size.height = min_size.height
@@ -1972,6 +1966,27 @@ mod tests {
         assert_eq!(nodes.children[0].layout_result.size, size!(240.0, 260.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(20.0));
         assert_eq!(nodes.children[0].layout_result.position.top, px!(10.0));
+    }
+
+    #[test]
+    fn test_padding_in_auto_sized_node() {
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0]]
+        )
+        .push(
+            node!(Div::new(), [
+              padding: [10.0, 20.0, 30.0, 40.0],
+              debug: "padded"
+            ])
+            .push(node!(Div::new(), [size_pct: [100.0], debug: "child"])),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        let padded = &nodes.children[0];
+        let child = &padded.children[0];
+        assert_eq!(child.layout_result.size, size!(240.0, 260.0));
+        assert_eq!(child.layout_result.position.left, px!(20.0));
+        assert_eq!(child.layout_result.position.top, px!(10.0));
     }
 
     #[test]
