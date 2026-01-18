@@ -20,6 +20,7 @@ impl super::node::Node {
     /// Returns the best available dimension for a child's bounds, preferring:
     /// 1. Parent's inner_size if resolved
     /// 2. Ancestor's bounds_size as fallback
+    ///
     /// Will not exceed the bounds_dim.
     fn best_available_dimension(inner_dim: Dimension, bounds_dim: Dimension) -> Dimension {
         if inner_dim.resolved() {
@@ -240,7 +241,7 @@ impl super::node::Node {
         main_remaining = main_remaining.max(0.0);
 
         // We use this to track the remaining space for unresolved children.
-        let mut current_main_remaining = f64::from(main_remaining);
+        let mut current_main_remaining = main_remaining;
 
         for child in self.children.iter_mut() {
             let child_margin = child.layout.margin.maybe_resolve(&inner_size);
