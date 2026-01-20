@@ -41,6 +41,9 @@ pub struct Event<T: EventInput> {
     pub(crate) over_subchild_n: Option<usize>,
     pub(crate) target: Option<NodeId>,
     pub(crate) focus: Option<NodeId>,
+    // The focus that was active when the event was fired
+    // Tracked since the active focus can change due to rendering which can happen at the same time as event handling.
+    pub(crate) initial_focus: NodeId,
     // Which node triggered the blur event
     pub(crate) blur: Option<NodeId>,
     pub(crate) focus_stack: Vec<NodeId>,
@@ -73,6 +76,7 @@ impl<T: EventInput> fmt::Debug for Event<T> {
             .field("over_subchild_n", &self.over_subchild_n)
             .field("target", &self.target)
             .field("focus", &self.focus)
+            .field("initial_focus", &self.initial_focus)
             .field("blur", &self.blur)
             .field("focus_stack", &self.focus_stack)
             .field("is_primary_focus", &self.is_primary_target)
@@ -300,6 +304,7 @@ impl<T: EventInput> Event<T> {
             modifiers_held: event_cache.modifiers_held,
             mouse_position: event_cache.mouse_position,
             focus: Some(focus),
+            initial_focus: focus,
             blur: None,
             focus_stack: vec![],
             is_primary_target: true,

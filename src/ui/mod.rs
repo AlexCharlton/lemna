@@ -155,7 +155,7 @@ pub(crate) trait LemnaUI {
     ) {
         if event.focus.is_none() {
             self.do_blur(event, event.suppress_scroll_to, previously_focused_nodes);
-        } else if event.focus != Some(self.active_focus()) {
+        } else if event.focus != Some(event.initial_focus) {
             #[cfg(debug_assertions)]
             log::debug!("focus changed due to event: {:?}", event);
             // First blur the old focus
