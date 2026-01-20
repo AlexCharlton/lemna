@@ -136,7 +136,25 @@ impl FontCache {
             )
         }
 
-        layout.glyphs().to_vec()
+        let mut glyphs = layout.glyphs().to_vec();
+        if let Some(last_glyph) = glyphs.last_mut() {
+            // Hack to ensure that the last glyph has a width, otherwise the text will be too narrow to be laid out correctly
+            if last_glyph.width == 0 {
+                let TextSegment { size, font, .. } = text.last().unwrap();
+                let font_index = font
+                    .as_ref()
+                    .and_then(|f| self.font(f))
+                    .unwrap_or(base_font)
+                    .0;
+                let font = &self.fonts[font_index];
+
+                let glyph_index = font.lookup_glyph_index(last_glyph.parent);
+                let metrics = font
+                    .metrics_indexed(glyph_index, size.map_or(scaled_size, |s| s * scale_factor));
+                last_glyph.width = metrics.advance_width.ceil() as usize;
+            }
+        }
+        glyphs
     }
 
     pub fn line_height(&self, font: Option<&str>, size: f32, scale_factor: f32) -> f32 {

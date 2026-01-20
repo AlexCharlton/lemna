@@ -44,7 +44,6 @@ A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerat
   - related to the above?
 - Clicking on a button that performs some action that causes the button to disappear will make it so that the cursor is stuck on PointingHand
   - Send a MouseMotion action after every view?
-- Text with trailing whitespace after other whitespace doesn't display
 
 
 ## Running
