@@ -65,12 +65,13 @@ impl super::node::Node {
         );
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
             log::debug!(
-                "bounds_size: <{}> with parent inner size {:?}, parent bounds size {:?}, remaining space on main axis ({:?}) {:?}, resulting bounds: {:?}",
+                "bounds_size: <{}> with parent inner size {:?}, parent bounds size {:?}, remaining space on main axis ({:?}) {:?}, main_resolved {:?}, resulting bounds: {:?}",
                 self.layout.debug.as_ref().unwrap(),
                 &parent_inner_size,
                 &parent_bounds_size,
                 dir,
                 &remaining_space_main,
+                self.layout_result.main_resolved,
                 &size,
             );
         }
@@ -176,6 +177,10 @@ impl super::node::Node {
                 child.layout_result.main_layout_type = LayoutType::Fixed;
             } else if child.layout.size.main(dir).is_pct() {
                 child.layout_result.main_layout_type = LayoutType::Percent;
+                // Percentages are always considered resolved in the final pass
+                if final_pass && child.layout_result.size.main(dir).resolved() {
+                    child.layout_result.main_resolved = true;
+                }
             }
 
             if self.layout.axis_alignment == Alignment::Stretch
@@ -1902,6 +1907,26 @@ mod tests {
         assert_eq!(nodes.layout_result.size, size!(50.0, 150.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(50.0, 100.0));
         assert_eq!(nodes.children[1].layout_result.size, size!(50.0, 50.0));
+    }
+
+    #[test]
+    fn test_pct_resolved_in_sequence_with_fixed_and_unresolved_child() {
+        let mut nodes = node!(Div::new(), [size: [300.0], debug: "parent"])
+            // Both children take up all of the parent. This test ensures that the percentage doesn't take a back seat to the fixed size.
+            .push(
+                node!(Div::new(), [size_pct: [100.0], debug: "child1"]).push(
+                    // We add an unresolved child to this one
+                    node!(Div::new(), [size_pct: [100.0], debug: "grandchild1"])
+                        .push(node!(Div::new(), [wrap: true])),
+                ),
+            )
+            .push(node!(Div::new(), [size: [300.0], debug: "child2"]));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let child1 = &nodes.children[0];
+        assert_eq!(child1.layout_result.size, size!(300.0));
+        let grandchild1 = &child1.children[0];
+        assert_eq!(grandchild1.layout_result.size, size!(300.0));
     }
 
     #[test]
