@@ -280,6 +280,10 @@ impl Node {
         };
 
         if new && self.new_focus {
+            if !self.auto_focus {
+                // We haven't registered this node, but we will now since it's auto-focused
+                focus_state.tree_mut().register(self, parent_focus_id);
+            }
             focus_state.focus_new_node(self.id);
         }
         // Create children
