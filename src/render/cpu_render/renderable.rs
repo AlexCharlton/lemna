@@ -173,6 +173,9 @@ impl Text {
             let mut glyph_x = 0;
             if let Some(glyph_mask) = caches.glyph.glyph_mask(&caches.font.fonts, glyph) {
                 for v in glyph_mask.data() {
+                    if mask_i >= mask_data.len() {
+                        break;
+                    }
                     if let Some(mask) = mask {
                         // If our current render mask position is not white, skip the pixel
                         if mask.data()[mask_i] == 255 {
@@ -189,9 +192,6 @@ impl Text {
                         glyph_x = 0;
                         mask_y += 1;
                         mask_i = mask_x_initial + glyph_x + (mask_y * pixmap.width() as usize);
-                    }
-                    if mask_i >= mask_data.len() {
-                        break;
                     }
                 }
             }
