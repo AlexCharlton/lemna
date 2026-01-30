@@ -28,7 +28,10 @@ impl FocusTree {
     /// `parent_focus_id` is the node_id of the nearest ancestor that also has focus
     pub fn register(&mut self, node: &Node, parent_focus_id: NodeId) {
         self.parents.insert(node.id, parent_focus_id);
-        self.priorities.insert(node.id, node.focus_priority);
+        let parent_priority = self.priority(parent_focus_id).unwrap_or(0);
+        // Priority is inherited from the parent, plus the node's own priority
+        self.priorities
+            .insert(node.id, node.focus_priority + parent_priority);
         #[cfg(debug_assertions)]
         self.names
             .insert(node.id, node.component.name().to_string());
