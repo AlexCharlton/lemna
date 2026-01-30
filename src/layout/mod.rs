@@ -195,6 +195,7 @@ impl super::node::Node {
                 child.layout.flex_grow = 0.0;
             }
             if !child.layout_result.size.resolved() {
+                let main_was_resolved = child.layout_result.size.main(dir).resolved();
                 // Use bounds_size as fallback when inner_size is not resolved (for fill_bounds constraints)
                 let fill_bounds_size = inner_size.most_specific(&bounds_less_padding);
                 let fill_bounds_inner_size = fill_bounds_size
@@ -221,7 +222,7 @@ impl super::node::Node {
                 if let Some(h) = h {
                     child.layout_result.size.height = Dimension::Px(h.into());
                 }
-                if child.layout_result.size.main(dir).resolved() {
+                if !main_was_resolved && child.layout_result.size.main(dir).resolved() {
                     child.layout_result.main_resolved = true;
                     child.layout_result.main_layout_type = LayoutType::Intrinsic;
                 }
@@ -708,10 +709,13 @@ impl super::node::Node {
 
         if !final_pass
             && (self.layout.size.main(self.layout.direction).resolved()
-                || self
+                || (self
                     .children
                     .iter()
                     .all(|child| child.layout_result.main_resolved))
+                    // Child nodes being resolved doesn't mean anything if the parent is scrollable on that axis
+                    && !(self.layout.direction == Direction::Column && self.scroll_y().is_some())
+                    && !(self.layout.direction == Direction::Row && self.scroll_x().is_some()))
             && self.layout.flex_grow == 0.0
             && !self.layout.wrap
         {
@@ -2369,5 +2373,52 @@ mod tests {
         assert_eq!(child0.layout_result.size, size!(150.0));
         assert_eq!(child1.layout_result.size, size!(100.0));
         assert_eq!(child2.layout_result.size, size!(200.0));
+    }
+
+    #[test]
+    fn test_scrollable_inside_parent_with_non_fixed_sibling() {
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0]]
+        )
+        .push(
+            node!(Div::new(), [
+              size_pct: [100.0], direction: Direction::Column, debug: "parent"
+            ])
+            .push(
+                node!(Div::new(), [size_pct: [100.0, Auto], debug: "sibling"])
+                    .push(node!(FillBoundser::new())),
+            )
+            .push(
+                node!(Div::new(), [
+                  size_pct: [100.0, Auto], debug: "scrollable_container"
+                ])
+                .push(
+                    node!(Div::new().scroll_y(),
+              [size_pct: [100.0], direction: Direction::Column, debug: "scrollable"])
+                    .push(node!(Div::new(), [size: [150.0]])) // Child 0
+                    .push(node!(Div::new(), [size: [100.0]])) // Child 1
+                    .push(node!(Div::new(), [size: [200.0]])), // Child 2
+                ),
+            ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(300.0));
+        let parent = &nodes.children[0];
+        let sibling = &parent.children[0];
+        assert_eq!(sibling.layout_result.size, size!(300.0, 100.0));
+        let scrollable_container = &parent.children[1];
+        // Sibling is 100px, so scrollable_container should be 300px - 100px = 200px
+        assert_eq!(scrollable_container.layout_result.size, size!(300.0, 200.0));
+        let scrollable = &scrollable_container.children[0];
+        assert_eq!(scrollable.layout_result.size, size!(300.0, 200.0));
+        // Inner scale is same as before
+        assert_eq!(
+            scrollable.inner_scale,
+            Some(crate::base_types::Scale {
+                width: 300.0,
+                height: 450.0 // 150px + 100px + 200px
+            })
+        );
     }
 }
