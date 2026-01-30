@@ -155,6 +155,10 @@ impl Default for Style {
                 Color::MID_GREY.into(),
             ),
             (StyleKey::new("Button", "border_width", None), 1.0.into()),
+            (
+                StyleKey::new("Button", "focus_border_width", None),
+                1.5.into(),
+            ),
             (StyleKey::new("Button", "radius", None), 4.0.into()),
             (StyleKey::new("Button", "padding", None), 2.0.into()),
             // RadioButton

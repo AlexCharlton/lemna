@@ -86,6 +86,7 @@ impl Component for Button {
         let background_color: Color = self.style_val("background_color").into();
         let border_color: Color = self.style_val("border_color").into();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
+        let focus_border_width: f32 = self.style_val("focus_border_width").unwrap().f32();
         let text_color: Color = self.style_val("text_color").unwrap().into();
 
         let (bg_color, txt_color, brd_color) = if self.disabled {
@@ -110,7 +111,7 @@ impl Component for Button {
                 background_color: bg_color,
                 border_color: brd_color,
                 border_width: if self.state_ref().focused && !self.disabled {
-                    border_width * 1.5
+                    focus_border_width
                 } else {
                     border_width
                 },
