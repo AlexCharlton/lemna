@@ -30,6 +30,7 @@ pub struct Button {
     pub tool_tip: Option<String>,
     focus_on_click: bool,
     disabled: bool,
+    unfocus_on_escape: bool,
 }
 
 impl core::fmt::Debug for Button {
@@ -52,6 +53,7 @@ impl Button {
             dirty: crate::Dirty::No,
             class: Default::default(),
             style_overrides: Default::default(),
+            unfocus_on_escape: true,
         }
     }
 
@@ -72,6 +74,11 @@ impl Button {
 
     pub fn disabled(mut self) -> Self {
         self.disabled = true;
+        self
+    }
+
+    pub fn ignore_escape(mut self) -> Self {
+        self.unfocus_on_escape = false;
         self
     }
 }
@@ -255,8 +262,10 @@ impl Component for Button {
                 event.stop_bubbling();
             }
             Key::Escape => {
-                event.blur();
-                event.stop_bubbling();
+                if self.unfocus_on_escape {
+                    event.blur();
+                    event.stop_bubbling();
+                }
             }
             _ => {}
         }
