@@ -50,6 +50,7 @@ pub struct TextBox {
     on_change: Option<Box<dyn Fn(String) -> Message + Send + Sync>>,
     on_commit: Option<Box<dyn Fn(String) -> Message + Send + Sync>>,
     on_focus: Option<Box<dyn Fn() -> Message + Send + Sync>>,
+    limit: Option<usize>,
 }
 
 impl core::fmt::Debug for TextBox {
@@ -69,6 +70,7 @@ impl TextBox {
             dirty: crate::Dirty::No,
             class: Default::default(),
             style_overrides: Default::default(),
+            limit: None,
         }
     }
 
@@ -84,6 +86,11 @@ impl TextBox {
 
     pub fn on_focus(mut self, focus_fn: Box<dyn Fn() -> Message + Send + Sync>) -> Self {
         self.on_focus = Some(focus_fn);
+        self
+    }
+
+    pub fn limit(mut self, limit: usize) -> Self {
+        self.limit = Some(limit);
         self
     }
 }
@@ -107,6 +114,7 @@ impl Component for TextBox {
             .push(node!(
                 TextBoxText {
                     default_text: self.text.clone().unwrap_or_default(),
+                    limit: self.limit,
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                     state: None,
@@ -285,13 +293,20 @@ struct TextBoxTextState {
 #[derive(Debug)]
 pub struct TextBoxText {
     pub default_text: String,
+    pub limit: Option<usize>,
 }
 
 impl TextBoxText {
     fn reset_state(&mut self) {
+        let mut text = self.default_text.clone();
+        if let Some(limit) = self.limit {
+            if text.len() > limit {
+                text.truncate(limit);
+            }
+        }
         self.state = Some(TextBoxTextState {
             focused: false,
-            text: self.default_text.clone(),
+            text,
             cursor_pos: 0,
             selection_from: None,
             dragging: false,
@@ -354,14 +369,42 @@ impl TextBoxText {
     }
 
     fn insert_text(&mut self, text: &str) {
+        let current_len = self.state_ref().text.len();
+        let text_to_insert = if let Some(limit) = self.limit {
+            if let Some((a, b)) = self.selection() {
+                // When replacing selected text, calculate how much space we have
+                let selected_len = b - a;
+                let available_space = limit.saturating_sub(current_len - selected_len);
+                if text.len() > available_space {
+                    &text[..available_space]
+                } else {
+                    text
+                }
+            } else {
+                // When inserting at cursor, calculate how much space we have
+                let available_space = limit.saturating_sub(current_len);
+                if text.len() > available_space {
+                    &text[..available_space]
+                } else {
+                    text
+                }
+            }
+        } else {
+            text
+        };
+
+        if text_to_insert.is_empty() {
+            return;
+        }
+
         if let Some((a, b)) = self.selection() {
-            self.state_mut().text.replace_range(a..b, text);
-            self.state_mut().cursor_pos = a + text.len();
+            self.state_mut().text.replace_range(a..b, text_to_insert);
+            self.state_mut().cursor_pos = a + text_to_insert.len();
             self.state_mut().selection_from = None;
         } else {
             let pos = self.state_ref().cursor_pos;
-            self.state_mut().text.insert_str(pos, text);
-            self.state_mut().cursor_pos += text.len();
+            self.state_mut().text.insert_str(pos, text_to_insert);
+            self.state_mut().cursor_pos += text_to_insert.len();
         }
         self.state_mut().dirty = true;
     }
