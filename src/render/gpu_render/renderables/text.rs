@@ -126,6 +126,10 @@ impl Text {
             let mut n_indices = 0;
             let mut v_relative = 0;
             for g in self.glyphs.iter() {
+                // Skip invisible glyphs (newlines, spaces, etc.) that have 0 width or height
+                if g.width == 0 || g.height == 0 {
+                    continue;
+                }
                 if let Some(uv_rect) = glyph_cache.rect_for(g) {
                     buffer_cache.vertex_data[v] = Vertex {
                         pos: Point { x: g.x, y: g.y },

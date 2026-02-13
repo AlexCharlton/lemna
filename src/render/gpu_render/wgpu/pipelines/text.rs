@@ -259,6 +259,10 @@ impl TextPipeline {
         while !cache_success {
             for (renderable, _) in renderables.iter() {
                 for g in renderable.glyphs.iter().cloned() {
+                    // Skip invisible glyphs (newlines, spaces, etc.) that have 0 width or height
+                    if g.width == 0 || g.height == 0 {
+                        continue;
+                    }
                     self.glyph_cache.glyph_cache.queue_glyph(g);
                 }
             }

@@ -164,6 +164,10 @@ impl Text {
         // Draw each glyph into the mask
         // The text_mask will be black where the render mask is
         for glyph in self.glyphs.iter() {
+            // Skip invisible glyphs (newlines, spaces, etc.) that have 0 width or height
+            if glyph.width == 0 || glyph.height == 0 {
+                continue;
+            }
             let mask_x_initial = aabb.pos.x as usize + self.offset.x as usize + glyph.x as usize;
             let mut mask_y = aabb.pos.y as usize + self.offset.y as usize + glyph.y as usize;
             if mask_y >= pixmap.height() as usize {
