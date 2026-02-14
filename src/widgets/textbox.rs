@@ -299,10 +299,10 @@ pub struct TextBoxText {
 impl TextBoxText {
     fn reset_state(&mut self) {
         let mut text = self.default_text.clone();
-        if let Some(limit) = self.limit {
-            if text.len() > limit {
-                text.truncate(limit);
-            }
+        if let Some(limit) = self.limit
+            && text.len() > limit
+        {
+            text.truncate(limit);
         }
         self.state = Some(TextBoxTextState {
             focused: false,
