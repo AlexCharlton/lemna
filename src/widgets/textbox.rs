@@ -299,15 +299,16 @@ pub struct TextBoxText {
 impl TextBoxText {
     fn reset_state(&mut self) {
         let mut text = self.default_text.clone();
+        let text_len = text.len();
         if let Some(limit) = self.limit
-            && text.len() > limit
+            && text_len > limit
         {
             text.truncate(limit);
         }
         self.state = Some(TextBoxTextState {
             focused: false,
             text,
-            cursor_pos: 0,
+            cursor_pos: text_len,
             selection_from: None,
             dragging: false,
             activated_at: Instant::now(),
