@@ -102,7 +102,7 @@ impl Component for Text {
 
                 // Add the advance width to the x position of the last glyph. This ensures that the last glyph will not be wrapped
                 let metrics = caches.glyph_metrics(last_glyph);
-                last_glyph.x + metrics.advance_width.ceil() as f32
+                last_glyph.x + metrics.advance_width.ceil()
             } else {
                 max_width.unwrap() * scale
             };
