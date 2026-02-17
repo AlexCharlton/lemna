@@ -17,7 +17,7 @@ use core::hash::{Hash, Hasher};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use fontdue::{
-    Font, FontResult, FontSettings,
+    Font, FontResult, FontSettings, Metrics,
     layout::{HorizontalAlign, Layout, LayoutSettings, TextStyle, VerticalAlign},
 };
 use hashbrown::HashMap;
@@ -140,21 +140,16 @@ impl FontCache {
         if let Some(last_glyph) = glyphs.last_mut() {
             // Hack to ensure that the last glyph has a width, otherwise the text will be too narrow to be laid out correctly
             if last_glyph.width == 0 {
-                let TextSegment { size, font, .. } = text.last().unwrap();
-                let font_index = font
-                    .as_ref()
-                    .and_then(|f| self.font(f))
-                    .unwrap_or(base_font)
-                    .0;
-                let font = &self.fonts[font_index];
-
-                let glyph_index = font.lookup_glyph_index(last_glyph.parent);
-                let metrics = font
-                    .metrics_indexed(glyph_index, size.map_or(scaled_size, |s| s * scale_factor));
+                let metrics = self.glyph_metrics(last_glyph);
                 last_glyph.width = metrics.advance_width.ceil() as usize;
             }
         }
         glyphs
+    }
+
+    pub fn glyph_metrics(&self, glyph: &PositionedGlyph) -> Metrics {
+        let font = &self.fonts[glyph.font_index];
+        font.metrics_indexed(glyph.key.glyph_index, glyph.key.px)
     }
 
     pub fn line_height(&self, font: Option<&str>, size: f32, scale_factor: f32) -> f32 {

@@ -30,6 +30,8 @@ mod cpu_render;
 mod path;
 mod raster_cache;
 
+pub type FontMetrics = fontdue::Metrics;
+
 pub mod renderable {
     use super::*;
     use crate::style::HorizontalPosition;
@@ -62,6 +64,9 @@ pub mod renderable {
 
         pub fn glyph_widths(&self, glyphs: &[crate::font_cache::PositionedGlyph]) -> Vec<f32> {
             self.font.glyph_widths(glyphs)
+        }
+        pub fn glyph_metrics(&self, glyph: &crate::font_cache::PositionedGlyph) -> FontMetrics {
+            self.font.glyph_metrics(glyph)
         }
     }
 

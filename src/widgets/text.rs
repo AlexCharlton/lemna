@@ -98,9 +98,11 @@ impl Component for Text {
         let output = if let Some(last_glyph) = glyphs.last() {
             // Unless there is only one row, use the max width
             let w = if last_glyph.y <= line_height || max_width.is_none() {
-                // We always add a small margin to the end of the text, otherwise we will create a bounds that is too small
-                // TODO: Is there a better way to do this?
-                last_glyph.x + last_glyph.width as f32 + scale * 3.0
+                // Only one row
+
+                // Add the advance width to the x position of the last glyph. This ensures that the last glyph will not be wrapped
+                let metrics = caches.glyph_metrics(last_glyph);
+                last_glyph.x + metrics.advance_width.ceil() as f32
             } else {
                 max_width.unwrap() * scale
             };
