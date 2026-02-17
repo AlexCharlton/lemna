@@ -50,6 +50,7 @@ pub struct TextBox {
     on_change: Option<Box<dyn Fn(String) -> Message + Send + Sync>>,
     on_commit: Option<Box<dyn Fn(String) -> Message + Send + Sync>>,
     on_focus: Option<Box<dyn Fn() -> Message + Send + Sync>>,
+    commit_on_blur: bool,
     limit: Option<usize>,
 }
 
@@ -66,6 +67,7 @@ impl TextBox {
             on_change: None,
             on_commit: None,
             on_focus: None,
+            commit_on_blur: false,
             state: Some(TextBoxState::default()),
             dirty: crate::Dirty::No,
             class: Default::default(),
@@ -93,6 +95,11 @@ impl TextBox {
         self.limit = Some(limit);
         self
     }
+
+    pub fn commit_on_blur(mut self) -> Self {
+        self.commit_on_blur = true;
+        self
+    }
 }
 
 #[state_component_impl(TextBoxState, Internal)]
@@ -115,6 +122,7 @@ impl Component for TextBox {
                 TextBoxText {
                     default_text: self.text.clone().unwrap_or_default(),
                     limit: self.limit,
+                    commit_on_blur: self.commit_on_blur,
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                     state: None,
@@ -294,6 +302,7 @@ struct TextBoxTextState {
 pub struct TextBoxText {
     pub default_text: String,
     pub limit: Option<usize>,
+    pub commit_on_blur: bool,
 }
 
 impl TextBoxText {
@@ -571,9 +580,11 @@ impl Component for TextBoxText {
         self.state_mut().cursor_visible = false;
         self.state_mut().selection_from = None;
         event.emit(Box::new(TextBoxMessage::Close));
-        event.emit(Box::new(TextBoxMessage::Commit(
-            self.state_ref().text.clone(),
-        )));
+        if self.commit_on_blur {
+            event.emit(Box::new(TextBoxMessage::Commit(
+                self.state_ref().text.clone(),
+            )));
+        }
     }
 
     fn on_key_down(&mut self, event: &mut event::Event<event::KeyDown>) {
@@ -662,6 +673,11 @@ impl Component for TextBoxText {
                 }
             }
             Key::Return => {
+                if !self.commit_on_blur {
+                    event.emit(Box::new(TextBoxMessage::Commit(
+                        self.state_ref().text.clone(),
+                    )));
+                }
                 event.blur();
             }
             Key::Escape => {
