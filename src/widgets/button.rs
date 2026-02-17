@@ -219,6 +219,7 @@ impl Component for Button {
         }
         if let Some(f) = &self.on_click {
             event.emit(f());
+            event.stop_bubbling();
         }
         if self.focus_on_click {
             event.focus();
@@ -231,6 +232,7 @@ impl Component for Button {
         }
         if let Some(f) = &self.on_click {
             event.emit(f());
+            event.stop_bubbling();
         }
         if self.focus_on_click {
             event.focus();
