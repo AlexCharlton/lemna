@@ -216,6 +216,12 @@ impl Node {
         self
     }
 
+    /// Set the layout of the current Node, returns itself.
+    pub fn with_layout(mut self, layout_fn: impl FnOnce(&mut Layout)) -> Self {
+        layout_fn(&mut self.layout);
+        self
+    }
+
     /// Mark this node as focusable with a specific priority.
     /// Higher priority nodes will retain focus over lower priority ones,
     /// unless the lower priority node is requesting focus and is a descendant
