@@ -348,7 +348,8 @@ impl Component for Div {
         let mut rs = vec![];
         let border_width = self
             .border_width
-            .map_or(0.0, |x| (x * context.scale_factor.floor()).round());
+            .map_or(0.0, |x| (x * context.scale_factor.floor()).round())
+            .max(0.0);
 
         if let Some(bg) = self.background {
             rs.push(Renderable::Rectangle(Rectangle::new(
@@ -362,7 +363,9 @@ impl Component for Div {
             )))
         }
 
-        if let (Some(color), Some(_width)) = (self.border_color, self.border_width) {
+        if let Some(color) = self.border_color
+            && border_width > 0.0
+        {
             rs.push(Renderable::Rectangle(Rectangle::new(
                 Pos::default(),
                 context.aabb.size(),
