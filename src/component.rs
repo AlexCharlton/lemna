@@ -113,6 +113,11 @@ pub trait Component: fmt::Debug {
     }
 
     /// Implemented by the `component` attribute macro
+    fn has_state(&self) -> bool {
+        false
+    }
+
+    /// Implemented by the `component` attribute macro
     #[doc(hidden)]
     fn is_dirty(&mut self) -> Dirty {
         Dirty::No

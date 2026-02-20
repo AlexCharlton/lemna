@@ -247,6 +247,9 @@ impl Node {
             self.id = prev.id;
             if let Some(state) = prev.component.take_state() {
                 self.component.replace_state(state);
+            } else if self.component.has_state() {
+                // If the component is stateful, but it doesn't have any state there's either been a key mixup, or the component with this key has had a type change. This latter case is allowable, and it requires that we initialize the new component.
+                self.component.init();
             }
 
             // Transfer the render cache from the previous node to the new one

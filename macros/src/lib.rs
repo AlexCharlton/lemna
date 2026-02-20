@@ -211,6 +211,10 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
             }
         }
 
+        fn has_state(&self) -> bool {
+            true
+        }
+
         fn is_dirty(&mut self) -> #dirty_ref {
             let d = self.dirty;
             self.dirty = #dirty_ref::No;
