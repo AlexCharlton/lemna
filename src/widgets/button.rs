@@ -29,6 +29,7 @@ pub struct Button {
     pub on_click: Option<Box<dyn Fn() -> Message + Send + Sync>>,
     pub tool_tip: Option<String>,
     focus_on_click: bool,
+    ignore_key_events: bool,
     disabled: bool,
     unfocus_on_escape: bool,
 }
@@ -47,6 +48,7 @@ impl Button {
             label,
             on_click: None,
             tool_tip: None,
+            ignore_key_events: false,
             focus_on_click: false,
             disabled: false,
             state: Some(ButtonState::default()),
@@ -79,6 +81,11 @@ impl Button {
 
     pub fn ignore_escape(mut self) -> Self {
         self.unfocus_on_escape = false;
+        self
+    }
+
+    pub fn ignore_key_events(mut self) -> Self {
+        self.ignore_key_events = true;
         self
     }
 }
@@ -253,7 +260,7 @@ impl Component for Button {
     }
 
     fn on_key_down(&mut self, event: &mut crate::Event<event::KeyDown>) {
-        if self.disabled {
+        if self.disabled || self.ignore_key_events {
             return;
         }
         match event.input.key {
