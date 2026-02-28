@@ -200,19 +200,18 @@ impl super::node::Node {
                 let fill_bounds_size = inner_size.most_specific(&bounds_less_padding);
                 let fill_bounds_inner_size = fill_bounds_size
                     .minus_bounds(&child.layout.margin.maybe_resolve(&fill_bounds_size));
+                let max_size = self.layout.max_size.maybe_resolve(&fill_bounds_size);
                 let (w, h) = child.component.fill_bounds(
                     child.layout_result.size.width.maybe_px(),
                     child.layout_result.size.height.maybe_px(),
-                    fill_bounds_inner_size.width.maybe_px().or(self
-                        .layout
-                        .max_size
+                    fill_bounds_inner_size
                         .width
-                        .maybe_px()),
-                    fill_bounds_inner_size.height.maybe_px().or(self
-                        .layout
-                        .max_size
+                        .maybe_px()
+                        .or(max_size.width.maybe_px()),
+                    fill_bounds_inner_size
                         .height
-                        .maybe_px()),
+                        .maybe_px()
+                        .or(max_size.height.maybe_px()),
                     caches,
                     scale_factor,
                 );
@@ -297,10 +296,23 @@ impl super::node::Node {
 
             let remaining_space_passed = Dimension::Px(main_remaining_before_this_child);
 
+            let parent_bounds_size = bounds_less_padding.minus_bounds(&child_margin);
+            // Apply max size
+            // We do this before resolve layout, so that we can get the right bounds size for children
+            let max_size = child.layout.max_size.maybe_resolve(&parent_bounds_size);
+
+            if child.layout_result.size.width.resolved() {
+                child.layout_result.size.width = child.layout_result.size.width.min(max_size.width);
+            }
+            if child.layout_result.size.height.resolved() {
+                child.layout_result.size.height =
+                    child.layout_result.size.height.min(max_size.height);
+            }
+
             child.resolve_layout(
                 child.bounds_size(
                     inner_size,
-                    bounds_less_padding.minus_bounds(&child_margin),
+                    parent_bounds_size,
                     dir,
                     remaining_space_passed - child_margin.main_total(dir),
                 ),
@@ -308,6 +320,8 @@ impl super::node::Node {
                 scale_factor,
                 final_pass,
             );
+            // Then we reapply the max size, since layout_result.size may have been modified, and this is where we have the correct max size
+            child.layout_result.size = child.layout_result.size.min(max_size);
 
             current_main_remaining = current_main_remaining.max(0.0);
         }
@@ -649,6 +663,7 @@ impl super::node::Node {
         if !self.layout.size.height.resolved() {
             size.height = size.height.max(self.layout.min_size.height);
         }
+        size = size.min(self.layout.max_size);
 
         self.layout_result.size = size;
     }
@@ -2255,6 +2270,29 @@ mod tests {
         // Width is Auto, so min_size.width (200px) should apply
         // Height is resolved (100px), so min_size.height should NOT apply
         assert_eq!(nodes.layout_result.size, size!(200.0, 100.0));
+    }
+
+    #[test]
+    fn test_max_size() {
+        let mut nodes = node!(
+            Div::new(),
+            [size: [100.0, 100.0], max_size: [50.0, 50.0], debug: "node"]
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(50.0, 50.0));
+    }
+
+    #[test]
+    fn test_pct_max_size() {
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0]]
+        )
+        // Max size should be 50% of parent's, so 150px
+        .push(node!(Div::new(), [size: [200.0], max_size: size_pct!(50.0), debug: "child"]));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        let child = &nodes.children[0];
+        assert_eq!(child.layout_result.size, size!(150.0));
     }
 
     #[test]

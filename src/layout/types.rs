@@ -272,6 +272,13 @@ impl Size {
             height: self.height + bounds.top + bounds.bottom,
         }
     }
+
+    pub fn min(&self, other: Self) -> Self {
+        Self {
+            width: self.width.min(other.width),
+            height: self.height.min(other.height),
+        }
+    }
 }
 
 impl From<ScrollPosition> for Size {
