@@ -626,7 +626,7 @@ impl Node {
 
         self._nodes_under(event, &mut collector);
         // Maybe TODO: Discard siblings?
-        collector.sort_by(|(m, _), (n, _)| m.partial_cmp(n).unwrap());
+        collector.sort_by(|(_, m), (_, n)| m.partial_cmp(n).unwrap());
         collector
     }
 
