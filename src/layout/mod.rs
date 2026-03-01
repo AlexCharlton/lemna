@@ -275,25 +275,6 @@ impl super::node::Node {
                 child.layout_result.main_layout_type = LayoutType::Wrapping;
             }
 
-            // size as a pct of max sibling
-            if (child.layout.size.cross_mut(dir).is_pct()
-                || child.layout_result.size.cross_mut(dir).is_pct())
-                && !child.layout_result.size.cross(dir).resolved()
-                && !self.layout.wrap
-                && max_cross_size > 0.0
-            {
-                let mut max_cross = Size::default();
-                *max_cross.cross_mut(dir) = Dimension::Px(max_cross_size.into());
-                let size = child
-                    .layout
-                    .size
-                    .most_specific(&child.layout_result.size)
-                    .maybe_resolve(&max_cross);
-
-                child.layout_result.size = size.minus_bounds(&child_margin);
-                current_main_remaining -= f64::from(size.main(dir));
-            }
-
             let remaining_space_passed = Dimension::Px(main_remaining_before_this_child);
 
             let parent_bounds_size = bounds_less_padding.minus_bounds(&child_margin);
@@ -722,15 +703,16 @@ impl super::node::Node {
         self.reposition_centered_children(children_size, row_lengths);
         self.set_inner_scale(children_size);
 
+        #[allow(clippy::nonminimal_bool)]
         if !final_pass
             && (self.layout.size.main(self.layout.direction).resolved()
                 || (self
                     .children
                     .iter()
-                    .all(|child| child.layout_result.main_resolved))
-                    // Child nodes being resolved doesn't mean anything if the parent is scrollable on that axis
-                    && !(self.layout.direction == Direction::Column && self.scroll_y().is_some())
-                    && !(self.layout.direction == Direction::Row && self.scroll_x().is_some()))
+                    .all(|child| child.layout_result.main_resolved) && !self.children.is_empty())
+                // Child nodes being resolved doesn't mean anything if the parent is scrollable on that axis
+                && !(self.layout.direction == Direction::Column && self.scroll_y().is_some())
+                && !(self.layout.direction == Direction::Row && self.scroll_x().is_some()))
             && self.layout.flex_grow == 0.0
             && !self.layout.wrap
         {
@@ -1912,23 +1894,6 @@ mod tests {
     }
 
     #[test]
-    fn test_pct_from_sibling() {
-        let mut nodes = node!(
-            Div::new(),
-            lay!(size: size!(Auto), direction: Direction::Column)
-        )
-        .push(node!(Div::new(), lay!(size: size!(50.0, 100.0))))
-        .push(node!(
-            Div::new(),
-            lay!(size: Size {width: Dimension::Pct(100.0), height: Dimension::Px(50.0)})
-        ));
-        nodes.calculate_layout(&Caches::default(), 1.0);
-        assert_eq!(nodes.layout_result.size, size!(50.0, 150.0));
-        assert_eq!(nodes.children[0].layout_result.size, size!(50.0, 100.0));
-        assert_eq!(nodes.children[1].layout_result.size, size!(50.0, 50.0));
-    }
-
-    #[test]
     fn test_pct_resolved_in_sequence_with_fixed_and_unresolved_child() {
         let mut nodes = node!(Div::new(), [size: [300.0], debug: "parent"])
             // Both children take up all of the parent. This test ensures that the percentage doesn't take a back seat to the fixed size.
@@ -2139,6 +2104,30 @@ mod tests {
                 10.0 + 2.0 + 200.0 + 2.0 + 10.0
             )
         );
+    }
+
+    #[test]
+    fn test_auto_with_wrap_and_pct_child() {
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0]]
+        )
+        .push(
+            node!(Div::new(), [direction: Column, debug: "Auto"])
+                .push(
+                    node!(Div::new(), [direction: Row, wrap: true, debug: "Wrap"])
+                        .push(node!(Div::new(), [size: size!(100.0)])),
+                )
+                .push(node!(Div::new(), [size_pct: [100.0], debug: "Pct"])),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        let auto = &nodes.children[0];
+        let wrap = &auto.children[0];
+        let pct = &auto.children[1];
+        // Width comes from the Pct child, height comes from Pct + Wrap
+        assert_eq!(wrap.layout_result.size, size!(100.0));
+        assert_eq!(pct.layout_result.size, size!(300.0));
+        assert_eq!(auto.layout_result.size, size!(300.0, 400.0));
     }
 
     #[test]
