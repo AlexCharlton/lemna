@@ -550,7 +550,7 @@ impl Node {
     /// and pops off the `nodes_under` list when it handles that node. We repeat until there
     /// is nothing left in `nodes_under`. If an event handler has caused the event to stop bubbling,
     /// we can stop early.
-    fn handle_event_under_mouse<E: EventInput>(
+    fn handle_event_under_mouse<E: EventInput + 'static>(
         &mut self,
         event: &mut Event<E>,
         handler: fn(&mut Self, &mut Event<E>),
@@ -562,7 +562,7 @@ impl Node {
         }
     }
 
-    fn _handle_event_under_mouse<E: EventInput>(
+    fn _handle_event_under_mouse<E: EventInput + 'static>(
         &mut self,
         event: &mut Event<E>,
         handler: fn(&mut Self, &mut Event<E>),
@@ -611,6 +611,11 @@ impl Node {
             event.current_aabb = Some(self.aabb);
             event.current_inner_scale = self.inner_scale;
             handler(self, event);
+            // if core::any::TypeId::of::<E>() == core::any::TypeId::of::<event::Click>()
+            //     && !event.bubbles
+            // {
+            //     println!("Click on {}", self.component.name());
+            // }
             event.resolve_signal_children(self);
             event.dirty(self.component.is_dirty());
             m.append(&mut event.messages);
