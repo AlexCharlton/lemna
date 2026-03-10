@@ -651,6 +651,7 @@ pub struct LayoutResult {
     // Direction of the main axis for this layout result, i.e. the parent's direction
     pub(crate) direction: Direction,
     pub(crate) main_layout_type: LayoutType,
+    pub(crate) cross_layout_type: LayoutType,
     // Used by the layout engine to track if this node's layout has been resolved
     pub(crate) main_resolved: bool,
 }
