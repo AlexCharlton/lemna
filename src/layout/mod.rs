@@ -592,12 +592,10 @@ impl super::node::Node {
             && size.main(dir).resolved()
             && children_size.main(dir).resolved()
             && f64::from(children_size.main(dir)) < f64::from(size.main(dir));
-
-        let allow_shrink_cross = self.layout.wrap
+        // The cross axis can also grow to fit the children
+        let allow_adapt_cross = self.layout.wrap
             && self.layout.size.cross(dir) == Dimension::Auto
-            && size.cross(dir).resolved()
-            && children_size.cross(dir).resolved()
-            && f64::from(children_size.cross(dir)) < f64::from(size.cross(dir));
+            && children_size.cross(dir).resolved();
 
         if !size.width.resolved() || f64::from(size.width) < 0.0 {
             if self.scroll_x().is_none() && children_size.width.resolved() {
@@ -609,8 +607,8 @@ impl super::node::Node {
             } else {
                 size.width = MIN_SIZE
             }
-        } else if allow_shrink_main
-            && dir == Direction::Row
+        } else if ((allow_shrink_main && dir == Direction::Row)
+            || (allow_adapt_cross && dir == Direction::Column))
             && self.scroll_x().is_none()
             && children_size.width.resolved()
         {
@@ -629,7 +627,7 @@ impl super::node::Node {
                 size.height = MIN_SIZE
             }
         } else if ((allow_shrink_main && dir == Direction::Column)
-            || (allow_shrink_cross && dir == Direction::Row))
+            || (allow_adapt_cross && dir == Direction::Row))
             && self.scroll_y().is_none()
             && children_size.height.resolved()
         {
@@ -1201,17 +1199,17 @@ mod tests {
         // └─────────────────────────────────────────┘
         let mut nodes = node!(Div::new(), lay!(size: size!(300.0))).push(
             // We don't know the size of this node yet, but we do know it can't be larger than 300px
-            node!(Div::new(), []).push(
-                node!(Div::new(), [])
-                    .push(
+            node!(Div::new(), [])
+                .push(
+                    node!(Div::new(), []).push(
                         // This node now has 200px to work with, so wrapping should be able to figure out the position of the children
-                        node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
-                            .push(node!(Div::new(), lay!(size: size!(100.0))))
-                            .push(node!(Div::new(), lay!(size: size!(100.0))))
-                            .push(node!(Div::new(), lay!(size: size!(100.0)))),
-                    )
-                    .push(node!(FillBoundser::new(), lay!())),
-            ),
+                        node!(Div::new(), [wrap: true, debug: "wrap_node"])
+                            .push(node!(Div::new(), [size: [100.0]]))
+                            .push(node!(Div::new(), [size: [100.0]]))
+                            .push(node!(Div::new(), [size: [100.0]])),
+                    ),
+                )
+                .push(node!(Div::new(), []).push(node!(FillBoundser::new(), []))),
         );
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
@@ -1228,6 +1226,7 @@ mod tests {
         );
         assert_eq!(wrap_node.layout_result.position.left, px!(0.0));
         assert_eq!(wrap_node.layout_result.position.top, px!(0.0));
+        assert_eq!(wrap_node.layout_result.size, size!(200.0, 200.0));
         assert_eq!(wrap_node.children[0].layout_result.position.left, px!(0.0));
         assert_eq!(wrap_node.children[0].layout_result.position.top, px!(0.0));
         assert_eq!(
