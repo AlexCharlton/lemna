@@ -796,6 +796,7 @@ mod tests {
             Self { size: 100.0 }
         }
 
+        #[allow(dead_code)]
         fn new_size(size: f32) -> Self {
             Self { size }
         }

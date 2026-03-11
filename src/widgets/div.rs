@@ -8,11 +8,15 @@ use crate::component::{Component, ComponentHasher, RenderContext};
 use crate::event;
 use crate::layout::*;
 use crate::renderable::{Rectangle, Renderable};
-use crate::style::{HorizontalPosition, StyleVal, Styled, VerticalPosition};
+use crate::{
+    input::Key,
+    style::{HorizontalPosition, StyleVal, Styled, VerticalPosition},
+};
 
 use lemna_macros::{component, state_component_impl};
 
 const MIN_BAR_SIZE: f32 = 10.0;
+const SCROLL_STEP: f32 = 50.0;
 
 #[derive(Debug, Default)]
 pub struct DivState {
@@ -139,6 +143,50 @@ impl Component for Div {
                     scroll_position.x = scroll_position.x.max(0.0);
                     scrolled = true;
                 }
+            }
+
+            if scrolled {
+                self.state_mut().scroll_position = scroll_position;
+                event.stop_bubbling();
+            }
+        }
+    }
+
+    fn on_key_down(&mut self, event: &mut event::Event<event::KeyDown>) {
+        if self.scrollable() {
+            let mut scroll_position = self.state_ref().scroll_position;
+            let mut scrolled = false;
+            let size = event.current_physical_aabb().size();
+            let inner_scale = event.current_physical_inner_scale().unwrap();
+
+            match event.input.key {
+                Key::Up if self.y_scrollable() => {
+                    if scroll_position.y > 0.0 {
+                        scroll_position.y = (scroll_position.y - SCROLL_STEP).max(0.0);
+                        scrolled = true;
+                    }
+                }
+                Key::Down if self.y_scrollable() => {
+                    let max_position = inner_scale.height - size.height;
+                    if scroll_position.y < max_position {
+                        scroll_position.y = (scroll_position.y + SCROLL_STEP).min(max_position);
+                        scrolled = true;
+                    }
+                }
+                Key::Left if self.x_scrollable() => {
+                    if scroll_position.x > 0.0 {
+                        scroll_position.x = (scroll_position.x - SCROLL_STEP).max(0.0);
+                        scrolled = true;
+                    }
+                }
+                Key::Right if self.x_scrollable() => {
+                    let max_position = inner_scale.width - size.width;
+                    if scroll_position.x < max_position {
+                        scroll_position.x = (scroll_position.x + SCROLL_STEP).min(max_position);
+                        scrolled = true;
+                    }
+                }
+                _ => {}
             }
 
             if scrolled {
