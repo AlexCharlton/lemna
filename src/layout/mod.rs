@@ -260,6 +260,22 @@ impl super::node::Node {
         }
         main_remaining = main_remaining.max(0.0);
 
+        // Stretch + auto cross (e.g. select dropdown): parent has no resolved cross size.
+        // Align every stretchable child to the max intrinsic cross size
+        if self.layout.cross_alignment == Alignment::Stretch
+            && !inner_size.cross(dir).resolved()
+            && max_cross_size > 0.0
+        {
+            let cross_px = max_cross_size as f32;
+            for child in self.children.iter_mut() {
+                if child.layout.size.cross(dir) != Dimension::Auto {
+                    continue;
+                }
+                *child.layout_result.size.cross_mut(dir) = Dimension::Px(cross_px.into());
+                child.layout_result.cross_layout_type = LayoutType::Flex
+            }
+        }
+
         // We use this to track the remaining space for unresolved children.
         let mut current_main_remaining = main_remaining;
 
@@ -1790,6 +1806,43 @@ mod tests {
         assert_eq!(remaining.layout_result.size, size!(300.0, 200.0));
         assert_eq!(remaining.layout_result.position.top, px!(200.0));
         assert_eq!(remaining.layout_result.position.left, px!(0.0));
+    }
+
+    /// Analogous to [`crate::widgets::select`] dropdown list: `Column` + `cross_alignment: Stretch`
+    /// with children whose sizes come only from `fill_bounds` (intrinsic), and those intrinsics
+    /// differ per row. Desired behavior: column cross size (width) is the max intrinsic width,
+    /// and every child is laid out with that same width on the cross axis.
+    #[test]
+    fn test_column_stretch_cross_equal_to_widest_fill_bounds_child() {
+        // Intrinsic widths/heights from FillBoundser (fill_bounds ignores passed constraints).
+        // Widest child is 130px; stretch should give every entry that width (like a select menu).
+        let mut nodes = node!(
+            Div::new(),
+            [
+                direction: Direction::Column,
+                cross_alignment: Alignment::Stretch,
+                debug: "select_like_column",
+            ]
+        )
+        .push(node!(FillBoundser::new_size(40.0), [debug: "entry_narrow"]))
+        .push(node!(FillBoundser::new_size(130.0), [debug: "entry_widest"]))
+        .push(node!(FillBoundser::new_size(70.0), [debug: "entry_mid"]));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+
+        // Column cross size = max intrinsic width (130); main size = sum of heights.
+        assert_eq!(
+            nodes.layout_result.size,
+            size!(130.0, 240.0),
+            "column width should match widest intrinsic child"
+        );
+        let expected_child_sizes = [size!(130.0, 40.0), size!(130.0, 130.0), size!(130.0, 70.0)];
+        for (i, child) in nodes.children.iter().enumerate() {
+            assert_eq!(
+                child.layout_result.size, expected_child_sizes[i],
+                "child {} should be stretched to column cross size (widest entry)",
+                i
+            );
+        }
     }
 
     #[test]
