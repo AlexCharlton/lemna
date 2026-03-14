@@ -6,6 +6,7 @@ use core::hash::Hash;
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
+use crate::input::Key;
 use crate::layout::*;
 use crate::renderable::Renderable;
 use crate::style::{HorizontalPosition, Styled, current_style};
@@ -21,7 +22,7 @@ enum SelectMessage {
 }
 
 //
-// Select
+// MARK: Select
 // The top-level, public component
 #[derive(Debug, Default)]
 struct SelectState {
@@ -30,6 +31,8 @@ struct SelectState {
     hovering: usize,
 }
 
+/// Keyboard is handled on this widget; use [`Node::focus`] on the **Select** node (not on a child)
+/// so key events reach [`Component::on_key_down`]. Clicks on the box/list do not move focus away.
 #[component(State = "SelectState", Styled, Internal)]
 pub struct Select<M: Send + Sync>
 where
@@ -72,13 +75,20 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Sen
     for Select<M>
 {
     fn view(&self) -> Option<Node> {
-        let mut base =
-            node!(super::Div::new(), lay!(direction: Direction::Column)).push(node!(SelectBox {
+        let mut base = node!(super::Div::new(), lay!(direction: Direction::Column)).push(node!(
+            SelectBox {
                 selection: self.selection.get(self.state_ref().selected).cloned(),
                 style_overrides: self.style_overrides.clone(),
                 class: self.class,
-            }));
+            },
+            lay!(z_index_increment: 500.0)
+        ));
         if self.state_ref().open {
+            // Full-frame hit target below the list; invisible (NoView). Closes on click.
+            base = base.push(node!(
+                SelectDismissOverlay::new(),
+                lay!(position_type: PositionType::Absolute, z_index_increment: 100.0)
+            ));
             base = base.push(node!(
                 SelectList {
                     selections: self.selection.clone(),
@@ -129,10 +139,94 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Sen
         }
         m
     }
+
+    fn on_key_down(&mut self, event: &mut event::Event<event::KeyDown>) {
+        match event.input.key {
+            Key::Return | Key::NumPadEnter | Key::Return2 => {
+                event.stop_bubbling();
+                if !self.state_ref().open {
+                    if !self.selection.is_empty() {
+                        self.state_mut().hovering = self.state_ref().selected;
+                        self.state_mut().open = true;
+                    }
+                } else {
+                    let hover = self.state_ref().hovering;
+                    if !self.selection.is_empty() && hover != self.state_ref().selected {
+                        self.state_mut().selected = hover;
+                        if let Some(change_fn) = &self.on_change {
+                            event.emit(change_fn(hover, &self.selection[hover]));
+                        }
+                    }
+                    self.state_mut().open = false;
+                }
+            }
+            Key::Up if self.state_ref().open && !self.selection.is_empty() => {
+                event.stop_bubbling();
+                let n = self.selection.len() as isize;
+                let h = self.state_ref().hovering as isize;
+                self.state_mut().hovering = (h - 1).rem_euclid(n) as usize;
+            }
+            Key::Down if self.state_ref().open && !self.selection.is_empty() => {
+                event.stop_bubbling();
+                let n = self.selection.len() as isize;
+                let h = self.state_ref().hovering as isize;
+                self.state_mut().hovering = (h + 1).rem_euclid(n) as usize;
+            }
+            Key::Escape if self.state_ref().open => {
+                event.stop_bubbling();
+                self.state_mut().open = false;
+            }
+            _ => {}
+        }
+    }
+
+    fn on_blur(&mut self, _event: &mut event::Event<event::Blur>) {
+        self.state_mut().open = false;
+    }
+}
+
+#[derive(Debug, Default)]
+struct SelectDismissOverlayState;
+
+/// Full-frame invisible layer; sits under [`SelectList`] so outside clicks close the menu.
+#[component(State = "SelectDismissOverlayState", Internal, NoView)]
+#[derive(Debug)]
+struct SelectDismissOverlay {}
+
+impl SelectDismissOverlay {
+    fn new() -> Self {
+        Self {
+            state: Some(SelectDismissOverlayState::default()),
+            dirty: crate::Dirty::No,
+        }
+    }
+}
+
+#[state_component_impl(SelectDismissOverlayState, Internal)]
+impl Component for SelectDismissOverlay {
+    fn full_control(&self) -> bool {
+        true
+    }
+
+    fn set_aabb(
+        &mut self,
+        aabb: &mut Rect,
+        _parent_aabb: Rect,
+        _children: Vec<(&mut Rect, Option<Scale>, Option<Point>)>,
+        frame: Rect,
+        _scale_factor: f32,
+    ) {
+        *aabb = frame;
+    }
+
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
+        event.emit(Box::new(SelectMessage::Close));
+        event.stop_bubbling();
+    }
 }
 
 //
-// SelectBox
+// MARK: SelectBox
 // The base component you interact with. A button that shows selection state
 #[component(Styled = "Select", Internal)]
 #[derive(Debug)]
@@ -150,6 +244,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
         let caret_color: Color = self.style_val("caret_color").into();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
+        // Clicks must not move focus off the parent Select (keyboard target).
         let mut base = node!(
             super::RoundedRect {
                 background_color,
@@ -191,12 +286,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
     }
 
     fn on_click(&mut self, event: &mut event::Event<event::Click>) {
-        event.focus();
         event.emit(Box::new(SelectMessage::OpenClose));
-    }
-
-    fn on_blur(&mut self, event: &mut event::Event<event::Blur>) {
-        event.emit(Box::new(SelectMessage::Close));
     }
 }
 
@@ -236,7 +326,7 @@ impl Component for Caret {
 }
 
 //
-// SelectList
+// MARK: SelectList
 // Visible after opening: The full selection list
 #[derive(Debug)]
 #[component(Styled = "Select", Internal)]
@@ -311,10 +401,14 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
             aabb.translate_mut(0.0, -parent_aabb.height() - aabb.height());
         }
     }
+
+    fn on_click(&mut self, event: &mut event::Event<event::Click>) {
+        event.stop_bubbling();
+    }
 }
 
 //
-// SelectEntry
+// MARK: SelectEntry
 // An individual entry within a SelectList
 #[component(Styled = "Select", Internal)]
 #[derive(Debug)]
