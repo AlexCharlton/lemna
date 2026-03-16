@@ -185,24 +185,17 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Sen
     }
 }
 
-#[derive(Debug, Default)]
-struct SelectDismissOverlayState;
-
 /// Full-frame invisible layer; sits under [`SelectList`] so outside clicks close the menu.
-#[component(State = "SelectDismissOverlayState", Internal, NoView)]
+#[component(NoView)]
 #[derive(Debug)]
 struct SelectDismissOverlay {}
 
 impl SelectDismissOverlay {
     fn new() -> Self {
-        Self {
-            state: Some(SelectDismissOverlayState::default()),
-            dirty: crate::Dirty::No,
-        }
+        Self {}
     }
 }
 
-#[state_component_impl(SelectDismissOverlayState, Internal)]
 impl Component for SelectDismissOverlay {
     fn full_control(&self) -> bool {
         true

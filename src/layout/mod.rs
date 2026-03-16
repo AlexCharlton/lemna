@@ -266,12 +266,11 @@ impl super::node::Node {
             && !inner_size.cross(dir).resolved()
             && max_cross_size > 0.0
         {
-            let cross_px = max_cross_size as f32;
             for child in self.children.iter_mut() {
                 if child.layout.size.cross(dir) != Dimension::Auto {
                     continue;
                 }
-                *child.layout_result.size.cross_mut(dir) = Dimension::Px(cross_px.into());
+                *child.layout_result.size.cross_mut(dir) = Dimension::Px(max_cross_size.into());
                 child.layout_result.cross_layout_type = LayoutType::Flex
             }
         }
