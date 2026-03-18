@@ -178,9 +178,6 @@ impl Component for Button {
     }
 
     fn on_mouse_leave(&mut self, _event: &mut event::Event<event::MouseLeave>) {
-        if self.disabled {
-            return;
-        }
         let focused = self.state_ref().focused;
         *self.state_mut() = ButtonState {
             focused,
