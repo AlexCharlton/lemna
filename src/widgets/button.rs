@@ -64,8 +64,8 @@ impl Button {
         self
     }
 
-    pub fn tool_tip(mut self, t: String) -> Self {
-        self.tool_tip = Some(t);
+    pub fn tool_tip<T: ToString>(mut self, t: T) -> Self {
+        self.tool_tip = Some(t.to_string());
         self
     }
 
