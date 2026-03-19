@@ -39,6 +39,7 @@ pub enum StyleVal {
     Rect(Rect),
     Point(Point),
     Pos(Pos),
+    Bounds(Bounds),
     Color(Color),
     Layout(Layout),
     HorizontalPosition(HorizontalPosition),
@@ -548,6 +549,28 @@ impl From<Option<StyleVal>> for Rect {
         match v {
             Some(StyleVal::Rect(c)) => c,
             x => panic!("Tried to coerce {x:?} into a Rect"),
+        }
+    }
+}
+impl From<Bounds> for StyleVal {
+    fn from(b: Bounds) -> Self {
+        Self::Bounds(b)
+    }
+}
+impl From<StyleVal> for Bounds {
+    fn from(v: StyleVal) -> Self {
+        match v {
+            StyleVal::Bounds(b) => b,
+            StyleVal::Float(f) => bounds!(f),
+            x => panic!("Tried to coerce {x:?} into Bounds (expected Bounds or Float)"),
+        }
+    }
+}
+impl From<Option<StyleVal>> for Bounds {
+    fn from(v: Option<StyleVal>) -> Self {
+        match v {
+            Some(sv) => sv.into(),
+            x => panic!("Tried to coerce {x:?} into Bounds"),
         }
     }
 }

@@ -94,7 +94,7 @@ impl Button {
 impl Component for Button {
     fn view(&self) -> Option<Node> {
         let radius: f32 = self.style_val("radius").unwrap().f32();
-        let padding: f64 = self.style_val("padding").unwrap().into();
+        let padding: Bounds = self.style_val("padding").unwrap().into();
         let active_color: Color = self.style_val("active_color").into();
         let highlight_color: Color = self.style_val("highlight_color").into();
         let background_color: Color = self.style_val("background_color").into();
@@ -133,9 +133,7 @@ impl Component for Button {
             },
             lay!(
                 size: size_pct!(100.0),
-                padding: bounds!(padding),
-                cross_alignment: crate::layout::Alignment::Center,
-                axis_alignment: crate::layout::Alignment::Center,
+                padding: padding,
             )
         )
         .push(node!(
