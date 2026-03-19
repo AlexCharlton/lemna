@@ -40,29 +40,42 @@ impl super::node::Node {
         parent_bounds_size: Size,
         // Direction of the main axis for this layout result, i.e. the parent's direction
         dir: Direction,
-        remaining_space_main: Dimension,
+        remaining_space_main: Option<Dimension>,
     ) -> Size {
         let main_dim = if self.layout_result.main_resolved {
             // remaining_space_main does not include this node's size, so we can't use that.
             // So if we're already resolved, use the resolved size.
             self.layout_result.size.main(dir)
-        } else if !parent_inner_size.main(dir).resolved() {
+        } else if let Some(remaining_space_main) = remaining_space_main
+            && !parent_inner_size.main(dir).resolved()
+        {
             // Use remaining space if parent_inner_size is not resolved
             remaining_space_main
+        } else if !parent_inner_size.main(dir).resolved()
+            && !parent_bounds_size.main(dir).resolved()
+            && remaining_space_main.is_none()
+        {
+            // Nothing to base off of, so we return auto
+            Dimension::Auto
         } else {
             Self::best_available_dimension(
                 parent_inner_size.main(dir),
-                parent_bounds_size.main(dir).min(remaining_space_main),
+                parent_bounds_size
+                    .main(dir)
+                    .min(remaining_space_main.unwrap_or(Dimension::Px(0.0))),
             )
         };
 
-        let size = dir.size(
+        let mut size = dir.size(
             main_dim,
             Self::best_available_dimension(
                 parent_inner_size.cross(dir),
                 parent_bounds_size.cross(dir),
             ),
         );
+        if self.layout.overlay {
+            size = Default::default();
+        }
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
             log::debug!(
                 "bounds_size: <{}> with parent inner size {:?}, parent bounds size {:?}, remaining space on main axis ({:?}) {:?}, main_resolved {:?}, resulting bounds: {:?}",
@@ -213,6 +226,7 @@ impl super::node::Node {
                 let fill_bounds_inner_size = fill_bounds_size
                     .minus_bounds(&child.layout.margin.maybe_resolve(&fill_bounds_size));
                 let max_size = self.layout.max_size.maybe_resolve(&fill_bounds_size);
+
                 let (w, h) = child.component.fill_bounds(
                     child.layout_result.size.width.maybe_px(),
                     child.layout_result.size.height.maybe_px(),
@@ -325,7 +339,11 @@ impl super::node::Node {
                     inner_size,
                     parent_bounds_size,
                     dir,
-                    remaining_space_passed - child_margin.main_total(dir),
+                    if max_available.resolved() {
+                        Some(remaining_space_passed - child_margin.main_total(dir))
+                    } else {
+                        None
+                    },
                 ),
                 caches,
                 scale_factor,

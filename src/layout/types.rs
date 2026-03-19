@@ -603,6 +603,8 @@ pub struct Layout {
     pub max_size: Size,
     pub min_size: Size,
     pub flex_grow: f64,
+    /// Whether this layout is an overlay, i.e. it should be rendered on top of other layouts, and not taken into account parent bounds (e.g. for tooltips)
+    pub overlay: bool,
     pub z_index: Option<f64>,
     pub z_index_increment: f64,
     pub debug: Option<String>,
@@ -626,6 +628,7 @@ impl Default for Layout {
                 height: MIN_SIZE,
             },
             flex_grow: 1.0,
+            overlay: false,
             z_index: None,
             z_index_increment: 0.0,
             debug: None,

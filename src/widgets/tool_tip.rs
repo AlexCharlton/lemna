@@ -40,10 +40,10 @@ impl Component for ToolTip {
                 super::Div::new()
                     .bg(background_color)
                     .border(border_color, border_width),
-                lay!(
-                    padding: bounds!(padding),
-                    max_size: size!(ToolTip::MAX_WIDTH, Auto),
-                )
+                [
+                    padding: [padding],
+                    max_size: [ToolTip::MAX_WIDTH, Auto],
+                ]
             )
             .push(node!(
                 super::Text::new(txt!(self.tool_tip.clone()))

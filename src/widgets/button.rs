@@ -150,12 +150,13 @@ impl Component for Button {
 
         if let (Some(p), Some(tt)) = (self.state_ref().tool_tip_open, self.tool_tip.as_ref()) {
             base = base.push(node!(
-                ToolTip::new(tt.clone()),
-                lay!(position_type: PositionType::Absolute,
-                     z_index_increment: 1000.0,
-                     position: (p + ToolTip::MOUSE_OFFSET).into(),
-                ),
-            ));
+            ToolTip::new(tt.clone()),
+            [
+                position_type: PositionType::Absolute,
+                overlay: true,
+                z_index_increment: 1000.0,
+                position: (p + ToolTip::MOUSE_OFFSET).into(),
+            ]));
         }
 
         Some(base)
