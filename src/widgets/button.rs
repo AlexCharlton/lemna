@@ -1,7 +1,11 @@
 extern crate alloc;
 
 use crate::time::Instant;
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use super::ToolTip;
 use crate::Node;
