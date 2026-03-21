@@ -614,6 +614,17 @@ impl Component for TextBoxText {
                     changed = true;
                 }
             }
+            Key::Delete => {
+                if let Some((a, b)) = self.selection() {
+                    self.state_mut().text.replace_range(a..b, "");
+                    self.state_mut().cursor_pos = a;
+                    self.state_mut().selection_from = None;
+                    changed = true;
+                } else if pos < len {
+                    self.state_mut().text.remove(pos);
+                    changed = true;
+                }
+            }
             Key::Left => {
                 // TODO more modifiers
                 if pos > 0 {
