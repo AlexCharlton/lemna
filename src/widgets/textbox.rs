@@ -314,10 +314,18 @@ impl TextBoxText {
         {
             text.truncate(limit);
         }
+        // We don't want to reset the focused state; this is managed solely by the focus/blur events
+        let focused = self.state.as_ref().map(|s| s.focused).unwrap_or(false);
+        // Keep the cursor position where it was, as long as it's within the text length
+        let cursor_pos = self
+            .state
+            .as_ref()
+            .map(|s| s.cursor_pos.min(text_len))
+            .unwrap_or(text_len);
         self.state = Some(TextBoxTextState {
-            focused: false,
+            focused,
             text,
-            cursor_pos: text_len,
+            cursor_pos,
             selection_from: None,
             dragging: false,
             activated_at: Instant::now(),
