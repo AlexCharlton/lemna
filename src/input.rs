@@ -5,6 +5,7 @@
 extern crate alloc;
 
 use alloc::string::String;
+use serde::{Deserialize, Serialize};
 
 use crate::base_types::Data;
 
@@ -16,7 +17,7 @@ pub enum Motion {
 }
 
 /// A keyboard key
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Key {
     Unknown,
     Backspace,
@@ -231,7 +232,7 @@ pub enum Key {
 }
 
 /// Mouse buttons
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum MouseButton {
     Left,
     Right,
@@ -241,7 +242,7 @@ pub enum MouseButton {
 }
 
 /// Mouse or keyboard button
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum Button {
     Keyboard(Key),
     Mouse(MouseButton),
