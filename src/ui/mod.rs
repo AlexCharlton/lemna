@@ -443,6 +443,16 @@ pub(crate) trait LemnaUI {
                 let mut event = Event::new(event::Tick, self.event_cache(), focus);
                 self.with_node(|node| node.tick(&mut event));
                 self.set_node_dirty(event.dirty);
+                for custom_input in event.custom_inputs.drain(..) {
+                    let mut custom_input_event = Event::new(
+                        event::CustomInput { data: custom_input },
+                        self.event_cache(),
+                        focus,
+                    );
+                    custom_input_event.set_focus_stack(self.focus_stack());
+                    self.handle_event(Node::custom_input, &mut custom_input_event, Some(focus));
+                    self.set_node_dirty(custom_input_event.dirty);
+                }
             }
             Input::MouseLeaveWindow => {
                 if self.event_cache().mouse_over.is_some() {

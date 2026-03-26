@@ -54,6 +54,8 @@ pub struct Event<T: EventInput> {
     pub(crate) scale_factor: f32,
     pub(crate) messages: Vec<Message>,
     pub(crate) signals: Signaller,
+    // Custom events that are not part of the standard event system. Can only be send from `on_tick` method
+    pub(crate) custom_inputs: Vec<Message>,
     /// Stack of nodes that the event passed through. If the event is targeted, then this is the nodes on the way to the target. If the event is a mouse event, the this is the nodes through which the mouse passed (and in particular, the nodes on the way to whatever stopped the event from bubbling).
     pub(crate) stack: Vec<NodeId>,
     #[cfg(debug_assertions)]
@@ -268,6 +270,13 @@ pub struct DragDrop {
 }
 impl EventInput for DragDrop {}
 
+/// [`EventInput`] type for custom input events.
+#[derive(Debug)]
+pub struct CustomInput {
+    pub data: Message,
+}
+impl EventInput for CustomInput {}
+
 impl Scalable for Scroll {
     fn scale(self, scale_factor: f32) -> Self {
         Self {
@@ -319,6 +328,7 @@ impl<T: EventInput> Event<T> {
             scale_factor: event_cache.scale_factor,
             messages: vec![],
             signals: Signaller::default(),
+            custom_inputs: vec![],
             stack: vec![],
             #[cfg(debug_assertions)]
             stack_names: vec![],
@@ -374,6 +384,11 @@ impl<T: EventInput> Event<T> {
     /// Send the [`Message`] to the ancestor Nodes of the current one. They will receive it through the [`Component#update`][crate::Component#method.update] method.
     pub fn emit(&mut self, msg: Message) {
         self.messages.push(msg);
+    }
+
+    /// Send a custom input event to the current focused Node. This can only be sent from the `on_tick` method, and will be received by the `on_custom_input` method.
+    pub fn emit_custom_input(&mut self, msg: Message) {
+        self.custom_inputs.push(msg);
     }
 
     /// Return the AABB of the current Node, in physical coordinates.

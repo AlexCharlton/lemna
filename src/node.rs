@@ -925,6 +925,10 @@ impl Node {
 
         m
     }
+
+    pub(crate) fn custom_input(&mut self, event: &mut Event<event::CustomInput>) {
+        self.handle_targeted_event(event, |node, e| node.component.on_custom_input(e));
+    }
 }
 
 pub(crate) type ScrollFrame = Rect;
