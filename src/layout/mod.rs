@@ -352,7 +352,7 @@ impl super::node::Node {
             );
             // Then we reapply the max size, since layout_result.size may have been modified, and this is where we have the correct max size
             child.layout_result.size = child.layout_result.size.min(max_size);
-            if !child_was_main_resolved && child.layout_result.main_resolved {
+            if !child_was_main_resolved && child.layout_result.main_resolved && !self.layout.wrap {
                 // We need to update the main_remaining if the child was not resolved before and it is now
                 current_main_remaining -=
                     f64::from(child.layout_result.size.main(dir) - child_margin.main_total(dir));
