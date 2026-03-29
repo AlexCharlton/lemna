@@ -422,10 +422,17 @@ impl Node {
         let scrollable = self.scrollable();
         for child in self.children.iter_mut() {
             let mut scroll_offset: Size = parent_scroll_pos.into();
-            if !child.layout.position.top.resolved() && !child.layout.position.bottom.resolved() {
+
+            if !(child.layout.overlay
+                && (child.layout.position.top.resolved()
+                    || child.layout.position.bottom.resolved()))
+            {
                 scroll_offset.height = Dimension::Px(0.0);
             }
-            if !child.layout.position.left.resolved() && !child.layout.position.right.resolved() {
+            if !(child.layout.overlay
+                && (child.layout.position.left.resolved()
+                    || child.layout.position.right.resolved()))
+            {
                 scroll_offset.width = Dimension::Px(0.0);
             }
 
