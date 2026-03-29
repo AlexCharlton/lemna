@@ -443,7 +443,7 @@ impl TextBoxText {
         } else {
             // Cursor is at the end of the text
             // Use the last character's position and width
-            glyphs[pos - 1].x
+            glyphs[len - 1].x
                 + self
                     .state_ref()
                     .glyph_widths
