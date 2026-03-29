@@ -333,6 +333,7 @@ impl super::node::Node {
                 child.layout_result.size.height =
                     child.layout_result.size.height.min(max_size.height);
             }
+            let child_was_main_resolved = child.layout_result.main_resolved;
 
             child.resolve_layout(
                 child.bounds_size(
@@ -351,6 +352,11 @@ impl super::node::Node {
             );
             // Then we reapply the max size, since layout_result.size may have been modified, and this is where we have the correct max size
             child.layout_result.size = child.layout_result.size.min(max_size);
+            if !child_was_main_resolved && child.layout_result.main_resolved {
+                // We need to update the main_remaining if the child was not resolved before and it is now
+                current_main_remaining -=
+                    f64::from(child.layout_result.size.main(dir) - child_margin.main_total(dir));
+            }
 
             current_main_remaining = current_main_remaining.max(0.0);
         }
@@ -764,15 +770,14 @@ impl super::node::Node {
         self.set_inner_scale(children_size);
 
         #[allow(clippy::nonminimal_bool)]
-        if !final_pass
-            && (self.layout.size.main(self.layout.direction).resolved()
-                || (self
+        if (self.layout.size.main(self.layout.direction).resolved()
+            || (self
                     .children
                     .iter()
                     .all(|child| child.layout_result.main_resolved) && !self.children.is_empty())
                 // Child nodes being resolved doesn't mean anything if the parent is scrollable on that axis
-                && !(self.layout.direction == Direction::Column && self.scroll_y().is_some())
-                && !(self.layout.direction == Direction::Row && self.scroll_x().is_some()))
+                && !(self.layout.direction == Direction::Column && self.scroll_y().is_some() && self.layout_result.main_layout_type == LayoutType::Auto)
+                && !(self.layout.direction == Direction::Row && self.scroll_x().is_some() && self.layout_result.main_layout_type == LayoutType::Auto))
             && self.layout.flex_grow == 0.0
             && !self.layout.wrap
         {
@@ -2019,6 +2024,30 @@ mod tests {
         assert_eq!(child1.layout_result.size, size!(300.0));
         let grandchild1 = &child1.children[0];
         assert_eq!(grandchild1.layout_result.size, size!(300.0));
+    }
+
+    #[test]
+    fn test_pct_in_stretch_with_intrinsic_sibling() {
+        let mut nodes = node!(Div::new(), [
+        size: [300.0],
+        direction: Column,
+        axis_alignment: Stretch,
+        debug: "parent"
+        ])
+        .push(node!(FillBoundser::new(), [debug: "sibling", flex_grow: 0.0]))
+        .push(
+            // This node is stretch to take the remaining space
+            node!(Div::new(), [debug: "auto_child"])
+                // This node should inherit the bounds from its parent
+                .push(node!(Div::new(), [size_pct: [100.0], debug: "pct_child"])),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        let sibling = &nodes.children[0];
+        assert_eq!(sibling.layout_result.size, size!(100.0));
+        let auto_child = &nodes.children[1];
+        assert_eq!(auto_child.layout_result.size, size!(300.0, 200.0));
+        let pct_child = &auto_child.children[0];
+        assert_eq!(pct_child.layout_result.size, size!(300.0, 200.0));
     }
 
     #[test]
