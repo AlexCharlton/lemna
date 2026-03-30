@@ -444,14 +444,26 @@ pub(crate) trait LemnaUI {
                 self.with_node(|node| node.tick(&mut event));
                 self.set_node_dirty(event.dirty);
                 for custom_input in event.custom_inputs.drain(..) {
-                    let mut custom_input_event = Event::new(
-                        event::CustomInput { data: custom_input },
-                        self.event_cache(),
-                        focus,
-                    );
-                    custom_input_event.set_focus_stack(self.focus_stack());
-                    self.handle_event(Node::custom_input, &mut custom_input_event, Some(focus));
-                    self.set_node_dirty(custom_input_event.dirty);
+                    match custom_input.downcast_ref::<Input>() {
+                        // If the custom input is an Input, handle it as a normal input event
+                        Some(input) => {
+                            self.handle_input(input);
+                        }
+                        None => {
+                            let mut custom_input_event = Event::new(
+                                event::CustomInput { data: custom_input },
+                                self.event_cache(),
+                                focus,
+                            );
+                            custom_input_event.set_focus_stack(self.focus_stack());
+                            self.handle_event(
+                                Node::custom_input,
+                                &mut custom_input_event,
+                                Some(focus),
+                            );
+                            self.set_node_dirty(custom_input_event.dirty);
+                        }
+                    }
                 }
             }
             Input::MouseLeaveWindow => {
