@@ -389,11 +389,12 @@ pub(crate) trait LemnaUI {
                 self.event_cache().mouse_up(*b);
             }
             Input::Press(Button::Keyboard(k)) => {
-                self.event_cache().key_down(*k);
                 let focus = self.active_focus();
                 let mut event = Event::new(event::KeyDown { key: *k }, self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
                 self.handle_event(Node::key_down, &mut event, Some(focus));
+                // Update event cache for mod key state after handling the event: we can detect the first key down of a mod key by checking if it has been held yet
+                self.event_cache().key_down(*k);
             }
             Input::Release(Button::Keyboard(k)) => {
                 if self.event_cache().key_held(*k) {
