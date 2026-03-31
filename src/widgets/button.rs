@@ -138,6 +138,8 @@ impl Component for Button {
             lay!(
                 size: size_pct!(100.0),
                 padding: padding,
+                axis_alignment: Center,
+                cross_alignment: Center
             )
         )
         .push(node!(
