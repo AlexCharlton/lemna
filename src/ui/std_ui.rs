@@ -364,7 +364,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                         *old = new;
 
                         if do_render {
-                            current_window().as_ref().unwrap().redraw();
+                            current_window().as_ref().map(|w| w.redraw());
                         }
                         *frame_dirty.write().unwrap() = true;
                     }
@@ -387,7 +387,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     inst_end();
 
                     if do_render {
-                        current_window().as_ref().unwrap().redraw();
+                        current_window().as_ref().map(|w| w.redraw());
                     }
                     *frame_dirty.write().unwrap() = true;
                     inst_end();
