@@ -6,6 +6,7 @@ use hashbrown::HashSet;
 use crate::component::Component;
 use crate::event::{self, Event, EventCache, EventInput};
 use crate::instrumenting::{inst, inst_end};
+use crate::log_debug;
 use crate::node::Node;
 use crate::time::Instant;
 use crate::{Dirty, NodeId, base_types::*, input::*};
@@ -110,7 +111,7 @@ pub(crate) trait LemnaUI {
         }
         let mut previously_focused_nodes = HashSet::new();
         #[cfg(debug_assertions)]
-        log::debug!("blurring due to click (will not trigger scroll)");
+        log_debug!("blurring due to click (will not trigger scroll)");
         self.do_blur(event, suppress_scroll_to, &mut previously_focused_nodes);
     }
 
@@ -135,14 +136,14 @@ pub(crate) trait LemnaUI {
             &event.stack[..]
         };
         #[cfg(debug_assertions)]
-        log::debug!(
+        log_debug!(
             "blurring due to event: {:?}, new stack: {:?}",
             event,
             event_stack
         );
         self.set_focus(None, event_stack);
         #[cfg(debug_assertions)]
-        log::debug!("new focus: {}", self.active_focus());
+        log_debug!("new focus: {}", self.active_focus());
 
         // Always send a focus event (even if the focus didn't change) because we have sent a blur event which may have triggered a focus change
         self.send_focus_event(blur_event.suppress_scroll_to, previously_focused_nodes);
@@ -157,7 +158,7 @@ pub(crate) trait LemnaUI {
             self.do_blur(event, event.suppress_scroll_to, previously_focused_nodes);
         } else if event.focus != Some(event.initial_focus) {
             #[cfg(debug_assertions)]
-            log::debug!("focus changed due to event: {:?}", event);
+            log_debug!("focus changed due to event: {:?}", event);
             // First blur the old focus
             let blur_event =
                 self.send_blur_event(event.suppress_scroll_to, previously_focused_nodes);

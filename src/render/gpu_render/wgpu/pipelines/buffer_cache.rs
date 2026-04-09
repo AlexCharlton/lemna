@@ -1,8 +1,9 @@
 use std::marker::PhantomData;
 
 use bytemuck::{Pod, cast_slice};
-use log::info;
 use wgpu;
+
+use crate::log_info;
 
 use crate::render::gpu_render::{BufferCacheId, BufferChunk};
 use crate::render::next_power_of_2;
@@ -50,7 +51,7 @@ impl<V: Default + Pod, I: Default + Pod> BufferCache<V, I> {
     ) {
         if cache.vertex_data.len() > self.vertex_buffer_len {
             self.vertex_buffer_len = next_power_of_2(cache.vertex_data.len());
-            info!(
+            log_info!(
                 "Resizing BufferCache vertex buffer to {}",
                 self.vertex_buffer_len
             );
@@ -64,7 +65,7 @@ impl<V: Default + Pod, I: Default + Pod> BufferCache<V, I> {
         }
         if cache.index_data.len() > self.index_buffer_len {
             self.index_buffer_len = next_power_of_2(cache.index_data.len());
-            info!(
+            log_info!(
                 "Resizing BufferCache index buffer to {}",
                 self.index_buffer_len
             );

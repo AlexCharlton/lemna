@@ -19,6 +19,11 @@
 
 pub mod instrumenting;
 
+mod logging;
+
+#[cfg(feature = "logs")]
+pub use log;
+
 mod base_types;
 pub use base_types::*;
 

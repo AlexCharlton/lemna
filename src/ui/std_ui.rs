@@ -4,13 +4,15 @@ use std::thread::{self, JoinHandle};
 
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use hashbrown::{HashMap, HashSet};
-use log::info;
 
 use crate::component::Component;
 use crate::event::EventCache;
 use crate::focus::FocusState;
 use crate::instrumenting::*;
 use crate::layout::*;
+#[cfg(feature = "std_cpu")]
+use crate::{log_debug, log_error};
+use crate::log_info;
 use crate::node::Node;
 use crate::render::{ActiveRenderer, Renderer};
 use crate::renderable::Caches;
@@ -163,7 +165,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         // dbg!(scale_factor);
         let physical_size = Arc::new(RwLock::new(window.physical_size()));
         let logical_size = Arc::new(RwLock::new(window.logical_size()));
-        info!(
+        log_info!(
             "New window with physical size {:?} client size {:?} and scale factor {:?}",
             physical_size, logical_size, scale_factor
         );
@@ -428,21 +430,21 @@ impl SoftBufferDrawTarget {
     fn resize(&mut self, size: PixelSize) {
         if self.size != size && size.width > 0 && size.height > 0 {
             self.size = size;
-            if let Err(e) = self.surface.resize(
+            if let Err(_e) = self.surface.resize(
                 core::num::NonZero::new(size.width).unwrap(),
                 core::num::NonZero::new(size.height).unwrap(),
             ) {
-                log::error!("Failed to resize softbuffer surface: {}", e);
+                log_error!("Failed to resize softbuffer surface: {}", _e);
             }
-            log::debug!("Resized softbuffer surface to {:?}", self.size);
+            log_debug!("Resized softbuffer surface to {:?}", self.size);
         }
     }
 
     // TODO: Use present_with_damage
     fn present(&mut self) {
         let buffer = self.surface.buffer_mut().unwrap();
-        if let Err(e) = buffer.present() {
-            log::error!("Failed to present softbuffer surface: {}", e);
+        if let Err(_e) = buffer.present() {
+            log_error!("Failed to present softbuffer surface: {}", _e);
         }
     }
 }

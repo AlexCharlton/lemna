@@ -1,6 +1,7 @@
 use bytemuck::cast_slice;
-use log::info;
 use wgpu;
+
+use crate::log_info;
 
 use super::shared::{VBDesc, create_pipeline};
 use super::texture_cache::TextureCache;
@@ -83,7 +84,7 @@ impl RasterPipeline {
     ) {
         if num_instances > self.num_instances {
             self.num_instances = next_power_of_2(num_instances);
-            info!(
+            log_info!(
                 "Resizing RasterPipeline instance buffer to {}",
                 self.num_instances
             );

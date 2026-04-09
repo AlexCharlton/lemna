@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable, cast_slice};
-use log::info;
+use crate::log_info;
 use wgpu::{self, util::DeviceExt};
 
 use super::shared::{VBDesc, create_pipeline_depth_stencil};
@@ -82,7 +82,7 @@ impl StencilPipeline {
     ) {
         if num_instances > self.num_instances {
             self.num_instances = next_power_of_2(num_instances);
-            info!(
+            log_info!(
                 "Resizing StencilPipeline instance buffer to {}",
                 self.num_instances
             );

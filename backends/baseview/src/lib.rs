@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
-use lemna::{Component, Data, PixelSize, UI};
+use lemna::{log_error, Component, Data, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -112,8 +112,8 @@ impl Window {
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
-                    if let Err(e) = ui.add_font(name, data) {
-                        log::error!("Failed to add font: {}", e);
+                    if let Err(_e) = ui.add_font(name, data) {
+                        log_error!("Failed to add font: {}", _e);
                     }
                 }
                 build(&mut ui);
@@ -160,8 +160,8 @@ impl Window {
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
-                    if let Err(e) = ui.add_font(name, data) {
-                        log::error!("Failed to add font: {}", e);
+                    if let Err(_e) = ui.add_font(name, data) {
+                        log_error!("Failed to add font: {}", _e);
                     }
                 }
                 // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor

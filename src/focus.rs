@@ -8,6 +8,7 @@ use alloc::{
 
 use hashbrown::{HashMap, HashSet};
 
+use crate::log_debug;
 use crate::{Node, NodeId};
 
 /// Tracks all focus contexts and their parent-child relationships
@@ -121,14 +122,14 @@ impl FocusState {
         all_new_nodes: &HashSet<NodeId>,
         root_id: NodeId,
     ) {
-        log::debug!(
+        log_debug!(
             "Inheriting active focus from previous state: {:?}\nstarting state: {:?}",
             old_state,
             self
         );
         if let Some(focus_from_new_node) = self.focus_from_new_node {
             // If the focus was from a new node, use that
-            log::debug!(
+            log_debug!(
                 "Inheriting active focus from new node: {:?}",
                 focus_from_new_node
             );
@@ -138,7 +139,7 @@ impl FocusState {
             && all_new_nodes.contains(&focus_from_event)
         {
             // If the previous focus is from an event, and the node is still there, we can inherit the active focus
-            log::debug!("Inheriting active focus from event: {:?}", focus_from_event);
+            log_debug!("Inheriting active focus from event: {:?}", focus_from_event);
 
             if self._inherit_active(old_state, all_new_nodes, root_id) {
                 self.focus_from_event = None;
@@ -150,7 +151,7 @@ impl FocusState {
                 || !all_new_nodes.contains(&old_state.active))
         {
             // If the active focus context has changed, or the previous active focus is not in the new nodes, use the focus context
-            log::debug!(
+            log_debug!(
                 "Inheriting active focus from active focus context: {:?}",
                 focus_from_context
             );
@@ -158,7 +159,7 @@ impl FocusState {
             self.stack = self.tree.path_to(focus_from_context);
         } else {
             // Inherit the active focus from the previous state
-            log::debug!("Inheriting active focus from previous state");
+            log_debug!("Inheriting active focus from previous state");
             self._inherit_active(old_state, all_new_nodes, root_id);
         }
     }

@@ -9,6 +9,7 @@ use hashbrown::{HashMap, HashSet};
 
 use crate::event::{self, Event, EventCache, EventInput, Signal, Target};
 use crate::focus::FocusState;
+use crate::log_debug;
 use crate::node::Node;
 use crate::{Dirty, NodeId, Scalable};
 
@@ -119,7 +120,7 @@ impl<'a> FocusContext<'a> {
         // Scroll to the focused node if it's not already in view
         if !focus_event.suppress_scroll_to {
             #[cfg(debug_assertions)]
-            log::debug!(
+            log_debug!(
                 "Processing scroll to signal for node {:?} due to focus event",
                 target
             );
@@ -168,7 +169,7 @@ impl<'a> FocusContext<'a> {
                                 stack_to_node.iter().map(|n| (*n) as u64).collect();
 
                             #[cfg(debug_assertions)]
-                            log::debug!(
+                            log_debug!(
                                 "Changing focus from {} to {} (stack: {:?}) due to signal from event: {:?}",
                                 self.focus_state.active(),
                                 node_id,
@@ -190,7 +191,7 @@ impl<'a> FocusContext<'a> {
                     }
                     Signal::ScrollTo(_target) => {
                         #[cfg(debug_assertions)]
-                        log::debug!(
+                        log_debug!(
                             "Processing scroll to signal for node {:?} due to event: {:?}",
                             node_id,
                             event
@@ -210,7 +211,7 @@ impl<'a> FocusContext<'a> {
     pub fn handle_focus_change(&mut self, prev_focus: &FocusState) {
         if self.focus_state.active() != prev_focus.active() {
             #[cfg(debug_assertions)]
-            log::debug!(
+            log_debug!(
                 "Focus changed from {} (stack: {:?}) to {} (stack: {:?}) due to changes to the view tree",
                 prev_focus.active(),
                 prev_focus.stack_names(),

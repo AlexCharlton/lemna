@@ -3,6 +3,7 @@
 //! Traces are captured in the format used by <https://superluminal.eu/>. Logs are output using [log], which can be set up with any of many loggers.
 //!
 //! Lemna itself outputs spans relating to key phases, such as event handling, drawing, and rendering.
+//! These messages use the `log` crate when the `logs` feature is enabled.
 
 #[cfg(feature = "instrumented")]
 use crate::time::Instant;
@@ -10,7 +11,7 @@ use crate::time::Instant;
 use core::cell::UnsafeCell;
 
 #[cfg(feature = "instrumented")]
-use log::info;
+use crate::log_info;
 
 #[cfg(feature = "instrumented")]
 #[allow(dead_code)]
@@ -37,7 +38,7 @@ fn inst_stack_pop() -> Inst {
 pub fn inst(name: &'static str) {
     superluminal_perf::begin_event(name);
     let now = Instant::now();
-    info!("{:?} {} START", &now, name);
+    log_info!("{:?} {} START", &now, name);
     inst_stack_push(name, now);
 }
 
@@ -50,7 +51,7 @@ pub fn inst_end() {
     superluminal_perf::end_event();
     let (name, prev) = inst_stack_pop();
     let now = Instant::now();
-    info!(
+    log_info!(
         "{:?} {} END; Took {}μs",
         now,
         name,
@@ -65,7 +66,7 @@ pub fn inst_end() {}
 #[cfg(feature = "instrumented")]
 pub fn evt(name: &str) {
     let now = Instant::now();
-    info!("{:?} {}", now, name);
+    log_info!("{:?} {}", now, name);
 }
 
 /// Log an event with the given name.

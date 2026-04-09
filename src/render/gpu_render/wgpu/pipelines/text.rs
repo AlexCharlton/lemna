@@ -1,5 +1,5 @@
 use bytemuck::cast_slice;
-use log::info;
+use crate::log_info;
 use wgpu;
 use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
@@ -101,7 +101,7 @@ impl TextPipeline {
     ) {
         if num_instances > self.num_instances {
             self.num_instances = next_power_of_2(num_instances);
-            info!(
+            log_info!(
                 "Resizing TextPipeline instance buffer to {}",
                 self.num_instances
             );

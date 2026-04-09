@@ -1,5 +1,5 @@
 use bytemuck::cast_slice;
-use log::info;
+use crate::log_info;
 use wgpu;
 
 use super::buffer_cache::BufferCache;
@@ -75,7 +75,7 @@ impl ShapePipeline {
     ) {
         if num_instances > self.num_instances {
             self.num_instances = next_power_of_2(num_instances);
-            info!(
+            log_info!(
                 "Resizing ShapePipeline instance buffer to {}",
                 self.num_instances
             );

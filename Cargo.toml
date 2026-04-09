@@ -21,7 +21,14 @@ members = [
 ]
 
 [features]
-default = ["file_dialogs", "antialiased_shapes", "open_iconic", "wgpu_renderer"]
+default = [
+    "file_dialogs",
+    "antialiased_shapes",
+    "open_iconic",
+    "wgpu_renderer",
+    "logs",
+]
+logs = ["dep:log"]
 
 std = [
     "critical-section/std",
@@ -70,7 +77,7 @@ hashbrown = "0.16"
 indexmap = { version = "2.2", default-features = false }
 fontdue = { version = "0.9" }
 futures = "0.3.4"
-log = "0.4"
+log = { version = "0.4", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 
 # Feature-dependent dependencies

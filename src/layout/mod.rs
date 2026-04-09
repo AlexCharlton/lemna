@@ -11,6 +11,7 @@ pub use types::*;
 #[macro_use]
 mod macros;
 
+use crate::log_debug;
 use crate::renderable::Caches;
 
 //--------------------------------
@@ -77,7 +78,7 @@ impl super::node::Node {
             size = Default::default();
         }
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
-            log::debug!(
+            log_debug!(
                 "bounds_size: <{}> with parent inner size {:?}, parent bounds size {:?}, remaining space on main axis ({:?}) {:?}, main_resolved {:?}, resulting bounds: {:?}",
                 self.layout.debug.as_ref().unwrap(),
                 &parent_inner_size,
@@ -115,7 +116,7 @@ impl super::node::Node {
         };
 
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
-            log::debug!(
+            log_debug!(
                 "resolve_child_sizes: <{}> in bounds {:?}, inner_size: {:?}",
                 self.layout.debug.as_ref().unwrap(),
                 &bounds_size,
@@ -154,7 +155,7 @@ impl super::node::Node {
             let child_margin = child.layout.margin.maybe_resolve(&inner_size);
 
             if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                log::debug!(
+                log_debug!(
                     "resolve_child_sizes: {} of <{}> with parent <{:?}> - Basing off child.layout.size {:?}, child.layout_result.size {:?}, inner_size {:?}), bounds_size {:?}, child_margin {:?}",
                     if final_pass {
                         "Final pass"
@@ -476,7 +477,7 @@ impl super::node::Node {
                 }
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                    log::debug!(
+                    log_debug!(
                         "set_children_position: setting relative position of <{}> to {:#?} - Basing off ...",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
@@ -493,7 +494,7 @@ impl super::node::Node {
                 child.resolve_position(size);
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                    log::debug!(
+                    log_debug!(
                         "set_children_position: setting absolute position of <{}> to {:#?} - Basing off explicit position ({:#?}), parent size ({:#?}))",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
@@ -648,7 +649,7 @@ impl super::node::Node {
                 elements_positioned_in_row += 1;
 
                 if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                    log::debug!(
+                    log_debug!(
                         "set_children_position: resolved aligned position of <{}> to {:#?} - Basing off parent size ({:#?}), children size: {:?}, main offset: {:?}, cross offset block: {:?}, content cross (single line): {:?}",
                         child.layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
@@ -684,7 +685,7 @@ impl super::node::Node {
         }
 
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
-            log::debug!(
+            log_debug!(
                 "resolve_size: <{}> - final_pass: {:?}, layout_result: {:?}, layout.size: {:?}, children size: {:?}, bounds size: {:?}",
                 self.layout.debug.as_ref().unwrap(),
                 final_pass,
@@ -806,7 +807,7 @@ impl super::node::Node {
         final_pass: bool,
     ) {
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
-            log::debug!(
+            log_debug!(
                 "resolve_layout START: {} of <{}> in bounds {:?}: {:#?}",
                 if final_pass {
                     "Final pass"
@@ -841,7 +842,7 @@ impl super::node::Node {
         }
 
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
-            log::debug!(
+            log_debug!(
                 "resolve_layout END: {} of <{}> - layout_result: {:?}",
                 if final_pass {
                     "Final pass"

@@ -1,5 +1,5 @@
 use lemna::input::{Button, Input, Motion, MouseButton};
-use lemna::{Component, PixelSize, UI};
+use lemna::{log_error, Component, PixelSize, UI};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
@@ -35,8 +35,8 @@ impl Window {
             winit_window: window,
         });
         for (name, data) in fonts.drain(..) {
-            if let Err(e) = ui.add_font(name, data) {
-                log::error!("Failed to add font: {}", e);
+            if let Err(_e) = ui.add_font(name, data) {
+                log_error!("Failed to add font: {}", _e);
             }
         }
 

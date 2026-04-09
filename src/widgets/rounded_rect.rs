@@ -5,6 +5,7 @@ use core::hash::Hash;
 
 use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, RenderContext};
+use crate::log_error;
 use crate::renderable::Renderable;
 
 #[derive(Debug)]
@@ -81,8 +82,8 @@ impl Component for RoundedRect {
                     .and_then(|r| r.first())
                     .and_then(|r| r.as_shape()),
             ))]),
-            Err(e) => {
-                log::error!("Failed to build path: {:?}", e);
+            Err(_e) => {
+                log_error!("Failed to build path: {:?}", _e);
                 None
             }
         }

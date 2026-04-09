@@ -10,6 +10,7 @@ use tiny_skia::{Color, Mask, Pixmap, Transform};
 use super::{Renderer, RgbColor};
 use crate::base_types::{PixelSize, Rect};
 use crate::font_cache::FontCache;
+use crate::log_error;
 use crate::node::Node;
 use crate::render::raster_cache::RasterCache;
 use crate::renderable::Renderable;
@@ -131,14 +132,14 @@ impl Renderer for CPURenderer {
         }
 
         // Draw the pixmap to the draw target
-        if let Err(e) = draw_target.fill_contiguous(
+        if let Err(_e) = draw_target.fill_contiguous(
             &embedded_graphics::primitives::Rectangle::new(
                 embedded_graphics::geometry::Point::new(0, 0),
                 embedded_graphics::geometry::Size::new(size.width, size.height),
             ),
             PixMapIterator::new(&self.pixmap),
         ) {
-            log::error!("Failed to fill draw target: {:?}", e);
+            log_error!("Failed to fill draw target: {:?}", _e);
         }
     }
 }
