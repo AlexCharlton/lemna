@@ -270,7 +270,7 @@ impl FocusState {
         &self.stack
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(all(debug_assertions, feature = "logs"))]
     pub fn stack_names(&self) -> Vec<(NodeId, String)> {
         self.stack
             .iter()

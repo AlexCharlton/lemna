@@ -1,5 +1,4 @@
 use bytemuck::cast_slice;
-use crate::log_info;
 use wgpu;
 use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
@@ -7,6 +6,7 @@ use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
 use crate::base_types::{Pos, Rect};
 use crate::font_cache::FontCache;
+use crate::log_info;
 use crate::render::gpu_render::glyph_cache::{CachedBy, DrawCache};
 use crate::render::gpu_render::renderables::{
     self,

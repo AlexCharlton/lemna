@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
-use lemna::{log_error, Component, Data, PixelSize, UI};
+use lemna::{Component, Data, PixelSize, UI, log_error};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };

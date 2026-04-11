@@ -10,8 +10,6 @@ use crate::event::EventCache;
 use crate::focus::FocusState;
 use crate::instrumenting::*;
 use crate::layout::*;
-#[cfg(feature = "std_cpu")]
-use crate::{log_debug, log_error};
 use crate::log_info;
 use crate::node::Node;
 use crate::render::{ActiveRenderer, Renderer};
@@ -19,6 +17,8 @@ use crate::renderable::Caches;
 use crate::window::Window;
 use crate::window::{clear_current_window, current_window, set_current_window};
 use crate::{Dirty, NodeId, base_types::*};
+#[cfg(feature = "std_cpu")]
+use crate::{log_debug, log_error};
 
 /// `UI` is the main struct that holds the [`Window`], `Renderer` and [`Node`]s of an app.
 /// It handles events and drawing+rendering.
@@ -167,7 +167,9 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         let logical_size = Arc::new(RwLock::new(window.logical_size()));
         log_info!(
             "New window with physical size {:?} client size {:?} and scale factor {:?}",
-            physical_size, logical_size, scale_factor
+            physical_size,
+            logical_size,
+            scale_factor
         );
         inst("UI::new");
         let mut component = A::default();
@@ -365,8 +367,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
 
                         *old = new;
 
-                        if do_render {
-                            current_window().as_ref().map(|w| w.redraw());
+                        if do_render && let Some(w) = current_window().as_ref() {
+                            w.redraw();
                         }
                         *frame_dirty.write().unwrap() = true;
                     }
@@ -388,8 +390,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     let do_render = node.render(&mut caches, scale_factor);
                     inst_end();
 
-                    if do_render {
-                        current_window().as_ref().map(|w| w.redraw());
+                    if do_render && let Some(w) = current_window().as_ref() {
+                        w.redraw();
                     }
                     *frame_dirty.write().unwrap() = true;
                     inst_end();

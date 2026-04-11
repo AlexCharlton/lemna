@@ -1,5 +1,5 @@
 use lemna::input::{Button, Input, Motion, MouseButton};
-use lemna::{log_error, Component, PixelSize, UI};
+use lemna::{Component, PixelSize, UI, log_error};
 use raw_window_handle::{
     HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
 };

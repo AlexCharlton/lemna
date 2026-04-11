@@ -1,9 +1,9 @@
 use bytemuck::{Pod, Zeroable, cast_slice};
-use crate::log_info;
 use wgpu::{self, util::DeviceExt};
 
 use super::shared::{VBDesc, create_pipeline_depth_stencil};
 use crate::base_types::{Point, Pos, Rect, Scale};
+use crate::log_info;
 use crate::render::gpu_render::wgpu::context;
 use crate::render::next_power_of_2;
 

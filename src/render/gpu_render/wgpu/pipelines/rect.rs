@@ -1,9 +1,9 @@
 use bytemuck::cast_slice;
-use crate::log_info;
 use wgpu::{self, util::DeviceExt};
 
 use super::shared::{VBDesc, create_pipeline};
 use crate::base_types::Rect;
+use crate::log_info;
 use crate::render::gpu_render::{
     rectangle::{Instance, Rectangle, Vertex},
     wgpu::context,

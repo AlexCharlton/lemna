@@ -1,10 +1,10 @@
 use bytemuck::cast_slice;
-use crate::log_info;
 use wgpu;
 
 use super::buffer_cache::BufferCache;
 use super::shared::{VBDesc, create_pipeline};
 use crate::base_types::Rect;
+use crate::log_info;
 use crate::render::gpu_render::{
     self,
     shape::{Instance, Shape, Vertex},
