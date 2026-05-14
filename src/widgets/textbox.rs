@@ -434,8 +434,8 @@ impl TextBoxText {
     }
 
     fn cursor_position_px(&self, pos: usize) -> f32 {
-        let len = self.state_ref().text.len();
         let glyphs = &self.state_ref().glyphs;
+        let len = glyphs.len();
         (if pos == 0 {
             0.0
         } else if pos < len {
