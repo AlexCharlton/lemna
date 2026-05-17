@@ -11,5 +11,9 @@ crate-type = ["cdylib", "lib"]
 lemna = { path = "../../../", default-features = false, features = [
     "antialiased_shapes",
     "open_iconic",
+    "logs",
 ] }
-lemna-nih-plug = { path = "../../../nih-plug/", features = ["standalone"] }
+lemna-nih-plug = { path = "../../../nih-plug/", features = [
+    "standalone",
+    "gpu_renderer",
+] }

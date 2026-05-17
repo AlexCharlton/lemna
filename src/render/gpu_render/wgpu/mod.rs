@@ -296,6 +296,32 @@ impl crate::render::Renderer for WGPURenderer {
         inst("WGPURenderer::render#render_frames");
         let mut command_buffers: Vec<wgpu::CommandBuffer> = vec![];
         let mut load_op = wgpu::LoadOp::Clear(wgpu::Color::WHITE);
+
+        // D3D12 requires the MSAA resolve target to be cleared before ResolveSubresource.
+        if cfg!(feature = "antialiased_shapes") {
+            let mut clear_encoder =
+                self.context
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("clear MSAA framebuffer encoder"),
+                    });
+            {
+                let _pass = clear_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: &self.context.framebuffer,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                            store: true,
+                        },
+                    })],
+                    depth_stencil_attachment: None,
+                    label: Some("clear MSAA framebuffer"),
+                });
+            }
+            command_buffers.push(clear_encoder.finish());
+        }
+
         num_frames = 0;
         num_rects = 0;
         num_shapes = 0;
