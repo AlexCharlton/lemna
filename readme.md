@@ -66,18 +66,7 @@ Lemna should have very few runtime dependencies. Exceptions listed below.
 
 wgpu on Linux requires Vulkan libraries.
 
-The `FileSelector` widget uses [tinyfiledialogs](https://sourceforge.net/projects/tinyfiledialogs/), which will call out to the following:
-```
-- On unix you need one of the following:
-  applescript, kdialog, zenity, matedialog, shellementary, qarma, yad,
-  python (2 or 3)/tkinter/python-dbus (optional), Xdialog
-  or curses dialogs (opens terminal if running without console).
-- One of those is already included on most (if not all) desktops.
-- In the absence of those it will use gdialog, gxmessage or whiptail
-  with a textinputbox.
-- If nothing is found, it switches to basic console input,
-  it opens a console if needed (requires xterm + bash).
-```
+The `FileSelector` widget uses [rfd](https://github.com/PolyMeilex/rfd) for native file dialogs (Win32, Cocoa, or GTK / XDG desktop portal on Linux).
 
 When using wgpu's Vulkan backend (will be selected for Linux), debug builds will require the validation layer `VK_LAYER_KHRONOS_validation`.
 

@@ -1,10 +1,30 @@
 use std::path::PathBuf;
+use std::sync::Mutex;
+use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 use crate::component::{Component, Message};
+use crate::event;
 use crate::{Node, Styled, txt};
-use lemna_macros::component;
+use lemna_macros::{component, state_component_impl};
 
-#[component(Styled, Internal)]
+#[derive(Debug, Default)]
+struct FileSelectorState {
+    /// Wrapped in `Mutex` so `FileSelector` remains `Sync` (`Receiver` is not `Sync`).
+    pending: Option<Mutex<Receiver<Option<PathBuf>>>>,
+}
+
+#[derive(Debug)]
+enum FileSelectorAction {
+    Open,
+}
+
+struct DialogParams {
+    title: String,
+    default_path: Option<PathBuf>,
+    filter: Option<(Vec<String>, String)>,
+}
+
+#[component(State = "FileSelectorState", Styled, Internal)]
 pub struct FileSelector {
     pub title: String,
     pub default_path: Option<PathBuf>,
@@ -29,6 +49,8 @@ impl FileSelector {
             default_path: None,
             filter: None,
             on_select: None,
+            state: Some(FileSelectorState::default()),
+            dirty: crate::Dirty::No,
             class: Default::default(),
             style_overrides: Default::default(),
         }
@@ -50,39 +72,100 @@ impl FileSelector {
         self
     }
 
-    fn select(&self) -> Option<PathBuf> {
-        let path = self
-            .default_path
-            .as_ref()
-            .map(|p| p.to_str().expect("Expected path to be a unicode string"))
-            .unwrap_or("");
-        let filters: Option<Vec<&str>> = self
-            .filter
-            .as_ref()
-            .map(|(filters, _)| filters.iter().map(|x| x.as_str()).collect());
+    fn start_dialog(&mut self) {
+        if self.state_ref().pending.is_some() {
+            return;
+        }
 
-        let f = tinyfiledialogs::open_file_dialog(
-            &self.title,
-            path,
-            self.filter
-                .as_ref()
-                .map(|(_, description)| (&filters.as_ref().unwrap()[..], description.as_str())),
-        );
-        f.map(|s| s.into())
+        let (tx, rx) = mpsc::channel();
+        let params = DialogParams {
+            title: self.title.clone(),
+            default_path: self.default_path.clone(),
+            filter: self.filter.clone(),
+        };
+
+        self.state_mut().pending = Some(Mutex::new(rx));
+        std::thread::spawn(move || {
+            let _ = tx.send(run_dialog(params));
+        });
     }
 }
 
+fn run_dialog(params: DialogParams) -> Option<PathBuf> {
+    let mut dialog = rfd::FileDialog::new().set_title(&params.title);
+
+    if let Some(path) = &params.default_path {
+        if path.is_dir() {
+            dialog = dialog.set_directory(path);
+        } else {
+            if let Some(parent) = path.parent() {
+                if !parent.as_os_str().is_empty() {
+                    dialog = dialog.set_directory(parent);
+                }
+            }
+            if let Some(name) = path.file_name() {
+                dialog = dialog.set_file_name(name.to_string_lossy());
+            }
+        }
+    }
+
+    if let Some((filters, description)) = &params.filter {
+        let extensions: Vec<String> = filters
+            .iter()
+            .map(|f| {
+                f.strip_prefix("*.")
+                    .or_else(|| f.strip_prefix('.'))
+                    .map(str::to_string)
+                    .unwrap_or_else(|| f.clone())
+            })
+            .collect();
+        let ext_refs: Vec<&str> = extensions.iter().map(String::as_str).collect();
+        dialog = dialog.add_filter(description, &ext_refs);
+    }
+
+    dialog.pick_file()
+}
+
+#[state_component_impl(FileSelectorState, Internal)]
 impl Component for FileSelector {
+    fn update(&mut self, msg: Message) -> Vec<Message> {
+        if msg.downcast_ref::<FileSelectorAction>().is_some() {
+            self.start_dialog();
+            vec![]
+        } else {
+            vec![msg]
+        }
+    }
+
+    fn on_tick(&mut self, event: &mut event::Event<event::Tick>) {
+        let recv_result = {
+            let Some(rx) = self.state_ref().pending.as_ref() else {
+                return;
+            };
+            rx.lock().unwrap().try_recv()
+        };
+
+        match recv_result {
+            Ok(path) => {
+                self.state_mut().pending = None;
+                if let Some(f) = &self.on_select {
+                    event.emit(f(path));
+                }
+            }
+            Err(TryRecvError::Empty) => {}
+            Err(TryRecvError::Disconnected) => {
+                self.state_mut().pending = None;
+            }
+        }
+    }
+
     fn view(&self) -> Option<Node> {
         let mut b = super::Button::new(txt!("...")); // TODO Style override
         *b.style_overrides_mut() = self.style_overrides.clone();
         if let Some(class) = self.class {
             b = b.with_class(class);
         }
-        let this: &'static Self = unsafe { std::mem::transmute(self) };
-        if let Some(f) = &this.on_select {
-            b = b.on_click(Box::new(|| f(this.select())));
-        }
+        b = b.on_click(Box::new(|| msg!(FileSelectorAction::Open)));
 
         Some(node!(b, lay!(size: size_pct!(100.0))))
     }

@@ -148,7 +148,7 @@ impl lemna::Component for App {
             node = node.push(node!(
             widgets::FileSelector::new("Choose a file".to_string())
                     .on_select(Box::new(|f| msg!(HelloEvent::FileSelect { selection: f.clone() }))),
-                [size: [Auto], margin: [Auto, Auto, 50]]
+                [size: [20.0], margin: [Auto, Auto, 50]]
             ));
         }
         Some(node)
