@@ -74,7 +74,7 @@ impl Plugin for HelloPlugin {
         ProcessStatus::Normal
     }
 
-    fn editor(&self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         lemna_nih_plug::create_lemna_editor::<App, _, _>(
             lemna_nih_plug::WindowOptions::new("Hello Lemna", (400, 300)),
             |_ctx, _ui| {},
@@ -88,7 +88,7 @@ impl ClapPlugin for HelloPlugin {
     const CLAP_DESCRIPTION: Option<&'static str> = Some("Example plugin for Lemna");
     const CLAP_MANUAL_URL: Option<&'static str> = Some(Self::URL);
     const CLAP_SUPPORT_URL: Option<&'static str> = None;
-    const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Utility];
+    const CLAP_FEATURES: &'static [ClapFeature] = &[ClapFeature::Utility, ClapFeature::Analyzer];
 }
 
 impl Vst3Plugin for HelloPlugin {

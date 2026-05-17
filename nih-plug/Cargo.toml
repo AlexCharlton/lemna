@@ -2,7 +2,6 @@
 name = "lemna-nih-plug"
 version = "0.4.0"
 edition = "2024"
-repository = "https://github.com/AlexCharlton/midi-m8"
 license = "MIT"
 
 [features]
@@ -10,9 +9,10 @@ standalone = ["nih_plug/standalone"]
 
 [dependencies]
 baseview = { workspace = true }
-lemna-baseview = { version = "0.5", path = "../backends/baseview" }
+lemna-baseview = { version = "0.5", path = "../backends/baseview", default-features = false }
 lemna = { version = "0.5", path = ".." }
 crossbeam-channel = "0.4"
 [dependencies.nih_plug]
-#path = "../../external/nih-plug"
+# path = "../../external/nih-plug"
 git = "https://github.com/AlexCharlton/nih-plug.git"
+rev = "a77ecc48794bb5f50b9aba389c07696e05b7a9fe"
