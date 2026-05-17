@@ -628,7 +628,7 @@ impl DrawCache {
                         .collect::<Vec<_>>();
 
                     // Find contiguous slices of dirty rows
-                    dirty_rows.sort_by(|(top_a, _), (top_b, _)| top_a.cmp(top_b));
+                    dirty_rows.sort_by_key(|(top_a, _)| *top_a);
                     let mut slices: Vec<(u32, u32)> = vec![];
                     for (top, row) in dirty_rows {
                         if let Some(slice) = slices.last_mut() {

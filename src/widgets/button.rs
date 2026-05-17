@@ -272,11 +272,9 @@ impl Component for Button {
                 }
                 event.stop_bubbling();
             }
-            Key::Escape => {
-                if self.unfocus_on_escape {
-                    event.blur();
-                    event.stop_bubbling();
-                }
+            Key::Escape if self.unfocus_on_escape => {
+                event.blur();
+                event.stop_bubbling();
             }
             _ => {}
         }

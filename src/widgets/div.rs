@@ -160,11 +160,9 @@ impl Component for Div {
             let inner_scale = event.current_physical_inner_scale().unwrap();
 
             match event.input.key {
-                Key::Up if self.y_scrollable() => {
-                    if scroll_position.y > 0.0 {
-                        scroll_position.y = (scroll_position.y - SCROLL_STEP).max(0.0);
-                        scrolled = true;
-                    }
+                Key::Up if self.y_scrollable() && scroll_position.y > 0.0 => {
+                    scroll_position.y = (scroll_position.y - SCROLL_STEP).max(0.0);
+                    scrolled = true;
                 }
                 Key::Down if self.y_scrollable() => {
                     let max_position = inner_scale.height - size.height;
@@ -173,11 +171,9 @@ impl Component for Div {
                         scrolled = true;
                     }
                 }
-                Key::Left if self.x_scrollable() => {
-                    if scroll_position.x > 0.0 {
-                        scroll_position.x = (scroll_position.x - SCROLL_STEP).max(0.0);
-                        scrolled = true;
-                    }
+                Key::Left if self.x_scrollable() && scroll_position.x > 0.0 => {
+                    scroll_position.x = (scroll_position.x - SCROLL_STEP).max(0.0);
+                    scrolled = true;
                 }
                 Key::Right if self.x_scrollable() => {
                     let max_position = inner_scale.width - size.width;
