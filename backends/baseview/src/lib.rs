@@ -2,6 +2,47 @@ use std::any::Any;
 use std::cell::UnsafeCell;
 use std::sync::{Arc, OnceLock, RwLock};
 
+#[cfg(windows)]
+fn sync_child_to_parent_client(window: &baseview::Window<'_>) {
+    use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+    use winapi::shared::windef::RECT;
+    use winapi::um::winuser::{GetClientRect, GetParent, SetWindowPos, HWND_TOP, SWP_SHOWWINDOW};
+
+    let RawWindowHandle::Win32(handle) = window.raw_window_handle() else {
+        return;
+    };
+    let hwnd = handle.hwnd as winapi::shared::windef::HWND;
+    unsafe {
+        let parent = GetParent(hwnd);
+        if parent.is_null() {
+            return;
+        }
+        let mut rect = RECT {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+        };
+        if GetClientRect(parent, &mut rect) == 0 {
+            return;
+        }
+        let width = rect.right - rect.left;
+        let height = rect.bottom - rect.top;
+        if width <= 0 || height <= 0 {
+            return;
+        }
+        SetWindowPos(
+            hwnd,
+            HWND_TOP,
+            0,
+            0,
+            width,
+            height,
+            SWP_SHOWWINDOW,
+        );
+    }
+}
+
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
 use lemna::{Component, Data, PixelSize, UI, log_error};
@@ -117,11 +158,6 @@ impl Window {
                     }
                 }
                 build(&mut ui);
-                // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
-                #[cfg(windows)]
-                {
-                    window.resize(baseview::Size::new(1.0, 1.0));
-                }
 
                 BaseViewUI { ui, parent_channel }
             },
@@ -217,8 +253,13 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                         self.ui.update(m);
                     }
                     ParentMessage::Resize => {
-                        let size = lemna::window::physical_size().unwrap();
-                        window.resize(baseview::Size::new(size.width.into(), size.height.into()));
+                        let size = get_window_size();
+                        window.resize(baseview::Size::new(
+                            size.logical_size.0.into(),
+                            size.logical_size.1.into(),
+                        ));
+                        #[cfg(windows)]
+                        sync_child_to_parent_client(window);
                     }
                 }
             }
