@@ -14,6 +14,9 @@ use crate::{Dirty, NodeId, base_types::*, input::*};
 mod focus_helpers;
 use focus_helpers::FocusContext;
 
+#[cfg(feature = "std_cpu")]
+mod softbuffer_draw_target;
+
 #[cfg(feature = "std")]
 mod std_ui;
 #[cfg(feature = "std")]
