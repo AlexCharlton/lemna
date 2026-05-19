@@ -6,6 +6,7 @@ license = "MIT"
 
 [features]
 standalone = ["nih_plug/standalone"]
+zstd = ["nih_plug/zstd"]
 cpu_renderer = ["lemna/std_cpu"]
 gpu_renderer = ["lemna/wgpu_renderer"]
 
