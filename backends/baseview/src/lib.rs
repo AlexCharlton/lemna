@@ -6,7 +6,7 @@ use std::sync::{Arc, OnceLock, RwLock};
 fn sync_child_to_parent_client(window: &baseview::Window<'_>) {
     use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
     use winapi::shared::windef::RECT;
-    use winapi::um::winuser::{GetClientRect, GetParent, SetWindowPos, HWND_TOP, SWP_SHOWWINDOW};
+    use winapi::um::winuser::{GetClientRect, GetParent, HWND_TOP, SWP_SHOWWINDOW, SetWindowPos};
 
     let RawWindowHandle::Win32(handle) = window.raw_window_handle() else {
         return;
@@ -31,15 +31,7 @@ fn sync_child_to_parent_client(window: &baseview::Window<'_>) {
         if width <= 0 || height <= 0 {
             return;
         }
-        SetWindowPos(
-            hwnd,
-            HWND_TOP,
-            0,
-            0,
-            width,
-            height,
-            SWP_SHOWWINDOW,
-        );
+        SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_SHOWWINDOW);
     }
 }
 
