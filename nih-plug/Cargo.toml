@@ -18,4 +18,4 @@ crossbeam-channel = "0.4"
 [dependencies.nih_plug]
 # path = "../../external/nih-plug"
 git = "https://github.com/AlexCharlton/nih-plug.git"
-rev = "a77ecc48794bb5f50b9aba389c07696e05b7a9fe"
+rev = "b64f210fb088c81ef0f36147e3ea82acf9da2e6a"
