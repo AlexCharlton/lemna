@@ -1,6 +1,5 @@
 use lemna::{self, widgets, *};
-use lemna_nih_plug::nih_plug;
-use nih_plug::prelude::*;
+use nice_plug::prelude::*;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -87,8 +86,8 @@ impl Plugin for ParamsPlugin {
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let app_params = self.params.clone();
-        lemna_nih_plug::create_lemna_editor::<App, _, _>(
-            lemna_nih_plug::WindowOptions::new("Hello Lemna Params", (400, 300)),
+        lemna_nice_plug::create_lemna_editor::<App, _, _>(
+            lemna_nice_plug::WindowOptions::new("Hello Lemna Params", (400, 300)),
             move |_ctx, ui| {
                 ui.state_mut::<AppState, _>(|s| s.params = app_params.clone());
             },
@@ -110,5 +109,5 @@ impl Vst3Plugin for ParamsPlugin {
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Tools];
 }
 
-nih_export_clap!(ParamsPlugin);
-nih_export_vst3!(ParamsPlugin);
+nice_export_clap!(ParamsPlugin);
+nice_export_vst3!(ParamsPlugin);

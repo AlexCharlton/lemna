@@ -1,6 +1,5 @@
 use lemna::{self, widgets, *};
-use lemna_nih_plug::nih_plug;
-use nih_plug::prelude::*;
+use nice_plug::prelude::*;
 use std::sync::Arc;
 
 #[derive(Debug, Default)]
@@ -75,8 +74,8 @@ impl Plugin for HelloPlugin {
     }
 
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
-        lemna_nih_plug::create_lemna_editor::<App, _, _>(
-            lemna_nih_plug::WindowOptions::new("Hello Lemna", (400, 300)),
+        lemna_nice_plug::create_lemna_editor::<App, _, _>(
+            lemna_nice_plug::WindowOptions::new("Hello Lemna", (400, 300)),
             |_ctx, _ui| {},
             Vec::new,
         )
@@ -96,5 +95,5 @@ impl Vst3Plugin for HelloPlugin {
     const VST3_SUBCATEGORIES: &'static [Vst3SubCategory] = &[Vst3SubCategory::Tools];
 }
 
-nih_export_clap!(HelloPlugin);
-nih_export_vst3!(HelloPlugin);
+nice_export_clap!(HelloPlugin);
+nice_export_vst3!(HelloPlugin);

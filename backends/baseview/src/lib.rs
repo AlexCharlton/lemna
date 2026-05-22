@@ -58,6 +58,7 @@ pub enum ParentMessage {
 struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
     ui: UI<A>,
     parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
+    drop_target_valid: Arc<RwLock<bool>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -125,9 +126,6 @@ impl Window {
                 size: baseview::Size::new(options.width.into(), options.height.into()),
                 scale: options.scale_policy,
                 resizable: false,
-                drop_target_valid: Some(Box::new(move || -> bool {
-                    *drop_target_valid2.read().unwrap()
-                })),
             },
             move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
                 let scale_factor = match options.scale_policy {
@@ -151,7 +149,11 @@ impl Window {
                 }
                 build(&mut ui);
 
-                BaseViewUI { ui, parent_channel }
+                BaseViewUI {
+                    ui,
+                    parent_channel,
+                    drop_target_valid: drop_target_valid2,
+                }
             },
         )
     }
@@ -168,9 +170,6 @@ impl Window {
                 size: baseview::Size::new(options.width.into(), options.height.into()),
                 scale: options.scale_policy,
                 resizable: options.resizable,
-                drop_target_valid: Some(Box::new(move || -> bool {
-                    *drop_target_valid2.read().unwrap()
-                })),
             },
             move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
                 let scale_factor = match options.scale_policy {
@@ -192,14 +191,11 @@ impl Window {
                         log_error!("Failed to add font: {}", _e);
                     }
                 }
-                // If we set the window to the wrong size, we'll get a resize event, which will let us get the scale factor
-                #[cfg(windows)]
-                {
-                    window.resize(baseview::Size::new(1.0, 1.0));
-                }
+
                 BaseViewUI {
                     ui,
                     parent_channel: None,
+                    drop_target_valid: drop_target_valid2,
                 }
             },
         );
@@ -274,6 +270,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
             >(window);
             set_current_window(baseview_window);
         }
+        let mut drag_event = false;
         match event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
@@ -296,18 +293,41 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 baseview::WindowEvent::WillClose => self.ui.handle_input(&Input::Exit),
                 baseview::WindowEvent::Focused => self.ui.handle_input(&Input::Focus(true)),
                 baseview::WindowEvent::Unfocused => self.ui.handle_input(&Input::Focus(false)),
-                baseview::WindowEvent::DragEnter(d) => self
-                    .ui
-                    .handle_input(&Input::Drag(Drag::Start(baseview_data_to_lemna(d)))),
-                baseview::WindowEvent::DragLeave => self.ui.handle_input(&Input::Drag(Drag::End)),
-                baseview::WindowEvent::Dragging => {
-                    self.ui.handle_input(&Input::Drag(Drag::Dragging));
-                }
-                baseview::WindowEvent::Drop(d) => self
-                    .ui
-                    .handle_input(&Input::Drag(Drag::Drop(baseview_data_to_lemna(d)))),
             },
             baseview::Event::Mouse(event) => match event {
+                baseview::MouseEvent::DragEntered { position, data, .. } => {
+                    drag_event = true;
+                    *self.drop_target_valid.write().unwrap() = true;
+                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
+                        x: position.x as f32,
+                        y: position.y as f32,
+                    }));
+                    for data in drop_data_to_lemna(data) {
+                        self.ui.handle_input(&Input::Drag(Drag::Start(data)));
+                    }
+                }
+                baseview::MouseEvent::DragMoved { position, .. } => {
+                    drag_event = true;
+                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
+                        x: position.x as f32,
+                        y: position.y as f32,
+                    }));
+                    self.ui.handle_input(&Input::Drag(Drag::Dragging));
+                }
+                baseview::MouseEvent::DragLeft => {
+                    drag_event = true;
+                    self.ui.handle_input(&Input::Drag(Drag::End));
+                }
+                baseview::MouseEvent::DragDropped { position, data, .. } => {
+                    drag_event = true;
+                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
+                        x: position.x as f32,
+                        y: position.y as f32,
+                    }));
+                    if let Some(data) = drop_data_to_lemna(data).into_iter().next() {
+                        self.ui.handle_input(&Input::Drag(Drag::Drop(data)));
+                    }
+                }
                 baseview::MouseEvent::CursorMoved {
                     position,
                     modifiers: _,
@@ -367,7 +387,11 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
             }
         }
         clear_current_window();
-        baseview::EventStatus::Captured
+        if drag_event && *self.drop_target_valid.read().unwrap() {
+            baseview::EventStatus::AcceptDrop(baseview::DropEffect::Copy)
+        } else {
+            baseview::EventStatus::Captured
+        }
     }
 }
 
@@ -542,7 +566,7 @@ impl lemna::window::Window for Window {
 
     fn start_drag(&self, data: Data) {
         if let Some(win) = current_window() {
-            win.start_drag(lemna_data_to_baseview(data));
+            win.start_drag(lemna_data_to_drop_data(data));
         }
     }
 
@@ -556,7 +580,6 @@ impl lemna::window::Window for Window {
             "None" => MouseCursor::Hidden,
             "Hidden" => MouseCursor::Hidden,
             "Ibeam" | "Text" => MouseCursor::Text,
-            "PointingHand" => MouseCursor::PointingHand,
             "Hand" => MouseCursor::Hand,
             "HandGrabbing" => MouseCursor::HandGrabbing,
             "NoEntry" => MouseCursor::NotAllowed,
@@ -580,16 +603,17 @@ impl lemna::window::Window for Window {
     }
 }
 
-fn baseview_data_to_lemna(d: baseview::Data) -> Data {
-    match d {
-        baseview::Data::Filepath(p) => Data::Filepath(p),
-        baseview::Data::String(s) => Data::String(s),
+fn drop_data_to_lemna(data: baseview::DropData) -> Vec<Data> {
+    match data {
+        baseview::DropData::None => vec![],
+        baseview::DropData::Files(paths) => paths.into_iter().map(Data::Filepath).collect(),
+        baseview::DropData::Url(url) => vec![Data::String(url)],
     }
 }
 
-fn lemna_data_to_baseview(d: Data) -> baseview::Data {
+fn lemna_data_to_drop_data(d: Data) -> baseview::DropData {
     match d {
-        Data::Filepath(p) => baseview::Data::Filepath(p),
-        Data::String(s) => baseview::Data::String(s),
+        Data::Filepath(p) => baseview::DropData::Files(vec![p]),
+        Data::String(_) => baseview::DropData::None,
     }
 }

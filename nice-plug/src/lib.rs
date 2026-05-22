@@ -1,13 +1,15 @@
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use lemna::UI;
 use lemna_baseview::{self, Message, ParentMessage};
-use nih_plug::prelude::*;
+use nice_plug_core::{
+    context::gui::GuiContext,
+    editor::{Editor, ParentWindowHandle},
+};
 use std::{
     marker::PhantomData,
     sync::{Arc, RwLock},
 };
 
-pub extern crate nih_plug;
 pub use lemna_baseview::WindowOptions;
 
 #[derive(Clone)]

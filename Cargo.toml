@@ -14,10 +14,10 @@ members = [
     "macros",
     "backends/baseview",
     "backends/winit",
-    "nih-plug",
-    "nih-plug/xtask",
-    "nih-plug/examples/hello",
-    "nih-plug/examples/params",
+    "nice-plug",
+    "nice-plug/xtask",
+    "nice-plug/examples/hello",
+    "nice-plug/examples/params",
 ]
 
 [features]
@@ -96,11 +96,16 @@ ttf-noto-sans = "0.1"
 git = "https://github.com/AlexCharlton/baseview.git"
 # path = "../external/baseview"
 
+[workspace.dependencies.nice-plug]
+git = "https://codeberg.org/AlexCharlton/nice-plug.git"
+# path = "../external/nice-plug/crates/nice-plug"
+
+[workspace.dependencies.nice-plug-core]
+git = "https://codeberg.org/AlexCharlton/nice-plug.git"
+# path = "../external/nice-plug/crates/nice-plug-core"
+
 [build-dependencies]
 glob = "0.3"
 shaderc = { version = "0.10", optional = true, features = [
     "prefer-static-linking",
 ] }
-
-# [patch.crates-io]
-# objc = { path="../external/rust-objc" }

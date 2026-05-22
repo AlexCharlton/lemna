@@ -1,0 +1,16 @@
+[package]
+name = "lemna-nice-plug"
+version = "0.4.0"
+edition = "2024"
+license = "MIT"
+
+[features]
+cpu_renderer = ["lemna/std_cpu"]
+gpu_renderer = ["lemna/wgpu_renderer"]
+
+[dependencies]
+baseview = { workspace = true }
+lemna-baseview = { version = "0.5", path = "../backends/baseview", default-features = false }
+lemna = { version = "0.5", path = "..", default-features = false }
+crossbeam-channel = "0.4"
+nice-plug-core = { workspace = true }

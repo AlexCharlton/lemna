@@ -13,8 +13,8 @@ lemna = { path = "../../../", default-features = false, features = [
     "open_iconic",
 ] }
 lemna-macros = { path = "../../../macros/" }
-lemna-nih-plug = { path = "../../../nih-plug/", features = [
+lemna-nice-plug = { path = "../../../nice-plug/", features = ["gpu_renderer"] }
+nice-plug = { workspace = true, features = [
     "standalone",
-    "gpu_renderer",
 ] }
 log = { version = "0.4", features = ["max_level_warn"] }

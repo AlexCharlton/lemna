@@ -30,7 +30,7 @@ A Reactive UI framework for Rust that's both no-std compatible and GPU-accelerat
   - `FileSelector`, a dialog for selecting files (feature: `file_dialogs`)
 - [OpenIconic icons](https://kordamp.org/ikonli/cheat-sheet-openiconic.html) built-in (feature: `open_iconic`)
 - wgpu rendering backend batches primitives together to minimize calls out to wgpu (which makes it a lot faster than things that don't do this!)
-- [nih-plug](https://github.com/robbert-vdh/nih-plug) support in the lemna-nih-plug package
+- [nice-plug](https://codeberg.org/BillyDM/nice-plug) support in the lemna-nice-plug package
 
 **What's missing:**
 - More robust and more widgets (e.g. text selection support on `Text` widget)

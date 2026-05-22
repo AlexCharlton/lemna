@@ -1,6 +1,6 @@
-# lemna-nih-plug
+# lemna-nice-plug
 
-[nih-plug](https://github.com/robbert-vdh/nih-plug) support for lemna, using the baseview backend.
+[nice-plug](https://codeberg.org/BillyDM/nice-plug) support for lemna, using the baseview backend.
 
 ```
 cargo xtask bundle plugin-example-hello
