@@ -59,6 +59,9 @@ struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
     ui: UI<A>,
     parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
     drop_target_valid: Arc<RwLock<bool>>,
+    // For parented windows, we need to force the focus to the window when the user clicks on it
+    needs_forced_focus: bool,
+    focused: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -153,6 +156,8 @@ impl Window {
                     ui,
                     parent_channel,
                     drop_target_valid: drop_target_valid2,
+                    needs_forced_focus: true,
+                    focused: false,
                 }
             },
         )
@@ -196,6 +201,8 @@ impl Window {
                     ui,
                     parent_channel: None,
                     drop_target_valid: drop_target_valid2,
+                    needs_forced_focus: false,
+                    focused: false,
                 }
             },
         );
@@ -291,8 +298,14 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     self.ui.handle_input(&Input::Resize);
                 }
                 baseview::WindowEvent::WillClose => self.ui.handle_input(&Input::Exit),
-                baseview::WindowEvent::Focused => self.ui.handle_input(&Input::Focus(true)),
-                baseview::WindowEvent::Unfocused => self.ui.handle_input(&Input::Focus(false)),
+                baseview::WindowEvent::Focused => {
+                    self.ui.handle_input(&Input::Focus(true));
+                    self.focused = true;
+                }
+                baseview::WindowEvent::Unfocused => {
+                    self.ui.handle_input(&Input::Focus(false));
+                    self.focused = false;
+                }
             },
             baseview::Event::Mouse(event) => match event {
                 baseview::MouseEvent::DragEntered { position, data, .. } => {
@@ -332,6 +345,9 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     position,
                     modifiers: _,
                 } => {
+                    if self.needs_forced_focus && !self.focused {
+                        window.focus();
+                    }
                     self.ui.handle_input(&Input::Motion(Motion::Mouse {
                         x: position.x as f32,
                         y: position.y as f32,
