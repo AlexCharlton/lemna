@@ -278,6 +278,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
             set_current_window(baseview_window);
         }
         let mut drag_event = false;
+        let mut handled = true;
         match event {
             baseview::Event::Window(event) => match event {
                 baseview::WindowEvent::Resized(window_info) => {
@@ -295,15 +296,17 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                         scale_factor,
                         scale_policy,
                     );
-                    self.ui.handle_input(&Input::Resize);
+                    handled &= self.ui.handle_input(&Input::Resize);
                 }
-                baseview::WindowEvent::WillClose => self.ui.handle_input(&Input::Exit),
+                baseview::WindowEvent::WillClose => {
+                    handled &= self.ui.handle_input(&Input::Exit);
+                }
                 baseview::WindowEvent::Focused => {
-                    self.ui.handle_input(&Input::Focus(true));
+                    handled &= self.ui.handle_input(&Input::Focus(true));
                     self.focused = true;
                 }
                 baseview::WindowEvent::Unfocused => {
-                    self.ui.handle_input(&Input::Focus(false));
+                    handled &= self.ui.handle_input(&Input::Focus(false));
                     self.focused = false;
                 }
             },
@@ -311,34 +314,34 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 baseview::MouseEvent::DragEntered { position, data, .. } => {
                     drag_event = true;
                     *self.drop_target_valid.write().unwrap() = true;
-                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
+                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
                         x: position.x as f32,
                         y: position.y as f32,
                     }));
                     for data in drop_data_to_lemna(data) {
-                        self.ui.handle_input(&Input::Drag(Drag::Start(data)));
+                        handled &= self.ui.handle_input(&Input::Drag(Drag::Start(data)));
                     }
                 }
                 baseview::MouseEvent::DragMoved { position, .. } => {
                     drag_event = true;
-                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
+                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
                         x: position.x as f32,
                         y: position.y as f32,
                     }));
-                    self.ui.handle_input(&Input::Drag(Drag::Dragging));
+                    handled &= self.ui.handle_input(&Input::Drag(Drag::Dragging));
                 }
                 baseview::MouseEvent::DragLeft => {
                     drag_event = true;
-                    self.ui.handle_input(&Input::Drag(Drag::End));
+                    handled &= self.ui.handle_input(&Input::Drag(Drag::End));
                 }
                 baseview::MouseEvent::DragDropped { position, data, .. } => {
                     drag_event = true;
-                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
+                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
                         x: position.x as f32,
                         y: position.y as f32,
                     }));
                     if let Some(data) = drop_data_to_lemna(data).into_iter().next() {
-                        self.ui.handle_input(&Input::Drag(Drag::Drop(data)));
+                        handled &= self.ui.handle_input(&Input::Drag(Drag::Drop(data)));
                     }
                 }
                 baseview::MouseEvent::CursorMoved {
@@ -348,7 +351,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     if self.needs_forced_focus && !self.focused {
                         window.focus();
                     }
-                    self.ui.handle_input(&Input::Motion(Motion::Mouse {
+                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
                         x: position.x as f32,
                         y: position.y as f32,
                     }));
@@ -358,7 +361,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     modifiers: _,
                 } => {
                     if let Some(button) = translate_mouse_button(&button) {
-                        self.ui.handle_input(&Input::Press(button));
+                        handled &= self.ui.handle_input(&Input::Press(button));
                     }
                 }
                 baseview::MouseEvent::ButtonReleased {
@@ -366,7 +369,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     modifiers: _,
                 } => {
                     if let Some(button) = translate_mouse_button(&button) {
-                        self.ui.handle_input(&Input::Release(button));
+                        handled &= self.ui.handle_input(&Input::Release(button));
                     }
                 }
                 baseview::MouseEvent::WheelScrolled {
@@ -382,29 +385,34 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     if cfg!(target_os = "macos") {
                         x *= -1.0;
                     }
-                    self.ui
+                    handled &= self
+                        .ui
                         .handle_input(&Input::Motion(Motion::Scroll { x, y }));
                 }
                 baseview::MouseEvent::CursorEntered => {
-                    self.ui.handle_input(&Input::MouseEnterWindow)
+                    handled &= self.ui.handle_input(&Input::MouseEnterWindow);
                 }
-                baseview::MouseEvent::CursorLeft => self.ui.handle_input(&Input::MouseLeaveWindow),
+                baseview::MouseEvent::CursorLeft => {
+                    handled &= self.ui.handle_input(&Input::MouseLeaveWindow);
+                }
             },
             baseview::Event::Keyboard(event) => {
                 let key = translate_key(event.code);
                 if event.state == keyboard_types::KeyState::Down {
-                    self.ui.handle_input(&Input::Press(key));
+                    handled &= self.ui.handle_input(&Input::Press(key));
                     if let keyboard_types::Key::Character(s) = &event.key {
-                        self.ui.handle_input(&Input::Text(s.to_string()));
+                        handled &= self.ui.handle_input(&Input::Text(s.to_string()));
                     }
                 } else {
-                    self.ui.handle_input(&Input::Release(key));
+                    handled &= self.ui.handle_input(&Input::Release(key));
                 }
             }
         }
         clear_current_window();
         if drag_event && *self.drop_target_valid.read().unwrap() {
             baseview::EventStatus::AcceptDrop(baseview::DropEffect::Copy)
+        } else if !handled {
+            baseview::EventStatus::Ignored
         } else {
             baseview::EventStatus::Captured
         }

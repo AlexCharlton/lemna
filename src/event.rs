@@ -27,6 +27,7 @@ pub struct Event<T: EventInput> {
     /// The event-specific [`EventInput`]
     pub input: T,
     pub(crate) bubbles: bool,
+    pub(crate) ignored: bool,
     // Does the node need to be re-computed or re-rendered?
     pub(crate) dirty: Dirty,
     pub(crate) mouse_position: Point,
@@ -68,6 +69,7 @@ impl<T: EventInput> fmt::Debug for Event<T> {
 
         s.field("input", &self.input)
             .field("bubbles", &self.bubbles)
+            .field("ignored", &self.ignored)
             .field("dirty", &self.dirty)
             .field("mouse_position", &self.mouse_position)
             .field("modifiers_held", &self.modifiers_held)
@@ -309,6 +311,7 @@ impl<T: EventInput> Event<T> {
         Self {
             input,
             bubbles: true,
+            ignored: false,
             dirty: Dirty::No,
             modifiers_held: event_cache.modifiers_held,
             mouse_position: event_cache.mouse_position,
@@ -370,6 +373,18 @@ impl<T: EventInput> Event<T> {
     /// Prevent this Event from being sent to one of the ancestor Nodes of the current one.
     pub fn stop_bubbling(&mut self) {
         self.bubbles = false;
+    }
+
+    /// Mark this event as ignored by the window backend.
+    ///
+    /// When using the baseview backend, this causes `WindowHandler::on_event` to return
+    /// `EventStatus::Ignored`, allowing the platform (or parent window) to handle the event
+    /// instead. This is useful for parented plugin windows where unhandled keyboard events
+    /// should be passed through to the host application.
+    ///
+    /// Note that baseview currently only supports passing through keyboard events.
+    pub fn ignored(&mut self) {
+        self.ignored = true;
     }
 
     /// Mark the event as requiring a re-compute or re-render
@@ -546,6 +561,7 @@ impl ModifiersHeld {
 
 /// Points are all logical positions.
 pub(crate) struct EventCache {
+    pub ignored: bool,
     pub keys_held: HashSet<Key>,
     pub modifiers_held: ModifiersHeld,
     pub mouse_buttons_held: MouseButtonsHeld,
@@ -583,6 +599,7 @@ impl fmt::Debug for EventCache {
 impl EventCache {
     pub fn new(scale_factor: f32) -> Self {
         Self {
+            ignored: false,
             keys_held: Default::default(),
             modifiers_held: Default::default(),
             mouse_buttons_held: Default::default(),

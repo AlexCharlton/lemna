@@ -40,6 +40,13 @@ pub(crate) trait LemnaUI {
 
     fn set_node_dirty(&mut self, dirty: Dirty);
 
+    fn apply_event_results<T: EventInput>(&mut self, event: &Event<T>) {
+        self.set_node_dirty(event.dirty);
+        if event.ignored {
+            self.event_cache().ignored = true;
+        }
+    }
+
     fn event_cache(&mut self) -> &mut EventCache;
     fn resize(&mut self) {}
     fn exit(&mut self);
@@ -185,7 +192,7 @@ pub(crate) trait LemnaUI {
         self.with_node(|node| handler(node, event));
         let mut previously_focused_nodes = HashSet::new();
         self.handle_focus_or_blur(event, &mut previously_focused_nodes);
-        self.set_node_dirty(event.dirty);
+        self.apply_event_results(event);
         self.handle_event_signals(event, &mut previously_focused_nodes);
     }
 
@@ -199,7 +206,7 @@ pub(crate) trait LemnaUI {
     {
         event.target = target;
         self.with_node(|node| handler(node, event));
-        self.set_node_dirty(event.dirty);
+        self.apply_event_results(event);
         let mut previously_focused_nodes = HashSet::new();
         self.handle_event_signals(event, &mut previously_focused_nodes);
     }
@@ -216,8 +223,12 @@ pub(crate) trait LemnaUI {
     }
 
     /// Handle [`Input`]s coming from the [`Window`] backend.
-    fn handle_input(&mut self, input: &Input) {
+    ///
+    /// Returns `true` if the input was handled, or `false` if a component marked it as ignored
+    /// via [`Event::ignored`].
+    fn handle_input(&mut self, input: &Input) -> bool {
         inst("UI::handle_input");
+        self.event_cache().ignored = false;
         // if self.node.is_none() || self.renderer.is_none() {
         //     // If there is no node, the event has happened after exiting
         //     // For some reason checking for both works better, even though they're unset at the same time?
@@ -434,25 +445,27 @@ pub(crate) trait LemnaUI {
                 let mut event = Event::new(event::Blur, self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
                 self.with_node(|node| node.component.on_blur(&mut event));
-                self.set_node_dirty(event.dirty);
+                self.apply_event_results(&event);
             }
             Input::Focus(true) => {
                 let focus = self.active_focus();
                 let mut event = Event::new(event::Focus, self.event_cache(), focus);
                 event.set_focus_stack(self.focus_stack());
                 self.with_node(|node| node.component.on_focus(&mut event));
-                self.set_node_dirty(event.dirty);
+                self.apply_event_results(&event);
             }
             Input::Timer => {
                 let focus = self.active_focus();
                 let mut event = Event::new(event::Tick, self.event_cache(), focus);
                 self.with_node(|node| node.tick(&mut event));
-                self.set_node_dirty(event.dirty);
+                self.apply_event_results(&event);
                 for custom_input in event.custom_inputs.drain(..) {
                     match custom_input.downcast_ref::<Input>() {
                         // If the custom input is an Input, handle it as a normal input event
                         Some(input) => {
-                            self.handle_input(input);
+                            if !self.handle_input(input) {
+                                self.event_cache().ignored = true;
+                            }
                         }
                         None => {
                             let mut custom_input_event = Event::new(
@@ -466,7 +479,7 @@ pub(crate) trait LemnaUI {
                                 &mut custom_input_event,
                                 Some(focus),
                             );
-                            self.set_node_dirty(custom_input_event.dirty);
+                            self.apply_event_results(&custom_input_event);
                         }
                     }
                 }
@@ -562,6 +575,7 @@ pub(crate) trait LemnaUI {
             }
         }
         inst_end();
+        !self.event_cache().ignored
     }
 }
 
@@ -597,7 +611,10 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
     }
 
     /// Handle input events.
-    pub fn handle_input(&mut self, input: &Input) {
+    ///
+    /// Returns `true` if the input was handled, or `false` if a component marked it as ignored
+    /// via [`Event::ignored`].
+    pub fn handle_input(&mut self, input: &Input) -> bool {
         LemnaUI::handle_input(self, input)
     }
 }
@@ -640,7 +657,10 @@ impl<
     }
 
     /// Handle input events.
-    pub fn handle_input(&mut self, input: &Input) {
+    ///
+    /// Returns `true` if the input was handled, or `false` if a component marked it as ignored
+    /// via [`Event::ignored`].
+    pub fn handle_input(&mut self, input: &Input) -> bool {
         LemnaUI::handle_input(self, input)
     }
 }
