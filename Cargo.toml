@@ -18,6 +18,7 @@ members = [
     "nice-plug/xtask",
     "nice-plug/examples/hello",
     "nice-plug/examples/params",
+    "nice-plug/examples/dnd",
 ]
 
 [features]

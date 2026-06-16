@@ -1,0 +1,18 @@
+[package]
+name = "plugin-example-dnd"
+edition = "2024"
+license = "MIT"
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+lemna = { path = "../../../", default-features = false, features = [
+    "antialiased_shapes",
+    "open_iconic",
+    "logs",
+] }
+lemna-nice-plug = { path = "../../../nice-plug/", features = ["gpu_renderer"] }
+nice-plug = { workspace = true, features = ["standalone"] }
+ttf-noto-sans = { workspace = true }
