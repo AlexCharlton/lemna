@@ -5,6 +5,24 @@ pub trait VBDesc {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
 
+const BLEND_STRAIGHT_ALPHA: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::SrcAlpha,
+        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+        operation: wgpu::BlendOperation::Add,
+    },
+    alpha: wgpu::BlendComponent::OVER,
+};
+
+const BLEND_PREMULTIPLIED_ALPHA: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::One,
+        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+        operation: wgpu::BlendOperation::Add,
+    },
+    alpha: wgpu::BlendComponent::OVER,
+};
+
 pub fn create_pipeline(
     context: &context::WGPUContext,
     layout: &wgpu::PipelineLayout,
@@ -14,7 +32,7 @@ pub fn create_pipeline(
     msaa: bool,
     color_write_mask: wgpu::ColorWrites,
 ) -> wgpu::RenderPipeline {
-    create_pipeline_depth_stencil(
+    create_pipeline_with_blend(
         context,
         layout,
         frag,
@@ -22,6 +40,50 @@ pub fn create_pipeline(
         vertex,
         msaa,
         color_write_mask,
+        Some(BLEND_STRAIGHT_ALPHA),
+        Some(wgpu::DepthStencilState {
+            format: wgpu::TextureFormat::Depth24PlusStencil8,
+            depth_write_enabled: true,
+            depth_compare: wgpu::CompareFunction::GreaterEqual,
+            stencil: wgpu::StencilState {
+                front: wgpu::StencilFaceState {
+                    compare: wgpu::CompareFunction::Equal,
+                    fail_op: wgpu::StencilOperation::Keep,
+                    depth_fail_op: wgpu::StencilOperation::Keep,
+                    pass_op: wgpu::StencilOperation::Keep,
+                },
+                back: wgpu::StencilFaceState {
+                    compare: wgpu::CompareFunction::Equal,
+                    fail_op: wgpu::StencilOperation::Keep,
+                    depth_fail_op: wgpu::StencilOperation::Keep,
+                    pass_op: wgpu::StencilOperation::Keep,
+                },
+                read_mask: 0xff,
+                write_mask: 0,
+            },
+            bias: wgpu::DepthBiasState::default(),
+        }),
+    )
+}
+
+pub fn create_pipeline_premul(
+    context: &context::WGPUContext,
+    layout: &wgpu::PipelineLayout,
+    frag: &wgpu::ShaderModule,
+    primitive_topology: wgpu::PrimitiveTopology,
+    vertex: wgpu::VertexState,
+    msaa: bool,
+    color_write_mask: wgpu::ColorWrites,
+) -> wgpu::RenderPipeline {
+    create_pipeline_with_blend(
+        context,
+        layout,
+        frag,
+        primitive_topology,
+        vertex,
+        msaa,
+        color_write_mask,
+        Some(BLEND_PREMULTIPLIED_ALPHA),
         Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
             depth_write_enabled: true,
@@ -57,6 +119,30 @@ pub fn create_pipeline_depth_stencil(
     color_write_mask: wgpu::ColorWrites,
     depth_stencil: Option<wgpu::DepthStencilState>,
 ) -> wgpu::RenderPipeline {
+    create_pipeline_with_blend(
+        context,
+        layout,
+        frag,
+        primitive_topology,
+        vertex,
+        msaa,
+        color_write_mask,
+        Some(BLEND_STRAIGHT_ALPHA),
+        depth_stencil,
+    )
+}
+
+pub fn create_pipeline_with_blend(
+    context: &context::WGPUContext,
+    layout: &wgpu::PipelineLayout,
+    frag: &wgpu::ShaderModule,
+    primitive_topology: wgpu::PrimitiveTopology,
+    vertex: wgpu::VertexState,
+    msaa: bool,
+    color_write_mask: wgpu::ColorWrites,
+    blend: Option<wgpu::BlendState>,
+    depth_stencil: Option<wgpu::DepthStencilState>,
+) -> wgpu::RenderPipeline {
     let device = &context.device;
 
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -68,14 +154,7 @@ pub fn create_pipeline_depth_stencil(
             entry_point: "main",
             targets: &[Some(wgpu::ColorTargetState {
                 format: context.surface_config.format,
-                blend: Some(wgpu::BlendState {
-                    color: wgpu::BlendComponent {
-                        src_factor: wgpu::BlendFactor::SrcAlpha,
-                        dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-                        operation: wgpu::BlendOperation::Add,
-                    },
-                    alpha: wgpu::BlendComponent::OVER,
-                }),
+                blend,
                 write_mask: color_write_mask,
             })],
         }),

@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable, cast_slice};
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{VBDesc, create_pipeline_depth_stencil};
+use super::shared::{VBDesc, create_pipeline_with_blend};
 use crate::base_types::Point;
 use crate::render::gpu_render::wgpu::context;
 
@@ -33,8 +33,14 @@ impl VBDesc for Vertex {
     }
 }
 
+const BLEND_REPLACE: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent::REPLACE,
+    alpha: wgpu::BlendComponent::REPLACE,
+};
+
 pub struct MSAAPipeline {
-    pipeline: wgpu::RenderPipeline,
+    backdrop_pipeline: wgpu::RenderPipeline,
+    composite_pipeline: wgpu::RenderPipeline,
     vertex_buff: wgpu::Buffer,
     index_buff: wgpu::Buffer,
     bind_group: Option<wgpu::BindGroup>,
@@ -42,8 +48,16 @@ pub struct MSAAPipeline {
 }
 
 impl MSAAPipeline {
-    pub fn render<'a: 'b, 'b>(&'a mut self, pass: &'b mut wgpu::RenderPass<'a>) {
-        pass.set_pipeline(&self.pipeline);
+    pub fn render_backdrop<'a: 'b, 'b>(&'a self, pass: &'b mut wgpu::RenderPass<'a>) {
+        pass.set_pipeline(&self.backdrop_pipeline);
+        pass.set_bind_group(0, self.bind_group.as_ref().unwrap(), &[]);
+        pass.set_vertex_buffer(0, self.vertex_buff.slice(..));
+        pass.set_index_buffer(self.index_buff.slice(..), wgpu::IndexFormat::Uint16);
+        pass.draw_indexed(0..6, 0, 0..1);
+    }
+
+    pub fn render_composite<'a: 'b, 'b>(&'a self, pass: &'b mut wgpu::RenderPass<'a>) {
+        pass.set_pipeline(&self.composite_pipeline);
         pass.set_bind_group(0, self.bind_group.as_ref().unwrap(), &[]);
         pass.set_vertex_buffer(0, self.vertex_buff.slice(..));
         pass.set_index_buffer(self.index_buff.slice(..), wgpu::IndexFormat::Uint16);
@@ -56,9 +70,9 @@ impl MSAAPipeline {
         texture_view: &wgpu::TextureView,
     ) {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mag_filter: wgpu::FilterMode::Nearest,
+            min_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::FilterMode::Nearest,
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             label: Some("msaa_sampler"),
@@ -154,25 +168,39 @@ impl MSAAPipeline {
             .create_shader_module(wgpu::include_spirv!("shaders/msaa.vert.spv"));
         let fs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/msaa.frag.spv"));
+            .create_shader_module(wgpu::include_spirv!("shaders/opaque_blit.frag.spv"));
+
+        let vertex_state = wgpu::VertexState {
+            module: &vs_module,
+            entry_point: "main",
+            buffers: &[Vertex::desc()],
+        };
 
         let mut r = Self {
             vertex_buff,
             index_buff,
             texture_bind_group_layout,
             bind_group: None,
-            pipeline: create_pipeline_depth_stencil(
+            backdrop_pipeline: create_pipeline_with_blend(
                 context,
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc()],
-                },
+                vertex_state.clone(),
+                true,
+                wgpu::ColorWrites::ALL,
+                Some(BLEND_REPLACE),
+                None,
+            ),
+            composite_pipeline: create_pipeline_with_blend(
+                context,
+                layout,
+                &fs_module,
+                wgpu::PrimitiveTopology::TriangleList,
+                vertex_state,
                 false,
                 wgpu::ColorWrites::ALL,
+                Some(BLEND_REPLACE),
                 None,
             ),
         };

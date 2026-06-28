@@ -296,31 +296,7 @@ impl crate::render::Renderer for WGPURenderer {
         inst("WGPURenderer::render#render_frames");
         let mut command_buffers: Vec<wgpu::CommandBuffer> = vec![];
         let mut load_op = wgpu::LoadOp::Clear(wgpu::Color::WHITE);
-
-        // D3D12 requires the MSAA resolve target to be cleared before ResolveSubresource.
-        if cfg!(feature = "antialiased_shapes") {
-            let mut clear_encoder =
-                self.context
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("clear MSAA framebuffer encoder"),
-                    });
-            {
-                let _pass = clear_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &self.context.framebuffer,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                            store: true,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    label: Some("clear MSAA framebuffer"),
-                });
-            }
-            command_buffers.push(clear_encoder.finish());
-        }
+        let antialiased_shapes = cfg!(feature = "antialiased_shapes");
 
         num_frames = 0;
         num_rects = 0;
@@ -335,10 +311,16 @@ impl crate::render::Renderer for WGPURenderer {
                         label: Some("update encoder"),
                     });
             {
-                // Non-MSAA pass
+                // Non-MSAA pass. With antialiased_shapes, render to the offscreen
+                // framebuffer so the MSAA pass can sample the current backdrop.
+                let base_color_view = if antialiased_shapes {
+                    &self.context.framebuffer
+                } else {
+                    &view
+                };
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
+                        view: base_color_view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: load_op,
@@ -402,8 +384,10 @@ impl crate::render::Renderer for WGPURenderer {
                         num_rasters,
                     );
                 }
-                // Text comes last because of transparency
-                if !frame_renderables.texts.is_empty() {
+                // Text comes last because of transparency. With antialiased_shapes,
+                // text is drawn after the MSAA composite so it is not re-sampled by
+                // the backdrop blit or MSAA resolve.
+                if !frame_renderables.texts.is_empty() && !antialiased_shapes {
                     self.text_pipeline.render(
                         &frame_renderables.texts,
                         &mut pass,
@@ -415,17 +399,30 @@ impl crate::render::Renderer for WGPURenderer {
                 }
             }
 
-            if cfg!(feature = "antialiased_shapes") {
+            if antialiased_shapes {
+                {
+                    let mut backdrop_pass =
+                        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &self.context.msaa_framebuffer,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                                    store: true,
+                                },
+                            })],
+                            depth_stencil_attachment: None,
+                            label: Some("MSAA backdrop pass"),
+                        });
+                    self.msaa_pipeline.render_backdrop(&mut backdrop_pass);
+                }
+
                 let mut msaa_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &self.context.msaa_framebuffer,
                         resolve_target: Some(&self.context.framebuffer),
                         ops: wgpu::Operations {
-                            load: if load_op == wgpu::LoadOp::Load {
-                                wgpu::LoadOp::Load
-                            } else {
-                                wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT)
-                            },
+                            load: wgpu::LoadOp::Load,
                             store: true,
                         },
                     })],
@@ -469,16 +466,6 @@ impl crate::render::Renderer for WGPURenderer {
                         true,
                     );
                 }
-                if !frame_renderables.texts.is_empty() {
-                    self.text_pipeline.render(
-                        &frame_renderables.texts,
-                        &mut msaa_pass,
-                        &self.context.device,
-                        &mut caches.text_buffer,
-                        num_texts,
-                        true,
-                    );
-                }
                 // Shape comes last because we don't want to render fragments that
                 // are covered by others
                 if !frame_renderables.shapes.is_empty() {
@@ -504,8 +491,8 @@ impl crate::render::Renderer for WGPURenderer {
             load_op = wgpu::LoadOp::Load;
         }
 
-        // Draw the results of the MSAA'd framebuffer
-        if cfg!(feature = "antialiased_shapes") {
+        // Blit the MSAA-resolved framebuffer to the swapchain.
+        if antialiased_shapes {
             let mut encoder =
                 self.context
                     .device
@@ -518,7 +505,7 @@ impl crate::render::Renderer for WGPURenderer {
                         view: &view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Load,
+                            load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
                             store: true,
                         },
                     })],
@@ -526,9 +513,11 @@ impl crate::render::Renderer for WGPURenderer {
                     label: Some("MSAA render pass"),
                 });
 
-                self.msaa_pipeline.render(&mut pass);
+                self.msaa_pipeline.render_composite(&mut pass);
             }
             command_buffers.push(encoder.finish());
+
+            self.aa_text_render(&view, &frames, caches, &mut command_buffers);
         }
         inst_end();
 
@@ -540,6 +529,75 @@ impl crate::render::Renderer for WGPURenderer {
 }
 
 impl WGPURenderer {
+    fn aa_text_render(
+        &mut self,
+        view: &wgpu::TextureView,
+        frames: &[FrameRenderables],
+        caches: &mut Caches,
+        command_buffers: &mut Vec<wgpu::CommandBuffer>,
+    ) {
+        // Draw text on top of the composed scene so glyphs anti-alias against
+        // the final background and are not processed by MSAA resolve.
+        let mut encoder =
+            self.context
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("text overlay encoder"),
+                });
+        let mut num_frames = 0;
+        let mut num_texts = 0;
+        for frame_renderables in frames.iter() {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.context.depthbuffer,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: true,
+                    }),
+                    stencil_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0),
+                        store: true,
+                    }),
+                }),
+                label: Some("text overlay pass"),
+            });
+            pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+
+            if !frame_renderables.frame.is_empty() {
+                self.stencil_pipeline.render(
+                    &frame_renderables.frame,
+                    &mut pass,
+                    num_frames,
+                    false,
+                );
+            }
+            pass.set_stencil_reference(frame_renderables.frame.len() as u32);
+
+            if !frame_renderables.texts.is_empty() {
+                self.text_pipeline.render(
+                    &frame_renderables.texts,
+                    &mut pass,
+                    &self.context.device,
+                    &mut caches.text_buffer,
+                    num_texts,
+                    false,
+                );
+            }
+
+            num_frames += frame_renderables.frame.len();
+            num_texts += frame_renderables.texts.len();
+        }
+        command_buffers.push(encoder.finish());
+    }
+
     fn do_resize(&mut self, size: PixelSize) -> bool {
         if size.width != self.context.surface_config.width
             || size.height != self.context.surface_config.height

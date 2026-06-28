@@ -64,6 +64,13 @@ impl Component for RoundedRect {
     fn render(&mut self, context: RenderContext) -> Option<Vec<Renderable>> {
         use crate::renderable::{Path, Shape};
 
+        if (self.border_width == 0.0 || !self.border_color.is_visible())
+            && !self.background_color.is_visible()
+        {
+            // Blank rect
+            return None;
+        }
+
         let rect = Rect {
             pos: Pos::ORIGIN,
             bottom_right: Point::new(context.aabb.width(), context.aabb.height()),

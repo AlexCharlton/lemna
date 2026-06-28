@@ -2,7 +2,7 @@ use bytemuck::cast_slice;
 use wgpu;
 
 use super::buffer_cache::BufferCache;
-use super::shared::{VBDesc, create_pipeline};
+use super::shared::{VBDesc, create_pipeline, create_pipeline_premul};
 use crate::base_types::Rect;
 use crate::log_info;
 use crate::render::gpu_render::{
@@ -163,6 +163,9 @@ impl ShapePipeline {
         let fs_module = context
             .device
             .create_shader_module(wgpu::include_spirv!("shaders/vert_color.frag.spv"));
+        let fs_premul_module = context
+            .device
+            .create_shader_module(wgpu::include_spirv!("shaders/vert_color_premul.frag.spv"));
 
         Self {
             buffer_cache: BufferCache::new(&context.device),
@@ -182,10 +185,10 @@ impl ShapePipeline {
                 false,
                 wgpu::ColorWrites::ALL,
             ),
-            msaa_pipeline: create_pipeline(
+            msaa_pipeline: create_pipeline_premul(
                 context,
                 layout,
-                &fs_module,
+                &fs_premul_module,
                 wgpu::PrimitiveTopology::TriangleList,
                 wgpu::VertexState {
                     module: &vs_module,
