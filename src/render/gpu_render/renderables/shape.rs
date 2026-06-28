@@ -11,6 +11,7 @@ use crate::renderable::Caches;
 
 pub type ShapeGeometry = tessellation::geometry_builder::VertexBuffers<Vertex, u16>;
 pub const TOLERANCE: f32 = 0.2;
+pub const STROKE_TOLERANCE: f32 = 0.1;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, Debug, Pod, Zeroable)]
@@ -144,7 +145,7 @@ impl Shape {
             tessellation::StrokeTessellator::new()
                 .tessellate_path(
                     path,
-                    &tessellation::StrokeOptions::tolerance(TOLERANCE)
+                    &tessellation::StrokeOptions::tolerance(STROKE_TOLERANCE)
                         .with_line_width(stroke_width),
                     &mut tessellation::BuffersBuilder::new(&mut geometry, VertexConstructor {}),
                 )
