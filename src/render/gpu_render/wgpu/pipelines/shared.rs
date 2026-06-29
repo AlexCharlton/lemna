@@ -23,6 +23,31 @@ const BLEND_PREMULTIPLIED_ALPHA: wgpu::BlendState = wgpu::BlendState {
     alpha: wgpu::BlendComponent::OVER,
 };
 
+fn default_depth_stencil() -> wgpu::DepthStencilState {
+    wgpu::DepthStencilState {
+        format: wgpu::TextureFormat::Depth24PlusStencil8,
+        depth_write_enabled: Some(true),
+        depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
+        stencil: wgpu::StencilState {
+            front: wgpu::StencilFaceState {
+                compare: wgpu::CompareFunction::Equal,
+                fail_op: wgpu::StencilOperation::Keep,
+                depth_fail_op: wgpu::StencilOperation::Keep,
+                pass_op: wgpu::StencilOperation::Keep,
+            },
+            back: wgpu::StencilFaceState {
+                compare: wgpu::CompareFunction::Equal,
+                fail_op: wgpu::StencilOperation::Keep,
+                depth_fail_op: wgpu::StencilOperation::Keep,
+                pass_op: wgpu::StencilOperation::Keep,
+            },
+            read_mask: 0xff,
+            write_mask: 0,
+        },
+        bias: wgpu::DepthBiasState::default(),
+    }
+}
+
 pub fn create_pipeline(
     context: &context::WGPUContext,
     layout: &wgpu::PipelineLayout,
@@ -41,28 +66,7 @@ pub fn create_pipeline(
         msaa,
         color_write_mask,
         Some(BLEND_STRAIGHT_ALPHA),
-        Some(wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::GreaterEqual,
-            stencil: wgpu::StencilState {
-                front: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                back: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                read_mask: 0xff,
-                write_mask: 0,
-            },
-            bias: wgpu::DepthBiasState::default(),
-        }),
+        Some(default_depth_stencil()),
     )
 }
 
@@ -84,28 +88,7 @@ pub fn create_pipeline_premul(
         msaa,
         color_write_mask,
         Some(BLEND_PREMULTIPLIED_ALPHA),
-        Some(wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::GreaterEqual,
-            stencil: wgpu::StencilState {
-                front: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                back: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                read_mask: 0xff,
-                write_mask: 0,
-            },
-            bias: wgpu::DepthBiasState::default(),
-        }),
+        Some(default_depth_stencil()),
     )
 }
 
@@ -151,12 +134,13 @@ pub fn create_pipeline_with_blend(
         vertex,
         fragment: Some(wgpu::FragmentState {
             module: frag,
-            entry_point: "main",
+            entry_point: Some("main"),
             targets: &[Some(wgpu::ColorTargetState {
                 format: context.surface_config.format,
                 blend,
                 write_mask: color_write_mask,
             })],
+            compilation_options: Default::default(),
         }),
         primitive: wgpu::PrimitiveState {
             topology: primitive_topology,
@@ -173,6 +157,19 @@ pub fn create_pipeline_with_blend(
             mask: !0,
             alpha_to_coverage_enabled: false,
         },
-        multiview: None,
+        multiview_mask: None,
+        cache: None,
     })
+}
+
+pub fn vertex_state<'a>(
+    module: &'a wgpu::ShaderModule,
+    buffers: &'a [wgpu::VertexBufferLayout<'a>],
+) -> wgpu::VertexState<'a> {
+    wgpu::VertexState {
+        module,
+        entry_point: Some("main"),
+        buffers,
+        compilation_options: Default::default(),
+    }
 }

@@ -136,17 +136,21 @@ impl crate::render::Renderer for WGPURenderer {
         inst("WGPURenderer::render#get_current_texture");
         let was_resized = self.do_resize(physical_size);
         let output = match self.context.surface.get_current_texture() {
-            Ok(o) => o,
-            Err(wgpu::SurfaceError::Timeout) => {
-                evt("SurfaceError::Timeout");
+            wgpu::CurrentSurfaceTexture::Success(frame) => frame,
+            wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
+                evt("Surface timeout or occluded");
                 return;
             }
-            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                evt("SurfaceError::Lost or Outdated");
+            wgpu::CurrentSurfaceTexture::Outdated
+            | wgpu::CurrentSurfaceTexture::Suboptimal(_)
+            | wgpu::CurrentSurfaceTexture::Lost => {
+                evt("Surface needs reconfigure");
                 self.do_resize(self.context.size());
                 return;
             }
-            Err(e) => panic!("Failed to get current texture: {}", e),
+            wgpu::CurrentSurfaceTexture::Validation => {
+                panic!("Surface validation error");
+            }
         };
         inst_end();
         if was_resized {
@@ -324,8 +328,9 @@ impl crate::render::Renderer for WGPURenderer {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: load_op,
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: &self.context.depthbuffer,
@@ -335,14 +340,17 @@ impl crate::render::Renderer for WGPURenderer {
                             } else {
                                 wgpu::LoadOp::Clear(0.0)
                             },
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         }),
                         stencil_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(0),
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         }),
                     }),
                     label: Some("non-MSAA render pass"),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
                 });
                 pass.set_bind_group(0, &self.uniform_bind_group, &[]);
 
@@ -408,11 +416,15 @@ impl crate::render::Renderer for WGPURenderer {
                                 resolve_target: None,
                                 ops: wgpu::Operations {
                                     load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                                    store: true,
+                                    store: wgpu::StoreOp::Store,
                                 },
+                                depth_slice: None,
                             })],
                             depth_stencil_attachment: None,
                             label: Some("MSAA backdrop pass"),
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
+                            multiview_mask: None,
                         });
                     self.msaa_pipeline.render_backdrop(&mut backdrop_pass);
                 }
@@ -423,8 +435,9 @@ impl crate::render::Renderer for WGPURenderer {
                         resolve_target: Some(&self.context.framebuffer),
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Load,
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: &self.context.msaa_depthbuffer,
@@ -434,14 +447,17 @@ impl crate::render::Renderer for WGPURenderer {
                             } else {
                                 wgpu::LoadOp::Clear(0.0)
                             },
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         }),
                         stencil_ops: Some(wgpu::Operations {
                             load: wgpu::LoadOp::Clear(0),
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         }),
                     }),
                     label: Some("MSAA shapes render pass"),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
                 });
 
                 msaa_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
@@ -506,11 +522,15 @@ impl crate::render::Renderer for WGPURenderer {
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
+                        depth_slice: None,
                     })],
                     depth_stencil_attachment: None,
                     label: Some("MSAA render pass"),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
                 });
 
                 self.msaa_pipeline.render_composite(&mut pass);
@@ -553,21 +573,25 @@ impl WGPURenderer {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Load,
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     },
+                    depth_slice: None,
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &self.context.depthbuffer,
                     depth_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Load,
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: Some(wgpu::Operations {
                         load: wgpu::LoadOp::Clear(0),
-                        store: true,
+                        store: wgpu::StoreOp::Store,
                     }),
                 }),
                 label: Some("text overlay pass"),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
             });
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
 

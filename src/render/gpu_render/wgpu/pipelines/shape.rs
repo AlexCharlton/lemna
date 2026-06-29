@@ -2,7 +2,7 @@ use bytemuck::cast_slice;
 use wgpu;
 
 use super::buffer_cache::BufferCache;
-use super::shared::{VBDesc, create_pipeline, create_pipeline_premul};
+use super::shared::{VBDesc, create_pipeline, create_pipeline_premul, vertex_state};
 use crate::base_types::Rect;
 use crate::log_info;
 use crate::render::gpu_render::{
@@ -146,8 +146,8 @@ impl ShapePipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("shape_pipeline_layout"),
-                bind_group_layouts: &[uniform_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(uniform_bind_group_layout)],
+                immediate_size: 0,
             });
 
         let num_instances = 32; // Initial allocation
@@ -177,11 +177,7 @@ impl ShapePipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
-                },
+                vertex_state(&vs_module, &[Vertex::desc(), Instance::desc()]),
                 false,
                 wgpu::ColorWrites::ALL,
             ),
@@ -190,11 +186,7 @@ impl ShapePipeline {
                 layout,
                 &fs_premul_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
-                },
+                vertex_state(&vs_module, &[Vertex::desc(), Instance::desc()]),
                 true,
                 wgpu::ColorWrites::ALL,
             ),

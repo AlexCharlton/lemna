@@ -239,7 +239,7 @@ pub(crate) trait LemnaUI {
                 self.resize();
             }
             Input::Motion(Motion::Mouse { x, y }) => {
-                let pos = Point::new(*x, *y) * self.event_cache().scale_factor;
+                let pos = Point::new(*x, *y);
 
                 if let Some(button) = self.event_cache().mouse_button_held() {
                     if self.event_cache().drag_started.is_none() {
@@ -296,14 +296,8 @@ pub(crate) trait LemnaUI {
             }
             Input::Motion(Motion::Scroll { x, y }) => {
                 let focus = self.active_focus();
-                let mut event = Event::new(
-                    event::Scroll {
-                        x: *x * self.event_cache().scale_factor,
-                        y: *y * self.event_cache().scale_factor,
-                    },
-                    self.event_cache(),
-                    focus,
-                );
+                let mut event =
+                    Event::new(event::Scroll { x: *x, y: *y }, self.event_cache(), focus);
                 self.handle_event_without_focus(Node::scroll, &mut event, None);
             }
             Input::Press(Button::Mouse(b)) => {

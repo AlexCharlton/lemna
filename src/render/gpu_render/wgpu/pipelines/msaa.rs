@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable, cast_slice};
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{VBDesc, create_pipeline_with_blend};
+use super::shared::{VBDesc, create_pipeline_with_blend, vertex_state};
 use crate::base_types::Point;
 use crate::render::gpu_render::wgpu::context;
 
@@ -72,7 +72,7 @@ impl MSAAPipeline {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             label: Some("msaa_sampler"),
@@ -159,8 +159,8 @@ impl MSAAPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("msaa_pipeline_layout"),
-                bind_group_layouts: &[&texture_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(&texture_bind_group_layout)],
+                immediate_size: 0,
             });
 
         let vs_module = context
@@ -170,11 +170,7 @@ impl MSAAPipeline {
             .device
             .create_shader_module(wgpu::include_spirv!("shaders/opaque_blit.frag.spv"));
 
-        let vertex_state = wgpu::VertexState {
-            module: &vs_module,
-            entry_point: "main",
-            buffers: &[Vertex::desc()],
-        };
+        let vertex_buffers = &[Vertex::desc()];
 
         let mut r = Self {
             vertex_buff,
@@ -186,7 +182,7 @@ impl MSAAPipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                vertex_state.clone(),
+                vertex_state(&vs_module, vertex_buffers),
                 true,
                 wgpu::ColorWrites::ALL,
                 Some(BLEND_REPLACE),
@@ -197,7 +193,7 @@ impl MSAAPipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                vertex_state,
+                vertex_state(&vs_module, vertex_buffers),
                 false,
                 wgpu::ColorWrites::ALL,
                 Some(BLEND_REPLACE),

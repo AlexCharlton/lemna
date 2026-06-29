@@ -1,7 +1,7 @@
 use bytemuck::{Pod, Zeroable, cast_slice};
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{VBDesc, create_pipeline_depth_stencil};
+use super::shared::{VBDesc, create_pipeline_depth_stencil, vertex_state};
 use crate::base_types::{Point, Pos, Rect, Scale};
 use crate::log_info;
 use crate::render::gpu_render::wgpu::context;
@@ -170,14 +170,14 @@ impl StencilPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("stencil_pipeline_layout"),
-                bind_group_layouts: &[uniform_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(uniform_bind_group_layout)],
+                immediate_size: 0,
             });
 
         let depth_stencil_state_descriptor = wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
+            depth_write_enabled: Some(false),
+            depth_compare: Some(wgpu::CompareFunction::Always),
             stencil: wgpu::StencilState {
                 front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Always,
@@ -214,11 +214,7 @@ impl StencilPipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
-                },
+                vertex_state(&vs_module, &[Vertex::desc(), Instance::desc()]),
                 false,
                 wgpu::ColorWrites::ALL,
                 Some(depth_stencil_state_descriptor.clone()),
@@ -228,11 +224,7 @@ impl StencilPipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
-                },
+                vertex_state(&vs_module, &[Vertex::desc(), Instance::desc()]),
                 true,
                 wgpu::ColorWrites::ALL,
                 Some(depth_stencil_state_descriptor),

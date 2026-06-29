@@ -14,3 +14,4 @@ lemna-baseview = { version = "0.5", path = "../backends/baseview", default-featu
 lemna = { version = "0.5", path = "..", default-features = false }
 crossbeam-channel = "0.4"
 nice-plug-core = { workspace = true }
+raw-window-handle = { workspace = true }

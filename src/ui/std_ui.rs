@@ -249,7 +249,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         thread::spawn(move || {
             #[cfg(feature = "std_cpu")]
             let mut draw_target = SoftBufferDrawTarget::new(
-                &**current_window().as_ref().unwrap(),
+                current_window().as_ref().unwrap().as_ref(),
                 *physical_size.read().unwrap(),
             );
 

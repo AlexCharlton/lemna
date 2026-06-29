@@ -1,7 +1,7 @@
 use bytemuck::cast_slice;
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{VBDesc, create_pipeline};
+use super::shared::{VBDesc, create_pipeline, vertex_state};
 use crate::base_types::Rect;
 use crate::log_info;
 use crate::render::gpu_render::{
@@ -120,8 +120,8 @@ impl RectPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("rect_pipeline_layout"),
-                bind_group_layouts: &[uniform_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(uniform_bind_group_layout)],
+                immediate_size: 0,
             });
         let vs_module = context
             .device
@@ -141,11 +141,7 @@ impl RectPipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
-                },
+                vertex_state(&vs_module, &[Vertex::desc(), Instance::desc()]),
                 false,
                 wgpu::ColorWrites::ALL,
             ),
@@ -154,11 +150,7 @@ impl RectPipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
-                },
+                vertex_state(&vs_module, &[Vertex::desc(), Instance::desc()]),
                 true,
                 wgpu::ColorWrites::empty(),
             ),

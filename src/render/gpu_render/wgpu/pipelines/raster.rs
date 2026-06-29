@@ -3,7 +3,7 @@ use wgpu;
 
 use crate::log_info;
 
-use super::shared::{VBDesc, create_pipeline};
+use super::shared::{VBDesc, create_pipeline, vertex_state};
 use super::texture_cache::TextureCache;
 use crate::base_types::Rect;
 use crate::render::gpu_render::{
@@ -216,7 +216,7 @@ impl RasterPipeline {
         let sampler = context.device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             label: Some("texture_sampler"),
@@ -227,8 +227,8 @@ impl RasterPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("text_pipeline_layout"),
-                bind_group_layouts: &[uniform_bind_group_layout, &bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(uniform_bind_group_layout), Some(&bind_group_layout)],
+                immediate_size: 0,
             });
 
         let num_instances = 32; // Initial allocation
@@ -259,11 +259,7 @@ impl RasterPipeline {
                 layout,
                 &fs_module,
                 wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
-                },
+                vertex_state(&vs_module, &[Vertex::desc(), Instance::desc()]),
                 false,
                 wgpu::ColorWrites::ALL,
             ),

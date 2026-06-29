@@ -54,8 +54,7 @@ features = ["docs_rs", "docs", "std", "cpu_renderer"]
 default-features = false
 
 [dependencies.wgpu]
-version = "0.16"
-# path = "../external/wgpu-rs"
+version = "29"
 features = ["spirv"]
 optional = true
 
@@ -83,11 +82,11 @@ embed-doc-image = { version = "0.1", optional = true }
 kurbo = { version = "0.12", default-features = false, features = ["libm"] }
 lyon = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
-softbuffer = { version = "0.3", optional = true }
+softbuffer = { version = "0.4", optional = true }
 tiny-skia = { git = "https://github.com/AlexCharlton/tiny-skia.git", optional = true }
 
 [workspace.dependencies]
-raw-window-handle = "0.5"
+raw-window-handle = "0.6.2"
 lemna-macros = { path = "./macros", version = "0.5" }
 simplelog = "0.12"
 lyon = "1.0"

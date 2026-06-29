@@ -5,12 +5,38 @@ use nice_plug_core::{
     context::gui::GuiContext,
     editor::{Editor, ParentWindowHandle},
 };
+use raw_window_handle::{
+    AppKitWindowHandle, HandleError, HasWindowHandle, RawWindowHandle, Win32WindowHandle,
+    WindowHandle, XcbWindowHandle,
+};
 use std::{
     marker::PhantomData,
+    num::{NonZeroIsize, NonZeroU32},
+    ptr::NonNull,
     sync::{Arc, RwLock},
 };
 
 pub use lemna_baseview::WindowOptions;
+
+// TODO: Get rid of this after updating nice-plug to use raw-window-handle 0.6
+struct ParentWindowHandleAdapter(ParentWindowHandle);
+
+impl HasWindowHandle for ParentWindowHandleAdapter {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        let raw = match self.0 {
+            ParentWindowHandle::X11Window(window) => RawWindowHandle::Xcb(XcbWindowHandle::new(
+                NonZeroU32::new(window).ok_or(HandleError::Unavailable)?,
+            )),
+            ParentWindowHandle::AppKitNsView(ns_view) => RawWindowHandle::AppKit(
+                AppKitWindowHandle::new(NonNull::new(ns_view).ok_or(HandleError::Unavailable)?),
+            ),
+            ParentWindowHandle::Win32Hwnd(hwnd) => RawWindowHandle::Win32(Win32WindowHandle::new(
+                NonZeroIsize::new(hwnd as isize).ok_or(HandleError::Unavailable)?,
+            )),
+        };
+        Ok(unsafe { WindowHandle::borrow_raw(raw) })
+    }
+}
 
 #[derive(Clone)]
 struct LemnaEditor<A: lemna::Component + Default + Send + Sync> {
@@ -72,6 +98,7 @@ where
             options.system_scale_factor()
         };
 
+        let parent = ParentWindowHandleAdapter(parent);
         let handle = lemna_baseview::Window::open_parented::<_, A, _>(
             &parent,
             options,

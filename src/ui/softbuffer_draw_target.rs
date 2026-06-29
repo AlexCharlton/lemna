@@ -1,21 +1,49 @@
 use crate::base_types::PixelSize;
 use crate::{log_debug, log_error};
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WindowHandle,
+};
+
+/// Softbuffer needs a concrete, `Clone` handle type; `dyn Window` is not `Sized`.
+#[derive(Clone)]
+struct SoftbufferHandleAdapter {
+    raw_display_handle: RawDisplayHandle,
+    raw_window_handle: RawWindowHandle,
+}
+
+impl SoftbufferHandleAdapter {
+    fn from_window(window: &(impl HasDisplayHandle + HasWindowHandle + ?Sized)) -> Self {
+        Self {
+            raw_display_handle: window.display_handle().unwrap().as_raw(),
+            raw_window_handle: window.window_handle().unwrap().as_raw(),
+        }
+    }
+}
+
+impl HasDisplayHandle for SoftbufferHandleAdapter {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        Ok(unsafe { DisplayHandle::borrow_raw(self.raw_display_handle) })
+    }
+}
+
+impl HasWindowHandle for SoftbufferHandleAdapter {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        Ok(unsafe { WindowHandle::borrow_raw(self.raw_window_handle) })
+    }
+}
 
 pub(crate) struct SoftBufferDrawTarget {
     size: PixelSize,
-    _context: softbuffer::Context,
-    surface: softbuffer::Surface,
+    _context: softbuffer::Context<SoftbufferHandleAdapter>,
+    surface: softbuffer::Surface<SoftbufferHandleAdapter, SoftbufferHandleAdapter>,
 }
 
 impl SoftBufferDrawTarget {
-    pub(crate) fn new<
-        W: raw_window_handle::HasRawDisplayHandle + raw_window_handle::HasRawWindowHandle,
-    >(
-        window: W,
-        size: PixelSize,
-    ) -> Self {
-        let context = unsafe { softbuffer::Context::new(&window).unwrap() };
-        let surface = unsafe { softbuffer::Surface::new(&context, &window).unwrap() };
+    pub(crate) fn new(window: &dyn crate::window::Window, size: PixelSize) -> Self {
+        let adapter = SoftbufferHandleAdapter::from_window(window);
+        let context = softbuffer::Context::new(adapter.clone()).unwrap();
+        let surface = softbuffer::Surface::new(&context, adapter).unwrap();
         let mut target = Self {
             // Start with a zero size so that we can resize it
             size: PixelSize {
