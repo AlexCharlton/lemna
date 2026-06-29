@@ -14,7 +14,5 @@ lemna = { path = "../../../", default-features = false, features = [
 ] }
 lemna-macros = { path = "../../../macros/" }
 lemna-nice-plug = { path = "../../../nice-plug/", features = ["gpu_renderer"] }
-nice-plug = { workspace = true, features = [
-    "standalone",
-] }
+nice-plug = { workspace = true }
 log = { version = "0.4", features = ["max_level_warn"] }
