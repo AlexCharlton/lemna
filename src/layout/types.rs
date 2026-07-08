@@ -71,8 +71,7 @@ impl Dimension {
         match (self, other) {
             (Self::Px(a), Self::Px(b)) => Self::Px(a.min(b)),
             (Self::Px(a), _) => Self::Px(*a),
-            (_, Self::Px(b)) => Self::Px(b),
-            _ => Dimension::Auto,
+            (a, _) => *a,
         }
     }
 

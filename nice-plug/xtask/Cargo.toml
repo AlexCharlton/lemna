@@ -4,4 +4,4 @@ version = "0.0.0"
 edition = "2024"
 
 [dependencies]
-nice-plug-xtask = { git = "https://codeberg.org/BillyDM/nice-plug.git" }
+nice-plug-xtask = { git = "https://codeberg.org/RustAudio/nice-plug.git" }
