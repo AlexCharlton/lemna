@@ -332,7 +332,7 @@ impl super::node::Node {
                     child.layout_result.size.height.min(max_size.height);
             }
             let child_was_main_resolved = child.layout_result.main_resolved;
-            let mut available_size = available_size.clone();
+            let mut available_size = available_size;
             if max_available.resolved() && !child_was_main_resolved {
                 *available_size.main_mut(dir) = remaining_space_passed;
             }

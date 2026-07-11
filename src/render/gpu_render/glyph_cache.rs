@@ -164,8 +164,8 @@ impl DrawCacheBuilder {
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
     ///
     #[allow(dead_code)]
-    pub fn scale_tolerance<V: Into<f32>>(mut self, scale_tolerance: V) -> Self {
-        self.scale_tolerance = scale_tolerance.into();
+    pub fn scale_tolerance(mut self, scale_tolerance: f32) -> Self {
+        self.scale_tolerance = scale_tolerance;
         self
     }
     /// Specifies the tolerances (maximum allowed difference) for judging
@@ -189,8 +189,8 @@ impl DrawCacheBuilder {
     /// 0.1. Depending on the target DPI higher tolerance may be acceptable.
     ///
     #[allow(dead_code)]
-    pub fn position_tolerance<V: Into<f32>>(mut self, position_tolerance: V) -> Self {
-        self.position_tolerance = position_tolerance.into();
+    pub fn position_tolerance(mut self, position_tolerance: f32) -> Self {
+        self.position_tolerance = position_tolerance;
         self
     }
     /// Pack glyphs in texture with a padding of a single zero alpha pixel to

@@ -98,7 +98,7 @@ impl RadioButtons {
         if t.len() != self.buttons.len() {
             panic!(
                 "RadioButtons tool_tips must have an equal length as there are buttons. Got {:?} tool_tips but {:?} buttons",
-                t, &self.buttons
+                t, self.buttons
             );
         }
         self.tool_tips = Some(t);
