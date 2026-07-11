@@ -104,7 +104,9 @@ pub trait Component: fmt::Debug {
 
     /// Implemented by the `component` attribute macro
     #[doc(hidden)]
-    fn replace_state(&mut self, _other: State) {}
+    fn replace_state(&mut self, _other: State) -> bool {
+        false
+    }
 
     /// Implemented by the `component` attribute macro
     #[doc(hidden)]

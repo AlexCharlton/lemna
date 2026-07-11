@@ -197,9 +197,12 @@ pub fn state_component_impl(attr: TokenStream, input: TokenStream) -> TokenStrea
     };
 
     let expanded = quote! {
-        fn replace_state(&mut self, other_state: Box<dyn core::any::Any>) {
+        fn replace_state(&mut self, other_state: Box<dyn core::any::Any>) -> bool{
             if let Ok(s) = other_state.downcast::<#state_type>() {
                 self.state = Some(*s);
+                true
+            } else {
+                false
             }
         }
 

@@ -245,9 +245,11 @@ impl Node {
         let mut new = false;
         if let Some(prev) = &mut prev {
             self.id = prev.id;
+            let mut replaced_state = false;
             if let Some(state) = prev.component.take_state() {
-                self.component.replace_state(state);
-            } else if self.component.has_state() {
+                replaced_state = self.component.replace_state(state);
+            }
+            if self.component.has_state() && !replaced_state {
                 // If the component is stateful, but it doesn't have any state there's either been a key mixup, or the component with this key has had a type change. This latter case is allowable, and it requires that we initialize the new component.
                 self.component.init();
             }
@@ -1105,9 +1107,10 @@ mod tests {
                 vec![Box::new(msg)]
             }
 
-            fn replace_state(&mut self, other_state: State) {
+            fn replace_state(&mut self, other_state: State) -> bool {
                 let s = other_state.downcast::<WidgetState>().unwrap();
                 self.state = Some(*s);
+                true
             }
 
             fn take_state(&mut self) -> Option<State> {
@@ -1167,9 +1170,10 @@ mod tests {
                 vec![]
             }
 
-            fn replace_state(&mut self, other_state: State) {
+            fn replace_state(&mut self, other_state: State) -> bool {
                 let s = other_state.downcast::<AppState>().unwrap();
                 self.state = Some(*s);
+                true
             }
 
             fn take_state(&mut self) -> Option<State> {
