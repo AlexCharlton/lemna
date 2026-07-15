@@ -98,7 +98,10 @@ impl super::node::Node {
         let padding = self.layout.padding.maybe_resolve(&bounds_size);
         let mut inner_size = size.maybe_resolve(&bounds_size).minus_bounds(&padding);
         let bounds_less_padding = bounds_size.minus_bounds(&padding);
-        let available_size = available_size.minus_bounds(&padding);
+        let available_size = size
+            .maybe_resolve(&available_size)
+            .most_specific(&available_size)
+            .minus_bounds(&padding);
         if self.scroll_x().is_some() {
             inner_size.width = Dimension::Auto;
         };
@@ -2093,9 +2096,96 @@ mod tests {
         );
         nodes.calculate_layout(&Caches::default(), 1.0);
 
-        // Root should be 400px × 400px
+        // Root should be 420px × 320px
         assert_eq!(nodes.layout_result.size, size!(420.0, 320.0));
+        // Container should be 400px × 300px
         let container = &nodes.children[0];
+        assert_eq!(container.layout_result.size, size!(400.0, 300.0));
+
+        // Fixed1 should be 50px × 100px
+        let fixed1 = &container.children[0];
+        assert_eq!(fixed1.layout_result.size, size!(50.0, 100.0));
+        assert_eq!(fixed1.layout_result.position.left, px!(0.0));
+
+        // Grow1 should be 75px × 300px (1/4 of 300px remaining)
+        let grow1 = &container.children[1];
+        assert_eq!(grow1.layout_result.size, size!(75.0, 300.0));
+        assert_eq!(grow1.layout_result.position.left, px!(50.0));
+
+        // Grow2 should be 150px × 300px (2/4 of 300px remaining)
+        let grow2 = &container.children[2];
+        assert_eq!(grow2.layout_result.size, size!(150.0, 300.0));
+        assert_eq!(grow2.layout_result.position.left, px!(125.0));
+
+        // Grow3 should be 75px × 300px (1/4 of 300px remaining)
+        let grow3 = &container.children[3];
+        assert_eq!(grow3.layout_result.size, size!(75.0, 300.0));
+        assert_eq!(grow3.layout_result.position.left, px!(275.0));
+
+        // Fixed2 should be 90px × 40px (the specified size, margin is separate)
+        // Position is 355px because it includes the 5px margin (350 + 5)
+        let fixed2 = &container.children[4];
+        assert_eq!(fixed2.layout_result.size, size!(40.0, 90.0));
+        assert_eq!(fixed2.layout_result.position.left, px!(355.0));
+
+        // Verify total width: 50 + 75 + 150 + 75 + 40 = 390px (content sizes only, margins not included in sum)
+        let total_width = match (
+            fixed1.layout_result.size.width,
+            grow1.layout_result.size.width,
+            grow2.layout_result.size.width,
+            grow3.layout_result.size.width,
+            fixed2.layout_result.size.width,
+        ) {
+            (
+                Dimension::Px(w1),
+                Dimension::Px(w2),
+                Dimension::Px(w3),
+                Dimension::Px(w4),
+                Dimension::Px(w5),
+            ) => f64::from(w1) + f64::from(w2) + f64::from(w3) + f64::from(w4) + f64::from(w5),
+            _ => panic!("All widths should be resolved"),
+        };
+        assert_eq!(total_width, 390.0);
+    }
+
+    #[test]
+    fn test_flex_grow_with_different_weights_and_container_50_pct() {
+        // Same as previous, but now the container is 50% of the parent (but the parent is twice as wide to keep the totals the same), and a Row direction.
+        let mut nodes = node!(Div::new(), [size: [840.0, 320.0]]).push(
+            node!(
+                Div::new(),
+                [size_pct: [50.0, 100.0], margin: [10.0], direction: Direction::Row, axis_alignment: Alignment::Stretch, debug: "container"]
+            )
+            .push(node!(
+                FillBoundser::new(),
+                [size: [50.0, 100.0], flex_grow: 0.0, debug: "fixed1"]
+            ))
+            .push(node!(
+                Div::new(),
+                [size_pct: [Auto, 100.0], flex_grow: 1.0, debug: "grow1"]
+            ))
+            .push(node!(
+                Div::new(),
+                [size_pct: [Auto, 100.0], flex_grow: 2.0, debug: "grow2"]
+            ))
+            .push(node!(
+                Div::new(),
+                [size_pct: [Auto, 100.0], flex_grow: 1.0, debug: "grow3"]
+            ))
+            .push(node!(
+                FillBoundser::new(),
+                // Because it's fixed size, flex_grow is ignored
+                [size: [40.0, 90.0], margin: [5.0], flex_grow: 1.0, debug: "fixed2"]
+                // Previous value
+                // [size: [100.0, 50.0], flex_grow: 1.0, debug: "fixed2"]
+            )),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+
+        // Root should be 400px × 400px
+        assert_eq!(nodes.layout_result.size, size!(840.0, 320.0));
+        let container = &nodes.children[0];
+        assert_eq!(container.layout_result.size, size!(400.0, 300.0));
 
         // Fixed1 should be 50px × 100px
         let fixed1 = &container.children[0];
