@@ -98,11 +98,11 @@ git = "https://github.com/AlexCharlton/baseview.git"
 # path = "../external/baseview"
 
 [workspace.dependencies.nice-plug]
-git = "https://github.com/AlexCharlton/nice-plug.git"
+git = "https://codeberg.org/RustAudio/nice-plug.git"
 # path = "../external/nice-plug/crates/nice-plug"
 
 [workspace.dependencies.nice-plug-core]
-git = "https://github.com/AlexCharlton/nice-plug.git"
+git = "https://codeberg.org/RustAudio/nice-plug.git"
 # path = "../external/nice-plug/crates/nice-plug-core"
 
 [build-dependencies]
