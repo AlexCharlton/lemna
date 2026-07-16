@@ -89,18 +89,23 @@ impl super::node::Node {
         scale_factor: f32,
         final_pass: bool,
     ) {
+        let padding = self.layout.padding.maybe_resolve(&bounds_size);
+        let bounds_less_padding = bounds_size.minus_bounds(&padding);
+        let max_size = self.layout.max_size.maybe_resolve(&bounds_less_padding);
         let size = if self.layout_result.main_resolved {
             self.layout.size.most_specific(&self.layout_result.size)
         } else {
             self.layout.size
         };
 
-        let padding = self.layout.padding.maybe_resolve(&bounds_size);
-        let mut inner_size = size.maybe_resolve(&bounds_size).minus_bounds(&padding);
-        let bounds_less_padding = bounds_size.minus_bounds(&padding);
+        let mut inner_size = size
+            .maybe_resolve(&bounds_size)
+            .min(max_size)
+            .minus_bounds(&padding);
         let available_size = size
             .maybe_resolve(&available_size)
             .most_specific(&available_size)
+            .min(max_size)
             .minus_bounds(&padding);
         if self.scroll_x().is_some() {
             inner_size.width = Dimension::Auto;
@@ -226,7 +231,6 @@ impl super::node::Node {
                 let fill_bounds_size = inner_size.most_specific(&bounds_less_padding);
                 let fill_bounds_inner_size = fill_bounds_size
                     .minus_bounds(&child.layout.margin.maybe_resolve(&fill_bounds_size));
-                let max_size = self.layout.max_size.maybe_resolve(&fill_bounds_size);
 
                 let (w, h) = child.component.fill_bounds(
                     child.layout_result.size.width.maybe_px(),
@@ -2722,6 +2726,30 @@ mod tests {
         nodes.calculate_layout(&Caches::default(), 1.0);
         let child = &nodes.children[0];
         assert_eq!(child.layout_result.size, size!(150.0));
+    }
+
+    #[test]
+    fn test_pct_child_in_parent_with_max_size() {
+        let mut nodes = node!(
+            Div::new(),
+            [size: [300.0]]
+        )
+        .push(
+     node!(Div::new(), [
+             size_pct: [100.0, Auto], direction: Column,  cross_alignment: Center]
+          ).push(
+            node!(Div::new(), [
+                size_pct: [100.0, Auto], max_size: [120.0, Auto], padding: [10.0], debug: "parent"
+            ]).push(node!(Div::new(), [
+                size_pct: [100.0], direction: Column, cross_alignment: Center, debug: "child"
+          ])),
+        ));
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        let container = &nodes.children[0];
+        let parent = &container.children[0];
+        assert_eq!(parent.layout_result.size, size!(120.0, 300.0));
+        let child = &parent.children[0];
+        assert_eq!(child.layout_result.size, size!(100.0, 280.0));
     }
 
     #[test]
