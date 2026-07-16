@@ -42,11 +42,7 @@ impl super::node::Node {
         // Direction of the main axis for this layout result, i.e. the parent's direction
         dir: Direction,
     ) -> Size {
-        let main_dim = if self.layout_result.main_resolved {
-            // remaining_space_main does not include this node's size, so we can't use that.
-            // So if we're already resolved, use the resolved size.
-            self.layout_result.size.main(dir)
-        } else if !parent_inner_size.main(dir).resolved()
+        let main_dim = if !parent_inner_size.main(dir).resolved()
             && !parent_bounds_size.main(dir).resolved()
         {
             // Nothing to base off of, so we return auto
