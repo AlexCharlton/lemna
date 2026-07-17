@@ -39,6 +39,7 @@ impl super::node::Node {
         &self,
         parent_inner_size: Size,
         parent_bounds_size: Size,
+        available_size: Size,
         // Direction of the main axis for this layout result, i.e. the parent's direction
         dir: Direction,
     ) -> Size {
@@ -47,6 +48,9 @@ impl super::node::Node {
         {
             // Nothing to base off of, so we return auto
             Dimension::Auto
+        } else if self.layout.size.main(dir).is_auto() && available_size.main(dir).resolved() {
+            // Restrict bounds to the available size when auto
+            available_size.main(dir)
         } else {
             Self::best_available_dimension(
                 parent_inner_size.main(dir),
@@ -66,10 +70,13 @@ impl super::node::Node {
         }
         if cfg!(debug_assertions) && self.layout.debug.is_some() {
             log_debug!(
-                "bounds_size: <{}> with parent inner size {:?}, parent bounds size {:?}, main_resolved {:?}, resulting bounds: {:?}",
+                "bounds_size: <{}> layout size {:?}, with parent inner size {:?}, parent bounds size {:?}, available size {:?}, dir: {:?}, main_resolved {:?}, resulting bounds: {:?}",
                 self.layout.debug.as_ref().unwrap(),
+                &self.layout.size,
                 &parent_inner_size,
                 &parent_bounds_size,
+                &available_size,
+                dir,
                 self.layout_result.main_resolved,
                 &size,
             );
@@ -94,10 +101,12 @@ impl super::node::Node {
             self.layout.size
         };
 
+        // The size we use to resolve pct children - does not shrink because of siblings
         let mut inner_size = size
             .maybe_resolve(&bounds_size)
             .min(max_size)
             .minus_bounds(&padding);
+        // The size we use to resolve non-fixed/pct children - shrinks because of siblings
         let available_size = size
             .maybe_resolve(&available_size)
             .most_specific(&available_size)
@@ -342,7 +351,7 @@ impl super::node::Node {
             available_size = available_size.minus_bounds(&child_margin);
 
             child.resolve_layout(
-                child.bounds_size(inner_size, parent_bounds_size, dir),
+                child.bounds_size(inner_size, parent_bounds_size, available_size, dir),
                 available_size,
                 caches,
                 scale_factor,
@@ -2310,6 +2319,32 @@ mod tests {
         assert_eq!(auto_child.layout_result.size, size!(300.0, 200.0));
         let pct_child = &auto_child.children[0];
         assert_eq!(pct_child.layout_result.size, size!(300.0, 200.0));
+    }
+
+    #[test]
+    fn test_nested_pct_with_fixed_sibling() {
+        let mut nodes = node!(Div::new(), [
+          size: [300.0],
+          direction: Column,
+        ])
+        .push(node!(Div::new(), [size: [100.0]]))
+        .push(
+            node!(Div::new(), [size_pct: [100.0, Auto], debug: "parent"]).push(
+                node!(Div::new(), [size_pct: [50.0, 100.0], debug: "pct"])
+                    .push(node!(Div::new(), [size_pct: [100.0], debug: "pct child"])),
+            ),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        let fixed = &nodes.children[0];
+        assert_eq!(fixed.layout_result.size, size!(100.0));
+        // Parent should get its height from its child
+        let parent = &nodes.children[1];
+        assert_eq!(parent.layout_result.size, size!(300.0, 200.0));
+        // This child should not be allowed to grow beyond the remaining space in the parent
+        let pct = &parent.children[0];
+        assert_eq!(pct.layout_result.size, size!(150.0, 200.0));
+        let pct_child = &pct.children[0];
+        assert_eq!(pct_child.layout_result.size, size!(150.0, 200.0));
     }
 
     #[test]
