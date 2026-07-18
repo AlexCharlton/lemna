@@ -273,7 +273,7 @@ impl super::node::Node {
             if let Dimension::Px(x) = child.layout_result.size.main(dir)
                 && child.layout_result.main_resolved
             {
-                if !self.layout.wrap {
+                if !self.layout.wrap && !child.layout.overlay {
                     // Don't subtract from main_remain for wrap nodes, since we always have the same main space for each row.
                     main_remaining -= x + f64::from(child_margin.main_total(dir));
                 }
