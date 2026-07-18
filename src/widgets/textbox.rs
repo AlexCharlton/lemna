@@ -436,7 +436,7 @@ impl TextBoxText {
     fn cursor_position_px(&self, pos: usize) -> f32 {
         let glyphs = &self.state_ref().glyphs;
         let len = glyphs.len();
-        (if pos == 0 {
+        (if pos == 0 || len == 0 {
             0.0
         } else if pos < len {
             glyphs[pos].x - 1.0 // Provide a 1px gap between the next glyph and the cursor
