@@ -108,7 +108,6 @@ impl super::node::Node {
             .minus_bounds(&padding);
         // The size we use to resolve non-fixed/pct children - shrinks because of siblings
         let available_size = size
-            .maybe_resolve(&available_size)
             .most_specific(&available_size)
             .min(max_size)
             .minus_bounds(&padding);
@@ -2384,6 +2383,47 @@ mod tests {
                 "fill_bounds size for slot {} is {:?}",
                 i,
                 fill_bounds.layout_result.size
+            );
+        }
+    }
+
+    #[test]
+    fn pct_with_auto_and_fill_bounds_ancestor() {
+        let mut nodes = node!(Div::new(), [size: [400.0], direction: Column]);
+        let mut outer = node!(Div::new(), [size_pct: [100.0, Auto], debug: "outer"]);
+
+        for i in 0..4 {
+            outer = outer.push(
+                // Each of these should be 100px wide
+                node!(Div::new(), [size_pct: [25.0, Auto], debug: format!("slot {}", i)]).push(
+                    node!(Div::new(), [
+                      size_pct: [100.0, Auto],
+                      debug: format!("slot child {}", i),
+                    ])
+                    .push(node!(Div::new(), [debug: format!("slot auto child {}", i)]).push(
+                        node!(FillBoundser::new_size(30.0), [debug: format!("fill_bounds {}", i)]),
+                    )),
+                ),
+            );
+        }
+
+        nodes = nodes.push(outer);
+
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        let outer = &nodes.children[0];
+        assert_eq!(outer.layout_result.size, size!(400.0, 30.0));
+        for i in 0..4 {
+            let slot = &outer.children[i];
+            assert_eq!(slot.layout_result.size, size!(100.0, 30.0));
+            let slot_child = &slot.children[0];
+            assert_eq!(slot_child.layout_result.size, size!(100.0, 30.0));
+            let auto_child = &slot_child.children[0];
+            assert_eq!(
+                auto_child.layout_result.size,
+                size!(30.0),
+                "auto child size for slot {} is {:?}",
+                i,
+                auto_child.layout_result.size
             );
         }
     }
