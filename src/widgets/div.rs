@@ -424,7 +424,7 @@ impl Component for Div {
             let scaled_width = self.style_val("bar_width").unwrap().f32() * context.scale_factor;
             self.state_mut().scaled_scroll_bar_width = scaled_width;
 
-            let max_position = inner_scale - size;
+            let max_position = inner_scale.round() - size.round();
 
             if self.y_scrollable() {
                 if max_position.height > 0.0 {
