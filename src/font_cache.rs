@@ -4,7 +4,7 @@
 //!
 //! The `FontCache` is exposed to users so that you can lay out text (i.e. when you're not using a Component that lays out text for you, like [`widgets::Text`][crate::widgets::Text]) via the [`Caches`][crate::renderable::Caches] referenced by the [`RenderContext`][crate::RenderContext] which gets passed to [`Component#render`][crate::Component#method.render].
 //!
-//! The text-layout interface uses a slice of [`TextSegment`]s as a Component-agnostic way of representing text. A `TextSegment` stores a text string, and optionally a font size and font name (defaults will be used otherwise). In this way, we can lay out text in a variety of types and sizes. [`txt`][crate::txt] is provided as a convenient way of creating `TextSegment`s.
+//! The text-layout interface uses a slice of [`TextSegment`]s as a Component-agnostic way of representing text. A `TextSegment` stores a text string, and optionally a font size and font name (defaults will be used otherwise). In this way, we can lay out text in a variety of types and sizes. [`ts`][crate::ts] constructs a single `TextSegment`, and [`txt`][crate::txt] constructs a `Vec` of them.
 
 extern crate alloc;
 
@@ -169,7 +169,7 @@ impl FontCache {
 
 /// Used by [`Caches::layout_text`][crate::renderable::Caches::layout_text] as an input. Accordingly, it is also commonly used as the input to Components that display text, e.g. [`widgets::Text`][crate::widgets::Text] and [`widgets::Button`][crate::widgets::Button].
 ///
-/// [`txt`][crate::txt] is provided as a convenient constructor, but you can also use `into` from a `&str` or `String`, e.g. `"some text".into()`.
+/// [`ts`][crate::ts] and [`txt`][crate::txt] are provided as convenient constructors, but you can also use `into` from a `&str` or `String`, e.g. `"some text".into()`.
 #[derive(Debug, Clone)]
 pub struct TextSegment {
     /// The text to be laid out.
@@ -218,10 +218,82 @@ impl From<crate::open_iconic::Icon> for TextSegment {
     }
 }
 
-/// Convenience constructor for a `Vec` of [`TextSegment`]s.
+/// Constructor for a single [`TextSegment`].
 ///
-/// `txt` accepts a variable number of arguments. Each argument can come in one of four forms:
-/// - `"text"`: A value that is `Into<String>`.
+/// Accepts one of four forms:
+/// - `"text"`: A value that is `Into<TextSegment>` (string literals avoid allocation).
+/// - `("text", "font_name")`: A text string, and a font name, both must be `Into<String>` (for the font).
+/// - `("text", "font_name", 12.0)`: A text string, a font name, and an `f32` font size.
+/// - `("text", None, 12.0)`: A text string and a font size.
+///
+/// If no font name or size is given, defaults are assumed.
+///
+/// For a `Vec` of segments, use [`txt`][crate::txt].
+///
+/// ```
+/// # use lemna::*;
+/// let segment = ts!(("Hello", "Helvetica Bold", 22.0));
+/// ```
+#[macro_export]
+macro_rules! ts {
+    // Special case for string literals to avoid allocation
+    (($text:literal, None, $size:expr)) => {
+        $crate::TextSegment {
+            text: $crate::TextSegment::from_static($text).text,
+            size: Some($size),
+            font: None,
+        }
+    };
+
+    (($text:literal, $font:expr, $size:expr)) => {
+        $crate::TextSegment {
+            text: $crate::TextSegment::from_static($text).text,
+            size: Some($size),
+            font: Some($font.into()),
+        }
+    };
+
+    (($text:literal, $font:expr)) => {
+        $crate::TextSegment {
+            text: $crate::TextSegment::from_static($text).text,
+            size: None,
+            font: Some($font.into()),
+        }
+    };
+
+    (($text:expr, None, $size:expr)) => {{
+        let mut segment: $crate::TextSegment = $text.into();
+        segment.size = Some($size);
+        segment
+    }};
+
+    (($text:expr, $font:expr, $size:expr)) => {{
+        let mut segment: $crate::TextSegment = $text.into();
+        segment.size = Some($size);
+        segment.font = Some($font.into());
+        segment
+    }};
+
+    (($text:expr, $font:expr)) => {{
+        let mut segment: $crate::TextSegment = $text.into();
+        segment.font = Some($font.into());
+        segment
+    }};
+
+    // Special case for string literals to avoid allocation
+    ($text:literal) => {
+        $crate::TextSegment::from_static($text)
+    };
+
+    ($e:expr) => {
+        $e.into()
+    };
+}
+
+/// Constructor for a `Vec` of [`TextSegment`]s.
+///
+/// `txt` accepts a variable number of arguments. Each argument uses the same forms as [`ts`][crate::ts]:
+/// - `"text"`: A value that is `Into<TextSegment>`.
 /// - `("text", "font_name")`: A text string, and a font name, both must be `Into<String>`.
 /// - `("text", "font_name", 12.0)`: A text string, a font name, and an `f32` font size.
 /// - `("text", None, 12.0)`: A text string and a font size.
@@ -276,56 +348,8 @@ macro_rules! txt {
     };
     // End split_comma
 
-    // Operation performed per comma-separated expr
-    // Special case for string literals to avoid allocation
-    (@as_txt_seg  ($text:literal, None, $size:expr)) => { $crate::TextSegment {
-        text: $crate::TextSegment::from_static($text).text,
-        size: Some($size),
-        font: None,
-    } };
-
-    (@as_txt_seg  ($text:literal, $font:expr, $size:expr)) => { $crate::TextSegment {
-        text: $crate::TextSegment::from_static($text).text,
-        size: Some($size),
-        font: Some($font.into()),
-    } };
-
-    (@as_txt_seg  ($text:literal, $font:expr)) => { $crate::TextSegment {
-        text: $crate::TextSegment::from_static($text).text,
-        size: None,
-        font: Some($font.into()),
-    } };
-
-    (@as_txt_seg  ($text:expr, None, $size:expr)) => { {
-        let mut ts: $crate::TextSegment = $text.into();
-        ts.size = Some($size);
-        ts
-    } };
-
-    (@as_txt_seg  ($text:expr, $font:expr, $size:expr)) => { {
-        let mut ts: $crate::TextSegment = $text.into();
-        ts.size = Some($size);
-        ts.font = Some($font.into());
-        ts
-    } };
-
-    (@as_txt_seg  ($text:expr, $font:expr)) => { {
-        let mut ts: $crate::TextSegment = $text.into();
-        ts.font = Some($font.into());
-        ts
-    } };
-
-    // Special case for string literals to avoid allocation
-    (@as_txt_seg  $text:literal) => {
-        $crate::TextSegment::from_static($text)
-    };
-
-    (@as_txt_seg  $e:expr) => {
-        $e.into()
-    };
-
     // Operation called by split_comma with parenthesized groups
-    (@txt_seg  $(($($item:tt)*))*) => { vec![$(txt!(@as_txt_seg $($item)*) , )*] };
+    (@txt_seg  $(($($item:tt)*))*) => { vec![$($crate::ts!($($item)*) , )*] };
 
     // Entry point
     ($($e:tt)*) => {
