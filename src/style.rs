@@ -712,6 +712,10 @@ impl StyleVal {
         self.into()
     }
 
+    pub fn bounds(self) -> Bounds {
+        self.into()
+    }
+
     pub fn rect(self) -> Rect {
         self.into()
     }
