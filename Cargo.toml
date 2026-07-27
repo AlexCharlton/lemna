@@ -28,6 +28,7 @@ logs = ["dep:log"]
 std = [
     "critical-section/std",
     "crossbeam-channel",
+    "csscolorparser/std",
     "embassy-sync/std",
     "kurbo/std",
     "raw-window-handle",
@@ -65,6 +66,9 @@ ahash = { version = "0.8", default-features = false }
 bytemuck = { version = "1.4", features = ["derive"] }
 cgmath = "0.17.0"
 critical-section = { version = "1" }
+csscolorparser = { version = "0.8", default-features = false, features = [
+    "named-colors",
+] }
 embassy-futures = "0.1"
 embassy-sync = "0.7"
 embedded-graphics = { version = "0.8", optional = true }

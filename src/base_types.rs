@@ -805,6 +805,7 @@ impl Hash for BorderRadii {
 
 //-------------------------------------------------------------
 // MARK: Color
+use csscolorparser::Color as CssColor;
 
 /// RGBA color struct, used for styling and rendering. Values are normalized (0.0--1.0) floating point.
 #[derive(Debug, Copy, Clone, PartialEq, Pod, Zeroable, Serialize, Deserialize)]
@@ -951,6 +952,89 @@ impl Color {
     pub fn is_visible(&self) -> bool {
         self.a > 0.0
     }
+
+    /// Parses a CSS color string into a Color. See [csscolorparser::parse].
+    pub fn parse(s: &str) -> Result<Self, csscolorparser::ParseColorError> {
+        csscolorparser::parse(s).map(|c| c.into())
+    }
+
+    pub fn from_oklaba(oklaba: [f32; 4]) -> Self {
+        CssColor::from_oklaba(oklaba[0], oklaba[1], oklaba[2], oklaba[3]).into()
+    }
+
+    pub fn to_oklaba(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_oklaba()
+    }
+
+    pub fn from_oklcha(oklcha: [f32; 4]) -> Self {
+        CssColor::from_oklcha(oklcha[0], oklcha[1], oklcha[2], oklcha[3]).into()
+    }
+
+    pub fn to_oklcha(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_oklcha()
+    }
+
+    pub fn from_linear_rgba(linear_rgba: [f32; 4]) -> Self {
+        CssColor::from_linear_rgba(
+            linear_rgba[0],
+            linear_rgba[1],
+            linear_rgba[2],
+            linear_rgba[3],
+        )
+        .into()
+    }
+
+    pub fn to_linear_rgba(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_linear_rgba()
+    }
+
+    pub fn from_hsva(hsva: [f32; 4]) -> Self {
+        CssColor::from_hsva(hsva[0], hsva[1], hsva[2], hsva[3]).into()
+    }
+
+    pub fn to_hsva(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_hsva()
+    }
+
+    pub fn from_hsla(hsla: [f32; 4]) -> Self {
+        CssColor::from_hsla(hsla[0], hsla[1], hsla[2], hsla[3]).into()
+    }
+
+    pub fn to_hsla(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_hsla()
+    }
+
+    pub fn from_hwba(hwba: [f32; 4]) -> Self {
+        CssColor::from_hwba(hwba[0], hwba[1], hwba[2], hwba[3]).into()
+    }
+
+    pub fn to_hwba(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_hwba()
+    }
+
+    pub fn from_laba(laba: [f32; 4]) -> Self {
+        CssColor::from_laba(laba[0], laba[1], laba[2], laba[3]).into()
+    }
+
+    pub fn to_laba(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_laba()
+    }
+
+    pub fn from_lcha(lcha: [f32; 4]) -> Self {
+        CssColor::from_lcha(lcha[0], lcha[1], lcha[2], lcha[3]).into()
+    }
+
+    pub fn to_lcha(&self) -> [f32; 4] {
+        let color: CssColor = self.into();
+        color.to_lcha()
+    }
 }
 
 impl From<[f32; 4]> for Color {
@@ -1049,6 +1133,24 @@ impl From<Color> for [f32; 4] {
     /// Converts a Color into an array of floats `[R, G, B, A]`.
     fn from(c: Color) -> Self {
         unsafe { mem::transmute(c) }
+    }
+}
+
+impl From<Color> for csscolorparser::Color {
+    fn from(c: Color) -> Self {
+        unsafe { core::mem::transmute(c) }
+    }
+}
+
+impl From<&Color> for csscolorparser::Color {
+    fn from(c: &Color) -> Self {
+        unsafe { core::mem::transmute(*c) }
+    }
+}
+
+impl From<csscolorparser::Color> for Color {
+    fn from(c: csscolorparser::Color) -> Self {
+        unsafe { core::mem::transmute(c) }
     }
 }
 
