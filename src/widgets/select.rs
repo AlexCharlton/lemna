@@ -309,11 +309,7 @@ impl Component for Caret {
             scale,
             0.0,
             context.caches,
-            context
-                .prev_state
-                .as_ref()
-                .and_then(|r| r.first())
-                .and_then(|r| r.as_shape()),
+            nth_prev_as_shape!(context, 0),
         ))])
     }
 }

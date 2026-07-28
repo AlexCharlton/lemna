@@ -46,11 +46,7 @@ impl lemna::Component for App {
             4.0,
             0.0,
             context.caches,
-            context
-                .prev_state
-                .as_ref()
-                .and_then(|r| r.first())
-                .and_then(|r| r.as_shape()),
+            nth_prev_as_shape!(context, 0),
         ));
         let shape2 = Renderable::Shape(Shape::new(
             path2,
@@ -59,11 +55,7 @@ impl lemna::Component for App {
             4.0,
             0.0,
             context.caches,
-            context
-                .prev_state
-                .as_ref()
-                .and_then(|r| r.get(1))
-                .and_then(|r| r.as_shape()),
+            nth_prev_as_shape!(context, 1),
         ));
         let shape3 = Renderable::Shape(Shape::new(
             path3,
@@ -72,11 +64,7 @@ impl lemna::Component for App {
             6.0,
             0.0,
             context.caches,
-            context
-                .prev_state
-                .as_ref()
-                .and_then(|r| r.get(2))
-                .and_then(|r| r.as_shape()),
+            nth_prev_as_shape!(context, 2),
         ));
         let shape4 = Renderable::Shape(Shape::new(
             path4,
@@ -85,11 +73,7 @@ impl lemna::Component for App {
             4.0,
             0.0,
             context.caches,
-            context
-                .prev_state
-                .as_ref()
-                .and_then(|r| r.get(3))
-                .and_then(|r| r.as_shape()),
+            nth_prev_as_shape!(context, 3),
         ));
 
         Some(vec![shape1, shape2, shape3, shape4])

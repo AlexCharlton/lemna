@@ -869,11 +869,7 @@ impl Component for TextBoxText {
                 },
                 text_color,
                 context.caches,
-                context
-                    .prev_state
-                    .as_ref()
-                    .and_then(|r| r.first())
-                    .and_then(|r| r.as_text()),
+                nth_prev_as_text!(context, 0),
             ));
 
             renderables.push(text);

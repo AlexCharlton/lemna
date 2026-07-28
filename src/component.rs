@@ -46,6 +46,50 @@ pub struct RenderContext<'a> {
     pub scale_factor: f32,
 }
 
+/// Returns the nth `prev_staet` value from a [`RenderContext`], expecting a [`Renderable::Shape`], if present.
+#[macro_export]
+macro_rules! nth_prev_as_shape {
+    ($self:ident, $n:expr) => {
+        $self
+            .prev_state
+            .as_ref()
+            .and_then(|state| state.get($n).and_then(|r| r.as_shape()))
+    };
+}
+
+/// Returns the nth `prev_staet` value from a [`RenderContext`], expecting a [`Renderable::Text`], if present.
+#[macro_export]
+macro_rules! nth_prev_as_text {
+    ($self:ident, $n:expr) => {
+        $self
+            .prev_state
+            .as_ref()
+            .and_then(|state| state.get($n).and_then(|r| r.as_text()))
+    };
+}
+
+/// Returns the nth `prev_staet` value from a [`RenderContext`], expecting a [`Renderable::Rectangle`], if present.
+#[macro_export]
+macro_rules! nth_prev_as_rect {
+    ($self:ident, $n:expr) => {
+        $self
+            .prev_state
+            .as_ref()
+            .and_then(|state| state.get($n).and_then(|r| r.as_rect()))
+    };
+}
+
+/// Returns the nth `prev_staet` value from a [`RenderContext`], expecting a [`Renderable::Raster`], if present.
+#[macro_export]
+macro_rules! nth_prev_as_raster {
+    ($self:ident, $n:expr) => {
+        $self
+            .prev_state
+            .as_ref()
+            .and_then(|state| state.get($n).and_then(|r| r.as_raster()))
+    };
+}
+
 /// The primary interface of Lemna. Components are the -- optionally stateful -- elements that are drawn on a window that a user interacts with.
 ///
 /// Implementing methods are optional, since defaults are provided for all. Provided methods will either do nothing -- returning an empty value like `None`, `vec![]`, or false where the signature has a return value -- or else the default behavior will be noted.

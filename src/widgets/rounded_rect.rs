@@ -83,11 +83,7 @@ impl Component for RoundedRect {
                 self.border_width * context.scale_factor,
                 0.0,
                 context.caches,
-                context
-                    .prev_state
-                    .as_ref()
-                    .and_then(|r| r.first())
-                    .and_then(|r| r.as_shape()),
+                nth_prev_as_shape!(context, 0),
             ))]),
             Err(_e) => {
                 log_error!("Failed to build path: {:?}", _e);
