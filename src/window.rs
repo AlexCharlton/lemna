@@ -1,11 +1,11 @@
 use crate::base_types::{Data, PixelSize};
 
 #[cfg(feature = "std")]
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 /// The trait that backends must implement. An instance is returned by [`current_window`] so that an app may interact with the OS's windowing system.
 #[cfg(feature = "std")]
-pub trait Window: HasRawWindowHandle + HasRawDisplayHandle + Send + Sync {
+pub trait Window: HasWindowHandle + HasDisplayHandle + Send + Sync {
     /// Logical size of the window. Probably only useful internally.
     fn logical_size(&self) -> PixelSize;
 

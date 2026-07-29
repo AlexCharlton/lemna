@@ -55,7 +55,7 @@ features = ["docs_rs", "docs", "std", "cpu_renderer"]
 default-features = false
 
 [dependencies.wgpu]
-version = "0.16"
+version = "30.0"
 # path = "../external/wgpu-rs"
 features = ["spirv"]
 optional = true
@@ -87,26 +87,29 @@ embed-doc-image = { version = "0.1", optional = true }
 kurbo = { version = "0.12", default-features = false, features = ["libm"] }
 lyon = { workspace = true, optional = true }
 raw-window-handle = { workspace = true, optional = true }
-softbuffer = { version = "0.3", optional = true }
+softbuffer = { version = "0.4", optional = true }
 tiny-skia = { git = "https://github.com/AlexCharlton/tiny-skia.git", optional = true }
 
 [workspace.dependencies]
-raw-window-handle = "0.5"
+raw-window-handle = "0.6"
 lemna-macros = { path = "./macros", version = "0.5" }
 simplelog = "0.12"
 lyon = "1.0"
 ttf-noto-sans = "0.1"
 
 [workspace.dependencies.baseview]
-git = "https://github.com/AlexCharlton/baseview.git"
+version = "0.2"
+# git = "https://github.com/AlexCharlton/baseview.git"
 # path = "../external/baseview"
 
 [workspace.dependencies.nice-plug]
-git = "https://codeberg.org/RustAudio/nice-plug.git"
+version = "0.2"
+# git = "https://codeberg.org/RustAudio/nice-plug.git"
 # path = "../external/nice-plug/crates/nice-plug"
 
 [workspace.dependencies.nice-plug-core]
-git = "https://codeberg.org/RustAudio/nice-plug.git"
+version = "0.2"
+# git = "https://codeberg.org/RustAudio/nice-plug.git"
 # path = "../external/nice-plug/crates/nice-plug-core"
 
 [build-dependencies]

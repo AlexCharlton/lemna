@@ -3,7 +3,7 @@ use lemna::UI;
 use lemna_baseview::{self, Message, ParentMessage};
 use nice_plug_core::{
     context::gui::GuiContext,
-    editor::{Editor, ParentWindowHandle},
+    editor::{Editor, ParentWindowHandle, dpi},
 };
 use std::{
     marker::PhantomData,
@@ -16,7 +16,7 @@ pub use lemna_baseview::WindowOptions;
 struct LemnaEditor<A: lemna::Component + Default + Send + Sync> {
     window_options: WindowOptions,
     phantom_app: PhantomData<A>,
-    scale_factor: Arc<RwLock<Option<f32>>>,
+    scale_factor: Arc<RwLock<Option<f64>>>,
     // Called when initializing the app
     build: Arc<dyn Fn(Arc<dyn GuiContext>, &mut UI<A>) + 'static + Send + Sync>,
     on_param_change: Arc<dyn Fn() -> Vec<Message> + 'static + Send + Sync>,
@@ -56,7 +56,7 @@ where
         &self,
         parent: ParentWindowHandle,
         context: Arc<dyn GuiContext>,
-    ) -> Box<dyn std::any::Any + Send> {
+    ) -> Box<dyn std::any::Any> {
         let build = self.build.clone();
         // Trigger a resize on the first frame
         self.sender.send(ParentMessage::Resize).unwrap();
@@ -67,7 +67,7 @@ where
 
         let mut options = self.window_options.clone();
         options = if let Some(factor) = *self.scale_factor.read().unwrap() {
-            options.scale_factor(factor)
+            options.scale_factor(factor as f32)
         } else {
             options.system_scale_factor()
         };
@@ -81,10 +81,14 @@ where
         Box::new(LemnaEditorHandle { _window: handle })
     }
 
-    fn size(&self) -> (u32, u32) {
-        (self.window_options.width, self.window_options.height)
+    fn size(&self) -> dpi::Size {
+        dpi::LogicalSize::new(
+            self.window_options.width as f64,
+            self.window_options.height as f64,
+        )
+        .into()
     }
-    fn set_scale_factor(&self, factor: f32) -> bool {
+    fn set_scale_factor(&self, factor: f64) -> bool {
         *self.scale_factor.write().unwrap() = Some(factor);
         true
     }

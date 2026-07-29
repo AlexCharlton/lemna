@@ -170,14 +170,14 @@ impl StencilPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("stencil_pipeline_layout"),
-                bind_group_layouts: &[uniform_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(uniform_bind_group_layout)],
+                immediate_size: 0,
             });
 
         let depth_stencil_state_descriptor = wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: false,
-            depth_compare: wgpu::CompareFunction::Always,
+            depth_write_enabled: Some(false),
+            depth_compare: Some(wgpu::CompareFunction::Always),
             stencil: wgpu::StencilState {
                 front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Always,
@@ -216,8 +216,9 @@ impl StencilPipeline {
                 wgpu::PrimitiveTopology::TriangleList,
                 wgpu::VertexState {
                     module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
                 },
                 false,
                 wgpu::ColorWrites::ALL,
@@ -230,8 +231,9 @@ impl StencilPipeline {
                 wgpu::PrimitiveTopology::TriangleList,
                 wgpu::VertexState {
                     module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
                 },
                 true,
                 wgpu::ColorWrites::ALL,

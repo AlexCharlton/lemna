@@ -273,7 +273,7 @@ impl TextPipeline {
                     .glyph_cache
                     .cache_queued(&font_cache.fonts, |region, data| {
                         queue.write_texture(
-                            wgpu::ImageCopyTexture {
+                            wgpu::TexelCopyTextureInfo {
                                 aspect: wgpu::TextureAspect::All,
                                 texture,
                                 mip_level: 0,
@@ -284,7 +284,7 @@ impl TextPipeline {
                                 },
                             },
                             data,
-                            wgpu::ImageDataLayout {
+                            wgpu::TexelCopyBufferLayout {
                                 offset: 0,
                                 bytes_per_row: Some(region.width()),
                                 rows_per_image: Some(region.height()),
@@ -345,7 +345,7 @@ impl TextPipeline {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
-            mipmap_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             label: Some("text_sampler"),
@@ -403,8 +403,11 @@ impl TextPipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("text_pipeline_layout"),
-                bind_group_layouts: &[uniform_bind_group_layout, &texture_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[
+                    Some(uniform_bind_group_layout),
+                    Some(&texture_bind_group_layout),
+                ],
+                immediate_size: 0,
             });
 
         let (texture, bind_group) = Self::create_texture(
@@ -444,8 +447,9 @@ impl TextPipeline {
                 wgpu::PrimitiveTopology::TriangleList,
                 wgpu::VertexState {
                     module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
                 },
                 false,
                 wgpu::ColorWrites::ALL,
@@ -457,8 +461,9 @@ impl TextPipeline {
                 wgpu::PrimitiveTopology::TriangleList,
                 wgpu::VertexState {
                     module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
                 },
                 true,
                 wgpu::ColorWrites::empty(),

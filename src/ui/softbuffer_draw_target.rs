@@ -1,21 +1,59 @@
+use raw_window_handle::{
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WindowHandle,
+};
+
 use crate::base_types::PixelSize;
 use crate::{log_debug, log_error};
 
+/// Owned window/display handles for softbuffer 0.4, which stores `D`/`W` inside
+/// [`Context`](softbuffer::Context) / [`Surface`](softbuffer::Surface).
+#[derive(Clone, Copy)]
+struct SoftBufferHandles {
+    window: RawWindowHandle,
+    display: RawDisplayHandle,
+}
+
+// Safety: same contract as backend `Window` types — handles remain valid for the
+// lifetime of the UI / OS window that owns them.
+unsafe impl Send for SoftBufferHandles {}
+unsafe impl Sync for SoftBufferHandles {}
+
+impl HasWindowHandle for SoftBufferHandles {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        Ok(unsafe { WindowHandle::borrow_raw(self.window) })
+    }
+}
+
+impl HasDisplayHandle for SoftBufferHandles {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        Ok(unsafe { DisplayHandle::borrow_raw(self.display) })
+    }
+}
+
 pub(crate) struct SoftBufferDrawTarget {
     size: PixelSize,
-    _context: softbuffer::Context,
-    surface: softbuffer::Surface,
+    _context: softbuffer::Context<SoftBufferHandles>,
+    surface: softbuffer::Surface<SoftBufferHandles, SoftBufferHandles>,
 }
 
 impl SoftBufferDrawTarget {
-    pub(crate) fn new<
-        W: raw_window_handle::HasRawDisplayHandle + raw_window_handle::HasRawWindowHandle,
-    >(
-        window: W,
+    pub(crate) fn new<W: HasDisplayHandle + HasWindowHandle + ?Sized>(
+        window: &W,
         size: PixelSize,
     ) -> Self {
-        let context = unsafe { softbuffer::Context::new(&window).unwrap() };
-        let surface = unsafe { softbuffer::Surface::new(&context, &window).unwrap() };
+        let handles = SoftBufferHandles {
+            window: window
+                .window_handle()
+                .expect("Failed to get window handle")
+                .as_raw(),
+            display: window
+                .display_handle()
+                .expect("Failed to get display handle")
+                .as_raw(),
+        };
+        let context = softbuffer::Context::new(handles).unwrap();
+        let surface = softbuffer::Surface::new(&context, handles).unwrap();
         let mut target = Self {
             // Start with a zero size so that we can resize it
             size: PixelSize {

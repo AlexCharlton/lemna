@@ -1,4 +1,4 @@
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
 use crate::PixelSize;
 
@@ -9,7 +9,7 @@ pub struct WGPUContext {
     pub msaa_depthbuffer: wgpu::TextureView,
     pub msaa_framebuffer: wgpu::TextureView,
     pub sample_count: u32,
-    pub surface: wgpu::Surface,
+    pub surface: wgpu::Surface<'static>,
     pub surface_config: wgpu::SurfaceConfiguration,
     pub queue: wgpu::Queue,
 }
@@ -88,24 +88,44 @@ fn depthbuffer(
         .create_view(&wgpu::TextureViewDescriptor::default())
 }
 
-pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
+pub async fn get_wgpu_context<W: HasWindowHandle + HasDisplayHandle + Sync + ?Sized>(
     window: &W,
     width: u32,
     height: u32,
 ) -> WGPUContext {
+    // On windows, we get a Device(Lost) when using Dx12
+    // TODO: Why does this happen?
     let backends = if cfg!(windows) {
-        //wgpu::Backends::VULKAN
-        wgpu::Backends::DX12
+        wgpu::Backends::VULKAN
+        // wgpu::Backends::DX12
     } else {
         wgpu::Backends::PRIMARY
-    };
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-        backends,
-        dx12_shader_compiler: Default::default(),
-    });
+    }
+    .with_env();
+    let instance = wgpu::Instance::new(
+        wgpu::InstanceDescriptor {
+            backends,
+            ..wgpu::InstanceDescriptor::new_without_display_handle()
+        }
+        .with_env(),
+    );
+    // Safety: the window outlives the surface; Window stores raw handles for the
+    // lifetime of the UI, which owns this context.
     let surface = unsafe {
+        let target = wgpu::SurfaceTargetUnsafe::RawHandle {
+            raw_display_handle: Some(
+                window
+                    .display_handle()
+                    .expect("Failed to get display handle")
+                    .as_raw(),
+            ),
+            raw_window_handle: window
+                .window_handle()
+                .expect("Failed to get window handle")
+                .as_raw(),
+        };
         instance
-            .create_surface(window)
+            .create_surface_unsafe(target)
             .expect("Failed to get a surface")
     };
     // Maybe TODO: Figure out how to set this dynamically?
@@ -115,19 +135,20 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
             power_preference: wgpu::PowerPreference::default(),
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
+            apply_limit_buckets: false,
         })
         .await
         .expect("Failed to get an adapter");
 
     let (device, queue) = adapter
-        .request_device(
-            &wgpu::DeviceDescriptor {
-                features: wgpu::Features::empty(),
-                limits: wgpu::Limits::default(),
-                label: None,
-            },
-            None,
-        )
+        .request_device(&wgpu::DeviceDescriptor {
+            label: None,
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            experimental_features: wgpu::ExperimentalFeatures::disabled(),
+            memory_hints: Default::default(),
+            trace: wgpu::Trace::Off,
+        })
         .await
         .expect("Failed to get a device");
 
@@ -147,6 +168,8 @@ pub async fn get_wgpu_context<W: HasRawWindowHandle + HasRawDisplayHandle>(
         present_mode: surface_caps.present_modes[0],
         alpha_mode: surface_caps.alpha_modes[0],
         view_formats: vec![],
+        color_space: wgpu::SurfaceColorSpace::Auto,
+        desired_maximum_frame_latency: 2,
     };
     surface.configure(&device, &surface_config);
 

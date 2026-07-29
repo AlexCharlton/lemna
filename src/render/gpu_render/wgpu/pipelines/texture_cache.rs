@@ -220,7 +220,7 @@ impl TextureCache {
                 if !*written || raster_cache.get_raster_data(*raster_cache_id).dirty {
                     let size = raster_cache.get_raster_data(*raster_cache_id).size;
                     queue.write_texture(
-                        wgpu::ImageCopyTexture {
+                        wgpu::TexelCopyTextureInfo {
                             aspect: wgpu::TextureAspect::All,
                             texture: &self.textures[i].0,
                             mip_level: 0,
@@ -231,7 +231,7 @@ impl TextureCache {
                             },
                         },
                         (&raster_cache.get_raster_data(*raster_cache_id).data).into(),
-                        wgpu::ImageDataLayout {
+                        wgpu::TexelCopyBufferLayout {
                             offset: 0,
                             bytes_per_row: Some(size.width * 4),
                             rows_per_image: Some(size.height),

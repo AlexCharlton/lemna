@@ -43,8 +43,8 @@ pub fn create_pipeline(
         Some(BLEND_STRAIGHT_ALPHA),
         Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::GreaterEqual,
+            depth_write_enabled: Some(true),
+            depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
             stencil: wgpu::StencilState {
                 front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Equal,
@@ -86,8 +86,8 @@ pub fn create_pipeline_premul(
         Some(BLEND_PREMULTIPLIED_ALPHA),
         Some(wgpu::DepthStencilState {
             format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: true,
-            depth_compare: wgpu::CompareFunction::GreaterEqual,
+            depth_write_enabled: Some(true),
+            depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
             stencil: wgpu::StencilState {
                 front: wgpu::StencilFaceState {
                     compare: wgpu::CompareFunction::Equal,
@@ -151,7 +151,8 @@ pub fn create_pipeline_with_blend(
         vertex,
         fragment: Some(wgpu::FragmentState {
             module: frag,
-            entry_point: "main",
+            entry_point: Some("main"),
+            compilation_options: Default::default(),
             targets: &[Some(wgpu::ColorTargetState {
                 format: context.surface_config.format,
                 blend,
@@ -173,6 +174,7 @@ pub fn create_pipeline_with_blend(
             mask: !0,
             alpha_to_coverage_enabled: false,
         },
-        multiview: None,
+        multiview_mask: None,
+        cache: None,
     })
 }

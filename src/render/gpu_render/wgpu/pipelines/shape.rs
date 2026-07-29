@@ -146,8 +146,8 @@ impl ShapePipeline {
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("shape_pipeline_layout"),
-                bind_group_layouts: &[uniform_bind_group_layout],
-                push_constant_ranges: &[],
+                bind_group_layouts: &[Some(uniform_bind_group_layout)],
+                immediate_size: 0,
             });
 
         let num_instances = 32; // Initial allocation
@@ -179,8 +179,9 @@ impl ShapePipeline {
                 wgpu::PrimitiveTopology::TriangleList,
                 wgpu::VertexState {
                     module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
                 },
                 false,
                 wgpu::ColorWrites::ALL,
@@ -192,8 +193,9 @@ impl ShapePipeline {
                 wgpu::PrimitiveTopology::TriangleList,
                 wgpu::VertexState {
                     module: &vs_module,
-                    entry_point: "main",
-                    buffers: &[Vertex::desc(), Instance::desc()],
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
                 },
                 true,
                 wgpu::ColorWrites::ALL,

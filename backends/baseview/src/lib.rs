@@ -1,17 +1,20 @@
 use std::any::Any;
-use std::cell::UnsafeCell;
+use std::cell::{Cell, RefCell};
 use std::sync::{Arc, OnceLock, RwLock};
 
 #[cfg(windows)]
-fn sync_child_to_parent_client(window: &baseview::Window<'_>) {
-    use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+fn sync_child_to_parent_client(window: &impl raw_window_handle::HasWindowHandle) {
+    use raw_window_handle::RawWindowHandle;
     use winapi::shared::windef::RECT;
     use winapi::um::winuser::{GetClientRect, GetParent, HWND_TOP, SWP_SHOWWINDOW, SetWindowPos};
 
-    let RawWindowHandle::Win32(handle) = window.raw_window_handle() else {
+    let Ok(handle) = window.window_handle() else {
         return;
     };
-    let hwnd = handle.hwnd as winapi::shared::windef::HWND;
+    let RawWindowHandle::Win32(handle) = handle.as_raw() else {
+        return;
+    };
+    let hwnd = handle.hwnd.get() as winapi::shared::windef::HWND;
     unsafe {
         let parent = GetParent(hwnd);
         if parent.is_null() {
@@ -37,9 +40,11 @@ fn sync_child_to_parent_client(window: &baseview::Window<'_>) {
 
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
+use baseview::dpi::LogicalSize;
 use lemna::{Component, Data, PixelSize, UI, log_error};
 use raw_window_handle::{
-    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+    DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawDisplayHandle,
+    RawWindowHandle, WindowHandle,
 };
 
 mod window_options;
@@ -56,12 +61,13 @@ pub enum ParentMessage {
 }
 
 struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
-    ui: UI<A>,
+    ui: RefCell<UI<A>>,
+    window: baseview::WindowContext,
     parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
     drop_target_valid: Arc<RwLock<bool>>,
     // For parented windows, we need to force the focus to the window when the user clicks on it
     needs_forced_focus: bool,
-    focused: bool,
+    focused: Cell<bool>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -116,7 +122,7 @@ impl Window {
         parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
     ) -> baseview::WindowHandle
     where
-        P: HasRawWindowHandle,
+        P: HasWindowHandle,
         A: 'static + Component + Default + Send + Sync,
         B: Fn(&mut UI<A>) + 'static + Send,
     {
@@ -124,25 +130,26 @@ impl Window {
         let drop_target_valid2 = drop_target_valid.clone();
         baseview::Window::open_parented(
             parent,
-            baseview::WindowOpenOptions {
-                title: options.title,
-                size: baseview::Size::new(options.width.into(), options.height.into()),
-                scale: options.scale_policy,
-                resizable: false,
-            },
-            move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
+            baseview::WindowOpenOptions::new()
+                .with_title(options.title)
+                .with_size(LogicalSize::new(
+                    options.width as f64,
+                    options.height as f64,
+                ))
+                .with_scale_policy(options.scale_policy),
+            move |window| {
                 let scale_factor = match options.scale_policy {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
-                    baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
+                    baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until resize
                 } as f32;
                 set_window_size(
                     (options.width, options.height),
                     scale_factor,
                     options.scale_policy,
                 );
-                let mut ui = UI::new(Self {
-                    handle: window.raw_window_handle(),
-                    display_handle: window.raw_display_handle(),
+                let mut ui: UI<A> = UI::new(Self {
+                    handle: window.window_handle().expect("window handle").as_raw(),
+                    display_handle: window.display_handle().expect("display handle").as_raw(),
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
@@ -153,11 +160,12 @@ impl Window {
                 build(&mut ui);
 
                 BaseViewUI {
-                    ui,
+                    ui: RefCell::new(ui),
+                    window,
                     parent_channel,
                     drop_target_valid: drop_target_valid2,
                     needs_forced_focus: true,
-                    focused: false,
+                    focused: Cell::new(false),
                 }
             },
         )
@@ -170,25 +178,26 @@ impl Window {
         let drop_target_valid = Arc::new(RwLock::new(true));
         let drop_target_valid2 = drop_target_valid.clone();
         baseview::Window::open_blocking(
-            baseview::WindowOpenOptions {
-                title: options.title,
-                size: baseview::Size::new(options.width.into(), options.height.into()),
-                scale: options.scale_policy,
-                resizable: options.resizable,
-            },
-            move |window: &mut baseview::Window<'_>| -> BaseViewUI<A> {
+            baseview::WindowOpenOptions::new()
+                .with_title(options.title)
+                .with_size(LogicalSize::new(
+                    options.width as f64,
+                    options.height as f64,
+                ))
+                .with_scale_policy(options.scale_policy),
+            move |window| {
                 let scale_factor = match options.scale_policy {
                     baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
-                    baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until scale event
+                    baseview::WindowScalePolicy::SystemScaleFactor => 1.0, // Assume for now until resize
                 } as f32;
                 set_window_size(
                     (options.width, options.height),
                     scale_factor,
                     options.scale_policy,
                 );
-                let mut ui = UI::new(Self {
-                    handle: window.raw_window_handle(),
-                    display_handle: window.raw_display_handle(),
+                let mut ui: UI<A> = UI::new(Self {
+                    handle: window.window_handle().expect("window handle").as_raw(),
+                    display_handle: window.display_handle().expect("display handle").as_raw(),
                     drop_target_valid,
                 });
                 for (name, data) in options.fonts.drain(..) {
@@ -198,170 +207,166 @@ impl Window {
                 }
 
                 BaseViewUI {
-                    ui,
+                    ui: RefCell::new(ui),
+                    window,
                     parent_channel: None,
                     drop_target_valid: drop_target_valid2,
                     needs_forced_focus: false,
-                    focused: false,
+                    focused: Cell::new(false),
                 }
             },
         );
     }
 }
 
-unsafe impl HasRawWindowHandle for Window {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.handle
+impl HasWindowHandle for Window {
+    fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+        Ok(unsafe { WindowHandle::borrow_raw(self.handle) })
     }
 }
 
-unsafe impl HasRawDisplayHandle for Window {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.display_handle
+impl HasDisplayHandle for Window {
+    fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+        Ok(unsafe { DisplayHandle::borrow_raw(self.display_handle) })
     }
 }
 
 thread_local!(
-    static CURRENT_WINDOW: UnsafeCell<Option<&'static mut baseview::Window<'static>>> = const { UnsafeCell::new(None) }
+    static CURRENT_WINDOW: RefCell<Option<baseview::WindowContext>> = const { RefCell::new(None) };
 );
 
-/// Return a reference to the current [`Window`]. Will only return a `Some` value when called during event handling.
-pub fn current_window<'a>() -> &'static mut Option<&'a mut baseview::Window<'a>> {
-    CURRENT_WINDOW.with(|r| unsafe { r.get().as_mut().unwrap() })
+/// Return the current [`WindowContext`], if called during event handling.
+pub fn current_window() -> Option<baseview::WindowContext> {
+    CURRENT_WINDOW.with(|r| r.borrow().clone())
 }
 
 fn clear_current_window() {
-    CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = None })
+    CURRENT_WINDOW.with(|r| *r.borrow_mut() = None);
 }
 
-fn set_current_window(window: &'static mut baseview::Window<'static>) {
-    CURRENT_WINDOW.with(|r| unsafe { *r.get().as_mut().unwrap() = Some(window) })
+fn set_current_window(window: baseview::WindowContext) {
+    CURRENT_WINDOW.with(|r| *r.borrow_mut() = Some(window));
+}
+
+fn physical_to_logical(x: f64, y: f64) -> (f32, f32) {
+    let scale = get_window_size().scale_factor;
+    ((x as f32) / scale, (y as f32) / scale)
 }
 
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
 impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for BaseViewUI<A> {
-    fn on_frame(&mut self, window: &mut baseview::Window) {
+    fn on_frame(&self) {
         if let Some(receiver) = &self.parent_channel {
             while let Ok(message) = receiver.try_recv() {
                 match message {
                     ParentMessage::AppMessage(m) => {
-                        self.ui.update(m);
+                        self.ui.borrow_mut().update(m);
                     }
                     ParentMessage::Resize => {
                         let size = get_window_size();
-                        window.resize(baseview::Size::new(
-                            size.logical_size.0.into(),
-                            size.logical_size.1.into(),
+                        self.window.resize(LogicalSize::new(
+                            size.logical_size.0 as f64,
+                            size.logical_size.1 as f64,
                         ));
                         #[cfg(windows)]
-                        sync_child_to_parent_client(window);
+                        sync_child_to_parent_client(&self.window);
                     }
                 }
             }
         }
-        self.ui.handle_input(&Input::Timer);
-        self.ui.draw();
-        self.ui.render();
+        let mut ui = self.ui.borrow_mut();
+        ui.handle_input(&Input::Timer);
+        ui.draw();
+        ui.render();
     }
 
-    fn on_event(
-        &mut self,
-        window: &mut baseview::Window,
-        event: baseview::Event,
-    ) -> baseview::EventStatus {
-        unsafe {
-            // We're forcing the window into a static lifetime because we release it at the end of on_event
-            let baseview_window: &'static mut baseview::Window<'static> = std::mem::transmute::<
-                &mut baseview::Window,
-                &'static mut baseview::Window<'static>,
-            >(window);
-            set_current_window(baseview_window);
-        }
+    fn resized(&self, new_size: baseview::WindowSize) {
+        let window_size = get_window_size();
+        let scale_policy = window_size.scale_policy;
+        let scale_factor = match scale_policy {
+            baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
+            baseview::WindowScalePolicy::SystemScaleFactor => new_size.scale_factor,
+        } as f32;
+        set_window_size(
+            (
+                new_size.logical.width as u32,
+                new_size.logical.height as u32,
+            ),
+            scale_factor,
+            scale_policy,
+        );
+        self.ui.borrow_mut().handle_input(&Input::Resize);
+    }
+
+    fn on_event(&self, event: baseview::Event) -> baseview::EventStatus {
+        set_current_window(self.window.clone());
         let mut drag_event = false;
         let mut handled = true;
         match event {
             baseview::Event::Window(event) => match event {
-                baseview::WindowEvent::Resized(window_info) => {
-                    let window_size = get_window_size();
-                    let scale_policy = window_size.scale_policy;
-                    let scale_factor = match scale_policy {
-                        baseview::WindowScalePolicy::ScaleFactor(scale) => scale,
-                        baseview::WindowScalePolicy::SystemScaleFactor => window_info.scale(),
-                    } as f32;
-                    set_window_size(
-                        (
-                            window_info.logical_size().width as u32,
-                            window_info.logical_size().height as u32,
-                        ),
-                        scale_factor,
-                        scale_policy,
-                    );
-                    handled &= self.ui.handle_input(&Input::Resize);
-                }
                 baseview::WindowEvent::WillClose => {
-                    handled &= self.ui.handle_input(&Input::Exit);
+                    handled &= self.ui.borrow_mut().handle_input(&Input::Exit);
                 }
                 baseview::WindowEvent::Focused => {
-                    handled &= self.ui.handle_input(&Input::Focus(true));
-                    self.focused = true;
+                    handled &= self.ui.borrow_mut().handle_input(&Input::Focus(true));
+                    self.focused.set(true);
                 }
                 baseview::WindowEvent::Unfocused => {
-                    handled &= self.ui.handle_input(&Input::Focus(false));
-                    self.focused = false;
+                    handled &= self.ui.borrow_mut().handle_input(&Input::Focus(false));
+                    self.focused.set(false);
                 }
+                _ => {}
             },
             baseview::Event::Mouse(event) => match event {
                 baseview::MouseEvent::DragEntered { position, data, .. } => {
                     drag_event = true;
                     *self.drop_target_valid.write().unwrap() = true;
-                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
-                        x: position.x as f32,
-                        y: position.y as f32,
-                    }));
+                    let (x, y) = physical_to_logical(position.x, position.y);
+                    let mut ui = self.ui.borrow_mut();
+                    handled &= ui.handle_input(&Input::Motion(Motion::Mouse { x, y }));
                     for data in drop_data_to_lemna(data) {
-                        handled &= self.ui.handle_input(&Input::Drag(Drag::Start(data)));
+                        handled &= ui.handle_input(&Input::Drag(Drag::Start(data)));
                     }
                 }
                 baseview::MouseEvent::DragMoved { position, .. } => {
                     drag_event = true;
-                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
-                        x: position.x as f32,
-                        y: position.y as f32,
-                    }));
-                    handled &= self.ui.handle_input(&Input::Drag(Drag::Dragging));
+                    let (x, y) = physical_to_logical(position.x, position.y);
+                    let mut ui = self.ui.borrow_mut();
+                    handled &= ui.handle_input(&Input::Motion(Motion::Mouse { x, y }));
+                    handled &= ui.handle_input(&Input::Drag(Drag::Dragging));
                 }
                 baseview::MouseEvent::DragLeft => {
                     drag_event = true;
-                    handled &= self.ui.handle_input(&Input::Drag(Drag::End));
+                    handled &= self.ui.borrow_mut().handle_input(&Input::Drag(Drag::End));
                 }
                 baseview::MouseEvent::DragDropped { position, data, .. } => {
                     drag_event = true;
-                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
-                        x: position.x as f32,
-                        y: position.y as f32,
-                    }));
+                    let (x, y) = physical_to_logical(position.x, position.y);
+                    let mut ui = self.ui.borrow_mut();
+                    handled &= ui.handle_input(&Input::Motion(Motion::Mouse { x, y }));
                     if let Some(data) = drop_data_to_lemna(data).into_iter().next() {
-                        handled &= self.ui.handle_input(&Input::Drag(Drag::Drop(data)));
+                        handled &= ui.handle_input(&Input::Drag(Drag::Drop(data)));
                     }
                 }
                 baseview::MouseEvent::CursorMoved {
                     position,
                     modifiers: _,
                 } => {
-                    if self.needs_forced_focus && !self.focused {
-                        window.focus();
+                    if self.needs_forced_focus && !self.focused.get() {
+                        self.window.focus();
                     }
-                    handled &= self.ui.handle_input(&Input::Motion(Motion::Mouse {
-                        x: position.x as f32,
-                        y: position.y as f32,
-                    }));
+                    let (x, y) = physical_to_logical(position.x, position.y);
+                    handled &= self
+                        .ui
+                        .borrow_mut()
+                        .handle_input(&Input::Motion(Motion::Mouse { x, y }));
                 }
                 baseview::MouseEvent::ButtonPressed {
                     button,
                     modifiers: _,
                 } => {
                     if let Some(button) = translate_mouse_button(&button) {
-                        handled &= self.ui.handle_input(&Input::Press(button));
+                        handled &= self.ui.borrow_mut().handle_input(&Input::Press(button));
                     }
                 }
                 baseview::MouseEvent::ButtonReleased {
@@ -369,7 +374,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     modifiers: _,
                 } => {
                     if let Some(button) = translate_mouse_button(&button) {
-                        handled &= self.ui.handle_input(&Input::Release(button));
+                        handled &= self.ui.borrow_mut().handle_input(&Input::Release(button));
                     }
                 }
                 baseview::MouseEvent::WheelScrolled {
@@ -387,26 +392,30 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     }
                     handled &= self
                         .ui
+                        .borrow_mut()
                         .handle_input(&Input::Motion(Motion::Scroll { x, y }));
                 }
                 baseview::MouseEvent::CursorEntered => {
-                    handled &= self.ui.handle_input(&Input::MouseEnterWindow);
+                    handled &= self.ui.borrow_mut().handle_input(&Input::MouseEnterWindow);
                 }
                 baseview::MouseEvent::CursorLeft => {
-                    handled &= self.ui.handle_input(&Input::MouseLeaveWindow);
+                    handled &= self.ui.borrow_mut().handle_input(&Input::MouseLeaveWindow);
                 }
+                _ => {}
             },
             baseview::Event::Keyboard(event) => {
                 let key = translate_key(event.code);
+                let mut ui = self.ui.borrow_mut();
                 if event.state == keyboard_types::KeyState::Down {
-                    handled &= self.ui.handle_input(&Input::Press(key));
+                    handled &= ui.handle_input(&Input::Press(key));
                     if let keyboard_types::Key::Character(s) = &event.key {
-                        handled &= self.ui.handle_input(&Input::Text(s.to_string()));
+                        handled &= ui.handle_input(&Input::Text(s.to_string()));
                     }
                 } else {
-                    handled &= self.ui.handle_input(&Input::Release(key));
+                    handled &= ui.handle_input(&Input::Release(key));
                 }
             }
+            _ => {}
         }
         clear_current_window();
         if drag_event && *self.drop_target_valid.read().unwrap() {
@@ -588,10 +597,10 @@ impl lemna::window::Window for Window {
         }
     }
 
-    fn start_drag(&self, data: Data) {
-        if let Some(win) = current_window() {
-            win.start_drag(lemna_data_to_drop_data(data));
-        }
+    fn start_drag(&self, _data: Data) {
+        // if let Some(win) = current_window() {
+        // win.start_drag(lemna_data_to_drop_data(data));
+        // }
     }
 
     fn set_drop_target_valid(&self, valid: bool) {
@@ -631,13 +640,6 @@ fn drop_data_to_lemna(data: baseview::DropData) -> Vec<Data> {
     match data {
         baseview::DropData::None => vec![],
         baseview::DropData::Files(paths) => paths.into_iter().map(Data::Filepath).collect(),
-        baseview::DropData::Url(url) => vec![Data::String(url)],
-    }
-}
-
-fn lemna_data_to_drop_data(d: Data) -> baseview::DropData {
-    match d {
-        Data::Filepath(p) => baseview::DropData::Files(vec![p]),
-        Data::String(_) => baseview::DropData::None,
+        _ => vec![],
     }
 }
