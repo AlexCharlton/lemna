@@ -94,25 +94,16 @@ impl Style {
         self.0.get(&k).cloned()
     }
 
-    pub fn style(&self, component: &'static str, parameter_name: &'static str) -> Option<StyleVal> {
-        let key = StyleKey {
-            struct_name: component,
-            parameter_name,
-            class: None,
-        };
-        self.get(key)
-    }
-
-    pub fn style_for_class(
+    pub fn style(
         &self,
         component: &'static str,
         parameter_name: &'static str,
-        class: &'static str,
+        class: Option<&'static str>,
     ) -> Option<StyleVal> {
         let key = StyleKey {
             struct_name: component,
             parameter_name,
-            class: Some(class),
+            class,
         };
         self.get(key)
     }
@@ -323,8 +314,12 @@ pub fn set_current_style(s: Style) {
     *embassy_futures::block_on(_current_style().write()) = s;
 }
 
-pub fn current_style(component: &'static str, parameter_name: &'static str) -> Option<StyleVal> {
-    embassy_futures::block_on(_current_style().read()).style(component, parameter_name)
+pub fn current_style(
+    component: &'static str,
+    parameter_name: &'static str,
+    class: Option<&'static str>,
+) -> Option<StyleVal> {
+    embassy_futures::block_on(_current_style().read()).style(component, parameter_name, class)
 }
 
 fn get_current_style(k: StyleKey) -> Option<StyleVal> {

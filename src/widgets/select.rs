@@ -364,7 +364,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
     ) {
         if let Some((child_aabb, Some(inner_scale), _)) = children.first_mut() {
             let max_height: f32 = self.style_val("max_height").unwrap().f32();
-            let bar_width: f32 = current_style("Scroll", "bar_width").unwrap().f32();
+            let bar_width: f32 = current_style("Scroll", "bar_width", None).unwrap().f32();
             // Set size based on list elements and max_height
             let mut h = inner_scale.height;
             let mut w = inner_scale.width;
