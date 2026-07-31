@@ -807,7 +807,7 @@ impl Component for TextBoxText {
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
         if self.state_ref().dirty {
             let font = self.style_val("font").map(|p| p.str().to_string());
-            self.state_mut().glyphs = caches.layout_text(
+            let (glyphs, _) = caches.layout_text(
                 &[TextSegment {
                     text: alloc::borrow::Cow::Owned(self.state_ref().text.clone()),
                     size: font_size.into(),
@@ -819,6 +819,7 @@ impl Component for TextBoxText {
                 HorizontalPosition::Left,
                 (f32::MAX, f32::MAX),
             );
+            self.state_mut().glyphs = glyphs;
 
             let glyph_widths = caches.glyph_widths(&self.state_ref().glyphs);
             self.state_mut().glyph_widths = glyph_widths;

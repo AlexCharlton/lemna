@@ -86,7 +86,7 @@ impl FontCache {
         Ok(())
     }
 
-    /// Given a set of [`TextSegment`]s, create [`PositionedGlyph`]s, which are then used by the [`Text`][crate::renderable::Text] renderable.
+    /// Given a set of [`TextSegment`]s, create [`PositionedGlyph`]s, which are then used by the [`Text`][crate::renderable::Text] renderable. Also returns the height of the text.
     ///
     /// `base_font` and `base_size` are provided as fallbacks for when a `TextSegment` does not specify a font or size. `scale_factor` is the display scale factor. `alignment` dictates how the text is aligned, and `bounds` sets the maximum width and height.
     pub fn layout_text(
@@ -97,7 +97,7 @@ impl FontCache {
         scale_factor: f32,
         alignment: HorizontalPosition,
         bounds: (f32, f32),
-    ) -> Vec<PositionedGlyph> {
+    ) -> (Vec<PositionedGlyph>, f32) {
         let mut layout = embassy_futures::block_on(self.layout.write());
 
         let settings = LayoutSettings {
@@ -144,7 +144,7 @@ impl FontCache {
                 last_glyph.width = metrics.advance_width.ceil() as usize;
             }
         }
-        glyphs
+        (glyphs, layout.height())
     }
 
     pub fn glyph_metrics(&self, glyph: &PositionedGlyph) -> Metrics {
@@ -159,6 +159,16 @@ impl FontCache {
         } else {
             size * scale_factor * DEFAULT_LINE_HEIGHT_SCALE
         }
+    }
+
+    pub fn line_metrics(
+        &self,
+        font: Option<&str>,
+        size: f32,
+        scale_factor: f32,
+    ) -> Option<fontdue::LineMetrics> {
+        let font = &self.fonts[self.font_or_default(font).0];
+        font.horizontal_line_metrics(size * scale_factor)
     }
 
     /// Given a slice of [`SectionGlyph`]s (which would have been returned by [`#layout_text`][FontCache#method.layout_text]), and a known **fixed** `font` and `font_size`, return the width of each glyph. This is useful if you need to e.g. render a cursor between characters as in [`TextBox`][crate::widgets::TextBox].

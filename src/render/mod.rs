@@ -31,6 +31,7 @@ mod path;
 mod raster_cache;
 
 pub type FontMetrics = fontdue::Metrics;
+pub type LineMetrics = fontdue::LineMetrics;
 
 pub mod renderable {
     use super::*;
@@ -53,7 +54,7 @@ pub mod renderable {
             scale_factor: f32,
             alignment: HorizontalPosition,
             bounds: (f32, f32),
-        ) -> Vec<crate::font_cache::PositionedGlyph> {
+        ) -> (Vec<crate::font_cache::PositionedGlyph>, f32) {
             self.font
                 .layout_text(text, base_font, base_size, scale_factor, alignment, bounds)
         }
@@ -62,9 +63,19 @@ pub mod renderable {
             self.font.line_height(font, size, scale_factor)
         }
 
+        pub fn line_metrics(
+            &self,
+            font: Option<&str>,
+            size: f32,
+            scale_factor: f32,
+        ) -> Option<LineMetrics> {
+            self.font.line_metrics(font, size, scale_factor)
+        }
+
         pub fn glyph_widths(&self, glyphs: &[crate::font_cache::PositionedGlyph]) -> Vec<f32> {
             self.font.glyph_widths(glyphs)
         }
+
         pub fn glyph_metrics(&self, glyph: &crate::font_cache::PositionedGlyph) -> FontMetrics {
             self.font.glyph_metrics(glyph)
         }

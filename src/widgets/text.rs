@@ -1,6 +1,5 @@
 extern crate alloc;
-
-use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
+use alloc::{boxed::Box, string::String, string::ToString, vec, vec::Vec};
 use core::hash::Hash;
 
 use crate::TextSegment;
@@ -39,6 +38,14 @@ impl Text {
             style_overrides: Default::default(),
             state: Some(TextState::default()),
             dirty: crate::Dirty::No,
+        }
+    }
+
+    pub fn font(&self) -> Option<String> {
+        if self.text.len() == 1 && self.text[0].font.is_some() {
+            self.text[0].font.clone()
+        } else {
+            self.style_val("font").map(|p| p.str().to_string())
         }
     }
 }
@@ -81,10 +88,10 @@ impl Component for Text {
         }
 
         let size: f32 = self.style_val("size").unwrap().f32();
-        let font = self.style_val("font").map(|p| p.str().to_string());
+        let font = self.font();
         let line_height = caches.line_height(font.as_deref(), size, scale);
 
-        let glyphs = caches.layout_text(
+        let (glyphs, text_height) = caches.layout_text(
             &self.text,
             font.as_deref(),
             size,
@@ -106,28 +113,10 @@ impl Component for Text {
             } else {
                 max_width.unwrap() * scale
             };
-            // Force h to the next multiple of size, in order to account for some lines not otherwise having the same height as others, unless we have final glyphs exceeding the expected line height (which will happen if using text segments with different sizes)
-            let h = if last_glyph.y % line_height > 0.001 {
-                // Iterate backwards to find the maximum glyph.y + glyph.height
-                let mut max_height = last_glyph.y + last_glyph.height as f32;
-                for glyph in glyphs.iter().rev().skip(1) {
-                    let glyph_bottom = glyph.y + glyph.height as f32;
-                    if max_height - glyph_bottom > line_height {
-                        break;
-                    }
-                    if glyph_bottom > max_height {
-                        max_height = glyph_bottom;
-                    }
-                }
-
-                (last_glyph.y + (line_height - last_glyph.y % line_height)).max(max_height)
-            } else {
-                line_height
-            };
 
             (
                 Some(width.unwrap_or(w / scale)),
-                Some(height.unwrap_or(h / scale)),
+                Some(height.unwrap_or(text_height / scale)),
             )
         } else {
             (None, None)
@@ -147,12 +136,12 @@ impl Component for Text {
 
         let h_alignment: HorizontalPosition =
             self.style_val("h_alignment").unwrap().horizontal_position();
-        let font = self.style_val("font").map(|p| p.str().to_string());
+        let font = self.font();
         let color: Color = self.style_val("color").into();
         let bounds = context.aabb.size();
         let size: f32 = self.style_val("size").unwrap().f32();
 
-        let glyphs = context.caches.font.layout_text(
+        let (glyphs, _) = context.caches.font.layout_text(
             &self.text,
             font.as_deref(),
             size,
