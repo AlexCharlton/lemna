@@ -359,7 +359,7 @@ macro_rules! txt {
 
 impl Hash for TextSegment {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.size.map(|s| (s * 100.0) as u32).hash(state);
+        self.size.map(|s| s.to_bits()).hash(state);
         self.font.hash(state);
         self.text.hash(state);
     }

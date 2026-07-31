@@ -796,10 +796,10 @@ impl BorderRadii {
 
 impl Hash for BorderRadii {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        ((self.top_left * 100000.0) as i32).hash(state);
-        ((self.top_right * 100000.0) as i32).hash(state);
-        ((self.bottom_right * 100000.0) as i32).hash(state);
-        ((self.bottom_left * 100000.0) as i32).hash(state);
+        self.top_left.to_bits().hash(state);
+        self.top_right.to_bits().hash(state);
+        self.bottom_right.to_bits().hash(state);
+        self.bottom_left.to_bits().hash(state);
     }
 }
 
@@ -834,10 +834,10 @@ impl Default for Color {
 
 impl Hash for Color {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        ((self.r * 100000.0) as i32).hash(state);
-        ((self.g * 100000.0) as i32).hash(state);
-        ((self.b * 100000.0) as i32).hash(state);
-        ((self.a * 100000.0) as i32).hash(state);
+        self.r.to_bits().hash(state);
+        self.g.to_bits().hash(state);
+        self.b.to_bits().hash(state);
+        self.a.to_bits().hash(state);
     }
 }
 

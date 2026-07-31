@@ -94,7 +94,7 @@ impl Component for Div {
             color.hash(hasher);
         }
         if let Some(width) = self.border_width {
-            ((width * 10.0) as i32).hash(hasher);
+            width.to_bits().hash(hasher);
         }
         if let Some(color) = self.border_color {
             color.hash(hasher);
