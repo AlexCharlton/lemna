@@ -49,6 +49,7 @@ impl super::node::Node {
             // Nothing to base off of, so we return auto
             Dimension::Auto
         } else if self.layout.size.main(dir).is_auto()
+            && self.layout_result.main_layout_type != LayoutType::Flex
             && available_size.main(dir).resolved()
             && f32::from(available_size.main(dir)) > 0.0
         {
