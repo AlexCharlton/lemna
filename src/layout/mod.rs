@@ -48,7 +48,10 @@ impl super::node::Node {
         {
             // Nothing to base off of, so we return auto
             Dimension::Auto
-        } else if self.layout.size.main(dir).is_auto() && available_size.main(dir).resolved() {
+        } else if self.layout.size.main(dir).is_auto()
+            && available_size.main(dir).resolved()
+            && f32::from(available_size.main(dir)) > 0.0
+        {
             // Restrict bounds to the available size when auto
             available_size.main(dir)
         } else {
