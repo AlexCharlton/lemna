@@ -37,6 +37,67 @@ pub mod renderable {
     use super::*;
     use crate::style::HorizontalPosition;
 
+    /// Discrete text rotation applied after fontdue layout (Y-down).
+    #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+    pub enum TextAngle {
+        #[default]
+        None,
+        CW90,
+        CCW90,
+        Flip,
+    }
+
+    impl TextAngle {
+        /// True when the AABB width/height are swapped relative to text-local size.
+        pub fn swaps_axes(self) -> bool {
+            matches!(self, Self::CW90 | Self::CCW90)
+        }
+
+        /// Map text-local size `(lw, lh)` to the AABB size after rotation.
+        pub fn map_size(self, lw: f32, lh: f32) -> (f32, f32) {
+            if self.swaps_axes() {
+                (lh, lw)
+            } else {
+                (lw, lh)
+            }
+        }
+
+        /// Map a text-local point into AABB-local coordinates.
+        pub fn map_point(self, x: f32, y: f32, lw: f32, lh: f32) -> (f32, f32) {
+            match self {
+                Self::None => (x, y),
+                Self::CW90 => (lh - y, x),
+                Self::CCW90 => (y, lw - x),
+                Self::Flip => (lw - x, lh - y),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod layout_angle_tests {
+        use super::TextAngle;
+
+        #[test]
+        fn map_size_swaps_for_90() {
+            assert_eq!(TextAngle::None.map_size(10.0, 20.0), (10.0, 20.0));
+            assert_eq!(TextAngle::Flip.map_size(10.0, 20.0), (10.0, 20.0));
+            assert_eq!(TextAngle::CW90.map_size(10.0, 20.0), (20.0, 10.0));
+            assert_eq!(TextAngle::CCW90.map_size(10.0, 20.0), (20.0, 10.0));
+        }
+
+        #[test]
+        fn map_point_corners() {
+            let (lw, lh) = (10.0, 20.0);
+            assert_eq!(TextAngle::None.map_point(0.0, 0.0, lw, lh), (0.0, 0.0));
+            assert_eq!(TextAngle::CW90.map_point(0.0, 0.0, lw, lh), (20.0, 0.0));
+            assert_eq!(TextAngle::CW90.map_point(lw, lh, lw, lh), (0.0, 10.0));
+            assert_eq!(TextAngle::CCW90.map_point(0.0, 0.0, lw, lh), (0.0, 10.0));
+            assert_eq!(TextAngle::CCW90.map_point(lw, lh, lw, lh), (20.0, 0.0));
+            assert_eq!(TextAngle::Flip.map_point(0.0, 0.0, lw, lh), (10.0, 20.0));
+            assert_eq!(TextAngle::Flip.map_point(lw, lh, lw, lh), (0.0, 0.0));
+        }
+    }
+
     #[cfg(feature = "cpu_renderer")]
     pub use cpu_render::*;
 

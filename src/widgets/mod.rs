@@ -24,7 +24,7 @@ mod select;
 pub use select::*;
 
 mod text;
-pub use text::Text;
+pub use text::{Text, TextAngle};
 
 mod textbox;
 pub use textbox::{TextBox, TextBoxAction};

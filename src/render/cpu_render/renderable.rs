@@ -8,7 +8,7 @@ use crate::PositionedGlyph;
 use crate::base_types::{Color, PixelSize, Pos, Rect, Scale};
 use crate::render::path::Path;
 use crate::render::raster_cache::RasterCacheId;
-use crate::renderable::{Caches, RasterData};
+use crate::renderable::{Caches, RasterData, TextAngle};
 
 //--------------------------------
 // MARK: Rectangle
@@ -127,12 +127,17 @@ pub struct Text {
     glyphs: Vec<PositionedGlyph>,
     offset: Pos,
     color: Color,
+    layout_angle: TextAngle,
+    // Text-local coords. Only used when `layout_angle` is not `TextAngle::None`
+    bounds: Scale,
 }
 
 impl PartialEq for Text {
     // Should only be used for tests
     fn eq(&self, other: &Self) -> bool {
-        self.color == other.color && self.offset == other.offset
+        self.color == other.color
+            && self.offset == other.offset
+            && self.layout_angle == other.layout_angle
     }
 }
 
@@ -148,7 +153,15 @@ impl Text {
             glyphs,
             offset,
             color,
+            layout_angle: TextAngle::None,
+            bounds: Scale::default(),
         }
+    }
+
+    pub fn angle(mut self, layout_angle: TextAngle, bounds: Scale) -> Self {
+        self.layout_angle = layout_angle;
+        self.bounds = bounds;
+        self
     }
 
     pub(crate) fn render(
@@ -160,6 +173,12 @@ impl Text {
     ) {
         let mut text_mask = Mask::new(pixmap.width(), pixmap.height()).unwrap();
         let mask_data = text_mask.data_mut();
+        let lw = self.bounds.width;
+        let lh = self.bounds.height;
+        let pixmap_w = pixmap.width() as usize;
+        let pixmap_h = pixmap.height() as usize;
+        let base_x = aabb.pos.x + self.offset.x;
+        let base_y = aabb.pos.y + self.offset.y;
 
         // Draw each glyph into the mask
         // The text_mask will be black where the render mask is
@@ -168,34 +187,36 @@ impl Text {
             if glyph.width == 0 || glyph.height == 0 {
                 continue;
             }
-            let mask_x_initial = aabb.pos.x as usize + self.offset.x as usize + glyph.x as usize;
-            let mut mask_y = aabb.pos.y as usize + self.offset.y as usize + glyph.y as usize;
-            if mask_y >= pixmap.height() as usize {
-                continue;
-            }
-            let mut mask_i = mask_x_initial + (mask_y * pixmap.width() as usize);
-            let mut glyph_x = 0;
             if let Some(glyph_mask) = caches.glyph.glyph_mask(&caches.font.fonts, glyph) {
+                let glyph_w = glyph_mask.width() as usize;
+                let mut sx = 0usize;
+                let mut sy = 0usize;
                 for v in glyph_mask.data() {
-                    if mask_i >= mask_data.len() {
-                        break;
-                    }
-                    if let Some(mask) = mask {
-                        // If our current render mask position is not white, skip the pixel
-                        if mask.data()[mask_i] == 255 {
+                    let (mx, my) = self.layout_angle.map_point(
+                        glyph.x + sx as f32,
+                        glyph.y + sy as f32,
+                        lw,
+                        lh,
+                    );
+                    let dest_x = (base_x + mx) as usize;
+                    let dest_y = (base_y + my) as usize;
+                    if dest_x < pixmap_w && dest_y < pixmap_h {
+                        let mask_i = dest_x + dest_y * pixmap_w;
+                        if let Some(mask) = mask {
+                            // If our current render mask position is not white, skip the pixel
+                            if mask.data()[mask_i] == 255 {
+                                mask_data[mask_i] = *v;
+                            }
+                        } else {
+                            // If we don't have a mask, just draw the glyph
                             mask_data[mask_i] = *v;
                         }
-                    } else {
-                        // If we don't have a mask, just draw the glyph
-                        mask_data[mask_i] = *v;
                     }
 
-                    glyph_x += 1;
-                    mask_i += 1;
-                    if glyph_x >= glyph_mask.width() as usize {
-                        glyph_x = 0;
-                        mask_y += 1;
-                        mask_i = mask_x_initial + glyph_x + (mask_y * pixmap.width() as usize);
+                    sx += 1;
+                    if sx >= glyph_w {
+                        sx = 0;
+                        sy += 1;
                     }
                 }
             }

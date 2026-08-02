@@ -1,9 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 
 use super::{BufferCache, BufferCacheId};
-use crate::base_types::{Color, Point, Pos, Rect};
+use crate::base_types::{Color, Point, Pos, Rect, Scale};
 use crate::font_cache::PositionedGlyph;
 use crate::render::gpu_render::{Caches, glyph_cache::DrawCache};
+use crate::renderable::TextAngle;
 
 const INDEX_ENTRIES_PER_GLYPH: usize = 6;
 const VERTEX_ENTRIES_PER_GLYPH: usize = 4;
@@ -69,13 +70,18 @@ pub struct Text {
     color: Color,
     pub(crate) glyphs: Vec<PositionedGlyph>,
     offset: Pos,
+    layout_angle: TextAngle,
+    // Text-local coords. Only used when `layout_angle` is not `TextAngle::None`
+    bounds: Scale,
     pub(crate) buffer_id: BufferCacheId,
 }
 
 impl PartialEq for Text {
     // Should only be used for tests
     fn eq(&self, other: &Self) -> bool {
-        self.color == other.color && self.offset == other.offset
+        self.color == other.color
+            && self.offset == other.offset
+            && self.layout_angle == other.layout_angle
     }
 }
 
@@ -102,8 +108,16 @@ impl Text {
             glyphs,
             color,
             offset,
+            layout_angle: TextAngle::None,
+            bounds: Scale::default(),
             buffer_id,
         }
+    }
+
+    pub fn angle(mut self, layout_angle: TextAngle, bounds: Scale) -> Self {
+        self.layout_angle = layout_angle;
+        self.bounds = bounds;
+        self
     }
 
     pub(crate) fn render(
@@ -117,6 +131,8 @@ impl Text {
         let mut cache_changed = false;
         buffer_cache.register(self.buffer_id);
         let (vertex_chunk, index_chunk) = buffer_cache.get_chunks(self.buffer_id);
+        let lw = self.bounds.width;
+        let lh = self.bounds.height;
 
         if cache_invalid || !vertex_chunk.filled {
             cache_changed = true;
@@ -131,38 +147,43 @@ impl Text {
                     continue;
                 }
                 if let Some(uv_rect) = glyph_cache.rect_for(g) {
+                    let (x0, y0) = self.layout_angle.map_point(g.x, g.y, lw, lh);
+                    let (x1, y1) = self
+                        .layout_angle
+                        .map_point(g.x + g.width as f32, g.y, lw, lh);
+                    let (x2, y2) = self
+                        .layout_angle
+                        .map_point(g.x, g.y + g.height as f32, lw, lh);
+                    let (x3, y3) = self.layout_angle.map_point(
+                        g.x + g.width as f32,
+                        g.y + g.height as f32,
+                        lw,
+                        lh,
+                    );
+
                     buffer_cache.vertex_data[v] = Vertex {
-                        pos: Point { x: g.x, y: g.y },
+                        pos: Point { x: x0, y: y0 },
                         tex_pos: Point {
                             x: uv_rect.pos.x,
                             y: uv_rect.pos.y,
                         },
                     };
                     buffer_cache.vertex_data[v + 1] = Vertex {
-                        pos: Point {
-                            x: g.x + g.width as f32,
-                            y: g.y,
-                        },
+                        pos: Point { x: x1, y: y1 },
                         tex_pos: Point {
                             x: uv_rect.bottom_right.x,
                             y: uv_rect.pos.y,
                         },
                     };
                     buffer_cache.vertex_data[v + 2] = Vertex {
-                        pos: Point {
-                            x: g.x,
-                            y: g.y + g.height as f32,
-                        },
+                        pos: Point { x: x2, y: y2 },
                         tex_pos: Point {
                             x: uv_rect.pos.x,
                             y: uv_rect.bottom_right.y,
                         },
                     };
                     buffer_cache.vertex_data[v + 3] = Vertex {
-                        pos: Point {
-                            x: g.x + g.width as f32,
-                            y: g.y + g.height as f32,
-                        },
+                        pos: Point { x: x3, y: y3 },
                         tex_pos: Point {
                             x: uv_rect.bottom_right.x,
                             y: uv_rect.bottom_right.y,
