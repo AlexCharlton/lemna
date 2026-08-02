@@ -544,29 +544,20 @@ impl Direction {
         }
     }
 
-    pub fn rect(
-        &self,
-        main: Dimension,
-        cross: Dimension,
-        axis_alignment: Alignment,
-        cross_alignment: Alignment,
-    ) -> Bounds {
+    /// Initial child rect packed from the start. End/Center on either axis are
+    /// applied later in `reposition_center_end_children` once the parent size is known.
+    pub fn rect(&self, main: Dimension, cross: Dimension, _axis_alignment: Alignment) -> Bounds {
         let mut rect = Bounds::default();
-
-        match (self, axis_alignment) {
-            (Direction::Row, Alignment::End) => rect.right = main,
-            (Direction::Row, _) => rect.left = main,
-            (Direction::Column, Alignment::End) => rect.bottom = main,
-            (Direction::Column, _) => rect.top = main,
+        match self {
+            Direction::Row => {
+                rect.left = main;
+                rect.top = cross;
+            }
+            Direction::Column => {
+                rect.top = main;
+                rect.left = cross;
+            }
         }
-
-        match (self, cross_alignment) {
-            (Direction::Row, Alignment::End) => rect.bottom = cross,
-            (Direction::Row, _) => rect.top = cross,
-            (Direction::Column, Alignment::End) => rect.right = cross,
-            (Direction::Column, _) => rect.left = cross,
-        }
-
         rect
     }
 }

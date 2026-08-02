@@ -14,6 +14,13 @@ mod macros;
 use crate::log_debug;
 use crate::renderable::Caches;
 
+#[derive(Debug, Clone, PartialEq)]
+struct RowInfo {
+    num_elements: usize,
+    main: f64,
+    cross: f64,
+}
+
 //--------------------------------
 // MARK: Node::resolve_layout
 //--------------------------------
@@ -404,43 +411,37 @@ impl super::node::Node {
         }
     }
 
-    // Return the children size and the row lengths
-    fn set_children_position(&mut self, bounds_size: Size) -> (Size, Vec<(f64, usize)>) {
+    // Return the children size and the row info. Children are packed from the start;
+    // End/Center alignment is applied later in `reposition_center_end_children`.
+    fn set_children_position(&mut self, bounds_size: Size) -> (Size, Vec<RowInfo>) {
         let dir = self.layout.direction;
         let size = self.layout.size.most_specific(&self.layout_result.size);
         let axis_align = self.layout.axis_alignment;
-        let cross_align = self.layout.cross_alignment;
+        // Pack from the start; End/Center are applied after the parent size is known.
         let main_start_padding: f64 = self
             .layout
             .padding
-            .main(dir, axis_align)
+            .main(dir, Alignment::Start)
             .maybe_resolve(&size.main(dir))
             .into();
         let main_end_padding: f64 = self
             .layout
             .padding
-            .main_reverse(dir, axis_align)
+            .main_reverse(dir, Alignment::Start)
             .maybe_resolve(&size.main(dir))
             .into();
         let mut main_pos: f64 = main_start_padding;
         let mut cross_pos = self
             .layout
             .padding
-            .cross(dir, cross_align)
+            .cross(dir, Alignment::Start)
             .maybe_resolve(&size.cross(dir))
             .into();
         let mut max_cross_size = 0.0;
-        let mut row_lengths: Vec<(f64, usize)> = vec![];
+        let mut row_info: Vec<RowInfo> = vec![];
         let mut row_elements_count: usize = 0;
 
-        // Reverse the calculation when End axis_aligned
-        let mut children: Vec<&mut Self> = if axis_align == Alignment::End {
-            self.children.iter_mut().rev().collect()
-        } else {
-            self.children.iter_mut().collect()
-        };
-
-        for child in children.iter_mut() {
+        for child in self.children.iter_mut() {
             let margin = child.layout.margin.maybe_resolve(&size);
             let child_outer_size = child.layout_result.size.plus_bounds(&margin);
 
@@ -460,7 +461,11 @@ impl super::node::Node {
                     > f64::from(wrap_size)
                 && main_pos > main_start_padding
             {
-                row_lengths.push((main_pos, row_elements_count));
+                row_info.push(RowInfo {
+                    num_elements: row_elements_count,
+                    main: main_pos,
+                    cross: max_cross_size,
+                });
                 main_pos = main_start_padding;
                 cross_pos += max_cross_size;
                 max_cross_size = 0.0;
@@ -472,7 +477,6 @@ impl super::node::Node {
                     Dimension::Px(main_pos),
                     Dimension::Px(cross_pos),
                     axis_align,
-                    cross_align,
                 );
                 child.layout_result.position += margin;
                 child.resolve_position(size);
@@ -497,7 +501,6 @@ impl super::node::Node {
                     Dimension::Px(main_pos),
                     Dimension::Px(cross_pos),
                     axis_align,
-                    cross_align,
                 ));
                 child.layout_result.position += margin;
                 child.resolve_position(size);
@@ -514,161 +517,180 @@ impl super::node::Node {
             }
         }
 
-        row_lengths.push((main_pos, row_elements_count));
+        row_info.push(RowInfo {
+            num_elements: row_elements_count,
+            main: main_pos,
+            cross: max_cross_size,
+        });
 
         // Combined size of children
         let mut children_size = if self.children.is_empty() {
             Size::default()
         } else {
             // For wrapping nodes, use the maximum row width, not the current position
-            let main_size = if self.layout.wrap && !row_lengths.is_empty() {
-                row_lengths.iter().map(|(len, _)| *len).fold(0.0, f64::max)
+            let main_size = if self.layout.wrap && !row_info.is_empty() {
+                row_info.iter().map(|row| row.main).fold(0.0, f64::max)
             } else {
                 main_pos
             };
             let cross_size = cross_pos + max_cross_size;
             dir.size(Dimension::Px(main_size), Dimension::Px(cross_size))
         };
-        *children_size.main_mut(dir) += self.layout.padding.main_reverse(dir, axis_align);
-        *children_size.cross_mut(dir) += self.layout.padding.cross_reverse(dir, cross_align);
+        *children_size.main_mut(dir) += self.layout.padding.main_reverse(dir, Alignment::Start);
+        *children_size.cross_mut(dir) += self.layout.padding.cross_reverse(dir, Alignment::Start);
 
         // TODO Alignment::Stretch when not all space is filled
 
-        (children_size, row_lengths)
+        (children_size, row_info)
     }
 
-    // Done after the children have been positioned (initially) and after the node has be sized (possibly based on its children's sizes), so that we know the actual space available for centering.
-    fn reposition_centered_children(
-        &mut self,
-        children_size: Size,
-        row_lengths: Vec<(f64, usize)>,
-    ) {
+    // Done after the children have been positioned (initially) and after the node has be sized
+    // (possibly based on its children's sizes), so that we know the actual space available for
+    // Center/End alignment on either axis.
+    fn reposition_center_end_children(&mut self, children_size: Size, row_info: Vec<RowInfo>) {
         let axis_align = self.layout.axis_alignment;
         let cross_align = self.layout.cross_alignment;
-        if axis_align == Alignment::Center || cross_align == Alignment::Center {
-            let size = self.layout_result.size;
-            let dir = self.layout.direction;
-            let main_start_padding: f64 = self
-                .layout
-                .padding
-                .main(dir, axis_align)
-                .maybe_resolve(&size.main(dir))
-                .into();
-            let main_end_padding: f64 = self
-                .layout
-                .padding
-                .main_reverse(dir, axis_align)
-                .maybe_resolve(&size.main(dir))
-                .into();
-            let cross_start_padding: f64 = self
-                .layout
-                .padding
-                .cross(dir, cross_align)
-                .maybe_resolve(&size.cross(dir))
-                .into();
-            let cross_end_padding: f64 = self
-                .layout
-                .padding
-                .cross_reverse(dir, cross_align)
-                .maybe_resolve(&size.cross(dir))
-                .into();
+        let align_main = matches!(axis_align, Alignment::Center | Alignment::End);
+        let align_cross = matches!(cross_align, Alignment::Center | Alignment::End);
+        if !align_main && !align_cross {
+            return;
+        }
 
-            // Reposition center alignment
-            let main_offset = if axis_align == Alignment::Center && size.main(dir).resolved() {
-                // This is only accurate for non-wrapped elements.
-                // For wrapped elements, we compute within the loop.
-                let content_main_size =
-                    (f64::from(size.main(dir)) - main_start_padding - main_end_padding).max(0.0);
-                let children_main_size = if row_lengths.is_empty() {
+        let size = self.layout_result.size;
+        let dir = self.layout.direction;
+        // Final positions are start-relative (left/top).
+        let padding = self.layout.padding.maybe_resolve(&size);
+        let main_start_padding: f64 = padding.main(dir, Alignment::Start).into();
+        let main_end_padding: f64 = padding.main_reverse(dir, Alignment::Start).into();
+        let cross_start_padding: f64 = padding.cross(dir, Alignment::Start).into();
+        let cross_end_padding: f64 = padding.cross_reverse(dir, Alignment::Start).into();
+
+        let content_main_size =
+            (f64::from(size.main(dir)) - main_start_padding - main_end_padding).max(0.0);
+        let content_cross_size = if size.cross(dir).resolved() {
+            (f64::from(size.cross(dir)) - cross_start_padding - cross_end_padding).max(0.0)
+        } else {
+            (f64::from(children_size.cross(dir)) - cross_start_padding - cross_end_padding).max(0.0)
+        };
+        let children_cross_size =
+            (f64::from(children_size.cross(dir)) - cross_start_padding - cross_end_padding)
+                .max(0.0);
+
+        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+            log_debug!(
+                "reposition_center_end_children: axis_align: {:?}, cross_align: {:?}; row_info: {:?}; size: {:?}x{:?} ({:?})",
+                axis_align,
+                cross_align,
+                &row_info,
+                &content_main_size,
+                &content_cross_size,
+                &size
+            );
+        }
+
+        // Multi-line: shift the whole block on the cross axis (`align-content`).
+        let cross_offset_block = if row_info.len() > 1 && size.cross(dir).resolved() {
+            let free = content_cross_size - children_cross_size;
+            match cross_align {
+                Alignment::Center => free / 2.0,
+                Alignment::End => free,
+                _ => 0.0,
+            }
+        } else {
+            0.0
+        };
+
+        let mut elements_positioned_in_row = 0;
+        let mut current_row = 0;
+        let mut row_cross_start = cross_start_padding + cross_offset_block;
+
+        for child in self.children.iter_mut() {
+            if child.layout.position_type == PositionType::Absolute {
+                continue;
+            }
+
+            if !row_info.is_empty()
+                && elements_positioned_in_row >= row_info[current_row].num_elements
+            {
+                row_cross_start += row_info[current_row].cross;
+                elements_positioned_in_row = 0;
+                current_row += 1;
+            }
+
+            if align_main && size.main(dir).resolved() {
+                let row_main_size = if row_info.is_empty() {
                     0.0
                 } else {
-                    (row_lengths[0].0 - main_start_padding).max(0.0)
+                    (row_info[current_row].main - main_start_padding).max(0.0)
                 };
-                (content_main_size - children_main_size) / 2.0
-            } else {
-                0.0
-            };
-            // Multi-line (wrapped main axis): center the whole block on the cross axis.
-            // Single flex line: center each item in the cross axis (e.g. `align-items: center`).
-            let cross_offset_block = {
-                if row_lengths.len() > 1 && size.cross(dir).resolved() {
-                    let content_cross_size =
-                        (f64::from(size.cross(dir)) - cross_start_padding - cross_end_padding)
-                            .max(0.0);
-                    let children_cross_size = (f64::from(children_size.cross(dir))
-                        - cross_start_padding
-                        - cross_end_padding)
-                        .max(0.0);
-                    (content_cross_size - children_cross_size) / 2.0
-                } else {
-                    0.0
-                }
-            };
-            let content_cross_size_single = if size.cross(dir).resolved() {
-                (f64::from(size.cross(dir)) - cross_start_padding - cross_end_padding).max(0.0)
-            } else {
-                (f64::from(children_size.cross(dir)) - cross_start_padding - cross_end_padding)
-                    .max(0.0)
-            };
-
-            let mut elements_positioned_in_row = 0;
-            let mut current_row = 0;
-            for child in self.children.iter_mut() {
-                if child.layout.position_type == PositionType::Absolute {
-                    continue;
-                }
-                let main_offset = if self.layout.wrap {
-                    if elements_positioned_in_row >= row_lengths[current_row].1 {
-                        elements_positioned_in_row = 0;
-                        current_row += 1;
-                    }
-                    let content_main_size =
-                        (f64::from(size.main(dir)) - main_start_padding - main_end_padding)
-                            .max(0.0);
-                    let row_main_size = (row_lengths[current_row].0 - main_start_padding).max(0.0);
-                    (content_main_size - row_main_size) / 2.0
-                } else {
-                    main_offset
+                let free = content_main_size - row_main_size;
+                let main_offset = match axis_align {
+                    Alignment::Center => free / 2.0,
+                    Alignment::End => free,
+                    _ => 0.0,
                 };
-                *child.layout_result.position.main_mut(dir, axis_align) +=
+                *child.layout_result.position.main_mut(dir, Alignment::Start) +=
                     Dimension::Px(main_offset);
+            }
 
-                if cross_align == Alignment::Center {
-                    if row_lengths.len() > 1 {
-                        *child.layout_result.position.cross_mut(dir, cross_align) +=
-                            Dimension::Px(cross_offset_block);
-                    } else {
-                        // Match flexbox: center the margin box on the cross axis (CSS `align-items: center`).
-                        let margin = child.layout.margin.maybe_resolve(&size);
-                        let (m_cross_start, m_cross_end) = match dir {
-                            Direction::Row => (f64::from(margin.top), f64::from(margin.bottom)),
-                            Direction::Column => (f64::from(margin.left), f64::from(margin.right)),
-                        };
-                        let child_outer_cross = f64::from(child.layout_result.size.cross(dir))
-                            + m_cross_start
-                            + m_cross_end;
-                        let outer_cross_start = cross_start_padding
-                            + (content_cross_size_single - child_outer_cross) / 2.0;
-                        *child.layout_result.position.cross_mut(dir, cross_align) =
+            if align_cross {
+                let margin = child.layout.margin.maybe_resolve(&size);
+                let (m_cross_start, m_cross_end) = match dir {
+                    Direction::Row => (f64::from(margin.top), f64::from(margin.bottom)),
+                    Direction::Column => (f64::from(margin.left), f64::from(margin.right)),
+                };
+                let child_outer_cross =
+                    f64::from(child.layout_result.size.cross(dir)) + m_cross_start + m_cross_end;
+
+                if row_info.len() > 1 {
+                    if cross_align == Alignment::Center {
+                        // Block-center only; items stay at the cross-start of their line.
+                        *child
+                            .layout_result
+                            .position
+                            .cross_mut(dir, Alignment::Start) += Dimension::Px(cross_offset_block);
+                    } else if cross_align == Alignment::End {
+                        // Pack lines to the end, and end-align each item within its line.
+                        let outer_cross_start =
+                            row_cross_start + row_info[current_row].cross - child_outer_cross;
+                        *child
+                            .layout_result
+                            .position
+                            .cross_mut(dir, Alignment::Start) =
                             Dimension::Px(outer_cross_start + m_cross_start);
                     }
+                } else {
+                    // Single flex line: align each item on the cross axis.
+                    let outer_cross_start = match cross_align {
+                        Alignment::Center => {
+                            cross_start_padding + (content_cross_size - child_outer_cross) / 2.0
+                        }
+                        Alignment::End => {
+                            cross_start_padding + content_cross_size - child_outer_cross
+                        }
+                        _ => cross_start_padding,
+                    };
+                    *child
+                        .layout_result
+                        .position
+                        .cross_mut(dir, Alignment::Start) =
+                        Dimension::Px(outer_cross_start + m_cross_start);
                 }
+            }
 
-                child.resolve_position(size);
-                elements_positioned_in_row += 1;
+            child.resolve_position(size);
+            elements_positioned_in_row += 1;
 
-                if cfg!(debug_assertions) && child.layout.debug.is_some() {
-                    log_debug!(
-                        "set_children_position: resolved aligned position of <{}> to {:#?} - Basing off parent size ({:#?}), children size: {:?}, main offset: {:?}, cross offset block: {:?}, content cross (single line): {:?}",
-                        child.layout.debug.as_ref().unwrap(),
-                        &child.layout_result.position,
-                        &size,
-                        &children_size,
-                        &main_offset,
-                        &cross_offset_block,
-                        &content_cross_size_single,
-                    );
-                }
+            if cfg!(debug_assertions) && child.layout.debug.is_some() {
+                log_debug!(
+                    "reposition_center_end_children: resolved aligned position of <{}> to {:#?} - parent size ({:#?}), children size: {:?}, cross offset block: {:?}, content cross: {:?}",
+                    child.layout.debug.as_ref().unwrap(),
+                    &child.layout_result.position,
+                    &size,
+                    &children_size,
+                    &cross_offset_block,
+                    &content_cross_size,
+                );
             }
         }
     }
@@ -854,7 +876,7 @@ impl super::node::Node {
         );
         let (children_size, row_lengths) = self.set_children_position(bounds_size);
         self.resolve_size(children_size, final_pass, bounds_size, available_size);
-        self.reposition_centered_children(children_size, row_lengths);
+        self.reposition_center_end_children(children_size, row_lengths);
         self.set_inner_scale(children_size);
 
         #[allow(clippy::nonminimal_bool)]
@@ -2828,39 +2850,70 @@ mod tests {
     }
 
     #[test]
-    fn test_end_alignment() {
+    fn test_end_wrapping_alignment() {
         let mut nodes = node!(
             Div::new(),
-            lay!(size: size!(300.0), direction: Direction::Row,
-                 wrap: true, axis_alignment: Alignment::End, cross_alignment: Alignment::End)
+            lay!(size: [400], direction: Row,
+                 wrap: true, axis_alignment: End, cross_alignment: End)
         )
         .push(node!(Div::new(), lay!(size: size!(150.0)))) // Child 0
         .push(node!(Div::new(), lay!(size: size!(100.0)))) // Child 1
-        .push(node!(Div::new(), lay!(size: size!(200.0)))); // Child 2
+        .push(node!(Div::new(), lay!(size: size!(200.0)))); // Child 2, wrapped
 
         nodes.calculate_layout(&Caches::default(), 1.0);
-        assert_eq!(nodes.layout_result.size, size!(300.0));
+        assert_eq!(nodes.layout_result.size, size!(400.0));
 
-        assert_eq!(nodes.children[0].layout_result.position.right, px!(300.0));
-        assert_eq!(nodes.children[0].layout_result.position.bottom, px!(100.0));
+        for child in nodes.children.iter() {
+            println!("child: {:?}", child.layout_result.position);
+        }
+
         assert_eq!(nodes.children[0].layout_result.position.left, px!(150.0));
-        assert_eq!(nodes.children[0].layout_result.position.top, px!(-50.0));
+        assert_eq!(nodes.children[0].layout_result.position.right, px!(300.0));
+        assert_eq!(nodes.children[0].layout_result.position.top, px!(50.0));
+        assert_eq!(nodes.children[0].layout_result.position.bottom, px!(200.0));
 
-        assert_eq!(nodes.children[1].layout_result.position.right, px!(100.0));
-        assert_eq!(nodes.children[1].layout_result.position.bottom, px!(300.0));
+        assert_eq!(nodes.children[1].layout_result.position.left, px!(300.0));
+        assert_eq!(nodes.children[1].layout_result.position.right, px!(400.0));
+        assert_eq!(nodes.children[1].layout_result.position.top, px!(100.0));
+        assert_eq!(nodes.children[1].layout_result.position.bottom, px!(200.0));
 
-        assert_eq!(nodes.children[2].layout_result.position.right, px!(300.0));
-        assert_eq!(nodes.children[2].layout_result.position.bottom, px!(300.0));
+        assert_eq!(nodes.children[2].layout_result.position.left, px!(200.0));
+        assert_eq!(nodes.children[2].layout_result.position.right, px!(400.0));
+        assert_eq!(nodes.children[2].layout_result.position.top, px!(200.0));
+        assert_eq!(nodes.children[2].layout_result.position.bottom, px!(400.0));
     }
 
     #[test]
-    fn test_center_alignment() {
+    fn test_end_cross_alignment() {
         let mut nodes = node!(
             Div::new(),
-            lay!(size: size!(415.0), // This is just small enough to force a wrap
-                 direction: Direction::Row,
-                 padding: bounds!(5.0), wrap: true,
-                 axis_alignment: Alignment::Center, cross_alignment: Alignment::Center)
+            [
+                size: [300],
+                direction: Column,
+                cross_alignment: End
+            ]
+        )
+        .push(node!(Div::new(), [size: [100.0, 50.0]]))
+        .push(node!(Div::new(), [size: [200.0, 50.0]]));
+
+        nodes.calculate_layout(&Caches::default(), 1.0);
+
+        assert_eq!(nodes.children[0].layout_result.position.left, px!(200.0));
+        assert_eq!(nodes.children[0].layout_result.position.top, px!(0.0));
+        assert_eq!(nodes.children[0].layout_result.position.right, px!(300.0));
+        assert_eq!(nodes.children[1].layout_result.position.left, px!(100.0));
+        assert_eq!(nodes.children[1].layout_result.position.right, px!(300.0));
+        assert_eq!(nodes.children[1].layout_result.position.top, px!(50.0));
+    }
+
+    #[test]
+    fn test_center_wrapping_alignment() {
+        let mut nodes = node!(
+            Div::new(),
+            lay!(size: [415], // This is just small enough to force a wrap
+                 direction: Row,
+                 padding: [5], wrap: true,
+                 axis_alignment: Center, cross_alignment: Center)
         )
         .push(node!(
             Div::new(),
