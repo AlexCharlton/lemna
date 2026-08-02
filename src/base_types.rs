@@ -803,6 +803,18 @@ impl Hash for BorderRadii {
     }
 }
 
+impl Mul<f32> for BorderRadii {
+    type Output = Self;
+    fn mul(self, f: f32) -> Self {
+        Self {
+            top_left: self.top_left * f,
+            top_right: self.top_right * f,
+            bottom_right: self.bottom_right * f,
+            bottom_left: self.bottom_left * f,
+        }
+    }
+}
+
 //-------------------------------------------------------------
 // MARK: Color
 use csscolorparser::Color as CssColor;

@@ -57,7 +57,7 @@ impl Component for RoundedRect {
     fn render_hash(&self, hasher: &mut ComponentHasher) {
         self.background_color.hash(hasher);
         self.border_color.hash(hasher);
-        ((self.border_width * 100000.0) as u32).hash(hasher);
+        self.border_width.to_bits().hash(hasher);
         self.radii.hash(hasher);
     }
 
@@ -75,7 +75,8 @@ impl Component for RoundedRect {
             pos: Pos::ORIGIN,
             bottom_right: Point::new(context.aabb.width(), context.aabb.height()),
         };
-        match Path::rounded_rectangle(&rect, &self.radii) {
+        let radii = self.radii * context.scale_factor;
+        match Path::rounded_rectangle(&rect, &radii) {
             Ok(path) => Some(vec![Renderable::Shape(Shape::new(
                 path,
                 self.background_color,
