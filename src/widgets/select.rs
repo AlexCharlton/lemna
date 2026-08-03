@@ -7,7 +7,6 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::input::Key;
-use crate::layout::*;
 use crate::renderable::Renderable;
 use crate::style::{HorizontalPosition, Styled, current_style};
 use crate::{Node, txt};

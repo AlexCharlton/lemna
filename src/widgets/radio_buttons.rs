@@ -112,8 +112,8 @@ impl Component for RadioButtons {
             super::Div::new(),
             [
                 direction: match self.direction {
-                    Direction::Row => Direction::Column,
-                    Direction::Column => Direction::Row,
+                    Direction::Row => Some(Direction::Column),
+                    Direction::Column => Some(Direction::Row),
                 }
             ]
         );
@@ -146,7 +146,8 @@ impl Component for RadioButtons {
 
         let mut i: usize = 0;
         let mut j: usize = 0;
-        let mut container = node!(super::Div::new(), [direction: self.direction]).key(i as u32);
+        let mut container =
+            node!(super::Div::new(), [direction: Some(self.direction)]).key(i as u32);
         for (position, b) in self.buttons.iter().enumerate() {
             if j >= limit {
                 j = 0;
@@ -155,7 +156,7 @@ impl Component for RadioButtons {
                 container = node!(
                     super::Div::new(),
                     [
-                        direction: self.direction,
+                        direction: Some(self.direction),
                         cross_alignment: Alignment::Stretch,
                         // axis_alignment: Alignment::Stretch, // TODO: This is broken
                     ]
@@ -282,8 +283,8 @@ impl Component for RadioButton {
             [
                 size: size_pct!(100.0),
                 padding: bounds!(padding),
-                cross_alignment: crate::layout::Alignment::Center,
-                axis_alignment: crate::layout::Alignment::Center
+                cross_alignment: Center,
+                axis_alignment: Center
             ]
         )
         .push(node!(
@@ -297,7 +298,7 @@ impl Component for RadioButton {
             base = base.push(node!(
                 ToolTip::new(tt.clone()),
                 [
-                    position_type: PositionType::Absolute,
+                    position_type: Absolute,
                     z_index_increment: 1000.0,
                     position: (p + ToolTip::MOUSE_OFFSET).into(),
                 ]

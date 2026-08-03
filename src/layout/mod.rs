@@ -55,7 +55,7 @@ impl super::node::Node {
         {
             // Nothing to base off of, so we return auto
             Dimension::Auto
-        } else if self.layout.size.main(dir).is_auto()
+        } else if self.resolved_layout.size.main(dir).is_auto()
             && self.layout_result.main_layout_type != LayoutType::Flex
             && available_size.main(dir).resolved()
             && f32::from(available_size.main(dir)) > 0.0
@@ -76,14 +76,14 @@ impl super::node::Node {
                 parent_bounds_size.cross(dir),
             ),
         );
-        if self.layout.overlay {
+        if self.resolved_layout.overlay {
             size = Default::default();
         }
-        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+        if cfg!(debug_assertions) && self.resolved_layout.debug.is_some() {
             log_debug!(
                 "bounds_size: <{}> layout size {:?}, with parent inner size {:?}, parent bounds size {:?}, available size {:?}, dir: {:?}, main_resolved {:?}, resulting bounds: {:?}",
-                self.layout.debug.as_ref().unwrap(),
-                &self.layout.size,
+                self.resolved_layout.debug.as_ref().unwrap(),
+                &self.resolved_layout.size,
                 &parent_inner_size,
                 &parent_bounds_size,
                 &available_size,
@@ -103,13 +103,18 @@ impl super::node::Node {
         scale_factor: f32,
         final_pass: bool,
     ) {
-        let padding = self.layout.padding.maybe_resolve(&bounds_size);
+        let padding = self.resolved_layout.padding.maybe_resolve(&bounds_size);
         let bounds_less_padding = bounds_size.minus_bounds(&padding);
-        let max_size = self.layout.max_size.maybe_resolve(&bounds_less_padding);
+        let max_size = self
+            .resolved_layout
+            .max_size
+            .maybe_resolve(&bounds_less_padding);
         let size = if self.layout_result.main_resolved {
-            self.layout.size.most_specific(&self.layout_result.size)
+            self.resolved_layout
+                .size
+                .most_specific(&self.layout_result.size)
         } else {
-            self.layout.size
+            self.resolved_layout.size
         };
 
         // The size we use to resolve pct children - does not shrink because of siblings
@@ -129,17 +134,17 @@ impl super::node::Node {
             inner_size.height = Dimension::Auto;
         };
 
-        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+        if cfg!(debug_assertions) && self.resolved_layout.debug.is_some() {
             log_debug!(
                 "resolve_child_sizes: <{}> in bounds {:?}, inner_size: {:?}, available_size: {:?}",
-                self.layout.debug.as_ref().unwrap(),
+                self.resolved_layout.debug.as_ref().unwrap(),
                 &bounds_size,
                 &inner_size,
                 &available_size,
             );
         }
 
-        let dir = self.layout.direction;
+        let dir = self.resolved_layout.direction.unwrap();
         // Calculate maximum available space - always constrained by bounds_size from parent
         // even if inner_size is resolved (which might be from a previous pass)
         let max_available = if bounds_size.main(dir).resolved() {
@@ -164,25 +169,25 @@ impl super::node::Node {
         for child in self.children.iter_mut() {
             child.layout_result.direction = dir;
             // Stretch alignment - only apply if cross size is not already resolved
-            if self.layout.cross_alignment == Alignment::Stretch
+            if self.resolved_layout.cross_alignment.unwrap() == Alignment::Stretch
                 && !child.layout_result.size.cross(dir).resolved()
             {
                 *child.layout_result.size.cross_mut(dir) = Dimension::Pct(100.0)
             }
 
-            let child_margin = child.layout.margin.maybe_resolve(&inner_size);
+            let child_margin = child.resolved_layout.margin.maybe_resolve(&inner_size);
 
-            if cfg!(debug_assertions) && child.layout.debug.is_some() {
+            if cfg!(debug_assertions) && child.resolved_layout.debug.is_some() {
                 log_debug!(
-                    "resolve_child_sizes: {} of <{}> with parent <{:?}> - Basing off child.layout.size {:?}, child.layout_result.size {:?}, inner_size {:?}), bounds_size {:?}, child_margin {:?}; main_remaining {:?}, max_available {:?}",
+                    "resolve_child_sizes: {} of <{}> with parent <{:?}> - Basing off child.resolved_layout.size {:?}, child.layout_result.size {:?}, inner_size {:?}), bounds_size {:?}, child_margin {:?}; main_remaining {:?}, max_available {:?}",
                     if final_pass {
                         "Final pass"
                     } else {
                         "First pass"
                     },
-                    child.layout.debug.as_ref().unwrap(),
-                    self.layout.debug.as_ref(),
-                    &child.layout.size,
+                    child.resolved_layout.debug.as_ref().unwrap(),
+                    self.resolved_layout.debug.as_ref(),
+                    &child.resolved_layout.size,
                     &child.layout_result.size,
                     &inner_size,
                     &bounds_size,
@@ -192,7 +197,10 @@ impl super::node::Node {
                 );
             }
 
-            let pre_resolved_size = child.layout.size.more_specific(&child.layout_result.size);
+            let pre_resolved_size = child
+                .resolved_layout
+                .size
+                .more_specific(&child.layout_result.size);
             let width_pct = pre_resolved_size.width.is_pct();
             let height_pct = pre_resolved_size.height.is_pct();
 
@@ -206,35 +214,35 @@ impl super::node::Node {
                 resolved_size.height -= child_margin.height_total();
             }
             child.layout_result.size = resolved_size;
-            if child.layout.size.main(dir).resolved() {
+            if child.resolved_layout.size.main(dir).resolved() {
                 child.layout_result.main_resolved = true;
                 child.layout_result.main_layout_type = LayoutType::Fixed;
-            } else if child.layout.size.main(dir).is_pct() {
+            } else if child.resolved_layout.size.main(dir).is_pct() {
                 child.layout_result.main_layout_type = LayoutType::Percent;
                 // Percentages are always considered resolved in the final pass
                 if final_pass && child.layout_result.size.main(dir).resolved() {
                     child.layout_result.main_resolved = true;
                 }
             }
-            if child.layout.size.cross(dir).resolved() {
+            if child.resolved_layout.size.cross(dir).resolved() {
                 child.layout_result.cross_layout_type = LayoutType::Fixed;
-            } else if child.layout.size.cross(dir).is_pct() {
+            } else if child.resolved_layout.size.cross(dir).is_pct() {
                 child.layout_result.cross_layout_type = LayoutType::Percent;
             }
 
-            if self.layout.axis_alignment == Alignment::Stretch
-                && child.layout.size.main(dir) == Dimension::Auto
-                && child.layout.flex_grow != 0.0
+            if self.resolved_layout.axis_alignment.unwrap() == Alignment::Stretch
+                && child.resolved_layout.size.main(dir) == Dimension::Auto
+                && child.resolved_layout.flex_grow.unwrap() != 0.0
             {
                 // We want to calculate this in the next for block
                 *child.layout_result.size.main_mut(dir) = Dimension::Auto;
                 child.layout_result.main_layout_type = LayoutType::Flex;
             } else {
                 // The flex grow is not used for this child, so we set it to 0.0
-                child.layout.flex_grow = 0.0;
+                child.resolved_layout.flex_grow = Some(0.0);
             }
-            if self.layout.cross_alignment == Alignment::Stretch
-                && child.layout.size.cross(dir) == Dimension::Auto
+            if self.resolved_layout.cross_alignment.unwrap() == Alignment::Stretch
+                && child.resolved_layout.size.cross(dir) == Dimension::Auto
             {
                 child.layout_result.cross_layout_type = LayoutType::Flex;
             }
@@ -244,8 +252,12 @@ impl super::node::Node {
                 let cross_was_resolved = child.layout_result.size.cross(dir).resolved();
                 // Use bounds_size as fallback when inner_size is not resolved (for fill_bounds constraints)
                 let fill_bounds_size = inner_size.most_specific(&bounds_less_padding);
-                let fill_bounds_inner_size = fill_bounds_size
-                    .minus_bounds(&child.layout.margin.maybe_resolve(&fill_bounds_size));
+                let fill_bounds_inner_size = fill_bounds_size.minus_bounds(
+                    &child
+                        .resolved_layout
+                        .margin
+                        .maybe_resolve(&fill_bounds_size),
+                );
 
                 let (w, h) = child.component.fill_bounds(
                     child.layout_result.size.width.maybe_px(),
@@ -283,25 +295,25 @@ impl super::node::Node {
             if let Dimension::Px(x) = child.layout_result.size.main(dir)
                 && child.layout_result.main_resolved
             {
-                if !self.layout.wrap && !child.layout.overlay {
+                if !self.resolved_layout.wrap && !child.resolved_layout.overlay {
                     // Don't subtract from main_remain for wrap nodes, since we always have the same main space for each row.
                     main_remaining -= x + f64::from(child_margin.main_total(dir));
                 }
             } else {
                 unresolved += 1;
-                unresolved_flex_grow += child.layout.flex_grow;
+                unresolved_flex_grow += child.resolved_layout.flex_grow.unwrap();
             }
         }
         main_remaining = main_remaining.max(0.0);
 
         // Stretch + auto cross (e.g. select dropdown): parent has no resolved cross size.
         // Align every stretchable child to the max intrinsic cross size
-        if self.layout.cross_alignment == Alignment::Stretch
+        if self.resolved_layout.cross_alignment.unwrap() == Alignment::Stretch
             && !inner_size.cross(dir).resolved()
             && max_cross_size > 0.0
         {
             for child in self.children.iter_mut() {
-                if child.layout.size.cross(dir) != Dimension::Auto {
+                if child.resolved_layout.size.cross(dir) != Dimension::Auto {
                     continue;
                 }
                 *child.layout_result.size.cross_mut(dir) = Dimension::Px(max_cross_size.into());
@@ -313,20 +325,20 @@ impl super::node::Node {
         let mut current_main_remaining = main_remaining;
 
         for child in self.children.iter_mut() {
-            let child_margin = child.layout.margin.maybe_resolve(&inner_size);
+            let child_margin = child.resolved_layout.margin.maybe_resolve(&inner_size);
             let main_remaining_before_this_child = current_main_remaining;
-            if self.layout.axis_alignment == Alignment::Stretch
+            if self.resolved_layout.axis_alignment.unwrap() == Alignment::Stretch
                 && !child.layout_result.size.main(dir).resolved()
-                && child.layout.flex_grow != 0.0
+                && child.resolved_layout.flex_grow.unwrap() != 0.0
             {
-                let flex_ratio = child.layout.flex_grow / unresolved_flex_grow;
+                let flex_ratio = child.resolved_layout.flex_grow.unwrap() / unresolved_flex_grow;
                 let size = main_remaining * flex_ratio;
                 *child.layout_result.size.main_mut(dir) =
                     Dimension::Px(main_remaining * flex_ratio) - child_margin.main_total(dir);
                 current_main_remaining -= size;
             } else if unresolved == 1
-                && !child.layout.size.main(dir).resolved()
-                && child.layout.wrap
+                && !child.resolved_layout.size.main(dir).resolved()
+                && child.resolved_layout.wrap
                 && main_remaining > 0.0
             {
                 // If there's exactly one unresolved child with auto size and wrapping enabled,
@@ -344,7 +356,10 @@ impl super::node::Node {
             let parent_bounds_size = bounds_less_padding.minus_bounds(&child_margin);
             // Apply max size
             // We do this before resolve layout, so that we can get the right bounds size for children
-            let max_size = child.layout.max_size.maybe_resolve(&parent_bounds_size);
+            let max_size = child
+                .resolved_layout
+                .max_size
+                .maybe_resolve(&parent_bounds_size);
 
             if child.layout_result.size.width.resolved() {
                 child.layout_result.size.width = child.layout_result.size.width.min(max_size.width);
@@ -369,7 +384,10 @@ impl super::node::Node {
             );
             // Then we reapply the max size, since layout_result.size may have been modified, and this is where we have the correct max size
             child.layout_result.size = child.layout_result.size.min(max_size);
-            if !child_was_main_resolved && child.layout_result.main_resolved && !self.layout.wrap {
+            if !child_was_main_resolved
+                && child.layout_result.main_resolved
+                && !self.resolved_layout.wrap
+            {
                 // We need to update the main_remaining if the child was not resolved before and it is now
                 current_main_remaining -=
                     f64::from(child.layout_result.size.main(dir) - child_margin.main_total(dir));
@@ -414,9 +432,12 @@ impl super::node::Node {
     // Return the children size and the row info. Children are packed from the start;
     // End/Center alignment is applied later in `reposition_center_end_children`.
     fn set_children_position(&mut self, bounds_size: Size) -> (Size, Vec<RowInfo>) {
-        let dir = self.layout.direction;
-        let size = self.layout.size.most_specific(&self.layout_result.size);
-        let axis_align = self.layout.axis_alignment;
+        let dir = self.resolved_layout.direction.unwrap();
+        let size = self
+            .resolved_layout
+            .size
+            .most_specific(&self.layout_result.size);
+        let axis_align = self.resolved_layout.axis_alignment.unwrap();
         // Pack from the start; End/Center are applied after the parent size is known.
         let main_start_padding: f64 = self
             .layout
@@ -442,21 +463,21 @@ impl super::node::Node {
         let mut row_elements_count: usize = 0;
 
         for child in self.children.iter_mut() {
-            let margin = child.layout.margin.maybe_resolve(&size);
+            let margin = child.resolved_layout.margin.maybe_resolve(&size);
             let child_outer_size = child.layout_result.size.plus_bounds(&margin);
 
             // Perform a wrap?
             // Use bounds_size as fallback when size is not resolved (for wrapping nodes with auto size)
             let wrap_size = if size.main(dir).resolved() {
                 size.main(dir)
-            } else if self.layout.wrap && bounds_size.main(dir).resolved() {
+            } else if self.resolved_layout.wrap && bounds_size.main(dir).resolved() {
                 bounds_size.main(dir)
             } else {
                 Dimension::Auto
             };
-            if self.layout.wrap
+            if self.resolved_layout.wrap
                 && wrap_size.resolved()
-                && child.layout.position_type != PositionType::Absolute
+                && child.resolved_layout.position_type.unwrap() != PositionType::Absolute
                 && (main_pos + main_end_padding + f64::from(child_outer_size.main(dir)))
                     > f64::from(wrap_size)
                 && main_pos > main_start_padding
@@ -472,7 +493,7 @@ impl super::node::Node {
                 row_elements_count = 0;
             }
 
-            if child.layout.position_type == PositionType::Relative {
+            if child.resolved_layout.position_type.unwrap() == PositionType::Relative {
                 child.layout_result.position = dir.rect(
                     Dimension::Px(main_pos),
                     Dimension::Px(cross_pos),
@@ -489,28 +510,31 @@ impl super::node::Node {
                     max_cross_size = child_cross;
                 }
 
-                if cfg!(debug_assertions) && child.layout.debug.is_some() {
+                if cfg!(debug_assertions) && child.resolved_layout.debug.is_some() {
                     log_debug!(
                         "set_children_position: setting relative position of <{}> to {:#?} - Basing off ...",
-                        child.layout.debug.as_ref().unwrap(),
+                        child.resolved_layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
                     );
                 }
             } else {
-                child.layout_result.position = child.layout.position.most_specific(&dir.rect(
-                    Dimension::Px(main_pos),
-                    Dimension::Px(cross_pos),
-                    axis_align,
-                ));
+                child.layout_result.position = child
+                    .resolved_layout
+                    .position
+                    .most_specific_of_one_side(&dir.rect(
+                        Dimension::Px(main_pos),
+                        Dimension::Px(cross_pos),
+                        axis_align,
+                    ));
                 child.layout_result.position += margin;
                 child.resolve_position(size);
 
-                if cfg!(debug_assertions) && child.layout.debug.is_some() {
+                if cfg!(debug_assertions) && child.resolved_layout.debug.is_some() {
                     log_debug!(
                         "set_children_position: setting absolute position of <{}> to {:#?} - Basing off explicit position ({:#?}), parent size ({:#?}))",
-                        child.layout.debug.as_ref().unwrap(),
+                        child.resolved_layout.debug.as_ref().unwrap(),
                         &child.layout_result.position,
-                        &child.layout.position,
+                        &child.resolved_layout.position,
                         &size
                     );
                 }
@@ -528,7 +552,7 @@ impl super::node::Node {
             Size::default()
         } else {
             // For wrapping nodes, use the maximum row width, not the current position
-            let main_size = if self.layout.wrap && !row_info.is_empty() {
+            let main_size = if self.resolved_layout.wrap && !row_info.is_empty() {
                 row_info.iter().map(|row| row.main).fold(0.0, f64::max)
             } else {
                 main_pos
@@ -536,8 +560,14 @@ impl super::node::Node {
             let cross_size = cross_pos + max_cross_size;
             dir.size(Dimension::Px(main_size), Dimension::Px(cross_size))
         };
-        *children_size.main_mut(dir) += self.layout.padding.main_reverse(dir, Alignment::Start);
-        *children_size.cross_mut(dir) += self.layout.padding.cross_reverse(dir, Alignment::Start);
+        *children_size.main_mut(dir) += self
+            .resolved_layout
+            .padding
+            .main_reverse(dir, Alignment::Start);
+        *children_size.cross_mut(dir) += self
+            .resolved_layout
+            .padding
+            .cross_reverse(dir, Alignment::Start);
 
         // TODO Alignment::Stretch when not all space is filled
 
@@ -548,8 +578,8 @@ impl super::node::Node {
     // (possibly based on its children's sizes), so that we know the actual space available for
     // Center/End alignment on either axis.
     fn reposition_center_end_children(&mut self, children_size: Size, row_info: Vec<RowInfo>) {
-        let axis_align = self.layout.axis_alignment;
-        let cross_align = self.layout.cross_alignment;
+        let axis_align = self.resolved_layout.axis_alignment.unwrap();
+        let cross_align = self.resolved_layout.cross_alignment.unwrap();
         let align_main = matches!(axis_align, Alignment::Center | Alignment::End);
         let align_cross = matches!(cross_align, Alignment::Center | Alignment::End);
         if !align_main && !align_cross {
@@ -557,9 +587,9 @@ impl super::node::Node {
         }
 
         let size = self.layout_result.size;
-        let dir = self.layout.direction;
+        let dir = self.resolved_layout.direction.unwrap();
         // Final positions are start-relative (left/top).
-        let padding = self.layout.padding.maybe_resolve(&size);
+        let padding = self.resolved_layout.padding.maybe_resolve(&size);
         let main_start_padding: f64 = padding.main(dir, Alignment::Start).into();
         let main_end_padding: f64 = padding.main_reverse(dir, Alignment::Start).into();
         let cross_start_padding: f64 = padding.cross(dir, Alignment::Start).into();
@@ -576,7 +606,7 @@ impl super::node::Node {
             (f64::from(children_size.cross(dir)) - cross_start_padding - cross_end_padding)
                 .max(0.0);
 
-        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+        if cfg!(debug_assertions) && self.resolved_layout.debug.is_some() {
             log_debug!(
                 "reposition_center_end_children: axis_align: {:?}, cross_align: {:?}; row_info: {:?}; size: {:?}x{:?} ({:?})",
                 axis_align,
@@ -605,7 +635,7 @@ impl super::node::Node {
         let mut row_cross_start = cross_start_padding + cross_offset_block;
 
         for child in self.children.iter_mut() {
-            if child.layout.position_type == PositionType::Absolute {
+            if child.resolved_layout.position_type.unwrap() == PositionType::Absolute {
                 continue;
             }
 
@@ -634,7 +664,7 @@ impl super::node::Node {
             }
 
             if align_cross {
-                let margin = child.layout.margin.maybe_resolve(&size);
+                let margin = child.resolved_layout.margin.maybe_resolve(&size);
                 let (m_cross_start, m_cross_end) = match dir {
                     Direction::Row => (f64::from(margin.top), f64::from(margin.bottom)),
                     Direction::Column => (f64::from(margin.left), f64::from(margin.right)),
@@ -681,10 +711,10 @@ impl super::node::Node {
             child.resolve_position(size);
             elements_positioned_in_row += 1;
 
-            if cfg!(debug_assertions) && child.layout.debug.is_some() {
+            if cfg!(debug_assertions) && child.resolved_layout.debug.is_some() {
                 log_debug!(
                     "reposition_center_end_children: resolved aligned position of <{}> to {:#?} - parent size ({:#?}), children size: {:?}, cross offset block: {:?}, content cross: {:?}",
-                    child.layout.debug.as_ref().unwrap(),
+                    child.resolved_layout.debug.as_ref().unwrap(),
                     &child.layout_result.position,
                     &size,
                     &children_size,
@@ -721,22 +751,25 @@ impl super::node::Node {
             self.layout_result.cross_layout_type = LayoutType::Fixed;
         }
 
-        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+        if cfg!(debug_assertions) && self.resolved_layout.debug.is_some() {
             log_debug!(
                 "resolve_size: <{}> - final_pass: {:?}, layout_result: {:?}, layout.size: {:?}, children size: {:?}, bounds size: {:?}",
-                self.layout.debug.as_ref().unwrap(),
+                self.resolved_layout.debug.as_ref().unwrap(),
                 final_pass,
                 &self.layout_result,
-                &self.layout.size,
+                &self.resolved_layout.size,
                 &children_size,
                 &bounds_size,
             );
         }
 
-        let mut size = self.layout.size.most_specific(&self.layout_result.size);
+        let mut size = self
+            .resolved_layout
+            .size
+            .most_specific(&self.layout_result.size);
 
-        let min_size = self.layout.min_size;
-        let dir = self.layout.direction;
+        let min_size = self.resolved_layout.min_size;
+        let dir = self.resolved_layout.direction.unwrap();
         if final_pass && self.layout_result.main_layout_type == LayoutType::Auto {
             *size.main_mut(self.layout_result.direction) = Dimension::Auto;
         }
@@ -749,14 +782,14 @@ impl super::node::Node {
 
         // For wrapping nodes with auto size that were temporarily resolved, allow shrinking to children's size
         // Allow shrinking on both main and cross axes if the original size was Auto
-        let allow_shrink_main = self.layout.wrap
-            && self.layout.size.main(dir) == Dimension::Auto
+        let allow_shrink_main = self.resolved_layout.wrap
+            && self.resolved_layout.size.main(dir) == Dimension::Auto
             && size.main(dir).resolved()
             && children_size.main(dir).resolved()
             && f64::from(children_size.main(dir)) < f64::from(size.main(dir));
         // The cross axis can also grow to fit the children
-        let allow_adapt_cross = self.layout.wrap
-            && self.layout.size.cross(dir) == Dimension::Auto
+        let allow_adapt_cross = self.resolved_layout.wrap
+            && self.resolved_layout.size.cross(dir) == Dimension::Auto
             && children_size.cross(dir).resolved();
 
         if !size.width.resolved() || f64::from(size.width) < 0.0 {
@@ -804,13 +837,13 @@ impl super::node::Node {
         }
 
         // Ensure the size is at least the min_size
-        if !self.layout.size.width.resolved() {
-            size.width = size.width.max(self.layout.min_size.width);
+        if !self.resolved_layout.size.width.resolved() {
+            size.width = size.width.max(self.resolved_layout.min_size.width);
         }
-        if !self.layout.size.height.resolved() {
-            size.height = size.height.max(self.layout.min_size.height);
+        if !self.resolved_layout.size.height.resolved() {
+            size.height = size.height.max(self.resolved_layout.min_size.height);
         }
-        size = size.min(self.layout.max_size);
+        size = size.min(self.resolved_layout.max_size);
 
         self.layout_result.size = size;
     }
@@ -852,7 +885,7 @@ impl super::node::Node {
         scale_factor: f32,
         final_pass: bool,
     ) {
-        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+        if cfg!(debug_assertions) && self.resolved_layout.debug.is_some() {
             log_debug!(
                 "resolve_layout START: {} of <{}> in bounds {:?} available size {:?}: {:#?}",
                 if final_pass {
@@ -860,7 +893,7 @@ impl super::node::Node {
                 } else {
                     "First pass"
                 },
-                self.layout.debug.as_ref().unwrap(),
+                self.resolved_layout.debug.as_ref().unwrap(),
                 &bounds_size,
                 &available_size,
                 &self.layout,
@@ -880,21 +913,25 @@ impl super::node::Node {
         self.set_inner_scale(children_size);
 
         #[allow(clippy::nonminimal_bool)]
-        if (self.layout.size.main(self.layout.direction).resolved()
+        if (self
+            .resolved_layout
+            .size
+            .main(self.resolved_layout.direction.unwrap())
+            .resolved()
             || (self
                     .children
                     .iter()
                     .all(|child| child.layout_result.main_resolved) && !self.children.is_empty())
                 // Child nodes being resolved doesn't mean anything if the parent is scrollable on that axis
-                && !(self.layout.direction == Direction::Column && self.scroll_y().is_some() && self.layout_result.main_layout_type == LayoutType::Auto)
-                && !(self.layout.direction == Direction::Row && self.scroll_x().is_some() && self.layout_result.main_layout_type == LayoutType::Auto))
-            && self.layout.flex_grow == 0.0
-            && !self.layout.wrap
+                && !(self.resolved_layout.direction.unwrap() == Direction::Column && self.scroll_y().is_some() && self.layout_result.main_layout_type == LayoutType::Auto)
+                && !(self.resolved_layout.direction.unwrap() == Direction::Row && self.scroll_x().is_some() && self.layout_result.main_layout_type == LayoutType::Auto))
+            && self.resolved_layout.flex_grow.unwrap() == 0.0
+            && !self.resolved_layout.wrap
         {
             self.layout_result.main_resolved = true;
         }
 
-        if cfg!(debug_assertions) && self.layout.debug.is_some() {
+        if cfg!(debug_assertions) && self.resolved_layout.debug.is_some() {
             log_debug!(
                 "resolve_layout END: {} of <{}> - layout_result: {:?}",
                 if final_pass {
@@ -902,9 +939,17 @@ impl super::node::Node {
                 } else {
                     "First pass"
                 },
-                self.layout.debug.as_ref().unwrap(),
+                self.resolved_layout.debug.as_ref().unwrap(),
                 &self.layout_result
             );
+        }
+    }
+
+    #[cfg(test)]
+    fn resolve_layouts_recursive(&mut self) {
+        self.resolved_layout = self.layout.resolve(self.component.layout().as_ref());
+        for child in self.children.iter_mut() {
+            child.resolve_layouts_recursive();
         }
     }
 
@@ -916,16 +961,16 @@ impl super::node::Node {
             right: Dimension::Auto,
         };
         self.resolve_layout(
-            self.layout.size,
-            self.layout.size,
+            self.resolved_layout.size,
+            self.resolved_layout.size,
             caches,
             scale_factor,
             false,
         );
         // Layout is resolved twice, the second time to resolve percentages that couldn't have been known without better knowledge of the children
         self.resolve_layout(
-            self.layout.size,
-            self.layout.size,
+            self.resolved_layout.size,
+            self.resolved_layout.size,
             caches,
             scale_factor,
             true,
@@ -1063,6 +1108,7 @@ mod tests {
     #[test]
     fn test_empty() {
         let mut nodes = node!(Div::new(), lay!(size: size!(300.0)));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.layout_result.position.top, px!(0.0));
@@ -1082,6 +1128,7 @@ mod tests {
                 ),
             ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let fake_button = &nodes.children[0].children[0].children[0];
         let child = &fake_button.children[0];
@@ -1099,6 +1146,7 @@ mod tests {
         .push(node!(Div::new(), lay!(size: size!(150.0))))
         .push(node!(Div::new(), lay!(size: size!(100.0))))
         .push(node!(Div::new(), lay!(size: size!(200.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
@@ -1120,6 +1168,7 @@ mod tests {
                     .push(node!(Div::new(), lay!(size: size!(100.0))))
                     .push(node!(Div::new(), lay!(size: size!(200.0)))),
             );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let wrap_node = &nodes.children[1];
@@ -1168,6 +1217,7 @@ mod tests {
                         .push(node!(Div::new(), lay!(size: size!(200.0)))),
                 ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let sub_root = &nodes.children[0];
@@ -1223,6 +1273,7 @@ mod tests {
                     ),
                 ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let sub_root = &nodes.children[0];
@@ -1284,6 +1335,7 @@ mod tests {
                     ),
                 ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let sub_root = &nodes.children[0];
@@ -1348,6 +1400,7 @@ mod tests {
                         .push(node!(FillBoundser::new(), [debug: "sibling_fill"])),
                 ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let sub_root = &nodes.children[0];
@@ -1419,6 +1472,7 @@ mod tests {
                     .push(node!(Div::new(), []).push(node!(FillBoundser::new(), []))),
             ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let sub_root = &nodes.children[0];
         let sub_sub_root = &sub_root.children[0];
@@ -1492,6 +1546,7 @@ mod tests {
                     )
                     .push(node!(Div::new(), lay!(size: size!(100.0)))),
             );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let outer_wrap_node = &nodes.children[1];
@@ -1618,6 +1673,7 @@ mod tests {
                     ),
             ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let sub_root = &nodes.children[0];
@@ -1695,6 +1751,7 @@ mod tests {
                         .push(node!(Div::new(), lay!(size: size!(100.0)))),
                 ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let sub_root = &nodes.children[0];
@@ -1721,12 +1778,13 @@ mod tests {
         // └─────────────────────────────────────────┘
         let mut nodes = node!(
             Div::new(),
-            lay!(size: size!(300.0), direction: Direction::Column, debug: "root")
+            lay!(size: size!(300.0), direction: Column, debug: "root")
         )
         .push(
             node!(Div::new(), lay!(wrap: true, debug: "wrap_node"))
                 .push(node!(Div::new(), lay!(size: size!(100.0)))),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let wrap_node = &nodes.children[0];
@@ -1769,6 +1827,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(200.0), margin: bounds_pct!(1.0))
         ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(
@@ -1831,6 +1890,7 @@ mod tests {
                 [size: [100.0], margin: [1.0]]
             )),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let wrapping_node = &nodes.children[0];
@@ -1869,6 +1929,7 @@ mod tests {
                 lay!(debug: "fill_bounds_with_width")
             ))),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let sub_root = &nodes.children[0];
@@ -1931,6 +1992,7 @@ mod tests {
                 [size_pct: [100.0, Auto], debug: "remaining"]
             )
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         // Root should be 300px × 300px
@@ -1974,6 +2036,7 @@ mod tests {
         .push(node!(FillBoundser::new_size(40.0), [debug: "entry_narrow"]))
         .push(node!(FillBoundser::new_size(130.0), [debug: "entry_widest"]))
         .push(node!(FillBoundser::new_size(70.0), [debug: "entry_mid"]));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         // Column cross size = max intrinsic width (130); main size = sum of heights.
@@ -2045,6 +2108,7 @@ mod tests {
             // Previous value
             // [size: [100.0, 50.0], flex_grow: 1.0, debug: "fixed2"]
         ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         // Root should be 300px × 400px
@@ -2128,6 +2192,7 @@ mod tests {
                 // [size: [100.0, 50.0], flex_grow: 1.0, debug: "fixed2"]
             )),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         // Root should be 420px × 320px
@@ -2214,6 +2279,7 @@ mod tests {
                 // [size: [100.0, 50.0], flex_grow: 1.0, debug: "fixed2"]
             )),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         // Root should be 400px × 400px
@@ -2273,6 +2339,7 @@ mod tests {
             node!(Div::new(), [size_pct: [50.0, 100.0], debug: "parent"])
                 .push(node!(Div::new(), [size_pct: [50.0, 100.0], debug: "child"])),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(150.0, 300.0));
@@ -2292,6 +2359,7 @@ mod tests {
                 ),
             ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let parent = &nodes.children[0].children[0];
@@ -2314,6 +2382,7 @@ mod tests {
                 ),
             )
             .push(node!(Div::new(), [size: [300.0], debug: "child2"]));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let child1 = &nodes.children[0];
@@ -2337,6 +2406,7 @@ mod tests {
                 // This node should inherit the bounds from its parent
                 .push(node!(Div::new(), [size_pct: [100.0], debug: "pct_child"])),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let sibling = &nodes.children[0];
         assert_eq!(sibling.layout_result.size, size!(100.0));
@@ -2359,6 +2429,7 @@ mod tests {
                     .push(node!(Div::new(), [size_pct: [100.0], debug: "pct child"])),
             ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let fixed = &nodes.children[0];
         assert_eq!(fixed.layout_result.size, size!(100.0));
@@ -2394,6 +2465,7 @@ mod tests {
 
         nodes = nodes.push(outer);
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let outer = &nodes.children[0];
         assert_eq!(outer.layout_result.size, size!(400.0, 30.0));
@@ -2435,6 +2507,7 @@ mod tests {
 
         nodes = nodes.push(outer);
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let outer = &nodes.children[0];
         assert_eq!(outer.layout_result.size, size!(400.0, 30.0));
@@ -2467,6 +2540,7 @@ mod tests {
         )
         .push(node!(Div::new()))
         .push(node!(Div::new()));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.size, size!(150.0, 300.0));
@@ -2490,6 +2564,7 @@ mod tests {
         )
         .push(node!(Div::new()))
         .push(node!(Div::new(), lay!(size: size!(100.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0));
@@ -2508,6 +2583,7 @@ mod tests {
             lay!(size: size!(300.0), padding: bounds!(10.0, 20.0, 30.0, 40.0))
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(240.0, 260.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(20.0));
@@ -2527,6 +2603,7 @@ mod tests {
             ])
             .push(node!(Div::new(), [size_pct: [100.0], debug: "child"])),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let padded = &nodes.children[0];
         let child = &padded.children[0];
@@ -2545,6 +2622,7 @@ mod tests {
             )
         )
         .push(node!(Div::new(), lay!(size: size_pct!(100.0, 100.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(120.0, 180.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(60.0));
@@ -2568,6 +2646,7 @@ mod tests {
                     margin: bounds!(15.0, 10.0, 5.0, 20.0)
                 )
             ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(120.0, 280.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(10.0));
@@ -2590,6 +2669,7 @@ mod tests {
             ])
             .push(node!(Div::new(), [size_pct: [100.0], debug: "child"])),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let padded = &nodes.children[0];
         assert_eq!(padded.layout_result.size, size!(240.0, 260.0));
@@ -2616,6 +2696,7 @@ mod tests {
                     debug: "child2"
                 )
             ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.children[0].layout_result.size, size!(60.0, 240.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(30.0));
@@ -2637,6 +2718,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(200.0), margin: bounds!(2.0))
         ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(
             nodes.layout_result.size,
@@ -2661,6 +2743,7 @@ mod tests {
                 )
                 .push(node!(Div::new(), [size_pct: [100.0], debug: "Pct"])),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let auto = &nodes.children[0];
         let wrap = &auto.children[0];
@@ -2677,6 +2760,7 @@ mod tests {
             Div::new(),
             lay!(direction: Direction::Row, min_size: size!(250.0, 300.0))
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(250.0, 300.0));
     }
@@ -2691,6 +2775,7 @@ mod tests {
         )
         .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))))
         .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // Children total width is 100px, but min_size is 250px, so should be 250px
         // Children total height is 50px, but min_size is 200px, so should be 200px
@@ -2707,6 +2792,7 @@ mod tests {
         )
         .push(node!(Div::new(), lay!(size: size!(150.0, 150.0))))
         .push(node!(Div::new(), lay!(size: size!(100.0, 100.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // Children total width is 250px (larger than min_size 100px), so should be 250px
         // Children total height is 150px (larger than min_size 100px), so should be 150px
@@ -2721,6 +2807,7 @@ mod tests {
             lay!(direction: Direction::Row, min_size: size!(200.0, Auto))
         )
         .push(node!(Div::new(), lay!(size: size!(50.0, 100.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // Width should be at least 200px (min_size), height should be from children (100px)
         assert_eq!(nodes.layout_result.size, size!(200.0, 100.0));
@@ -2734,6 +2821,7 @@ mod tests {
             lay!(direction: Direction::Column, min_size: size!(Auto, 200.0))
         )
         .push(node!(Div::new(), lay!(size: size!(100.0, 50.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // Width should be from children (100px), height should be at least 200px (min_size)
         assert_eq!(nodes.layout_result.size, size!(100.0, 200.0));
@@ -2747,6 +2835,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(50.0, 50.0), min_size: size!(200.0, 200.0))
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // Should respect the resolved size, not min_size
         assert_eq!(nodes.layout_result.size, size!(50.0, 50.0));
@@ -2761,6 +2850,7 @@ mod tests {
         )
         .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))))
         .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // Width should be at least 150px (min_size), height should be at least 250px (min_size)
         // Children width is 50px, so width becomes 150px
@@ -2781,6 +2871,7 @@ mod tests {
         )
         .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))))
         .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // With wrapping, children should fit in one row (50 + 50 = 100px width)
         // But min_size is 300px, so width should be 300px
@@ -2796,6 +2887,7 @@ mod tests {
             lay!(size: size!(Auto, 100.0), min_size: size!(200.0, 150.0))
         )
         .push(node!(Div::new(), lay!(size: size!(50.0, 50.0))));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         // Width is Auto, so min_size.width (200px) should apply
         // Height is resolved (100px), so min_size.height should NOT apply
@@ -2808,6 +2900,7 @@ mod tests {
             Div::new(),
             [size: [100.0, 100.0], max_size: [50.0, 50.0], debug: "node"]
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(50.0, 50.0));
     }
@@ -2820,6 +2913,7 @@ mod tests {
         )
         // Max size should be 50% of parent's, so 150px
         .push(node!(Div::new(), [size: [200.0], max_size: size_pct!(50.0), debug: "child"]));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let child = &nodes.children[0];
         assert_eq!(child.layout_result.size, size!(150.0));
@@ -2841,6 +2935,7 @@ mod tests {
                 size_pct: [100.0], direction: Column, cross_alignment: Center, debug: "child"
           ])),
         ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         let container = &nodes.children[0];
         let parent = &container.children[0];
@@ -2860,6 +2955,7 @@ mod tests {
         .push(node!(Div::new(), lay!(size: size!(100.0)))) // Child 1
         .push(node!(Div::new(), lay!(size: size!(200.0)))); // Child 2, wrapped
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(400.0));
 
@@ -2896,6 +2992,7 @@ mod tests {
         .push(node!(Div::new(), [size: [100.0, 50.0]]))
         .push(node!(Div::new(), [size: [200.0, 50.0]]));
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.children[0].layout_result.position.left, px!(200.0));
@@ -2927,6 +3024,7 @@ mod tests {
             Div::new(),
             lay!(size: size!(100.0), margin: bounds!(1.0))
         ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(415.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(56.5));
@@ -2956,6 +3054,7 @@ mod tests {
             )
         ));
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0, 200.0));
@@ -2979,6 +3078,7 @@ mod tests {
         )
         .push(node!(Div::new(), [size: [100.0, 50.0]]));
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0, 200.0));
@@ -3002,6 +3102,7 @@ mod tests {
         .push(node!(Div::new(), [size: [100.0, 100.0]]))
         .push(node!(Div::new(), [size: [200.0, 100.0]]));
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0, 200.0));
@@ -3025,6 +3126,7 @@ mod tests {
         // This should be 100px by 100px
         .push(node!(Div::new()).push(node!(FillBoundser::new())));
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0, 200.0));
@@ -3052,6 +3154,7 @@ mod tests {
             .push(node!(Div::new()).push(node!(FillBoundser::new()))),
         );
 
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
 
         assert_eq!(nodes.layout_result.size, size!(300.0, 200.0));
@@ -3079,6 +3182,7 @@ mod tests {
                 position: bounds!(Auto, Auto, 10.0, 10.0)
             )
         ));
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(0.0));
@@ -3103,6 +3207,7 @@ mod tests {
                 .push(node!(Div::new(), [size: [100.0], debug: "child1"])) // Child 1
                 .push(node!(Div::new(), [size: [200.0], debug: "child2"])), // Child 2
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let scrollable = &nodes.children[0];
@@ -3149,6 +3254,7 @@ mod tests {
                 ),
             ),
         );
+        nodes.resolve_layouts_recursive();
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(300.0));
         let parent = &nodes.children[0];

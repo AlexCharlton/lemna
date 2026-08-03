@@ -91,6 +91,8 @@ pub struct Node {
     pub(crate) render_cache: Option<Vec<Renderable>>,
     pub(crate) children: Vec<Node>,
     pub layout: Layout,
+    // `layout` overlaid with `Component.layout`, and then defaults applied such that all fields are resolved.
+    pub(crate) resolved_layout: Layout,
     pub(crate) layout_result: LayoutResult,
     // The AABB of this component
     pub(crate) aabb: Rect,
@@ -162,6 +164,7 @@ impl Node {
             inner_scale_physical: None,
             // In logical coordinates
             layout_result: Default::default(),
+            resolved_layout: Layout::default(),
             children: vec![],
             render_cache: None,
             props_hash: u64::MAX,
@@ -266,9 +269,11 @@ impl Node {
             if self.props_hash != prev.props_hash {
                 self.component.new_props();
             } // Maybe TODO: If nodes were cloneable, it could make sense to clone them here rather than create them with `view`
+            self.resolved_layout = self.layout.resolve(self.component.layout().as_ref());
         } else {
             self.id = new_node_id();
             self.component.init();
+            self.resolved_layout = self.layout.resolve(self.component.layout().as_ref());
             self.component.props_hash(&mut hasher);
             self.props_hash = hasher.finish();
             new = true;
@@ -368,8 +373,11 @@ impl Node {
         }
         self.aabb.pos += parent_pos;
         self.aabb.bottom_right += parent_pos.into();
-        self.aabb.pos.z = (self.layout.z_index.unwrap_or((parent_pos.z + 1.0).into())
-            + self.layout.z_index_increment) as f32;
+        self.aabb.pos.z = (self
+            .resolved_layout
+            .z_index
+            .unwrap_or((parent_pos.z + 1.0).into())
+            + self.resolved_layout.z_index_increment.unwrap()) as f32;
 
         if full_control {
             let children: Vec<(&mut Rect, Option<Scale>, Option<Point>)> = self
@@ -425,15 +433,15 @@ impl Node {
         for child in self.children.iter_mut() {
             let mut scroll_offset: Size = parent_scroll_pos.into();
 
-            if !(child.layout.overlay
-                && (child.layout.position.top.resolved()
-                    || child.layout.position.bottom.resolved()))
+            if !(child.resolved_layout.overlay
+                && (child.resolved_layout.position.top.resolved()
+                    || child.resolved_layout.position.bottom.resolved()))
             {
                 scroll_offset.height = Dimension::Px(0.0);
             }
-            if !(child.layout.overlay
-                && (child.layout.position.left.resolved()
-                    || child.layout.position.right.resolved()))
+            if !(child.resolved_layout.overlay
+                && (child.resolved_layout.position.left.resolved()
+                    || child.resolved_layout.position.right.resolved()))
             {
                 scroll_offset.width = Dimension::Px(0.0);
             }
@@ -1331,7 +1339,7 @@ mod tests {
                                     width: Dimension::Px(100.0),
                                     height: Dimension::Px(100.0),
                                 },
-                                direction: Direction::Row,
+                                direction: Some(Direction::Row),
                                 ..Default::default()
                             },
                         )
@@ -1347,7 +1355,7 @@ mod tests {
                                         width: Dimension::Px(100.0),
                                         height: Dimension::Auto,
                                     },
-                                    direction: Direction::Column,
+                                    direction: Some(Direction::Column),
                                     ..Default::default()
                                 },
                             )
@@ -1392,7 +1400,7 @@ mod tests {
                                         width: Dimension::Px(100.0),
                                         height: Dimension::Auto,
                                     },
-                                    direction: Direction::Column,
+                                    direction: Some(Direction::Column),
                                     ..Default::default()
                                 },
                             )

@@ -12,7 +12,7 @@ impl Component for App {
                      wrap: true,
                      padding: [10.0],
                      axis_alignment: Center,
-                     cross_alignment: layout::Alignment::Center,
+                     cross_alignment: Center,
                 ]
             )
             .push(node!(

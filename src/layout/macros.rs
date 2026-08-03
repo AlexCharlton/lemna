@@ -83,13 +83,25 @@ macro_rules! lay {
     ( @ { $(,)* $param:ident : Row $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Direction::Row,
+                $param : Some($crate::layout::Direction::Row),
         ))
     );
     ( @ { $(,)* $param:ident : Column $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Direction::Column,
+                $param : Some($crate::layout::Direction::Column),
+        ))
+    );
+    ( @ { $(,)* $param:ident : Direction :: $variant:ident $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : Some($crate::layout::Direction::$variant),
+        ))
+    );
+    ( @ { $(,)* $param:ident : $crate::layout::Direction :: $variant:ident $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : Some($crate::layout::Direction::$variant),
         ))
     );
 
@@ -97,13 +109,25 @@ macro_rules! lay {
     ( @ { $(,)* $param:ident : Relative $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::PositionType::Relative,
+                $param : Some($crate::layout::PositionType::Relative),
         ))
     );
     ( @ { $(,)* $param:ident : Absolute $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::PositionType::Absolute,
+                $param : Some($crate::layout::PositionType::Absolute),
+        ))
+    );
+    ( @ { $(,)* $param:ident : PositionType :: $variant:ident $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : Some($crate::layout::PositionType::$variant),
+        ))
+    );
+    ( @ { $(,)* $param:ident : $crate::layout::PositionType :: $variant:ident $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : Some($crate::layout::PositionType::$variant),
         ))
     );
 
@@ -112,26 +136,49 @@ macro_rules! lay {
     ( @ { $(,)* $param:ident : Start $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Alignment::Start,
+                $param : Some($crate::layout::Alignment::Start),
         ))
     );
     ( @ { $(,)* $param:ident : End $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Alignment::End,
+                $param : Some($crate::layout::Alignment::End),
         ))
     );
     ( @ { $(,)* $param:ident : Center $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Alignment::Center,
+                $param : Some($crate::layout::Alignment::Center),
         ))
     );
     ( @ { $(,)* $param:ident : Stretch $($rest:tt)* } -> ($($result:tt)*) ) => (
         lay!(@ { $($rest)* } -> (
             $($result)*
-                $param : $crate::layout::Alignment::Stretch,
+                $param : Some($crate::layout::Alignment::Stretch),
         ))
+    );
+    ( @ { $(,)* $param:ident : Alignment :: $variant:ident $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : Some($crate::layout::Alignment::$variant),
+        ))
+    );
+    ( @ { $(,)* $param:ident : $crate::layout::Alignment :: $variant:ident $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                $param : Some($crate::layout::Alignment::$variant),
+        ))
+    );
+
+    // flex_grow
+    ( @ { $(,)* flex_grow : $flex_grow:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                flex_grow : Some($flex_grow .into()),
+        ))
+    );
+    ( @ { $(,)* flex_grow : $flex_grow:expr} -> ($($result:tt)*) ) => (
+        lay!(@ { } -> ( $($result)* flex_grow : Some($flex_grow .into()), ))
     );
 
     // z_index
@@ -144,6 +191,16 @@ macro_rules! lay {
     ( @ { $(,)* z_index : $z_index:expr} -> ($($result:tt)*) ) => (
         lay!(@ { } -> ( $($result)* z_index : Some($z_index .into()), ))
     );
+    ( @ { $(,)* z_index_increment : $z_index:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (
+        lay!(@ { $($rest)* } -> (
+            $($result)*
+                z_index_increment : Some($z_index .into()),
+        ))
+    );
+    ( @ { $(,)* z_index_increment : $z_index:expr} -> ($($result:tt)*) ) => (
+        lay!(@ { } -> ( $($result)* z_index_increment : Some($z_index .into()), ))
+    );
+
 
     // Debug
     ( @ { $(,)* debug : $debug:expr, $($rest:tt)* } -> ($($result:tt)*) ) => (

@@ -394,6 +394,15 @@ impl Bounds {
     }
 
     pub fn most_specific(&self, other: &Self) -> Self {
+        Self {
+            top: self.top.more_specific(&other.top),
+            left: self.left.more_specific(&other.left),
+            bottom: self.bottom.more_specific(&other.bottom),
+            right: self.right.more_specific(&other.right),
+        }
+    }
+
+    pub fn most_specific_of_one_side(&self, other: &Self) -> Self {
         let top = if self.top.resolved() {
             self.top
         } else if other.top.resolved() && !self.bottom.resolved() {
@@ -578,50 +587,84 @@ pub enum Alignment {
     Stretch,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct Layout {
-    pub direction: Direction,
+    pub direction: Option<Direction>,
     pub wrap: bool,
     pub position: Bounds,
-    pub position_type: PositionType,
-    pub axis_alignment: Alignment,
-    pub cross_alignment: Alignment,
+    pub position_type: Option<PositionType>,
+    pub axis_alignment: Option<Alignment>,
+    pub cross_alignment: Option<Alignment>,
     pub margin: Bounds,
     pub padding: Bounds,
     pub size: Size,
-    // TODO employ this more consistently
     pub max_size: Size,
     pub min_size: Size,
-    pub flex_grow: f64,
+    pub flex_grow: Option<f64>,
     /// Whether this layout is an overlay, i.e. it should be rendered on top of other layouts, and not taken into account parent bounds (e.g. for tooltips)
     pub overlay: bool,
     pub z_index: Option<f64>,
-    pub z_index_increment: f64,
+    pub z_index_increment: Option<f64>,
     pub debug: Option<String>,
 }
 
-impl Default for Layout {
-    fn default() -> Self {
+impl Layout {
+    pub(crate) fn resolve(&self, component_layout: Option<&Layout>) -> Self {
         Self {
-            direction: Default::default(),
-            wrap: false,
-            position: Default::default(),
-            position_type: Default::default(),
-            axis_alignment: Default::default(),
-            cross_alignment: Default::default(),
-            margin: Bounds::ZERO,
-            padding: Bounds::ZERO,
-            size: Default::default(),
-            max_size: Default::default(),
-            min_size: Size {
-                width: MIN_SIZE,
-                height: MIN_SIZE,
-            },
-            flex_grow: 1.0,
-            overlay: false,
-            z_index: None,
-            z_index_increment: 0.0,
-            debug: None,
+            direction: component_layout
+                .and_then(|l| l.direction)
+                .or(self.direction)
+                .or(Some(Direction::Row)),
+            wrap: component_layout.map(|l| l.wrap).unwrap_or(false) | self.wrap,
+            position: component_layout
+                .map(|l| l.position.most_specific(&self.position))
+                .unwrap_or(self.position),
+            position_type: component_layout
+                .and_then(|l| l.position_type)
+                .or(self.position_type)
+                .or(Some(PositionType::Relative)),
+            axis_alignment: component_layout
+                .and_then(|l| l.axis_alignment)
+                .or(self.axis_alignment)
+                .or(Some(Alignment::Start)),
+            cross_alignment: component_layout
+                .and_then(|l| l.cross_alignment)
+                .or(self.cross_alignment)
+                .or(Some(Alignment::Start)),
+            margin: component_layout
+                .map(|l| l.margin.most_specific(&self.margin))
+                .unwrap_or(self.margin)
+                .most_specific(&Bounds::ZERO),
+            padding: component_layout
+                .map(|l| l.padding.most_specific(&self.padding))
+                .unwrap_or(self.padding)
+                .most_specific(&Bounds::ZERO),
+            size: component_layout
+                .map(|l| l.size.most_specific(&self.size))
+                .unwrap_or(self.size),
+            max_size: component_layout
+                .map(|l| l.max_size.most_specific(&self.max_size))
+                .unwrap_or(self.max_size),
+            min_size: component_layout
+                .map(|l| l.min_size.most_specific(&self.min_size))
+                .unwrap_or(self.min_size)
+                .most_specific(&Size {
+                    width: MIN_SIZE,
+                    height: MIN_SIZE,
+                }),
+            flex_grow: component_layout
+                .and_then(|l| l.flex_grow)
+                .or(self.flex_grow)
+                .or(Some(1.0)),
+            overlay: component_layout.map(|l| l.overlay).unwrap_or(false) | self.overlay,
+            z_index: component_layout.and_then(|l| l.z_index).or(self.z_index),
+            z_index_increment: component_layout
+                .and_then(|l| l.z_index_increment)
+                .or(self.z_index_increment)
+                .or(Some(0.0)),
+            debug: component_layout
+                .and_then(|l| l.debug.clone())
+                .or_else(|| self.debug.clone()),
         }
     }
 }

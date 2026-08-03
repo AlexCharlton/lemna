@@ -146,6 +146,11 @@ pub trait Component: fmt::Debug {
         None
     }
 
+    /// This can be used to set the layout of the Component.
+    fn layout(&self) -> Option<Layout> {
+        None
+    }
+
     /// Implemented by the `component` attribute macro
     #[doc(hidden)]
     fn replace_state(&mut self, _other: State) -> bool {
