@@ -392,6 +392,7 @@ impl super::node::Node {
             if !child_was_main_resolved
                 && child.layout_result.main_resolved
                 && !self.resolved_layout.wrap
+                && !child.resolved_layout.overlay
             {
                 // We need to update the main_remaining if the child was not resolved before and it is now
                 current_main_remaining -=
