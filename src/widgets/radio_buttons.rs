@@ -3,12 +3,11 @@ extern crate alloc;
 use crate::time::Instant;
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::fmt;
-use core::hash::Hash;
 
 use super::ToolTip;
 use crate::Node;
 use crate::base_types::*;
-use crate::component::{Component, ComponentHasher, Message};
+use crate::component::{Component, Message};
 use crate::event;
 use crate::font_cache::TextSegment;
 use crate::layout::*;
@@ -255,8 +254,8 @@ struct RadioButton {
 
 #[state_component_impl(RadioButtonState, Internal)]
 impl Component for RadioButton {
-    fn props_hash(&self, hasher: &mut ComponentHasher) {
-        self.selected.hash(hasher);
+    fn layout(&self) -> Option<Layout> {
+        Some(lay!(axis_alignment: Stretch, cross_alignment: Stretch))
     }
 
     fn view(&self) -> Option<Node> {
@@ -281,7 +280,6 @@ impl Component for RadioButton {
                 radii: self.radii,
             },
             [
-                size: size_pct!(100.0),
                 padding: bounds!(padding),
                 cross_alignment: Center,
                 axis_alignment: Center

@@ -7,6 +7,7 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::input::Key;
+use crate::layout::Layout;
 use crate::renderable::Renderable;
 use crate::style::{HorizontalPosition, Styled, current_style};
 use crate::{Node, txt};
@@ -227,6 +228,10 @@ struct SelectBox<M> {
 }
 
 impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M> {
+    fn layout(&self) -> Option<Layout> {
+        Some(lay!(axis_alignment: Stretch, cross_alignment: Stretch))
+    }
+
     fn view(&self) -> Option<Node> {
         let padding: f64 = self.style_val("padding").unwrap().into();
         let radius: f32 = self.style_val("radius").unwrap().f32();
@@ -245,7 +250,6 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
                 radii: BorderRadii::all(radius),
             },
             lay!(
-                size: size_pct!(100.0),
                 padding: bounds!(padding),
                 cross_alignment: Alignment::Center,
                 axis_alignment: Alignment::Center,
@@ -410,6 +414,10 @@ where
 }
 
 impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectEntry<M> {
+    fn layout(&self) -> Option<Layout> {
+        Some(lay!(axis_alignment: Stretch, cross_alignment: Stretch))
+    }
+
     fn view(&self) -> Option<Node> {
         let padding: f64 = self.style_val("padding").unwrap().into();
         let highlight_color: Color = self.style_val("highlight_color").into();
@@ -419,15 +427,13 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
             div = div.bg(highlight_color)
         }
 
-        Some(
-            node!(div, lay!(size: size_pct!(100.0), padding: bounds!(padding))).push(node!(
+        Some(node!(div, [padding: [padding]]).push(node!(
                 super::Text::new(txt!(self.selection.to_string()))
                     .style("size", self.style_val("font_size").unwrap())
                     .style("color", self.style_val("text_color").unwrap())
                     .style("h_alignment", HorizontalPosition::Center)
                     .maybe_style("font", self.style_val("font"))
-            )),
-        )
+            )))
     }
 
     fn on_mouse_motion(&mut self, event: &mut event::Event<event::MouseMotion>) {

@@ -16,7 +16,7 @@ use crate::base_types::*;
 use crate::component::{Component, ComponentHasher, Message, RenderContext};
 use crate::event;
 use crate::input::Key;
-use crate::layout::ScrollPosition;
+use crate::layout::{Layout, ScrollPosition};
 use crate::renderable::{Caches, Rectangle, Renderable};
 use crate::style::{HorizontalPosition, Styled};
 use crate::time::Instant;
@@ -104,20 +104,21 @@ impl TextBox {
 
 #[state_component_impl(TextBoxState, Internal)]
 impl Component for TextBox {
+    fn layout(&self) -> Option<Layout> {
+        Some(lay!(axis_alignment: Stretch, cross_alignment: Stretch))
+    }
+
     fn view(&self) -> Option<Node> {
         let background_color: Color = self.style_val("background_color").into();
         let border_color: Color = self.style_val("border_color").into();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         Some(
-            node!(
-                TextBoxContainer::new(
-                    background_color,
-                    border_color,
-                    border_width * if self.state_ref().focused { 2.0 } else { 1.0 },
-                ),
-                lay!(size: size_pct!(100.0),)
-            )
+            node!(TextBoxContainer::new(
+                background_color,
+                border_color,
+                border_width * if self.state_ref().focused { 2.0 } else { 1.0 },
+            ),)
             .push(node!(
                 TextBoxText {
                     default_text: self.text.clone().unwrap_or_default(),

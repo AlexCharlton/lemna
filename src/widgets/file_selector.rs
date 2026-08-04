@@ -167,6 +167,6 @@ impl Component for FileSelector {
         }
         b = b.on_click(Box::new(|| msg!(FileSelectorAction::Open)));
 
-        Some(node!(b, lay!(size: size_pct!(100.0))))
+        Some(node!(b))
     }
 }

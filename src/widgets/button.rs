@@ -96,6 +96,10 @@ impl Button {
 
 #[state_component_impl(ButtonState, Internal)]
 impl Component for Button {
+    fn layout(&self) -> Option<Layout> {
+        Some(lay!(axis_alignment: Stretch, cross_alignment: Stretch))
+    }
+
     fn view(&self) -> Option<Node> {
         let radius: f32 = self.style_val("radius").unwrap().f32();
         let padding: Bounds = self.style_val("padding").unwrap().into();
@@ -136,7 +140,6 @@ impl Component for Button {
                 radii: BorderRadii::all(radius),
             },
             lay!(
-                size: size_pct!(100.0),
                 padding: padding,
                 axis_alignment: Center,
                 cross_alignment: Center

@@ -278,6 +278,13 @@ impl Size {
             height: self.height.min(other.height),
         }
     }
+
+    pub fn max(&self, other: Self) -> Self {
+        Self {
+            width: self.width.max(other.width),
+            height: self.height.max(other.height),
+        }
+    }
 }
 
 impl From<ScrollPosition> for Size {
@@ -647,11 +654,7 @@ impl Layout {
                 .unwrap_or(self.max_size),
             min_size: component_layout
                 .map(|l| l.min_size.most_specific(&self.min_size))
-                .unwrap_or(self.min_size)
-                .most_specific(&Size {
-                    width: MIN_SIZE,
-                    height: MIN_SIZE,
-                }),
+                .unwrap_or(self.min_size),
             flex_grow: component_layout
                 .and_then(|l| l.flex_grow)
                 .or(self.flex_grow)
