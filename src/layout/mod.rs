@@ -467,6 +467,25 @@ impl super::node::Node {
         let mut max_cross_size = 0.0;
         let mut row_info: Vec<RowInfo> = vec![];
         let mut row_elements_count: usize = 0;
+        let wrap_size = if size.main(dir).resolved() {
+            size.main(dir).min(bounds_size.main(dir))
+        } else if self.resolved_layout.wrap && bounds_size.main(dir).resolved() {
+            bounds_size.main(dir)
+        } else {
+            Dimension::Auto
+        };
+        if cfg!(debug_assertions)
+            && self.resolved_layout.debug.is_some()
+            && self.resolved_layout.wrap
+        {
+            log_debug!(
+                "set_children_position: <{}> wrap_size {:?}, size {:?}, bounds_size {:?}",
+                self.resolved_layout.debug.as_ref().unwrap(),
+                wrap_size,
+                size,
+                bounds_size,
+            );
+        }
 
         for child in self.children.iter_mut() {
             let margin = child.resolved_layout.margin.maybe_resolve(&size);
@@ -474,13 +493,7 @@ impl super::node::Node {
 
             // Perform a wrap?
             // Use bounds_size as fallback when size is not resolved (for wrapping nodes with auto size)
-            let wrap_size = if size.main(dir).resolved() {
-                size.main(dir)
-            } else if self.resolved_layout.wrap && bounds_size.main(dir).resolved() {
-                bounds_size.main(dir)
-            } else {
-                Dimension::Auto
-            };
+
             if self.resolved_layout.wrap
                 && wrap_size.resolved()
                 && child.resolved_layout.position_type.unwrap() != PositionType::Absolute
