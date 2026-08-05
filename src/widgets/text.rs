@@ -185,7 +185,7 @@ impl Component for Text {
             (bounds.width, bounds.height),
         );
 
-        if glyphs.is_empty() {
+        if glyphs.is_empty() || context.aabb.width() <= 0.0 || context.aabb.height() <= 0.0 {
             Some(vec![])
         } else {
             Some(vec![Renderable::Text(
