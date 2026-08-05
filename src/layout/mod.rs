@@ -171,12 +171,6 @@ impl super::node::Node {
 
         for child in self.children.iter_mut() {
             child.layout_result.direction = dir;
-            // Stretch alignment - only apply if cross size is not already resolved
-            if self.resolved_layout.cross_alignment.unwrap() == Alignment::Stretch {
-                *child.layout_result.size.cross_mut(dir) =
-                    Dimension::Pct(100.0).maybe_resolve(&assigned_size.cross(dir))
-            }
-
             let child_margin = child.resolved_layout.margin.maybe_resolve(&inner_size);
 
             if cfg!(debug_assertions) && child.resolved_layout.debug.is_some() {
@@ -203,10 +197,20 @@ impl super::node::Node {
                 .resolved_layout
                 .size
                 .more_specific(&child.layout_result.size);
-            let width_pct = pre_resolved_size.width.is_pct();
-            let height_pct = pre_resolved_size.height.is_pct();
+            let mut width_pct = pre_resolved_size.width.is_pct();
+            let mut height_pct = pre_resolved_size.height.is_pct();
 
             let mut resolved_size = pre_resolved_size.maybe_resolve(&inner_size);
+            // Stretch alignment
+            if self.resolved_layout.cross_alignment.unwrap() == Alignment::Stretch {
+                *resolved_size.cross_mut(dir) =
+                    Dimension::Pct(100.0).maybe_resolve(&assigned_size.cross(dir));
+                if self.resolved_layout.direction.unwrap() == Direction::Row {
+                    height_pct = true;
+                } else {
+                    width_pct = true;
+                }
+            }
             // We need to subtract the margin if the size was computed as a percentage
             // Otherwise, the size was either fixed (in which case the margin is already included), pre-computed (in which case the margin is already included), or auto (in which case the margin will be applied later)
             if width_pct {
@@ -341,7 +345,11 @@ impl super::node::Node {
                 let size = self_main_remaining * flex_ratio;
                 *child.layout_result.size.main_mut(dir) =
                     Dimension::Px(size) - child_margin.main_total(dir);
-                current_main_remaining -= size;
+                if final_pass {
+                    child.layout_result.main_resolved = true;
+                } else {
+                    current_main_remaining -= size + f64::from(child_margin.main_total(dir));
+                }
             } else if unresolved == 1
                 && !child.resolved_layout.size.main(dir).resolved()
                 && child.resolved_layout.wrap
@@ -396,7 +404,13 @@ impl super::node::Node {
             {
                 // We need to update the main_remaining if the child was not resolved before and it is now
                 current_main_remaining -=
-                    f64::from(child.layout_result.size.main(dir) - child_margin.main_total(dir));
+                    f64::from(child.layout_result.size.main(dir) + child_margin.main_total(dir));
+                // Not included in flex calculations
+                if child.resolved_layout.flex_grow.unwrap() == 0.0 {
+                    self_main_remaining -= f64::from(
+                        child.layout_result.size.main(dir) + child_margin.main_total(dir),
+                    );
+                }
             }
 
             current_main_remaining = current_main_remaining.max(0.0);
@@ -923,6 +937,7 @@ impl super::node::Node {
             );
         }
 
+        let available_size = available_size.min(bounds_size);
         self.resolve_child_sizes(
             bounds_size,
             available_size,
