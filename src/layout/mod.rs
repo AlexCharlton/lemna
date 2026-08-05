@@ -104,6 +104,8 @@ impl super::node::Node {
         final_pass: bool,
     ) {
         let padding = self.resolved_layout.padding.maybe_resolve(&bounds_size);
+        let bounds_size = bounds_size.max(self.resolved_layout.min_size);
+        let available_size = available_size.max(self.resolved_layout.min_size);
         let bounds_less_padding = bounds_size.minus_bounds(&padding);
         let max_size = self.resolved_layout.max_size.maybe_resolve(&bounds_size);
         let size = if self.layout_result.main_resolved {
@@ -112,7 +114,8 @@ impl super::node::Node {
                 .most_specific(&self.layout_result.size)
         } else {
             self.resolved_layout.size
-        };
+        }
+        .max(self.resolved_layout.min_size);
 
         // The size we use to resolve pct children - does not shrink because of siblings
         let mut inner_size = size
