@@ -143,8 +143,8 @@ impl Component for Text {
                 .layout_angle
                 .map_size(local_w / scale, text_height / scale);
             (
-                Some(width.unwrap_or(mapped_w)),
-                Some(height.unwrap_or(mapped_h)),
+                Some(width.unwrap_or(mapped_w.ceil())),
+                Some(height.unwrap_or(mapped_h.ceil())),
             )
         } else {
             (None, None)
