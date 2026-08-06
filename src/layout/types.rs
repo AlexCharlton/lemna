@@ -89,10 +89,19 @@ impl Dimension {
         }
     }
 
+    // Only perform the max operation if the other dimension is a pixel value
+    pub fn max_if_px(&self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Px(a), Self::Px(b)) => Self::Px(a.max(b)),
+            (a, _) => *a,
+        }
+    }
+
     pub fn max(&self, other: Self) -> Self {
         match (self, other) {
             (Self::Px(a), Self::Px(b)) => Self::Px(a.max(b)),
             (Self::Px(a), _) => Self::Px(*a),
+            (_, Self::Px(b)) => Self::Px(b),
             (a, _) => *a,
         }
     }
@@ -280,8 +289,8 @@ impl Size {
 
     pub fn max(&self, other: Self) -> Self {
         Self {
-            width: self.width.max(other.width),
-            height: self.height.max(other.height),
+            width: self.width.max_if_px(other.width),
+            height: self.height.max_if_px(other.height),
         }
     }
 }
