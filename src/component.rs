@@ -226,6 +226,11 @@ pub trait Component: fmt::Debug {
     ) {
     }
 
+    // Should the AABB be quantized to the nearest integer?
+    fn quantize_aabb(&self) -> bool {
+        false
+    }
+
     /// Called when the child of a full control Node. This is used to communicate a position to the parent's [`#set_aabb`][Component#method.set_aabb], so that it can position/scroll itself appropriately.
     ///
     /// This is useful if e.g. creating a text box, and scrolling needs to be controlled by a cursor.

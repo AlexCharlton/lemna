@@ -378,6 +378,12 @@ impl Node {
             .z_index
             .unwrap_or((parent_pos.z + 1.0).into())
             + self.resolved_layout.z_index_increment.unwrap()) as f32;
+        if self.component.quantize_aabb() {
+            self.aabb.pos.x = self.aabb.pos.x.round();
+            self.aabb.pos.y = self.aabb.pos.y.round();
+            self.aabb.bottom_right.x = self.aabb.bottom_right.x.round();
+            self.aabb.bottom_right.y = self.aabb.bottom_right.y.round();
+        }
 
         if full_control {
             let children: Vec<(&mut Rect, Option<Scale>, Option<Point>)> = self
