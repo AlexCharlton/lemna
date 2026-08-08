@@ -236,9 +236,8 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
         let padding: f64 = self.style_val("padding").unwrap().into();
         let radius: f32 = self.style_val("radius").unwrap().f32();
         let font_size: f32 = self.style_val("font_size").unwrap().f32();
-        let background_color: Color = self.style_val("background_color").into();
+        let background_color: Color = self.style_val("highlight_color").into();
         let border_color: Color = self.style_val("border_color").into();
-        let caret_color: Color = self.style_val("caret_color").into();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
         // Clicks must not move focus off the parent Select (keyboard target).
@@ -257,16 +256,20 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString> Component for SelectBox<M
             )
         );
         if let Some(selection) = self.selection.as_ref() {
+            let text_color: Color = self
+                .style_val("highlight_text_color")
+                .unwrap_or_else(|| self.style_val("text_color").unwrap())
+                .into();
             base = base
                 .push(node!(
                     super::Text::new(txt!(selection.to_string()))
                         .style("size", self.style_val("font_size").unwrap())
-                        .style("color", self.style_val("text_color").unwrap())
+                        .style("color", text_color)
                         .style("h_alignment", HorizontalPosition::Center)
                         .maybe_style("font", self.style_val("font"))
                 ))
                 .push(node!(
-                    Caret { color: caret_color },
+                    Caret { color: text_color },
                     lay!(
                         size: size!(font_size / 2.0),
                         // TODO: Margin here is awkward
@@ -333,9 +336,15 @@ where
 impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectList<M> {
     fn view(&self) -> Option<Node> {
         let background_color: Color = self.style_val("background_color").into();
+        let border_width = self.style_val("list_border_width").unwrap().f32();
 
+        let mut l = super::Div::new().bg(background_color).scroll_y();
+        if border_width > 0.0 {
+            let border_color: Color = self.style_val("border_color").unwrap().into();
+            l = l.border(border_color, border_width);
+        }
         let mut l = node!(
-            super::Div::new().bg(background_color).scroll_y(),
+            l,
             [direction: Column, cross_alignment: Stretch,]
         );
         for (i, s) in self.selections.iter().enumerate() {
@@ -426,11 +435,17 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
         if self.selected {
             div = div.bg(highlight_color)
         }
+        let text_color = if self.selected {
+            self.style_val("highlight_text_color")
+                .unwrap_or_else(|| self.style_val("text_color").unwrap())
+        } else {
+            self.style_val("text_color").unwrap()
+        };
 
         Some(node!(div, [padding: [padding]]).push(node!(
                 super::Text::new(txt!(self.selection.to_string()))
                     .style("size", self.style_val("font_size").unwrap())
-                    .style("color", self.style_val("text_color").unwrap())
+                    .style("color", text_color)
                     .style("h_alignment", HorizontalPosition::Center)
                     .maybe_style("font", self.style_val("font"))
             )))

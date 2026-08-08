@@ -199,10 +199,6 @@ impl Default for Style {
                 StyleKey::new("Select", "border_color", None),
                 Color::BLACK.into(),
             ),
-            (
-                StyleKey::new("Select", "caret_color", None),
-                Color::BLACK.into(),
-            ),
             (StyleKey::new("Select", "border_width", None), 1.0.into()),
             (StyleKey::new("Select", "radius", None), 4.0.into()),
             (StyleKey::new("Select", "padding", None), 2.0.into()),
