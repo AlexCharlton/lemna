@@ -804,7 +804,11 @@ impl super::node::Node {
             .size
             .most_specific(&self.layout_result.size);
 
-        let min_size = self.resolved_layout.min_size.maybe_resolve(&bounds_size);
+        let min_size = self
+            .resolved_layout
+            .min_size
+            .maybe_resolve(&bounds_size)
+            .most_specific(&Size::new(MIN_SIZE, MIN_SIZE));
         let dir = self.resolved_layout.direction.unwrap();
         if final_pass && self.layout_result.main_layout_type == LayoutType::Auto {
             *size.main_mut(self.layout_result.direction) = Dimension::Auto;
@@ -840,8 +844,6 @@ impl super::node::Node {
                     .min(available_size.width);
             } else if min_size.width.resolved() {
                 size.width = min_size.width
-            } else {
-                size.width = MIN_SIZE
             }
         } else if ((allow_shrink_main && dir == Direction::Row)
             || (allow_adapt_cross && dir == Direction::Column))
@@ -864,8 +866,6 @@ impl super::node::Node {
                     .min(available_size.height);
             } else if min_size.height.resolved() {
                 size.height = min_size.height
-            } else {
-                size.height = MIN_SIZE
             }
         } else if ((allow_shrink_main && dir == Direction::Column)
             || (allow_adapt_cross && dir == Direction::Row))
