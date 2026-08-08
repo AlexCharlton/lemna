@@ -626,56 +626,59 @@ pub struct Layout {
 impl Layout {
     pub(crate) fn resolve(&self, component_layout: Option<&Layout>) -> Self {
         Self {
-            direction: component_layout
-                .and_then(|l| l.direction)
-                .or(self.direction)
+            direction: self
+                .direction
+                .or_else(|| component_layout.and_then(|l| l.direction))
                 .or(Some(Direction::Row)),
-            wrap: component_layout.map(|l| l.wrap).unwrap_or(false) | self.wrap,
+            wrap: self.wrap | component_layout.map(|l| l.wrap).unwrap_or(false),
             position: component_layout
-                .map(|l| l.position.most_specific(&self.position))
+                .map(|l| self.position.most_specific(&l.position))
                 .unwrap_or(self.position),
-            position_type: component_layout
-                .and_then(|l| l.position_type)
-                .or(self.position_type)
+            position_type: self
+                .position_type
+                .or_else(|| component_layout.and_then(|l| l.position_type))
                 .or(Some(PositionType::Relative)),
-            axis_alignment: component_layout
-                .and_then(|l| l.axis_alignment)
-                .or(self.axis_alignment)
+            axis_alignment: self
+                .axis_alignment
+                .or_else(|| component_layout.and_then(|l| l.axis_alignment))
                 .or(Some(Alignment::Start)),
-            cross_alignment: component_layout
-                .and_then(|l| l.cross_alignment)
-                .or(self.cross_alignment)
+            cross_alignment: self
+                .cross_alignment
+                .or_else(|| component_layout.and_then(|l| l.cross_alignment))
                 .or(Some(Alignment::Start)),
             margin: component_layout
-                .map(|l| l.margin.most_specific(&self.margin))
+                .map(|l| self.margin.most_specific(&l.margin))
                 .unwrap_or(self.margin)
                 .most_specific(&Bounds::ZERO),
             padding: component_layout
-                .map(|l| l.padding.most_specific(&self.padding))
+                .map(|l| self.padding.most_specific(&l.padding))
                 .unwrap_or(self.padding)
                 .most_specific(&Bounds::ZERO),
             size: component_layout
-                .map(|l| l.size.most_specific(&self.size))
+                .map(|l| self.size.most_specific(&l.size))
                 .unwrap_or(self.size),
             max_size: component_layout
-                .map(|l| l.max_size.most_specific(&self.max_size))
+                .map(|l| self.max_size.most_specific(&l.max_size))
                 .unwrap_or(self.max_size),
             min_size: component_layout
-                .map(|l| l.min_size.most_specific(&self.min_size))
+                .map(|l| self.min_size.most_specific(&l.min_size))
                 .unwrap_or(self.min_size),
-            flex_grow: component_layout
-                .and_then(|l| l.flex_grow)
-                .or(self.flex_grow)
+            flex_grow: self
+                .flex_grow
+                .or_else(|| component_layout.and_then(|l| l.flex_grow))
                 .or(Some(1.0)),
-            overlay: component_layout.map(|l| l.overlay).unwrap_or(false) | self.overlay,
-            z_index: component_layout.and_then(|l| l.z_index).or(self.z_index),
-            z_index_increment: component_layout
-                .and_then(|l| l.z_index_increment)
-                .or(self.z_index_increment)
+            overlay: self.overlay | component_layout.map(|l| l.overlay).unwrap_or(false),
+            z_index: self
+                .z_index
+                .or_else(|| component_layout.and_then(|l| l.z_index)),
+            z_index_increment: self
+                .z_index_increment
+                .or_else(|| component_layout.and_then(|l| l.z_index_increment))
                 .or(Some(0.0)),
-            debug: component_layout
-                .and_then(|l| l.debug.clone())
-                .or_else(|| self.debug.clone()),
+            debug: self
+                .debug
+                .clone()
+                .or_else(|| component_layout.and_then(|l| l.debug.clone())),
         }
     }
 }
