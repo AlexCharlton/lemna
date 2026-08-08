@@ -266,6 +266,13 @@ impl Component for RadioButton {
         let border_color: Color = self.style_val("border_color").into();
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
 
+        let text_color = if self.selected {
+            self.style_val("active_text_color")
+                .unwrap_or_else(|| self.style_val("text_color").unwrap())
+        } else {
+            self.style_val("text_color").unwrap()
+        };
+
         let mut base = node!(
             super::RoundedRect {
                 background_color: if self.selected {
@@ -288,7 +295,7 @@ impl Component for RadioButton {
         .push(node!(
             super::Text::new(self.label.clone())
                 .style("size", self.style_val("font_size").unwrap())
-                .style("color", self.style_val("text_color").unwrap())
+                .style("color", text_color)
                 .maybe_style("font", self.style_val("font"))
         ));
 
