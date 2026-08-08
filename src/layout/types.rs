@@ -667,7 +667,7 @@ impl Layout {
                 .flex_grow
                 .or_else(|| component_layout.and_then(|l| l.flex_grow))
                 .or(Some(1.0)),
-            overlay: self.overlay | component_layout.map(|l| l.overlay).unwrap_or(false),
+            overlay: self.overlay || component_layout.map(|l| l.overlay).unwrap_or(false),
             z_index: self
                 .z_index
                 .or_else(|| component_layout.and_then(|l| l.z_index)),

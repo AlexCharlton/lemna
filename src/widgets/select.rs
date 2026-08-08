@@ -87,7 +87,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Sen
             // Full-frame hit target below the list; invisible (NoView). Closes on click.
             base = base.push(node!(
                 SelectDismissOverlay::new(),
-                lay!(position_type: PositionType::Absolute, z_index_increment: 100.0)
+                lay!(position_type: PositionType::Absolute, z_index_increment: 100.0, overlay: true)
             ));
             base = base.push(node!(
                 SelectList {
@@ -96,8 +96,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Sen
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                 },
-                lay!(position_type: PositionType::Absolute, z_index_increment: 1000.0),
-                1
+                lay!(position_type: PositionType::Absolute, z_index_increment: 1000.0, overlay: true),
             ));
         }
         Some(base)
@@ -336,7 +335,10 @@ where
 impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component for SelectList<M> {
     fn view(&self) -> Option<Node> {
         let background_color: Color = self.style_val("background_color").into();
-        let border_width = self.style_val("list_border_width").unwrap().f32();
+        let border_width = self
+            .style_val("list_border_width")
+            .map(|v| v.f32())
+            .unwrap_or(0.0);
 
         let mut l = super::Div::new().bg(background_color).scroll_y();
         if border_width > 0.0 {
