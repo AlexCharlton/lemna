@@ -1062,6 +1062,48 @@ impl Color {
         let color: CssColor = self.into();
         color.to_lcha()
     }
+
+    /// Blend this color with other in the RGB color-space. t in the range [0..1].
+    pub fn interpolate_rgb(self, other: Self, t: f32) -> Self {
+        let a: CssColor = self.into();
+        let b: CssColor = other.into();
+        a.interpolate_rgb(&b, t).clamp().into()
+    }
+
+    /// Blend this color with other in the linear RGB color-space. t in the range [0..1].
+    pub fn interpolate_linear_rgb(self, other: Self, t: f32) -> Self {
+        let a: CssColor = self.into();
+        let b: CssColor = other.into();
+        a.interpolate_linear_rgb(&b, t).clamp().into()
+    }
+
+    /// Blend this color with other in the HSV color-space. t in the range [0..1].
+    pub fn interpolate_hsva(self, other: Self, t: f32) -> Self {
+        let a: CssColor = self.into();
+        let b: CssColor = other.into();
+        a.interpolate_hsv(&b, t).clamp().into()
+    }
+
+    /// Blend this color with other in the Oklab color-space. t in the range [0..1].
+    pub fn interpolate_oklab(self, other: Self, t: f32) -> Self {
+        let a: CssColor = self.into();
+        let b: CssColor = other.into();
+        a.interpolate_oklab(&b, t).clamp().into()
+    }
+
+    /// Blend this color with other in the Lab color-space. t in the range [0..1].
+    pub fn interpolate_lab(self, other: Self, t: f32) -> Self {
+        let a: CssColor = self.into();
+        let b: CssColor = other.into();
+        a.interpolate_lab(&b, t).clamp().into()
+    }
+
+    /// Blend this color with other in the LCB color-space. t in the range [0..1].
+    pub fn interpolate_lch(self, other: Self, t: f32) -> Self {
+        let a: CssColor = self.into();
+        let b: CssColor = other.into();
+        a.interpolate_lch(&b, t).clamp().into()
+    }
 }
 
 impl From<[f32; 4]> for Color {
