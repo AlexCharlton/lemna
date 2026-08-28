@@ -970,7 +970,16 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
 
     // We return all nodes that belong to a given frame contiguously
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(n) = self.queue.pop() {
+        loop {
+            let Some(n) = self.queue.pop() else {
+                let Some((n, f)) = self.frame_queue.pop() else {
+                    return None;
+                };
+                self.current_frame = f;
+                self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
+                continue;
+            };
+
             if let Some(c) = &n.render_cache {
                 let i = self.i;
 
@@ -995,14 +1004,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
             } else {
                 self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
             }
-
-            if self.queue.is_empty() && !self.frame_queue.is_empty() {
-                let (n, f) = self.frame_queue.pop().unwrap();
-                self.current_frame = f;
-                self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
-            }
         }
-        None
     }
 }
 
@@ -1455,6 +1457,22 @@ mod tests {
         }
     }
 
+    mod empty_scrollable {
+        use super::*;
+
+        #[derive(Debug)]
+        pub struct EmptyScrollable;
+
+        impl Component for EmptyScrollable {
+            fn scroll_position(&self) -> Option<ScrollPosition> {
+                Some(ScrollPosition {
+                    x: Some(0.0),
+                    y: Some(0.0),
+                })
+            }
+        }
+    }
+
     #[test]
     fn test_scroll() {
         let mut caches = Caches::default();
@@ -1488,5 +1506,38 @@ mod tests {
         // The rest have Frames
         assert_eq!(renderables[3].2.len(), 1);
         assert_eq!(renderables[8].2.len(), 1);
+    }
+
+    #[test]
+    fn test_empty_frame_does_not_stop_iteration() {
+        let mut root = container(0);
+        root.render_cache = Some(vec![]);
+
+        let mut empty_frame = Node::new(
+            Box::new(empty_scrollable::EmptyScrollable),
+            1,
+            Layout::default(),
+        );
+        empty_frame.render_cache = Some(vec![]);
+
+        let mut populated_frame = Node::new(
+            Box::new(empty_scrollable::EmptyScrollable),
+            2,
+            Layout::default(),
+        );
+        populated_frame.render_cache = Some(vec![]);
+
+        let mut child = container(3);
+        child.render_cache = Some(vec![Renderable::Inc {
+            repr: "child".to_string(),
+            i: 0,
+        }]);
+        populated_frame.children.push(child);
+
+        root.children = vec![empty_frame, populated_frame];
+
+        let renderables = root.iter_renderables().collect::<Vec<_>>();
+        assert_eq!(renderables.len(), 1);
+        assert_eq!(renderables[0].2.len(), 1);
     }
 }
