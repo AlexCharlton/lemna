@@ -972,9 +972,7 @@ impl<'a> Iterator for NodeRenderableIterator<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             let Some(n) = self.queue.pop() else {
-                let Some((n, f)) = self.frame_queue.pop() else {
-                    return None;
-                };
+                let (n, f) = self.frame_queue.pop()?;
                 self.current_frame = f;
                 self.queue.extend(n.children.iter().collect::<Vec<&Node>>());
                 continue;
