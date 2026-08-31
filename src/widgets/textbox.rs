@@ -25,7 +25,7 @@ use lemna_macros::{component, state_component_impl};
 const CURSOR_BLINK_PERIOD: i64 = 500; // millis
 
 #[derive(Debug)]
-enum TextBoxMessage {
+pub(crate) enum TextBoxMessage {
     Open,
     Close,
     Change(String),
@@ -39,6 +39,7 @@ pub enum TextBoxAction {
     Paste,
 }
 
+// MARK: TextBox
 #[derive(Debug, Default)]
 struct TextBoxState {
     focused: bool,
@@ -169,6 +170,7 @@ impl Component for TextBox {
     }
 }
 
+// MARK: TextBoxContainer
 #[derive(Debug, Default)]
 #[allow(dead_code)]
 struct TextBoxContainerState {
@@ -281,6 +283,7 @@ impl Component for TextBoxContainer {
     }
 }
 
+// MARK: TextBoxText
 #[derive(Debug)]
 struct TextBoxTextState {
     focused: bool,
@@ -808,7 +811,7 @@ impl Component for TextBoxText {
         let border_width: f32 = self.style_val("border_width").unwrap().f32();
         if self.state_ref().dirty {
             let font = self.style_val("font").map(|p| p.str().to_string());
-            let (glyphs, _) = caches.layout_text(
+            let (glyphs, _, _) = caches.layout_text(
                 &[TextSegment {
                     text: alloc::borrow::Cow::Owned(self.state_ref().text.clone()),
                     size: font_size.into(),

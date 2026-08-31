@@ -28,6 +28,7 @@ type RwLock<T> = embassy_sync::rwlock::RwLock<CriticalSectionRawMutex, T>;
 
 /// Output by [`Caches::layout_text`][crate::renderable::Caches::layout_text], and an input to [`Text::new`][crate::renderable::Text::new]. Useful for text-rendering widgets to cache in their state, so that they don't need to be recomputed unless necessary.
 pub type PositionedGlyph = fontdue::layout::GlyphPosition;
+pub type GlyphLines = fontdue::layout::LinePosition;
 
 // The index of the font in the `fonts` vector
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -97,7 +98,7 @@ impl FontCache {
         scale_factor: f32,
         alignment: HorizontalPosition,
         bounds: (f32, f32),
-    ) -> (Vec<PositionedGlyph>, f32) {
+    ) -> (Vec<PositionedGlyph>, Vec<GlyphLines>, f32) {
         let mut layout = embassy_futures::block_on(self.layout.write());
 
         let settings = LayoutSettings {
@@ -144,7 +145,14 @@ impl FontCache {
                 last_glyph.width = metrics.advance_width.ceil() as usize;
             }
         }
-        (glyphs, layout.height())
+        (
+            glyphs,
+            layout
+                .lines()
+                .map(|lines| lines.to_vec())
+                .unwrap_or_default(),
+            layout.height(),
+        )
     }
 
     pub fn glyph_metrics(&self, glyph: &PositionedGlyph) -> Metrics {

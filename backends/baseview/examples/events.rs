@@ -104,20 +104,44 @@ impl lemna::Component for App {
                 }))),
                 [margin: [2.0]]
             ))
-            .push(node!(
-                widgets::TextBox::new(Some("Hello".to_string()))
+            .push(
+                node!(
+                    widgets::Div::new(),
+                    [
+                        direction: Column,
+                    ]
+                )
+                .push(node!(
+                    widgets::TextBox::new(Some("Hello".to_string()))
+                        .on_change(Box::new(|s| msg!(HelloEvent::TextBox {
+                            name: "My text box".to_string(),
+                            value: s.to_string(),
+                            update_type: "change".to_string(),
+                        })))
+                        .on_commit(Box::new(|s| msg!(HelloEvent::TextBox {
+                            name: "My text box".to_string(),
+                            value: s.to_string(),
+                            update_type: "commit".to_string(),
+                        }))),
+                    [size: [100, Auto], margin: [2.0]]
+                ))
+                .push(node!(
+                    widgets::TextArea::new(Some(
+                        "Dear friends,\n\nThis is a multiline text area. You can scroll up and down to see the entire text.".to_string()
+                    ))
                     .on_change(Box::new(|s| msg!(HelloEvent::TextBox {
-                        name: "My text box".to_string(),
+                        name: "My text area".to_string(),
                         value: s.to_string(),
                         update_type: "change".to_string(),
                     })))
                     .on_commit(Box::new(|s| msg!(HelloEvent::TextBox {
-                        name: "My text box".to_string(),
+                        name: "My text area".to_string(),
                         value: s.to_string(),
                         update_type: "commit".to_string(),
                     }))),
-                [size: [100, Auto], margin: [2.0]]
-            ))
+                    [size: [100, 100], margin: [2.0]]
+                ))
+            )
             .push(node!(
                 widgets::RadioButtons::new(
                     vec![txt!(Icon::Bell), txt!(Icon::Book), txt!(Icon::Bolt)],

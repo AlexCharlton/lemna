@@ -261,6 +261,51 @@ impl Default for Style {
             ),
             (StyleKey::new("TextBox", "border_width", None), 1.0.into()),
             (StyleKey::new("TextBox", "padding", None), 1.0.into()),
+            // TextArea
+            (StyleKey::new("TextArea", "font_size", None), 12.0.into()),
+            (
+                StyleKey::new("TextArea", "text_color", None),
+                Color::BLACK.into(),
+            ),
+            (
+                StyleKey::new("TextArea", "background_color", None),
+                Color::WHITE.into(),
+            ),
+            (
+                StyleKey::new("TextArea", "selection_color", None),
+                Color::MID_GREY.into(),
+            ),
+            (
+                StyleKey::new("TextArea", "cursor_color", None),
+                Color::BLACK.into(),
+            ),
+            (
+                StyleKey::new("TextArea", "border_color", None),
+                Color::BLACK.into(),
+            ),
+            (StyleKey::new("TextArea", "border_width", None), 1.0.into()),
+            (StyleKey::new("TextArea", "padding", None), 4.0.into()),
+            (
+                StyleKey::new("TextArea", "y_bar_position", None),
+                HorizontalPosition::Right.into(),
+            ),
+            (StyleKey::new("TextArea", "bar_width", None), 12.0.into()),
+            (
+                StyleKey::new("TextArea", "bar_background_color", None),
+                Color::LIGHT_GREY.into(),
+            ),
+            (
+                StyleKey::new("TextArea", "bar_color", None),
+                Into::<Color>::into(0.7).into(),
+            ),
+            (
+                StyleKey::new("TextArea", "bar_highlight_color", None),
+                Into::<Color>::into(0.5).into(),
+            ),
+            (
+                StyleKey::new("TextArea", "bar_active_color", None),
+                Color::DARK_GREY.into(),
+            ),
             // Text
             (StyleKey::new("Text", "size", None), 12.0.into()),
             (StyleKey::new("Text", "color", None), Color::BLACK.into()),

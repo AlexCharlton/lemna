@@ -28,6 +28,9 @@ pub use text::{Text, TextAngle};
 
 mod textbox;
 pub use textbox::{TextBox, TextBoxAction};
+mod textarea;
+pub use textarea::TextArea;
+pub type TextAreaAction = TextBoxAction;
 
 mod toggle;
 pub use toggle::*;

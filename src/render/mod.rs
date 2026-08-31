@@ -115,7 +115,11 @@ pub mod renderable {
             scale_factor: f32,
             alignment: HorizontalPosition,
             bounds: (f32, f32),
-        ) -> (Vec<crate::font_cache::PositionedGlyph>, f32) {
+        ) -> (
+            Vec<crate::font_cache::PositionedGlyph>,
+            Vec<crate::font_cache::GlyphLines>,
+            f32,
+        ) {
             self.font
                 .layout_text(text, base_font, base_size, scale_factor, alignment, bounds)
         }

@@ -119,7 +119,7 @@ impl Component for Text {
             )
         };
 
-        let (glyphs, text_height) = caches.layout_text(
+        let (glyphs, _, text_height) = caches.layout_text(
             &self.text,
             font.as_deref(),
             size,
@@ -176,7 +176,7 @@ impl Component for Text {
             Scale::new(aabb_size.width.ceil(), aabb_size.height.ceil())
         };
 
-        let (glyphs, _) = context.caches.font.layout_text(
+        let (glyphs, _, _) = context.caches.font.layout_text(
             &self.text,
             font.as_deref(),
             size,
