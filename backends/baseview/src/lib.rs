@@ -621,8 +621,7 @@ impl lemna::window::Window for Window {
 
 fn drop_data_to_lemna(data: baseview::DropData) -> Vec<Data> {
     match data {
-        baseview::DropData::None => vec![],
         baseview::DropData::Files(paths) => paths.into_iter().map(Data::Filepath).collect(),
-        _ => vec![],
+        _ => vec![Data::None],
     }
 }

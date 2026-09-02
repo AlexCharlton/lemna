@@ -16,6 +16,8 @@ pub enum Data {
     String(String),
     #[cfg(feature = "std")]
     Filepath(std::path::PathBuf),
+    /// Returned when something was dropped, but we didn't get any data from it. Useful for ignoring dropped files.
+    None,
     // Custom(Vec<u8>),
 }
 
