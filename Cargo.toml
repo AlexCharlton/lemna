@@ -98,7 +98,7 @@ lyon = "1.0"
 ttf-noto-sans = "0.1"
 
 [workspace.dependencies.baseview]
-version = "0.2"
+version = "0.3"
 # git = "https://github.com/AlexCharlton/baseview.git"
 # path = "../external/baseview"
 

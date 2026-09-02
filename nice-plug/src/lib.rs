@@ -66,11 +66,7 @@ where
         }
 
         let mut options = self.window_options.clone();
-        options = if let Some(factor) = *self.scale_factor.read().unwrap() {
-            options.scale_factor(factor as f32)
-        } else {
-            options.system_scale_factor()
-        };
+        options = options.fallback_scale_factor(*self.scale_factor.read().unwrap());
 
         let handle = lemna_baseview::Window::open_parented::<_, A, _>(
             &parent,
@@ -110,7 +106,7 @@ where
 }
 
 struct LemnaEditorHandle {
-    _window: baseview::WindowHandle,
+    _window: baseview::Window,
 }
 
 unsafe impl Send for LemnaEditorHandle {}

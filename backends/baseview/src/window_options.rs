@@ -4,7 +4,7 @@ pub struct WindowOptions {
     pub width: u32,
     pub height: u32,
     pub resizable: bool,
-    pub(crate) scale_policy: baseview::WindowScalePolicy,
+    pub(crate) fallback_scale_factor: Option<f64>,
     pub(crate) fonts: Vec<(String, &'static [u8])>,
 }
 
@@ -16,18 +16,14 @@ impl WindowOptions {
             width: dims.0,
             height: dims.1,
             resizable: true,
-            scale_policy: baseview::WindowScalePolicy::SystemScaleFactor,
+            fallback_scale_factor: None,
             fonts: vec![],
         }
     }
 
-    pub fn scale_factor(mut self, scale: f32) -> Self {
-        self.scale_policy = baseview::WindowScalePolicy::ScaleFactor(scale.into());
-        self
-    }
-
-    pub fn system_scale_factor(mut self) -> Self {
-        self.scale_policy = baseview::WindowScalePolicy::SystemScaleFactor;
+    /// Sets a fallback scale factor, used when baseview cannot determine one from the platform.
+    pub fn fallback_scale_factor(mut self, scale_factor: impl Into<Option<f64>>) -> Self {
+        self.fallback_scale_factor = scale_factor.into();
         self
     }
 

@@ -136,11 +136,7 @@ pub mod lemna_baseview {
             Self {}
         }
 
-        pub fn scale_factor(self, _scale: f32) -> Self {
-            self
-        }
-
-        pub fn system_scale_factor(self) -> Self {
+        pub fn fallback_scale_factor(self, _scale_factor: impl Into<Option<f64>>) -> Self {
             self
         }
 
