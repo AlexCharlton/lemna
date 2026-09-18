@@ -1,0 +1,5 @@
+{
+  // Keep rust-analyzer's cargo check / build-script artifacts out of `target/`,
+  // so editor saves don't lock or invalidate CLI builds (esp. shaderc-sys).
+  "rust-analyzer.cargo.targetDir": true
+}

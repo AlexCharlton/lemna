@@ -198,10 +198,10 @@ impl StencilPipeline {
         };
         let vs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/stencil.vert.spv"));
+            .create_shader_module(super::include_shader!("stencil.vert.spv"));
         let fs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/stencil.frag.spv"));
+            .create_shader_module(super::include_shader!("stencil.frag.spv"));
 
         Self {
             vertex_buff,

@@ -169,13 +169,13 @@ impl ShapePipeline {
         });
         let vs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/shape.vert.spv"));
+            .create_shader_module(super::include_shader!("shape.vert.spv"));
         let fs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/vert_color.frag.spv"));
+            .create_shader_module(super::include_shader!("vert_color.frag.spv"));
         let fs_premul_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/vert_color_premul.frag.spv"));
+            .create_shader_module(super::include_shader!("vert_color_premul.frag.spv"));
 
         Self {
             buffer_cache: BufferCache::new(&context.device),

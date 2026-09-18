@@ -131,10 +131,10 @@ impl RectPipeline {
             });
         let vs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/rect.vert.spv"));
+            .create_shader_module(super::include_shader!("rect.vert.spv"));
         let fs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/vert_color.frag.spv"));
+            .create_shader_module(super::include_shader!("vert_color.frag.spv"));
 
         Self {
             vertex_buff,

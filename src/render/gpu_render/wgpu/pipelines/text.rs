@@ -429,10 +429,10 @@ impl TextPipeline {
         });
         let vs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/text.vert.spv"));
+            .create_shader_module(super::include_shader!("text.vert.spv"));
         let fs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/text.frag.spv"));
+            .create_shader_module(super::include_shader!("text.frag.spv"));
 
         Self {
             buffer_cache: BufferCache::new(&context.device),

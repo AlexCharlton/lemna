@@ -240,10 +240,10 @@ impl RasterPipeline {
         });
         let vs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/image.vert.spv"));
+            .create_shader_module(super::include_shader!("image.vert.spv"));
         let fs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/image.frag.spv"));
+            .create_shader_module(super::include_shader!("image.frag.spv"));
 
         Self {
             texture_cache: TextureCache::new(),

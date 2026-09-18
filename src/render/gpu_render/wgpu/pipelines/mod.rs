@@ -1,3 +1,11 @@
+/// Load a SPIR-V shader compiled by `build.rs` into `$OUT_DIR/shaders/`.
+macro_rules! include_shader {
+    ($file:literal) => {
+        ::wgpu::include_spirv!(concat!(env!("OUT_DIR"), "/shaders/", $file))
+    };
+}
+pub(crate) use include_shader;
+
 mod buffer_cache;
 pub(crate) mod shared;
 mod texture_cache;

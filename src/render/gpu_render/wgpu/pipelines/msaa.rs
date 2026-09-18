@@ -165,10 +165,10 @@ impl MSAAPipeline {
 
         let vs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/msaa.vert.spv"));
+            .create_shader_module(super::include_shader!("msaa.vert.spv"));
         let fs_module = context
             .device
-            .create_shader_module(wgpu::include_spirv!("shaders/opaque_blit.frag.spv"));
+            .create_shader_module(super::include_shader!("opaque_blit.frag.spv"));
 
         let vertex_state = wgpu::VertexState {
             module: &vs_module,
