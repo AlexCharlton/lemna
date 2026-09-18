@@ -81,6 +81,35 @@ impl RectPipeline {
         pass.draw_indexed(0..6_u32, 0, 0..(renderables.len() as u32));
     }
 
+    /// Draw selected rect instances in one pass (non-contiguous instance indices OK).
+    pub fn render_selected<'a: 'b, 'b>(
+        &'a mut self,
+        indices: &[usize],
+        pass: &'b mut wgpu::RenderPass<'a>,
+        instance_offset_for: impl Fn(usize) -> usize,
+        msaa: bool,
+        translucent: bool,
+    ) {
+        pass.set_pipeline(if msaa {
+            &self.msaa_pipeline
+        } else if translucent {
+            &self.translucent_pipeline
+        } else {
+            &self.pipeline
+        });
+        pass.set_vertex_buffer(0, self.vertex_buff.slice(..));
+        pass.set_index_buffer(self.index_buff.slice(..), wgpu::IndexFormat::Uint16);
+        for &idx in indices {
+            let instance_offset = instance_offset_for(idx);
+            pass.set_vertex_buffer(
+                1,
+                self.instance_buffer
+                    .slice(((instance_offset * std::mem::size_of::<Instance>()) as u64)..),
+            );
+            pass.draw_indexed(0..6_u32, 0, 0..1);
+        }
+    }
+
     pub fn new(
         context: &context::WGPUContext,
         uniform_bind_group_layout: &wgpu::BindGroupLayout,

@@ -3,7 +3,7 @@ use wgpu;
 use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
 use super::buffer_cache::BufferCache;
-use super::shared::{VBDesc, create_pipeline, create_pipeline_with_depth_write};
+use super::shared::{VBDesc, create_pipeline_with_depth_write};
 use crate::base_types::{Pos, Rect};
 use crate::font_cache::FontCache;
 use crate::log_info;
@@ -47,9 +47,6 @@ impl GlyphCache {
 
 pub struct TextPipeline {
     pipeline: wgpu::RenderPipeline,
-    /// No depth writes — text always goes through the transparent pass.
-    translucent_pipeline: wgpu::RenderPipeline,
-    msaa_pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
 
@@ -148,44 +145,34 @@ impl TextPipeline {
         queue.write_buffer(&self.instance_buffer, 0, cast_slice(&self.instance_data));
     }
 
-    pub fn render<'a: 'b, 'b>(
+    /// Draw selected texts in one pass (non-contiguous indices OK).
+    pub fn render_selected<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Text, &'a Rect)],
+        all_texts: &[(&'a Text, &'a Rect)],
+        indices: &[usize],
         pass: &'b mut wgpu::RenderPass<'a>,
-        device: &'b wgpu::Device,
         renderable_buffer_cache: &'a mut renderables::BufferCache<Vertex, u16>,
-        instance_offset: usize,
-        msaa: bool,
+        instance_offset_for: impl Fn(usize) -> usize,
     ) {
-        let debug = false;
-        if !debug {
-            pass.set_pipeline(if msaa {
-                &self.msaa_pipeline
-            } else {
-                // Text is always transparent: never write depth.
-                &self.translucent_pipeline
-            });
-
-            pass.set_bind_group(1, &self.bind_group, &[]);
-
-            self.draw_renderables(renderables, pass, renderable_buffer_cache, instance_offset);
-        } else {
-            self.debug_render(pass, device, msaa);
+        pass.set_pipeline(&self.pipeline);
+        pass.set_bind_group(1, &self.bind_group, &[]);
+        for &idx in indices {
+            self.draw_renderables(
+                &all_texts[idx..idx + 1],
+                pass,
+                renderable_buffer_cache,
+                instance_offset_for(idx),
+            );
         }
     }
 
+    #[allow(unused)]
     fn debug_render<'a: 'b, 'b>(
         &'a mut self,
         pass: &'b mut wgpu::RenderPass<'a>,
         device: &'b wgpu::Device,
-        msaa: bool,
     ) {
-        pass.set_pipeline(if msaa {
-            &self.msaa_pipeline
-        } else {
-            &self.pipeline
-        });
-
+        pass.set_pipeline(&self.pipeline);
         pass.set_bind_group(1, &self.bind_group, &[]);
 
         let vertex_data = vec![
@@ -237,8 +224,6 @@ impl TextPipeline {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        pass.set_pipeline(&self.pipeline);
-        pass.set_bind_group(1, &self.bind_group, &[]);
         pass.set_vertex_buffer(0, self.buffer_cache.vertex_buffer.slice(..));
         pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         pass.set_index_buffer(
@@ -443,21 +428,7 @@ impl TextPipeline {
 
             bind_group,
             texture_bind_group_layout,
-            pipeline: create_pipeline(
-                context,
-                layout,
-                &fs_module,
-                wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: Some("main"),
-                    compilation_options: Default::default(),
-                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
-                },
-                false,
-                wgpu::ColorWrites::ALL,
-            ),
-            translucent_pipeline: create_pipeline_with_depth_write(
+            pipeline: create_pipeline_with_depth_write(
                 context,
                 layout,
                 &fs_module,
@@ -471,20 +442,6 @@ impl TextPipeline {
                 false,
                 wgpu::ColorWrites::ALL,
                 false,
-            ),
-            msaa_pipeline: create_pipeline(
-                context,
-                layout,
-                &fs_module,
-                wgpu::PrimitiveTopology::TriangleList,
-                wgpu::VertexState {
-                    module: &vs_module,
-                    entry_point: Some("main"),
-                    compilation_options: Default::default(),
-                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
-                },
-                true,
-                wgpu::ColorWrites::empty(),
             ),
         }
     }

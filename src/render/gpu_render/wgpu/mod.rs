@@ -104,6 +104,13 @@ impl<'a> FrameRenderables<'a> {
             .map(|(s, _)| s.num_instances())
             .sum()
     }
+
+    fn opaque_shape_instance_offset(&self, index: usize) -> usize {
+        self.opaque_shapes[..index]
+            .iter()
+            .map(|(s, _)| s.num_instances())
+            .sum()
+    }
 }
 
 /// Transparent-pass drawables, identified by index into a frame's type list.
@@ -120,6 +127,16 @@ struct GlobalTransparentItem {
     z: f32,
     frame_idx: usize,
     item: TransparentItem,
+}
+
+#[derive(Clone, Copy)]
+enum SortedLayerItem {
+    Transparent(GlobalTransparentItem),
+    OpaqueShape {
+        z: f32,
+        frame_idx: usize,
+        shape_idx: usize,
+    },
 }
 
 fn collect_global_transparent_items(frames: &[FrameRenderables<'_>]) -> Vec<GlobalTransparentItem> {
@@ -158,6 +175,36 @@ fn collect_global_transparent_items(frames: &[FrameRenderables<'_>]) -> Vec<Glob
     items
 }
 
+/// Transparent items and opaque shapes, sorted back-to-front by z so MSAA shape
+/// edges anti-alias against any translucent content underneath.
+fn collect_sorted_layer_items(frames: &[FrameRenderables<'_>]) -> Vec<SortedLayerItem> {
+    let mut items: Vec<SortedLayerItem> = collect_global_transparent_items(frames)
+        .into_iter()
+        .map(SortedLayerItem::Transparent)
+        .collect();
+    for (frame_idx, frame) in frames.iter().enumerate() {
+        for (shape_idx, (s, aabb)) in frame.opaque_shapes.iter().enumerate() {
+            items.push(SortedLayerItem::OpaqueShape {
+                z: s.z() + aabb.pos.z,
+                frame_idx,
+                shape_idx,
+            });
+        }
+    }
+    items.sort_by(|a, b| {
+        let za = match a {
+            SortedLayerItem::Transparent(t) => t.z,
+            SortedLayerItem::OpaqueShape { z, .. } => *z,
+        };
+        let zb = match b {
+            SortedLayerItem::Transparent(t) => t.z,
+            SortedLayerItem::OpaqueShape { z, .. } => *z,
+        };
+        za.partial_cmp(&zb).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    items
+}
+
 fn frame_buffer_offsets(frames: &[FrameRenderables<'_>]) -> Vec<FrameOffsets> {
     let mut offsets = Vec::with_capacity(frames.len());
     let mut o = FrameOffsets {
@@ -176,6 +223,20 @@ fn frame_buffer_offsets(frames: &[FrameRenderables<'_>]) -> Vec<FrameOffsets> {
         o.texts += frame.texts.len();
     }
     offsets
+}
+
+#[derive(Clone, Copy)]
+struct FrameOffsets {
+    frames: usize,
+    rects: usize,
+    shapes: usize,
+    rasters: usize,
+    texts: usize,
+}
+
+enum TransparentTarget<'a> {
+    Surface(&'a wgpu::TextureView),
+    Framebuffer,
 }
 
 impl crate::render::Renderer for WGPURenderer {
@@ -463,99 +524,15 @@ impl crate::render::Renderer for WGPURenderer {
                         false,
                     );
                 }
-                if !frame_renderables.opaque_shapes.is_empty() {
+                // With antialiased_shapes, opaque shapes are drawn later interleaved
+                // with transparent content so AA edges blend against the right backdrop.
+                if !antialiased_shapes && !frame_renderables.opaque_shapes.is_empty() {
                     self.shape_pipeline.render(
                         &frame_renderables.opaque_shapes,
                         &mut pass,
                         &mut caches.shape_buffer,
                         num_shapes,
                         false,
-                        false,
-                    );
-                }
-            }
-
-            if antialiased_shapes {
-                {
-                    let mut backdrop_pass =
-                        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                                view: &self.context.msaa_framebuffer,
-                                depth_slice: None,
-                                resolve_target: None,
-                                ops: wgpu::Operations {
-                                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                                    store: wgpu::StoreOp::Store,
-                                },
-                            })],
-                            depth_stencil_attachment: None,
-                            occlusion_query_set: None,
-                            timestamp_writes: None,
-                            multiview_mask: None,
-                            label: Some("MSAA backdrop pass"),
-                        });
-                    self.msaa_pipeline.render_backdrop(&mut backdrop_pass);
-                }
-
-                let mut msaa_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &self.context.msaa_framebuffer,
-                        depth_slice: None,
-                        resolve_target: Some(&self.context.framebuffer),
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Load,
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                        view: &self.context.msaa_depthbuffer,
-                        depth_ops: Some(wgpu::Operations {
-                            load: if load_op == wgpu::LoadOp::Load {
-                                wgpu::LoadOp::Load
-                            } else {
-                                wgpu::LoadOp::Clear(0.0)
-                            },
-                            store: wgpu::StoreOp::Store,
-                        }),
-                        stencil_ops: Some(wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(0),
-                            store: wgpu::StoreOp::Store,
-                        }),
-                    }),
-                    occlusion_query_set: None,
-                    timestamp_writes: None,
-                    multiview_mask: None,
-                    label: Some("MSAA opaque shapes pass"),
-                });
-
-                msaa_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
-
-                if !frame_renderables.frame.is_empty() {
-                    self.stencil_pipeline.render(
-                        &frame_renderables.frame,
-                        &mut msaa_pass,
-                        num_frames,
-                        true,
-                    );
-                }
-                msaa_pass.set_stencil_reference(frame_renderables.frame.len() as u32);
-
-                if !frame_renderables.opaque_rects.is_empty() {
-                    self.rect_pipeline.render(
-                        &frame_renderables.opaque_rects,
-                        &mut msaa_pass,
-                        num_rects,
-                        true,
-                        false,
-                    );
-                }
-                if !frame_renderables.opaque_shapes.is_empty() {
-                    self.shape_pipeline.render(
-                        &frame_renderables.opaque_shapes,
-                        &mut msaa_pass,
-                        &mut caches.shape_buffer,
-                        num_shapes,
-                        true,
                         false,
                     );
                 }
@@ -570,38 +547,47 @@ impl crate::render::Renderer for WGPURenderer {
         }
 
         if antialiased_shapes {
-            let mut encoder =
-                self.context
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("update encoder"),
-                    });
+            // Interleave transparent content with MSAA opaque shapes by z, writing
+            // into the offscreen framebuffer, then composite to the swapchain.
             {
-                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &view,
-                        depth_slice: None,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    depth_stencil_attachment: None,
-                    occlusion_query_set: None,
-                    timestamp_writes: None,
-                    multiview_mask: None,
-                    label: Some("MSAA composite pass"),
-                });
-
-                self.msaa_pipeline.render_composite(&mut pass);
+                let mut encoder =
+                    self.context
+                        .device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("aa layer encoder"),
+                        });
+                self.encode_aa_layered_pass(&mut encoder, &frames, caches);
+                command_buffers.push(encoder.finish());
             }
-            command_buffers.push(encoder.finish());
-        }
-
-        // Transparent pass is global across scroll frames so z-order matches the
-        // CPU renderer (sort all translucent items, then clip per-frame).
-        {
+            {
+                let mut encoder =
+                    self.context
+                        .device
+                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                            label: Some("msaa composite encoder"),
+                        });
+                {
+                    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                            view: &view,
+                            depth_slice: None,
+                            resolve_target: None,
+                            ops: wgpu::Operations {
+                                load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
+                                store: wgpu::StoreOp::Store,
+                            },
+                        })],
+                        depth_stencil_attachment: None,
+                        occlusion_query_set: None,
+                        timestamp_writes: None,
+                        multiview_mask: None,
+                        label: Some("MSAA composite pass"),
+                    });
+                    self.msaa_pipeline.render_composite(&mut pass);
+                }
+                command_buffers.push(encoder.finish());
+            }
+        } else {
             let mut encoder =
                 self.context
                     .device
@@ -620,40 +606,296 @@ impl crate::render::Renderer for WGPURenderer {
     }
 }
 
-#[derive(Clone, Copy)]
-struct FrameOffsets {
-    frames: usize,
-    rects: usize,
-    shapes: usize,
-    rasters: usize,
-    texts: usize,
-}
-
 impl WGPURenderer {
-    /// Draw all transparent items across every scroll frame, sorted back-to-front
-    /// by z. When the scroll-frame clip stack changes, rebuild the stencil.
-    fn encode_transparent_pass(
+    /// With antialiased shapes: draw transparent content and opaque shapes in
+    /// global z order into the offscreen framebuffer. Consecutive opaque shapes
+    /// share one MSAA backdrop blit/resolve so AA edges still see translucent
+    /// content underneath.
+    fn encode_aa_layered_pass(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
-        color_view: &wgpu::TextureView,
         frames: &[FrameRenderables<'_>],
         caches: &mut Caches,
     ) {
-        let items = collect_global_transparent_items(frames);
+        let items = collect_sorted_layer_items(frames);
         if items.is_empty() {
             return;
         }
         let offsets = frame_buffer_offsets(frames);
-        let mut active_frame: Option<usize> = None;
 
-        for GlobalTransparentItem {
-            frame_idx, item, ..
-        } in items
+        self.seed_msaa_opaque_rect_depth(encoder, frames, &offsets);
+
+        // If there were no opaque rects to seed, the first shape pass must clear.
+        let mut msaa_depth_load = if frames.iter().any(|f| !f.opaque_rects.is_empty()) {
+            wgpu::LoadOp::Load
+        } else {
+            wgpu::LoadOp::Clear(0.0)
+        };
+
+        let mut i = 0;
+        while i < items.len() {
+            match items[i] {
+                SortedLayerItem::Transparent(_) => {
+                    let start = i;
+                    i += 1;
+                    while i < items.len() && matches!(items[i], SortedLayerItem::Transparent(_)) {
+                        i += 1;
+                    }
+                    let run: Vec<GlobalTransparentItem> = items[start..i]
+                        .iter()
+                        .map(|item| match item {
+                            SortedLayerItem::Transparent(t) => *t,
+                            SortedLayerItem::OpaqueShape { .. } => unreachable!(),
+                        })
+                        .collect();
+                    self.encode_transparent_run(
+                        encoder,
+                        TransparentTarget::Framebuffer,
+                        frames,
+                        &offsets,
+                        caches,
+                        &run,
+                    );
+                }
+                SortedLayerItem::OpaqueShape { .. } => {
+                    let start = i;
+                    i += 1;
+                    while i < items.len() && matches!(items[i], SortedLayerItem::OpaqueShape { .. })
+                    {
+                        i += 1;
+                    }
+                    self.encode_msaa_opaque_shape_run(
+                        encoder,
+                        frames,
+                        &offsets,
+                        caches,
+                        &items[start..i],
+                        msaa_depth_load,
+                    );
+                    msaa_depth_load = wgpu::LoadOp::Load;
+                }
+            }
+        }
+    }
+
+    /// Populate the MSAA depth buffer with opaque rects before layered AA draws.
+    ///
+    /// Opaque shapes are drawn later (interleaved with transparent content) into
+    /// the multisampled targets. Those shapes need depth from opaque rects that
+    /// already cover them, but rects were written only to the non-MSAA depth
+    /// buffer. This pass re-draws opaque rects depth-only into `msaa_depthbuffer`
+    /// (with the correct scroll-frame stencil) so subsequent MSAA shape passes
+    /// can depth-test against them.
+    fn seed_msaa_opaque_rect_depth(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        frames: &[FrameRenderables<'_>],
+        offsets: &[FrameOffsets],
+    ) {
+        let mut depth_load = wgpu::LoadOp::Clear(0.0);
+        for (frame_idx, frame) in frames.iter().enumerate() {
+            if frame.opaque_rects.is_empty() && frame.frame.is_empty() {
+                continue;
+            }
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &self.context.msaa_framebuffer,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.context.msaa_depthbuffer,
+                    depth_ops: Some(wgpu::Operations {
+                        load: depth_load,
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
+                multiview_mask: None,
+                label: Some("MSAA opaque rect depth seed"),
+            });
+            pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+            if !frame.frame.is_empty() {
+                self.stencil_pipeline.render(
+                    &frame.frame,
+                    &mut pass,
+                    offsets[frame_idx].frames,
+                    true,
+                );
+            }
+            pass.set_stencil_reference(frame.frame.len() as u32);
+            if !frame.opaque_rects.is_empty() {
+                self.rect_pipeline.render(
+                    &frame.opaque_rects,
+                    &mut pass,
+                    offsets[frame_idx].rects,
+                    true,
+                    false,
+                );
+            }
+            depth_load = wgpu::LoadOp::Load;
+        }
+    }
+
+    /// One backdrop blit for a run of consecutive opaque shapes, then draw them
+    /// (rebuilding stencil when the scroll frame changes). Resolve once at the end.
+    fn encode_msaa_opaque_shape_run(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        frames: &[FrameRenderables<'_>],
+        offsets: &[FrameOffsets],
+        caches: &mut Caches,
+        run: &[SortedLayerItem],
+        msaa_depth_load: wgpu::LoadOp<f32>,
+    ) {
+        let shapes: Vec<(usize, usize)> = run
+            .iter()
+            .map(|item| match item {
+                SortedLayerItem::OpaqueShape {
+                    frame_idx,
+                    shape_idx,
+                    ..
+                } => (*frame_idx, *shape_idx),
+                SortedLayerItem::Transparent(_) => unreachable!(),
+            })
+            .collect();
+        if shapes.is_empty() {
+            return;
+        }
+
         {
+            let mut backdrop_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &self.context.msaa_framebuffer,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+                multiview_mask: None,
+                label: Some("MSAA backdrop blit"),
+            });
+            self.msaa_pipeline.render_backdrop(&mut backdrop_pass);
+        }
+
+        // Split the run into same-frame groups so stencil can be rebuilt between
+        // scroll frames without re-blitting the backdrop.
+        let mut group_starts: Vec<usize> = vec![0];
+        for i in 1..shapes.len() {
+            if shapes[i].0 != shapes[i - 1].0 {
+                group_starts.push(i);
+            }
+        }
+
+        for (group_i, &start) in group_starts.iter().enumerate() {
+            let end = group_starts
+                .get(group_i + 1)
+                .copied()
+                .unwrap_or(shapes.len());
+            let is_last = group_i + 1 == group_starts.len();
+            let (frame_idx, _) = shapes[start];
             let frame = &frames[frame_idx];
             let off = offsets[frame_idx];
 
-            if active_frame != Some(frame_idx) {
+            let mut msaa_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &self.context.msaa_framebuffer,
+                    depth_slice: None,
+                    resolve_target: is_last.then_some(&self.context.framebuffer),
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.context.msaa_depthbuffer,
+                    depth_ops: Some(wgpu::Operations {
+                        load: if group_i == 0 {
+                            msaa_depth_load
+                        } else {
+                            wgpu::LoadOp::Load
+                        },
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                }),
+                occlusion_query_set: None,
+                timestamp_writes: None,
+                multiview_mask: None,
+                label: Some("MSAA opaque shape run"),
+            });
+            msaa_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+            if !frame.frame.is_empty() {
+                self.stencil_pipeline
+                    .render(&frame.frame, &mut msaa_pass, off.frames, true);
+            }
+            msaa_pass.set_stencil_reference(frame.frame.len() as u32);
+
+            let indices: Vec<usize> = shapes[start..end].iter().map(|&(_, si)| si).collect();
+            let shape_base = off.shapes;
+            self.shape_pipeline.render_selected(
+                &frame.opaque_shapes,
+                &indices,
+                &mut msaa_pass,
+                &mut caches.shape_buffer,
+                |shape_idx| shape_base + frame.opaque_shape_instance_offset(shape_idx),
+                true,
+                false,
+            );
+        }
+    }
+
+    /// Draw a z-ordered run of transparent items. Shares stencil setup per scroll
+    /// frame and batches consecutive same-type draws into one pass.
+    fn encode_transparent_run(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        target: TransparentTarget<'_>,
+        frames: &[FrameRenderables<'_>],
+        offsets: &[FrameOffsets],
+        caches: &mut Caches,
+        run: &[GlobalTransparentItem],
+    ) {
+        if run.is_empty() {
+            return;
+        }
+
+        let color_view = match target {
+            TransparentTarget::Surface(v) => v,
+            TransparentTarget::Framebuffer => &self.context.framebuffer,
+        };
+
+        let mut frame_starts: Vec<usize> = vec![0];
+        for i in 1..run.len() {
+            if run[i].frame_idx != run[i - 1].frame_idx {
+                frame_starts.push(i);
+            }
+        }
+
+        for (group_i, &start) in frame_starts.iter().enumerate() {
+            let end = frame_starts.get(group_i + 1).copied().unwrap_or(run.len());
+            let frame_idx = run[start].frame_idx;
+            let frame = &frames[frame_idx];
+            let off = offsets[frame_idx];
+
+            {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: color_view,
@@ -685,83 +927,125 @@ impl WGPURenderer {
                     self.stencil_pipeline
                         .render(&frame.frame, &mut pass, off.frames, false);
                 }
-                active_frame = Some(frame_idx);
             }
 
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: color_view,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.context.depthbuffer,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    }),
-                    stencil_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    }),
-                }),
-                occlusion_query_set: None,
-                timestamp_writes: None,
-                multiview_mask: None,
-                label: Some("transparent item pass"),
-            });
-            pass.set_bind_group(0, &self.uniform_bind_group, &[]);
-            pass.set_stencil_reference(frame.frame.len() as u32);
+            let mut j = start;
+            while j < end {
+                let kind = std::mem::discriminant(&run[j].item);
+                let type_start = j;
+                j += 1;
+                while j < end && std::mem::discriminant(&run[j].item) == kind {
+                    j += 1;
+                }
+                let indices: Vec<usize> = run[type_start..j]
+                    .iter()
+                    .map(|item| match item.item {
+                        TransparentItem::Rect(i)
+                        | TransparentItem::Shape(i)
+                        | TransparentItem::Raster(i)
+                        | TransparentItem::Text(i) => i,
+                    })
+                    .collect();
 
-            let rect_base = off.rects + frame.opaque_rects.len();
-            let shape_base = off.shapes + frame.num_opaque_shape_instances;
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: color_view,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.context.depthbuffer,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        }),
+                    }),
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
+                    multiview_mask: None,
+                    label: Some("transparent type batch"),
+                });
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                pass.set_stencil_reference(frame.frame.len() as u32);
 
-            match item {
-                TransparentItem::Rect(i) => {
-                    self.rect_pipeline.render(
-                        &frame.translucent_rects[i..i + 1],
-                        &mut pass,
-                        rect_base + i,
-                        false,
-                        true,
-                    );
-                }
-                TransparentItem::Shape(i) => {
-                    let inst = shape_base + frame.translucent_shape_instance_offset(i);
-                    self.shape_pipeline.render(
-                        &frame.translucent_shapes[i..i + 1],
-                        &mut pass,
-                        &mut caches.shape_buffer,
-                        inst,
-                        false,
-                        true,
-                    );
-                }
-                TransparentItem::Raster(i) => {
-                    self.raster_pipeline.render(
-                        &frame.rasters[i..i + 1],
-                        &mut pass,
-                        &mut caches.raster,
-                        &mut caches.image_buffer,
-                        off.rasters + i,
-                    );
-                }
-                TransparentItem::Text(i) => {
-                    self.text_pipeline.render(
-                        &frame.texts[i..i + 1],
-                        &mut pass,
-                        &self.context.device,
-                        &mut caches.text_buffer,
-                        off.texts + i,
-                        false,
-                    );
+                let rect_base = off.rects + frame.opaque_rects.len();
+                let shape_base = off.shapes + frame.num_opaque_shape_instances;
+
+                match run[type_start].item {
+                    TransparentItem::Rect(_) => {
+                        self.rect_pipeline.render_selected(
+                            &indices,
+                            &mut pass,
+                            |i| rect_base + i,
+                            false,
+                            true,
+                        );
+                    }
+                    TransparentItem::Shape(_) => {
+                        self.shape_pipeline.render_selected(
+                            &frame.translucent_shapes,
+                            &indices,
+                            &mut pass,
+                            &mut caches.shape_buffer,
+                            |i| shape_base + frame.translucent_shape_instance_offset(i),
+                            false,
+                            true,
+                        );
+                    }
+                    TransparentItem::Raster(_) => {
+                        self.raster_pipeline.render_selected(
+                            &frame.rasters,
+                            &indices,
+                            &mut pass,
+                            &mut caches.raster,
+                            &mut caches.image_buffer,
+                            |i| off.rasters + i,
+                        );
+                    }
+                    TransparentItem::Text(_) => {
+                        self.text_pipeline.render_selected(
+                            &frame.texts,
+                            &indices,
+                            &mut pass,
+                            &mut caches.text_buffer,
+                            |i| off.texts + i,
+                        );
+                    }
                 }
             }
         }
+    }
+
+    /// Draw all transparent items across every scroll frame, sorted back-to-front
+    /// by z (used when antialiased_shapes is off).
+    fn encode_transparent_pass(
+        &mut self,
+        encoder: &mut wgpu::CommandEncoder,
+        color_view: &wgpu::TextureView,
+        frames: &[FrameRenderables<'_>],
+        caches: &mut Caches,
+    ) {
+        let items = collect_global_transparent_items(frames);
+        if items.is_empty() {
+            return;
+        }
+        let offsets = frame_buffer_offsets(frames);
+        self.encode_transparent_run(
+            encoder,
+            TransparentTarget::Surface(color_view),
+            frames,
+            &offsets,
+            caches,
+            &items,
+        );
     }
 
     fn do_resize(&mut self, size: PixelSize) -> bool {

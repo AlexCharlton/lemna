@@ -35,7 +35,7 @@ impl RasterPipeline {
         renderables: &[(&'a Raster, &'a Rect)],
         pass: &'b mut wgpu::RenderPass<'a>,
         raster_cache: &'a RasterCache,
-        image_buffer: &'a mut gpu_render::BufferCache<Vertex, u16>,
+        image_buffer: &gpu_render::BufferCache<Vertex, u16>,
         instance_offset: usize,
     ) {
         let last_texture = None;
@@ -130,24 +130,26 @@ impl RasterPipeline {
         queue.write_buffer(&self.instance_buffer, 0, cast_slice(&self.instance_data));
     }
 
-    pub fn render<'a: 'b, 'b>(
+    /// Draw selected rasters in one pass (non-contiguous indices OK).
+    pub fn render_selected<'a: 'b, 'b>(
         &'a mut self,
-        renderables: &[(&'a Raster, &'a Rect)],
+        all_rasters: &[(&'a Raster, &'a Rect)],
+        indices: &[usize],
         pass: &'b mut wgpu::RenderPass<'a>,
-        raster_cache: &'a mut RasterCache,
-        image_buffer: &'a mut gpu_render::BufferCache<Vertex, u16>,
-        instance_offset: usize,
+        raster_cache: &'a RasterCache,
+        image_buffer: &gpu_render::BufferCache<Vertex, u16>,
+        instance_offset_for: impl Fn(usize) -> usize,
     ) {
-        // Draw the renderables
         pass.set_pipeline(&self.pipeline);
-
-        self.draw_renderables(
-            renderables,
-            pass,
-            raster_cache,
-            image_buffer,
-            instance_offset,
-        );
+        for &idx in indices {
+            self.draw_renderables(
+                &all_rasters[idx..idx + 1],
+                pass,
+                raster_cache,
+                image_buffer,
+                instance_offset_for(idx),
+            );
+        }
     }
 
     pub fn update_texture_cache(

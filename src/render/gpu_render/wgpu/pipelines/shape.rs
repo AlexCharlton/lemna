@@ -150,6 +150,38 @@ impl ShapePipeline {
         );
     }
 
+    /// Draw selected shapes from `all_shapes` in one pass (avoids re-borrowing the
+    /// pipeline per shape). `instance_offset_for` maps a shape index to its
+    /// instance-buffer base.
+    pub fn render_selected<'a: 'b, 'b>(
+        &'a mut self,
+        all_shapes: &[(&'a Shape, &'a Rect)],
+        indices: &[usize],
+        pass: &'b mut wgpu::RenderPass<'a>,
+        renderable_buffer_cache: &'a mut gpu_render::BufferCache<Vertex, u16>,
+        instance_offset_for: impl Fn(usize) -> usize,
+        msaa: bool,
+        translucent: bool,
+    ) {
+        pass.set_pipeline(if msaa {
+            &self.msaa_pipeline
+        } else if translucent {
+            &self.translucent_pipeline
+        } else {
+            &self.pipeline
+        });
+        for &idx in indices {
+            self.draw_renderables(
+                &all_shapes[idx..idx + 1],
+                pass,
+                renderable_buffer_cache,
+                msaa,
+                translucent,
+                instance_offset_for(idx),
+            );
+        }
+    }
+
     pub fn new(
         context: &context::WGPUContext,
         uniform_bind_group_layout: &wgpu::BindGroupLayout,
