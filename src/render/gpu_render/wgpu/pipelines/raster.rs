@@ -3,7 +3,7 @@ use wgpu;
 
 use crate::log_info;
 
-use super::shared::{VBDesc, create_pipeline};
+use super::shared::{VBDesc, create_pipeline_with_depth_write};
 use super::texture_cache::TextureCache;
 use crate::base_types::Rect;
 use crate::render::gpu_render::{
@@ -254,7 +254,8 @@ impl RasterPipeline {
 
             bind_group_layout,
             sampler,
-            pipeline: create_pipeline(
+            // Rasters are always treated as transparent: depth test on, no depth write.
+            pipeline: create_pipeline_with_depth_write(
                 context,
                 layout,
                 &fs_module,
@@ -267,6 +268,7 @@ impl RasterPipeline {
                 },
                 false,
                 wgpu::ColorWrites::ALL,
+                false,
             ),
         }
     }

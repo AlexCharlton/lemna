@@ -23,6 +23,31 @@ const BLEND_PREMULTIPLIED_ALPHA: wgpu::BlendState = wgpu::BlendState {
     alpha: wgpu::BlendComponent::OVER,
 };
 
+fn depth_stencil_state(depth_write_enabled: bool) -> wgpu::DepthStencilState {
+    wgpu::DepthStencilState {
+        format: wgpu::TextureFormat::Depth24PlusStencil8,
+        depth_write_enabled: Some(depth_write_enabled),
+        depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
+        stencil: wgpu::StencilState {
+            front: wgpu::StencilFaceState {
+                compare: wgpu::CompareFunction::Equal,
+                fail_op: wgpu::StencilOperation::Keep,
+                depth_fail_op: wgpu::StencilOperation::Keep,
+                pass_op: wgpu::StencilOperation::Keep,
+            },
+            back: wgpu::StencilFaceState {
+                compare: wgpu::CompareFunction::Equal,
+                fail_op: wgpu::StencilOperation::Keep,
+                depth_fail_op: wgpu::StencilOperation::Keep,
+                pass_op: wgpu::StencilOperation::Keep,
+            },
+            read_mask: 0xff,
+            write_mask: 0,
+        },
+        bias: wgpu::DepthBiasState::default(),
+    }
+}
+
 pub fn create_pipeline(
     context: &context::WGPUContext,
     layout: &wgpu::PipelineLayout,
@@ -31,6 +56,28 @@ pub fn create_pipeline(
     vertex: wgpu::VertexState,
     msaa: bool,
     color_write_mask: wgpu::ColorWrites,
+) -> wgpu::RenderPipeline {
+    create_pipeline_with_depth_write(
+        context,
+        layout,
+        frag,
+        primitive_topology,
+        vertex,
+        msaa,
+        color_write_mask,
+        true,
+    )
+}
+
+pub fn create_pipeline_with_depth_write(
+    context: &context::WGPUContext,
+    layout: &wgpu::PipelineLayout,
+    frag: &wgpu::ShaderModule,
+    primitive_topology: wgpu::PrimitiveTopology,
+    vertex: wgpu::VertexState,
+    msaa: bool,
+    color_write_mask: wgpu::ColorWrites,
+    depth_write_enabled: bool,
 ) -> wgpu::RenderPipeline {
     create_pipeline_with_blend(
         context,
@@ -41,28 +88,7 @@ pub fn create_pipeline(
         msaa,
         color_write_mask,
         Some(BLEND_STRAIGHT_ALPHA),
-        Some(wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: Some(true),
-            depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
-            stencil: wgpu::StencilState {
-                front: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                back: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                read_mask: 0xff,
-                write_mask: 0,
-            },
-            bias: wgpu::DepthBiasState::default(),
-        }),
+        Some(depth_stencil_state(depth_write_enabled)),
     )
 }
 
@@ -84,28 +110,7 @@ pub fn create_pipeline_premul(
         msaa,
         color_write_mask,
         Some(BLEND_PREMULTIPLIED_ALPHA),
-        Some(wgpu::DepthStencilState {
-            format: wgpu::TextureFormat::Depth24PlusStencil8,
-            depth_write_enabled: Some(true),
-            depth_compare: Some(wgpu::CompareFunction::GreaterEqual),
-            stencil: wgpu::StencilState {
-                front: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                back: wgpu::StencilFaceState {
-                    compare: wgpu::CompareFunction::Equal,
-                    fail_op: wgpu::StencilOperation::Keep,
-                    depth_fail_op: wgpu::StencilOperation::Keep,
-                    pass_op: wgpu::StencilOperation::Keep,
-                },
-                read_mask: 0xff,
-                write_mask: 0,
-            },
-            bias: wgpu::DepthBiasState::default(),
-        }),
+        Some(depth_stencil_state(true)),
     )
 }
 

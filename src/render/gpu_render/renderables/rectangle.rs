@@ -77,4 +77,8 @@ impl Rectangle {
     pub(crate) fn z(&self) -> f32 {
         self.instance_data.pos.z
     }
+
+    pub(crate) fn is_opaque(&self) -> bool {
+        self.instance_data.color.a >= 1.0
+    }
 }

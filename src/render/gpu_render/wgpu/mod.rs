@@ -59,10 +59,15 @@ impl fmt::Debug for WGPURenderer {
 #[derive(Default)]
 struct FrameRenderables<'a> {
     frame: Vec<ScrollFrame>,
+    opaque_rects: Vec<(&'a Rectangle, &'a Rect)>,
+    translucent_rects: Vec<(&'a Rectangle, &'a Rect)>,
+    opaque_shapes: Vec<(&'a Shape, &'a Rect)>,
+    translucent_shapes: Vec<(&'a Shape, &'a Rect)>,
+    num_opaque_shape_instances: usize,
+    num_translucent_shape_instances: usize,
+    /// Always drawn in the transparent pass.
     rasters: Vec<(&'a Raster, &'a Rect)>,
-    rects: Vec<(&'a Rectangle, &'a Rect)>,
-    shapes: Vec<(&'a Shape, &'a Rect)>,
-    num_shape_instances: usize,
+    /// Always drawn in the transparent pass.
     texts: Vec<(&'a Text, &'a Rect)>,
 }
 
@@ -73,6 +78,104 @@ impl<'a> FrameRenderables<'a> {
             ..Default::default()
         }
     }
+
+    fn num_rects(&self) -> usize {
+        self.opaque_rects.len() + self.translucent_rects.len()
+    }
+
+    fn num_shape_instances(&self) -> usize {
+        self.num_opaque_shape_instances + self.num_translucent_shape_instances
+    }
+
+    fn push_shape(&mut self, shape: &'a Shape, aabb: &'a Rect) {
+        let n = shape.num_instances();
+        if shape.is_opaque() {
+            self.opaque_shapes.push((shape, aabb));
+            self.num_opaque_shape_instances += n;
+        } else {
+            self.translucent_shapes.push((shape, aabb));
+            self.num_translucent_shape_instances += n;
+        }
+    }
+
+    fn translucent_shape_instance_offset(&self, index: usize) -> usize {
+        self.translucent_shapes[..index]
+            .iter()
+            .map(|(s, _)| s.num_instances())
+            .sum()
+    }
+}
+
+/// Transparent-pass drawables, identified by index into a frame's type list.
+#[derive(Clone, Copy)]
+enum TransparentItem {
+    Rect(usize),
+    Shape(usize),
+    Raster(usize),
+    Text(usize),
+}
+
+#[derive(Clone, Copy)]
+struct GlobalTransparentItem {
+    z: f32,
+    frame_idx: usize,
+    item: TransparentItem,
+}
+
+fn collect_global_transparent_items(frames: &[FrameRenderables<'_>]) -> Vec<GlobalTransparentItem> {
+    let mut items = Vec::new();
+    for (frame_idx, frame) in frames.iter().enumerate() {
+        for (i, (r, aabb)) in frame.translucent_rects.iter().enumerate() {
+            items.push(GlobalTransparentItem {
+                z: r.z() + aabb.pos.z,
+                frame_idx,
+                item: TransparentItem::Rect(i),
+            });
+        }
+        for (i, (s, aabb)) in frame.translucent_shapes.iter().enumerate() {
+            items.push(GlobalTransparentItem {
+                z: s.z() + aabb.pos.z,
+                frame_idx,
+                item: TransparentItem::Shape(i),
+            });
+        }
+        for (i, (r, aabb)) in frame.rasters.iter().enumerate() {
+            items.push(GlobalTransparentItem {
+                z: r.z() + aabb.pos.z,
+                frame_idx,
+                item: TransparentItem::Raster(i),
+            });
+        }
+        for (i, (t, aabb)) in frame.texts.iter().enumerate() {
+            items.push(GlobalTransparentItem {
+                z: t.z() + aabb.pos.z,
+                frame_idx,
+                item: TransparentItem::Text(i),
+            });
+        }
+    }
+    items.sort_by(|a, b| a.z.partial_cmp(&b.z).unwrap_or(std::cmp::Ordering::Equal));
+    items
+}
+
+fn frame_buffer_offsets(frames: &[FrameRenderables<'_>]) -> Vec<FrameOffsets> {
+    let mut offsets = Vec::with_capacity(frames.len());
+    let mut o = FrameOffsets {
+        frames: 0,
+        rects: 0,
+        shapes: 0,
+        rasters: 0,
+        texts: 0,
+    };
+    for frame in frames {
+        offsets.push(o);
+        o.frames += frame.frame.len();
+        o.rects += frame.num_rects();
+        o.shapes += frame.num_shape_instances();
+        o.rasters += frame.rasters.len();
+        o.texts += frame.texts.len();
+    }
+    offsets
 }
 
 impl crate::render::Renderer for WGPURenderer {
@@ -186,19 +289,16 @@ impl crate::render::Renderer for WGPURenderer {
             }
             match renderable {
                 Renderable::Rectangle(r) => {
-                    frames.last_mut().unwrap().rects.push((r, aabb));
+                    if r.is_opaque() {
+                        frames.last_mut().unwrap().opaque_rects.push((r, aabb));
+                    } else {
+                        frames.last_mut().unwrap().translucent_rects.push((r, aabb));
+                    }
                     num_rects += 1;
                 }
                 Renderable::Shape(r) => {
-                    frames.last_mut().unwrap().shapes.push((r, aabb));
-                    if r.is_filled() {
-                        frames.last_mut().unwrap().num_shape_instances += 1;
-                        num_shapes += 1;
-                    }
-                    if r.is_stroked() {
-                        frames.last_mut().unwrap().num_shape_instances += 1;
-                        num_shapes += 1;
-                    }
+                    frames.last_mut().unwrap().push_shape(r, aabb);
+                    num_shapes += r.num_instances();
                 }
                 Renderable::Text(r) => {
                     frames.last_mut().unwrap().texts.push((r, aabb));
@@ -239,14 +339,16 @@ impl crate::render::Renderer for WGPURenderer {
         self.rect_pipeline.fill_buffers(
             &frames
                 .iter()
-                .flat_map(|f| f.rects.clone())
+                .flat_map(|f| f.opaque_rects.iter().chain(f.translucent_rects.iter()))
+                .copied()
                 .collect::<Vec<(&Rectangle, &Rect)>>(),
             &mut self.context.queue,
         );
         self.shape_pipeline.fill_buffers(
             &frames
                 .iter()
-                .flat_map(|f| f.shapes.clone())
+                .flat_map(|f| f.opaque_shapes.iter().chain(f.translucent_shapes.iter()))
+                .copied()
                 .collect::<Vec<(&Shape, &Rect)>>(),
             &self.context.device,
             &mut self.context.queue,
@@ -263,11 +365,6 @@ impl crate::render::Renderer for WGPURenderer {
             &mut caches.text_buffer,
         );
         {
-            // We have a three step process for rasters
-            // First we update the texture cache
-            // Then we sort our renderables based on what texture index they have
-            //   - This lets us swap textures as few times as possible
-            // Finally, we update our buffers
             let cache_invalid = self.raster_pipeline.update_texture_cache(
                 &frames
                     .iter()
@@ -277,14 +374,6 @@ impl crate::render::Renderer for WGPURenderer {
                 &mut self.context.queue,
                 &mut caches.raster,
             );
-
-            for frame_renderables in frames.iter_mut() {
-                frame_renderables.rasters.sort_unstable_by_key(|r| {
-                    self.raster_pipeline
-                        .texture_cache
-                        .texture_index(r.0.raster_cache_id, &caches.raster)
-                });
-            }
 
             self.raster_pipeline.fill_buffers(
                 &frames
@@ -308,8 +397,6 @@ impl crate::render::Renderer for WGPURenderer {
         num_frames = 0;
         num_rects = 0;
         num_shapes = 0;
-        num_rasters = 0;
-        num_texts = 0;
         for frame_renderables in frames.iter() {
             let mut encoder =
                 self.context
@@ -317,9 +404,9 @@ impl crate::render::Renderer for WGPURenderer {
                     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                         label: Some("update encoder"),
                     });
+
+            // --- Opaque pass (depth write on) ---
             {
-                // Non-MSAA pass. With antialiased_shapes, render to the offscreen
-                // framebuffer so the MSAA pass can sample the current backdrop.
                 let base_color_view = if antialiased_shapes {
                     &self.context.framebuffer
                 } else {
@@ -353,11 +440,10 @@ impl crate::render::Renderer for WGPURenderer {
                     occlusion_query_set: None,
                     timestamp_writes: None,
                     multiview_mask: None,
-                    label: Some("non-MSAA render pass"),
+                    label: Some("opaque render pass"),
                 });
                 pass.set_bind_group(0, &self.uniform_bind_group, &[]);
 
-                // Each frame increments the stencil buffer.
                 if !frame_renderables.frame.is_empty() {
                     self.stencil_pipeline.render(
                         &frame_renderables.frame,
@@ -366,45 +452,24 @@ impl crate::render::Renderer for WGPURenderer {
                         false,
                     );
                 }
-                // We only want the top frame in a given pass:
                 pass.set_stencil_reference(frame_renderables.frame.len() as u32);
 
-                if !frame_renderables.rects.is_empty() {
+                if !frame_renderables.opaque_rects.is_empty() {
                     self.rect_pipeline.render(
-                        &frame_renderables.rects,
+                        &frame_renderables.opaque_rects,
                         &mut pass,
                         num_rects,
                         false,
+                        false,
                     );
                 }
-                if !frame_renderables.shapes.is_empty() {
+                if !frame_renderables.opaque_shapes.is_empty() {
                     self.shape_pipeline.render(
-                        &frame_renderables.shapes,
+                        &frame_renderables.opaque_shapes,
                         &mut pass,
                         &mut caches.shape_buffer,
                         num_shapes,
                         false,
-                    );
-                }
-                if !frame_renderables.rasters.is_empty() {
-                    self.raster_pipeline.render(
-                        &frame_renderables.rasters,
-                        &mut pass,
-                        &mut caches.raster,
-                        &mut caches.image_buffer,
-                        num_rasters,
-                    );
-                }
-                // Text comes last because of transparency. With antialiased_shapes,
-                // text is drawn after the MSAA composite so it is not re-sampled by
-                // the backdrop blit or MSAA resolve.
-                if !frame_renderables.texts.is_empty() && !antialiased_shapes {
-                    self.text_pipeline.render(
-                        &frame_renderables.texts,
-                        &mut pass,
-                        &self.context.device,
-                        &mut caches.text_buffer,
-                        num_texts,
                         false,
                     );
                 }
@@ -460,12 +525,11 @@ impl crate::render::Renderer for WGPURenderer {
                     occlusion_query_set: None,
                     timestamp_writes: None,
                     multiview_mask: None,
-                    label: Some("MSAA shapes render pass"),
+                    label: Some("MSAA opaque shapes pass"),
                 });
 
                 msaa_pass.set_bind_group(0, &self.uniform_bind_group, &[]);
 
-                // Each frame increments the stencil buffer.
                 if !frame_renderables.frame.is_empty() {
                     self.stencil_pipeline.render(
                         &frame_renderables.frame,
@@ -474,43 +538,37 @@ impl crate::render::Renderer for WGPURenderer {
                         true,
                     );
                 }
-                // // We only want the top frame in a given pass:
                 msaa_pass.set_stencil_reference(frame_renderables.frame.len() as u32);
 
-                if !frame_renderables.rects.is_empty() {
+                if !frame_renderables.opaque_rects.is_empty() {
                     self.rect_pipeline.render(
-                        &frame_renderables.rects,
+                        &frame_renderables.opaque_rects,
                         &mut msaa_pass,
                         num_rects,
                         true,
+                        false,
                     );
                 }
-                // Shape comes last because we don't want to render fragments that
-                // are covered by others
-                if !frame_renderables.shapes.is_empty() {
+                if !frame_renderables.opaque_shapes.is_empty() {
                     self.shape_pipeline.render(
-                        &frame_renderables.shapes,
+                        &frame_renderables.opaque_shapes,
                         &mut msaa_pass,
                         &mut caches.shape_buffer,
                         num_shapes,
                         true,
+                        false,
                     );
                 }
             }
 
-            // TODO rasters?
-
             num_frames += frame_renderables.frame.len();
-            num_rects += frame_renderables.rects.len();
-            num_shapes += frame_renderables.num_shape_instances;
-            num_texts += frame_renderables.texts.len();
+            num_rects += frame_renderables.num_rects();
+            num_shapes += frame_renderables.num_shape_instances();
 
             command_buffers.push(encoder.finish());
-            // All depth & color loads after the first should not clear
             load_op = wgpu::LoadOp::Load;
         }
 
-        // Blit the MSAA-resolved framebuffer to the swapchain.
         if antialiased_shapes {
             let mut encoder =
                 self.context
@@ -533,14 +591,25 @@ impl crate::render::Renderer for WGPURenderer {
                     occlusion_query_set: None,
                     timestamp_writes: None,
                     multiview_mask: None,
-                    label: Some("MSAA render pass"),
+                    label: Some("MSAA composite pass"),
                 });
 
                 self.msaa_pipeline.render_composite(&mut pass);
             }
             command_buffers.push(encoder.finish());
+        }
 
-            self.aa_text_render(&view, &frames, caches, &mut command_buffers);
+        // Transparent pass is global across scroll frames so z-order matches the
+        // CPU renderer (sort all translucent items, then clip per-frame).
+        {
+            let mut encoder =
+                self.context
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("transparent pass encoder"),
+                    });
+            self.encode_transparent_pass(&mut encoder, &view, &frames, caches);
+            command_buffers.push(encoder.finish());
         }
         inst_end();
 
@@ -551,28 +620,79 @@ impl crate::render::Renderer for WGPURenderer {
     }
 }
 
+#[derive(Clone, Copy)]
+struct FrameOffsets {
+    frames: usize,
+    rects: usize,
+    shapes: usize,
+    rasters: usize,
+    texts: usize,
+}
+
 impl WGPURenderer {
-    fn aa_text_render(
+    /// Draw all transparent items across every scroll frame, sorted back-to-front
+    /// by z. When the scroll-frame clip stack changes, rebuild the stencil.
+    fn encode_transparent_pass(
         &mut self,
-        view: &wgpu::TextureView,
-        frames: &[FrameRenderables],
+        encoder: &mut wgpu::CommandEncoder,
+        color_view: &wgpu::TextureView,
+        frames: &[FrameRenderables<'_>],
         caches: &mut Caches,
-        command_buffers: &mut Vec<wgpu::CommandBuffer>,
     ) {
-        // Draw text on top of the composed scene so glyphs anti-alias against
-        // the final background and are not processed by MSAA resolve.
-        let mut encoder =
-            self.context
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("text overlay encoder"),
+        let items = collect_global_transparent_items(frames);
+        if items.is_empty() {
+            return;
+        }
+        let offsets = frame_buffer_offsets(frames);
+        let mut active_frame: Option<usize> = None;
+
+        for GlobalTransparentItem {
+            frame_idx,
+            item,
+            ..
+        } in items
+        {
+            let frame = &frames[frame_idx];
+            let off = offsets[frame_idx];
+
+            if active_frame != Some(frame_idx) {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: color_view,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.context.depthbuffer,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                    }),
+                    occlusion_query_set: None,
+                    timestamp_writes: None,
+                    multiview_mask: None,
+                    label: Some("transparent stencil setup"),
                 });
-        let mut num_frames = 0;
-        let mut num_texts = 0;
-        for frame_renderables in frames.iter() {
+                pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+                if !frame.frame.is_empty() {
+                    self.stencil_pipeline
+                        .render(&frame.frame, &mut pass, off.frames, false);
+                }
+                active_frame = Some(frame_idx);
+            }
+
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view,
+                    view: color_view,
                     depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
@@ -587,42 +707,63 @@ impl WGPURenderer {
                         store: wgpu::StoreOp::Store,
                     }),
                     stencil_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(0),
+                        load: wgpu::LoadOp::Load,
                         store: wgpu::StoreOp::Store,
                     }),
                 }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
                 multiview_mask: None,
-                label: Some("text overlay pass"),
+                label: Some("transparent item pass"),
             });
             pass.set_bind_group(0, &self.uniform_bind_group, &[]);
+            pass.set_stencil_reference(frame.frame.len() as u32);
 
-            if !frame_renderables.frame.is_empty() {
-                self.stencil_pipeline.render(
-                    &frame_renderables.frame,
-                    &mut pass,
-                    num_frames,
-                    false,
-                );
+            let rect_base = off.rects + frame.opaque_rects.len();
+            let shape_base = off.shapes + frame.num_opaque_shape_instances;
+
+            match item {
+                TransparentItem::Rect(i) => {
+                    self.rect_pipeline.render(
+                        &frame.translucent_rects[i..i + 1],
+                        &mut pass,
+                        rect_base + i,
+                        false,
+                        true,
+                    );
+                }
+                TransparentItem::Shape(i) => {
+                    let inst = shape_base + frame.translucent_shape_instance_offset(i);
+                    self.shape_pipeline.render(
+                        &frame.translucent_shapes[i..i + 1],
+                        &mut pass,
+                        &mut caches.shape_buffer,
+                        inst,
+                        false,
+                        true,
+                    );
+                }
+                TransparentItem::Raster(i) => {
+                    self.raster_pipeline.render(
+                        &frame.rasters[i..i + 1],
+                        &mut pass,
+                        &mut caches.raster,
+                        &mut caches.image_buffer,
+                        off.rasters + i,
+                    );
+                }
+                TransparentItem::Text(i) => {
+                    self.text_pipeline.render(
+                        &frame.texts[i..i + 1],
+                        &mut pass,
+                        &self.context.device,
+                        &mut caches.text_buffer,
+                        off.texts + i,
+                        false,
+                    );
+                }
             }
-            pass.set_stencil_reference(frame_renderables.frame.len() as u32);
-
-            if !frame_renderables.texts.is_empty() {
-                self.text_pipeline.render(
-                    &frame_renderables.texts,
-                    &mut pass,
-                    &self.context.device,
-                    &mut caches.text_buffer,
-                    num_texts,
-                    false,
-                );
-            }
-
-            num_frames += frame_renderables.frame.len();
-            num_texts += frame_renderables.texts.len();
         }
-        command_buffers.push(encoder.finish());
     }
 
     fn do_resize(&mut self, size: PixelSize) -> bool {

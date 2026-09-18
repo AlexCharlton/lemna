@@ -3,7 +3,7 @@ use wgpu;
 use wgpu::util::DeviceExt; // Used for device.create_buffer_init
 
 use super::buffer_cache::BufferCache;
-use super::shared::{VBDesc, create_pipeline};
+use super::shared::{VBDesc, create_pipeline, create_pipeline_with_depth_write};
 use crate::base_types::{Pos, Rect};
 use crate::font_cache::FontCache;
 use crate::log_info;
@@ -47,6 +47,8 @@ impl GlyphCache {
 
 pub struct TextPipeline {
     pipeline: wgpu::RenderPipeline,
+    /// No depth writes — text always goes through the transparent pass.
+    translucent_pipeline: wgpu::RenderPipeline,
     msaa_pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
@@ -160,7 +162,8 @@ impl TextPipeline {
             pass.set_pipeline(if msaa {
                 &self.msaa_pipeline
             } else {
-                &self.pipeline
+                // Text is always transparent: never write depth.
+                &self.translucent_pipeline
             });
 
             pass.set_bind_group(1, &self.bind_group, &[]);
@@ -453,6 +456,21 @@ impl TextPipeline {
                 },
                 false,
                 wgpu::ColorWrites::ALL,
+            ),
+            translucent_pipeline: create_pipeline_with_depth_write(
+                context,
+                layout,
+                &fs_module,
+                wgpu::PrimitiveTopology::TriangleList,
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
+                },
+                false,
+                wgpu::ColorWrites::ALL,
+                false,
             ),
             msaa_pipeline: create_pipeline(
                 context,

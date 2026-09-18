@@ -2,7 +2,7 @@ use bytemuck::cast_slice;
 use wgpu;
 
 use super::buffer_cache::BufferCache;
-use super::shared::{VBDesc, create_pipeline, create_pipeline_premul};
+use super::shared::{VBDesc, create_pipeline, create_pipeline_premul, create_pipeline_with_depth_write};
 use crate::base_types::Rect;
 use crate::log_info;
 use crate::render::gpu_render::{
@@ -14,6 +14,8 @@ use crate::render::next_power_of_2;
 
 pub struct ShapePipeline {
     pipeline: wgpu::RenderPipeline,
+    /// No depth writes — used in the transparent pass.
+    translucent_pipeline: wgpu::RenderPipeline,
     msaa_pipeline: wgpu::RenderPipeline,
     pub(crate) buffer_cache: BufferCache<Vertex, u16>,
     instance_data: Vec<Instance>,
@@ -28,6 +30,9 @@ impl ShapePipeline {
         pass: &'b mut wgpu::RenderPass<'a>,
         renderable_buffer_cache: &'a gpu_render::BufferCache<Vertex, u16>,
         msaa: bool,
+        // When true, draw strokes even if `antialiased_shapes` would normally
+        // defer them to the MSAA pass (used for translucent shapes).
+        force_strokes: bool,
         instance_offset: usize,
     ) {
         let mut i = 0;
@@ -58,8 +63,9 @@ impl ShapePipeline {
                 i += 1;
             }
             if renderable.is_stroked() {
-                // Don't draw stroked lines unless doing the MSAA pass
-                if msaa || !cfg!(feature = "antialiased_shapes") {
+                // Don't draw stroked lines unless doing the MSAA pass, unless
+                // forced (transparent pass draws the full shape).
+                if msaa || force_strokes || !cfg!(feature = "antialiased_shapes") {
                     let instances = if renderable.is_filled() { 1..2 } else { 0..1 };
                     pass.draw_indexed(renderable.stroke_range.clone(), 0, instances);
                 }
@@ -123,9 +129,12 @@ impl ShapePipeline {
         renderable_buffer_cache: &'a mut gpu_render::BufferCache<Vertex, u16>,
         instance_offset: usize,
         msaa: bool,
+        translucent: bool,
     ) {
         pass.set_pipeline(if msaa {
             &self.msaa_pipeline
+        } else if translucent {
+            &self.translucent_pipeline
         } else {
             &self.pipeline
         });
@@ -134,6 +143,7 @@ impl ShapePipeline {
             pass,
             renderable_buffer_cache,
             msaa,
+            translucent,
             instance_offset,
         );
     }
@@ -185,6 +195,21 @@ impl ShapePipeline {
                 },
                 false,
                 wgpu::ColorWrites::ALL,
+            ),
+            translucent_pipeline: create_pipeline_with_depth_write(
+                context,
+                layout,
+                &fs_module,
+                wgpu::PrimitiveTopology::TriangleList,
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
+                },
+                false,
+                wgpu::ColorWrites::ALL,
+                false,
             ),
             msaa_pipeline: create_pipeline_premul(
                 context,

@@ -1,7 +1,7 @@
 use bytemuck::cast_slice;
 use wgpu::{self, util::DeviceExt};
 
-use super::shared::{VBDesc, create_pipeline};
+use super::shared::{VBDesc, create_pipeline, create_pipeline_with_depth_write};
 use crate::base_types::Rect;
 use crate::log_info;
 use crate::render::gpu_render::{
@@ -12,6 +12,9 @@ use crate::render::next_power_of_2;
 
 pub struct RectPipeline {
     pipeline: wgpu::RenderPipeline,
+    /// Same as `pipeline` but does not write depth, for translucent rects that
+    /// must blend over content drawn later in a different type batch.
+    translucent_pipeline: wgpu::RenderPipeline,
     msaa_pipeline: wgpu::RenderPipeline,
     vertex_buff: wgpu::Buffer,
     index_buff: wgpu::Buffer,
@@ -59,9 +62,12 @@ impl RectPipeline {
         pass: &'b mut wgpu::RenderPass<'a>,
         instance_offset: usize,
         msaa: bool,
+        translucent: bool,
     ) {
         pass.set_pipeline(if msaa {
             &self.msaa_pipeline
+        } else if translucent {
+            &self.translucent_pipeline
         } else {
             &self.pipeline
         });
@@ -149,6 +155,21 @@ impl RectPipeline {
                 },
                 false,
                 wgpu::ColorWrites::ALL,
+            ),
+            translucent_pipeline: create_pipeline_with_depth_write(
+                context,
+                layout,
+                &fs_module,
+                wgpu::PrimitiveTopology::TriangleList,
+                wgpu::VertexState {
+                    module: &vs_module,
+                    entry_point: Some("main"),
+                    compilation_options: Default::default(),
+                    buffers: &[Some(Vertex::desc()), Some(Instance::desc())],
+                },
+                false,
+                wgpu::ColorWrites::ALL,
+                false,
             ),
             msaa_pipeline: create_pipeline(
                 context,

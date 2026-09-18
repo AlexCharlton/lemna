@@ -228,4 +228,15 @@ impl Shape {
     pub(crate) fn z(&self) -> f32 {
         self.z
     }
+
+    /// True when every drawn fill/stroke is fully opaque.
+    pub(crate) fn is_opaque(&self) -> bool {
+        let fill_ok = !self.is_filled() || self.fill_color.a >= 1.0;
+        let stroke_ok = !self.is_stroked() || self.stroke_color.a >= 1.0;
+        fill_ok && stroke_ok
+    }
+
+    pub(crate) fn num_instances(&self) -> usize {
+        self.is_filled() as usize + self.is_stroked() as usize
+    }
 }
