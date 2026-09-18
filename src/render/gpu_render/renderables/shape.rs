@@ -176,7 +176,7 @@ impl Shape {
             buffer_cache.alloc_or_reuse_chunk(c, geometry.vertices.len(), geometry.indices.len())
         } else {
             assert!(
-                geometry.vertices.len() + geometry.indices.len() != 0,
+                geometry.vertices.len() > 0 && geometry.indices.len() > 0,
                 "Cannot create an empty shape"
             );
             buffer_cache.alloc_chunk(geometry.vertices.len(), geometry.indices.len())
