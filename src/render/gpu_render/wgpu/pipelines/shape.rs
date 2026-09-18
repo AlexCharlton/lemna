@@ -2,7 +2,9 @@ use bytemuck::cast_slice;
 use wgpu;
 
 use super::buffer_cache::BufferCache;
-use super::shared::{VBDesc, create_pipeline, create_pipeline_premul, create_pipeline_with_depth_write};
+use super::shared::{
+    VBDesc, create_pipeline, create_pipeline_premul, create_pipeline_with_depth_write,
+};
 use crate::base_types::Rect;
 use crate::log_info;
 use crate::render::gpu_render::{

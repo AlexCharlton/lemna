@@ -647,9 +647,7 @@ impl WGPURenderer {
         let mut active_frame: Option<usize> = None;
 
         for GlobalTransparentItem {
-            frame_idx,
-            item,
-            ..
+            frame_idx, item, ..
         } in items
         {
             let frame = &frames[frame_idx];
