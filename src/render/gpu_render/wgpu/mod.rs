@@ -1005,8 +1005,8 @@ impl WGPURenderer {
                             &frame.rasters,
                             &indices,
                             &mut pass,
-                            &mut caches.raster,
-                            &mut caches.image_buffer,
+                            &caches.raster,
+                            &caches.image_buffer,
                             |i| off.rasters + i,
                         );
                     }
