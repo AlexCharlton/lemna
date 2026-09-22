@@ -124,32 +124,6 @@ impl ShapePipeline {
         queue.write_buffer(&self.instance_buffer, 0, cast_slice(&self.instance_data));
     }
 
-    pub fn render<'a: 'b, 'b>(
-        &'a mut self,
-        renderables: &[(&'a Shape, &'a Rect)],
-        pass: &'b mut wgpu::RenderPass<'a>,
-        renderable_buffer_cache: &'a mut gpu_render::BufferCache<Vertex, u16>,
-        instance_offset: usize,
-        msaa: bool,
-        translucent: bool,
-    ) {
-        pass.set_pipeline(if msaa {
-            &self.msaa_pipeline
-        } else if translucent {
-            &self.translucent_pipeline
-        } else {
-            &self.pipeline
-        });
-        self.draw_renderables(
-            renderables,
-            pass,
-            renderable_buffer_cache,
-            msaa,
-            translucent,
-            instance_offset,
-        );
-    }
-
     /// Draw selected shapes from `all_shapes` in one pass (avoids re-borrowing the
     /// pipeline per shape). `instance_offset_for` maps a shape index to its
     /// instance-buffer base.
