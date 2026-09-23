@@ -108,12 +108,34 @@ impl super::node::Node {
         let available_size = available_size.max(self.resolved_layout.min_size);
         let bounds_less_padding = bounds_size.minus_bounds(&padding);
         let max_size = self.resolved_layout.max_size.maybe_resolve(&bounds_size);
+        // When main is resolved, use the full layout_result (including Auto axes measured
+        // from children). Before that, still pick up parent-assigned percent/fixed axes
+        // (e.g. percent − margin) so children are not laid out against a larger size than
+        // this node will actually have — but leave Auto axes as Auto so we do not lock in
+        // a first-pass measurement when resolving wrap/pct descendants.
         let size = if self.layout_result.main_resolved {
             self.resolved_layout
                 .size
                 .most_specific(&self.layout_result.size)
         } else {
-            self.resolved_layout.size
+            Size {
+                width: if self.resolved_layout.size.width.is_auto() {
+                    Dimension::Auto
+                } else {
+                    self.resolved_layout
+                        .size
+                        .width
+                        .most_specific(&self.layout_result.size.width)
+                },
+                height: if self.resolved_layout.size.height.is_auto() {
+                    Dimension::Auto
+                } else {
+                    self.resolved_layout
+                        .size
+                        .height
+                        .most_specific(&self.layout_result.size.height)
+                },
+            }
         }
         .max(self.resolved_layout.min_size);
 
@@ -2684,6 +2706,30 @@ mod tests {
         assert_eq!(padded.layout_result.size, size!(240.0, 260.0));
         assert_eq!(padded.layout_result.position.left, px!(20.0));
         assert_eq!(padded.layout_result.position.top, px!(10.0));
+    }
+
+    #[test]
+    fn test_percent_with_margin_does_not_overflow_auto_descendants() {
+        let mut nodes = node!(Div::new(), [size: [200.0]]).push(
+            node!(
+                Div::new(),
+                // left margin 2 → content width 100 − 2 = 98
+                [size_pct: [50.0, Auto], margin: [0.0, 2.0, 0.0, 0.0], debug: "pct"]
+            )
+            .push(node!(FillBoundser::new_size(10_000.0), [debug: "auto"])),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+
+        let pct = &nodes.children[0];
+        assert_eq!(pct.layout_result.size.width, px!(98.0));
+
+        let auto = &pct.children[0];
+        let auto_w = f64::from(auto.layout_result.size.width);
+        let pct_w = f64::from(pct.layout_result.size.width);
+        assert!(
+            auto_w <= pct_w,
+            "auto child width ({auto_w}) must not exceed percent parent ({pct_w})"
+        );
     }
 
     #[test]
