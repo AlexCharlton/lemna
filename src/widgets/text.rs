@@ -129,7 +129,7 @@ impl Component for Text {
         );
         let output = if let Some(last_glyph) = glyphs.last() {
             // Unless there is only one row, use the max width
-            let local_w = if last_glyph.y <= line_height || wrapping_max.is_none() {
+            let local_w = if last_glyph.y <= line_height.ceil() || wrapping_max.is_none() {
                 // Only one row
 
                 // Add the advance width to the x position of the last glyph. This ensures that the last glyph will not be wrapped
