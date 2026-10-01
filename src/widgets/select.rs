@@ -134,7 +134,7 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Sen
                 }
             }
             Some(SelectMessage::Hover(i)) => self.state_mut().hovering = *i,
-            _ => panic!(),
+            None => m.push(message),
         }
         m
     }
@@ -179,7 +179,13 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + core::fmt::Display + Sen
         }
     }
 
-    fn on_blur(&mut self, _event: &mut event::Event<event::Blur>) {
+    fn on_blur(&mut self, event: &mut event::Event<event::Blur>) {
+        if let Some(node_id) = event.current_node_id
+            && event.stack.contains(&node_id)
+        {
+            // The blur is due to the selectentry being focused, so don't close the menu
+            return;
+        }
         self.state_mut().open = false;
     }
 }
@@ -322,8 +328,8 @@ impl Component for Caret {
 //
 // MARK: SelectList
 // Visible after opening: The full selection list
-#[derive(Debug)]
 #[component(Styled = "Select", Internal)]
+#[derive(Debug)]
 struct SelectList<M>
 where
     M: Send + Sync,
@@ -350,15 +356,17 @@ impl<M: 'static + core::fmt::Debug + Clone + ToString + Send + Sync> Component f
             [direction: Column, cross_alignment: Stretch,]
         );
         for (i, s) in self.selections.iter().enumerate() {
+            let selected = i == self.hovering;
             l = l.push(
                 node!(SelectEntry {
                     selection: s.clone(),
                     id: i,
-                    selected: i == self.hovering,
+                    selected,
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                 })
-                .key(i as u32),
+                .key(i as u32)
+                .do_focus(selected),
             );
         }
         Some(l)
