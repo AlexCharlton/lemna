@@ -905,6 +905,17 @@ impl super::node::Node {
         if !self.resolved_layout.size.height.resolved() {
             size.height = size.height.max(min_size.height);
         }
+
+        if self.layout_result.main_layout_type == LayoutType::Flex
+            && children_size.main(self.layout_result.direction).resolved()
+            && !self.scrollable_on_axis(self.layout_result.direction)
+        {
+            // The main size should be at least the size of the children for flex layout
+            *size.main_mut(self.layout_result.direction) = size
+                .main(self.layout_result.direction)
+                .max(children_size.main(self.layout_result.direction));
+        }
+
         size = size.min(self.resolved_layout.max_size);
 
         self.layout_result.size = size;
@@ -926,6 +937,13 @@ impl super::node::Node {
                 width: inner_width.into(),
                 height: inner_height.into(),
             });
+        }
+    }
+
+    fn scrollable_on_axis(&self, axis: Direction) -> bool {
+        match axis {
+            Direction::Row => self.scroll_x().is_some(),
+            Direction::Column => self.scroll_y().is_some(),
         }
     }
 
@@ -986,8 +1004,7 @@ impl super::node::Node {
                     .iter()
                     .all(|child| child.layout_result.main_resolved) && !self.children.is_empty())
                 // Child nodes being resolved doesn't mean anything if the parent is scrollable on that axis
-                && !(self.resolved_layout.direction.unwrap() == Direction::Column && self.scroll_y().is_some() && self.layout_result.main_layout_type == LayoutType::Auto)
-                && !(self.resolved_layout.direction.unwrap() == Direction::Row && self.scroll_x().is_some() && self.layout_result.main_layout_type == LayoutType::Auto))
+                && !(self.scrollable_on_axis(self.resolved_layout.direction.unwrap()) && self.layout_result.main_layout_type == LayoutType::Auto))
             && !self.resolved_layout.wrap
         {
             self.layout_result.main_resolved = true;
@@ -2064,6 +2081,91 @@ mod tests {
         assert_eq!(remaining.layout_result.size, size!(300.0, 200.0));
         assert_eq!(remaining.layout_result.position.top, px!(200.0));
         assert_eq!(remaining.layout_result.position.left, px!(0.0));
+    }
+
+    /// A flex-grown child whose content is taller than its flex share should expand to
+    /// fit that content (unless it scrolls on the main axis). Flex share is a floor for
+    /// distributing extra space, not a hard cap below content size.
+    #[test]
+    fn test_flex_grow_floors_at_content_size() {
+        // Root 200px. Two equal flex_grow children → 100px share each.
+        // `grow_content` has a fixed 150px child, so it must become 150px, not stay at 100.
+        // `grow_empty` keeps its 100px flex share.
+        let mut nodes = node!(
+            Div::new(),
+            [
+                size: [300.0, 200.0],
+                direction: Direction::Column,
+                axis_alignment: Alignment::Stretch,
+                debug: "root"
+            ]
+        )
+        .push(node!(
+            Div::new(),
+            [size_pct: [100.0, Auto], flex_grow: 1.0, debug: "grow_empty"]
+        ))
+        .push(
+            node!(
+                Div::new(),
+                [size_pct: [100.0, Auto], flex_grow: 1.0, debug: "grow_content"]
+            )
+            .push(node!(
+                FillBoundser::new(),
+                [size: [100.0, 150.0], debug: "tall_child"]
+            )),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+
+        assert_eq!(nodes.layout_result.size, size!(300.0, 200.0));
+
+        let grow_empty = &nodes.children[0];
+        assert_eq!(grow_empty.layout_result.size, size!(300.0, 100.0));
+        assert_eq!(grow_empty.layout_result.position.top, px!(0.0));
+
+        let grow_content = &nodes.children[1];
+        assert_eq!(
+            grow_content.layout_result.size,
+            size!(300.0, 150.0),
+            "flex-grown node should be at least as tall as its content"
+        );
+        assert_eq!(grow_content.layout_result.position.top, px!(100.0));
+        assert_eq!(
+            grow_content.children[0].layout_result.size,
+            size!(100.0, 150.0)
+        );
+
+        // Scrollable on the main axis: keep the flex share; content overflows via scroll.
+        let mut scrollable = node!(
+            Div::new(),
+            [
+                size: [300.0, 200.0],
+                direction: Direction::Column,
+                axis_alignment: Alignment::Stretch,
+                debug: "scroll_root"
+            ]
+        )
+        .push(node!(
+            Div::new(),
+            [size_pct: [100.0, Auto], flex_grow: 1.0, debug: "scroll_empty"]
+        ))
+        .push(
+            node!(
+                Div::new().scroll_y(),
+                [size_pct: [100.0, Auto], flex_grow: 1.0, debug: "scroll_content"]
+            )
+            .push(node!(
+                FillBoundser::new(),
+                [size: [100.0, 150.0], debug: "scroll_tall_child"]
+            )),
+        );
+        scrollable.calculate_layout(&Caches::default(), 1.0);
+
+        let scroll_content = &scrollable.children[1];
+        assert_eq!(
+            scroll_content.layout_result.size,
+            size!(300.0, 100.0),
+            "scrollable flex child should keep its flex share"
+        );
     }
 
     /// Analogous to [`crate::widgets::select`] dropdown list: `Column` + `cross_alignment: Stretch`
