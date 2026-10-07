@@ -52,6 +52,7 @@ pub struct TextBox {
     on_commit: Option<Box<dyn Fn(String) -> Message + Send + Sync>>,
     on_focus: Option<Box<dyn Fn() -> Message + Send + Sync>>,
     commit_on_blur: bool,
+    password: bool,
     limit: Option<usize>,
 }
 
@@ -69,6 +70,7 @@ impl TextBox {
             on_commit: None,
             on_focus: None,
             commit_on_blur: false,
+            password: false,
             state: Some(TextBoxState::default()),
             dirty: crate::Dirty::No,
             class: Default::default(),
@@ -101,6 +103,12 @@ impl TextBox {
         self.commit_on_blur = true;
         self
     }
+
+    /// Mask displayed characters as bullets. The underlying value is unchanged.
+    pub fn password(mut self) -> Self {
+        self.password = true;
+        self
+    }
 }
 
 #[state_component_impl(TextBoxState, Internal)]
@@ -125,6 +133,7 @@ impl Component for TextBox {
                     default_text: self.text.clone().unwrap_or_default(),
                     limit: self.limit,
                     commit_on_blur: self.commit_on_blur,
+                    password: self.password,
                     style_overrides: self.style_overrides.clone(),
                     class: self.class,
                     state: None,
@@ -307,9 +316,20 @@ pub struct TextBoxText {
     pub default_text: String,
     pub limit: Option<usize>,
     pub commit_on_blur: bool,
+    pub password: bool,
 }
 
 impl TextBoxText {
+    fn display_text(&self) -> String {
+        let text = &self.state_ref().text;
+        if self.password {
+            // One bullet per byte so glyph indices stay aligned with cursor_pos.
+            "\u{2022}".repeat(text.len())
+        } else {
+            text.clone()
+        }
+    }
+
     fn reset_state(&mut self) {
         let mut text = self.default_text.clone();
         let text_len = text.len();
@@ -514,6 +534,7 @@ impl Component for TextBoxText {
 
     fn props_hash(&self, hasher: &mut ComponentHasher) {
         self.default_text.hash(hasher);
+        self.password.hash(hasher);
     }
 
     fn new_props(&mut self) {
@@ -813,7 +834,7 @@ impl Component for TextBoxText {
             let font = self.style_val("font").map(|p| p.str().to_string());
             let (glyphs, _, _) = caches.layout_text(
                 &[TextSegment {
-                    text: alloc::borrow::Cow::Owned(self.state_ref().text.clone()),
+                    text: alloc::borrow::Cow::Owned(self.display_text()),
                     size: font_size.into(),
                     font: font.clone(),
                 }],
