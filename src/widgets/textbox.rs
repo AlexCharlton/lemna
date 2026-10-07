@@ -435,7 +435,9 @@ impl TextBoxText {
             text
         };
 
-        if text_to_insert.is_empty() {
+        // Allow empty insert when there is a selection (e.g. cut) so the
+        // selection is removed; otherwise there's nothing to do.
+        if text_to_insert.is_empty() && self.selection().is_none() {
             return;
         }
 
