@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::cell::{Cell, RefCell};
 use std::sync::{Arc, OnceLock, RwLock};
+use std::time::Duration;
 
 #[cfg(windows)]
 fn sync_child_to_parent_client(window: &impl raw_window_handle::HasWindowHandle) {
@@ -122,6 +123,7 @@ pub struct Window {
     handle: RawWindowHandle,
     display_handle: RawDisplayHandle,
     drop_target_valid: Arc<RwLock<bool>>,
+    waker: baseview::WindowWaker,
 }
 
 unsafe impl Send for Window {}
@@ -144,12 +146,15 @@ impl Window {
         let drop_target_valid2 = drop_target_valid.clone();
         let settings = window_settings(Some(parent), &options);
         let window = baseview::Window::create(settings, move |window| {
+            // Drives Input::Timer / Tick
+            let _tick_timer = window.create_timer(Duration::from_millis(16))?;
             let scale_factor = window.scale_factor() as f32;
             set_window_size((options.width, options.height), scale_factor);
             let mut ui: UI<A> = UI::new(Self {
                 handle: window.window_handle().expect("window handle").as_raw(),
                 display_handle: window.display_handle().expect("display handle").as_raw(),
                 drop_target_valid,
+                waker: window.waker(),
             });
             for (name, data) in options.fonts.drain(..) {
                 if let Err(_e) = ui.add_font(name, data) {
@@ -180,12 +185,14 @@ impl Window {
         let drop_target_valid2 = drop_target_valid.clone();
         let settings = window_settings::<Window>(None, &options);
         let window = baseview::Window::create(settings, move |window| {
+            let _tick_timer = window.create_timer(Duration::from_millis(16))?;
             let scale_factor = window.scale_factor() as f32;
             set_window_size((options.width, options.height), scale_factor);
             let mut ui: UI<A> = UI::new(Self {
                 handle: window.window_handle().expect("window handle").as_raw(),
                 display_handle: window.display_handle().expect("display handle").as_raw(),
                 drop_target_valid,
+                waker: window.waker(),
             });
             for (name, data) in options.fonts.drain(..) {
                 if let Err(_e) = ui.add_font(name, data) {
@@ -243,12 +250,14 @@ fn physical_to_logical(x: f64, y: f64) -> (f32, f32) {
 
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
 impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for BaseViewUI<A> {
-    fn on_frame(&self) -> Result<(), baseview::HandlerError> {
+    fn poll(&self) {
+        let mut needs_draw = false;
         if let Some(receiver) = &self.parent_channel {
             while let Ok(message) = receiver.try_recv() {
                 match message {
                     ParentMessage::AppMessage(m) => {
                         self.ui.borrow_mut().update(m);
+                        needs_draw = true;
                     }
                     ParentMessage::Resize => {
                         let size = get_window_size();
@@ -262,11 +271,24 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 }
             }
         }
+        if needs_draw {
+            // Draw thread calls Window::redraw → request_redraw when dirty.
+            self.ui.borrow_mut().draw();
+        }
+    }
+
+    fn draw(&self) -> Result<(), baseview::HandlerError> {
         let mut ui = self.ui.borrow_mut();
-        ui.handle_input(&Input::Timer);
+        // Pump layout in case this is the initial paint (Dirty::Full from UI::new).
         ui.draw();
         ui.render();
         Ok(())
+    }
+
+    fn on_timer(&self, _timer: &baseview::TimerHandle) {
+        self.ui.borrow_mut().handle_input(&Input::Timer);
+        // Only schedules a frame if the tick dirtied the UI.
+        self.ui.borrow_mut().draw();
     }
 
     fn resized(&self, new_size: baseview::WindowSize) -> Result<(), baseview::HandlerError> {
@@ -277,6 +299,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
             ),
             new_size.scale_factor as f32,
         );
+        // Input::Resize marks dirty and calls Window::redraw.
         self.ui.borrow_mut().handle_input(&Input::Resize);
         Ok(())
     }
@@ -400,6 +423,8 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
             }
             _ => {}
         }
+        // Draw thread calls Window::redraw → request_redraw when the UI is dirty.
+        self.ui.borrow_mut().draw();
         clear_current_window();
         if drag_event && *self.drop_target_valid.read().unwrap() {
             baseview::EventStatus::AcceptDrop(baseview::DropEffect::Copy)
@@ -560,6 +585,10 @@ impl lemna::window::Window for Window {
 
     fn scale_factor(&self) -> f32 {
         get_window_size().scale_factor
+    }
+
+    fn redraw(&self) {
+        self.waker.request_redraw();
     }
 
     fn get_from_clipboard(&self) -> Option<Data> {

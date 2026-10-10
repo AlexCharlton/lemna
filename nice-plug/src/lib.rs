@@ -23,6 +23,8 @@ struct LemnaEditor<A: lemna::Component + Default + Send + Sync> {
     // Used to communicate with the baseview WindowHandler
     sender: Sender<ParentMessage>,
     receiver: Receiver<ParentMessage>,
+    /// Wakes the window so `poll` drains pending parent messages.
+    waker: Arc<RwLock<Option<baseview::WindowWaker>>>,
 }
 
 pub fn create_lemna_editor<A, B, P>(
@@ -45,7 +47,22 @@ where
         on_param_change: Arc::new(on_param_change),
         sender,
         receiver,
+        waker: Arc::new(RwLock::new(None)),
     }))
+}
+
+impl<A> LemnaEditor<A>
+where
+    A: 'static + lemna::Component + Default + Send + Sync,
+{
+    fn send_parent_messages(&self, messages: impl IntoIterator<Item = ParentMessage>) {
+        for message in messages {
+            self.sender.send(message).unwrap();
+        }
+        if let Some(waker) = self.waker.read().unwrap().as_ref() {
+            waker.request_poll();
+        }
+    }
 }
 
 impl<A> Editor for LemnaEditor<A>
@@ -74,7 +91,14 @@ where
             move |ui| (build)(context.clone(), ui),
             Some(self.receiver.clone()),
         );
-        Box::new(LemnaEditorHandle { _window: handle })
+        let waker = handle.waker();
+        *self.waker.write().unwrap() = Some(waker.clone());
+        // Drain the messages queued before the window existed.
+        waker.request_poll();
+        Box::new(LemnaEditorHandle {
+            _window: handle,
+            waker: self.waker.clone(),
+        })
     }
 
     fn size(&self) -> dpi::Size {
@@ -89,24 +113,37 @@ where
         true
     }
     fn param_value_changed(&self, _id: &str, _normalized_value: f32) {
-        for m in (self.on_param_change)().drain(..) {
-            self.sender.send(ParentMessage::AppMessage(m)).unwrap();
-        }
+        self.send_parent_messages(
+            (self.on_param_change)()
+                .into_iter()
+                .map(ParentMessage::AppMessage),
+        );
     }
     fn param_modulation_changed(&self, _id: &str, _modulation_offset: f32) {
-        for m in (self.on_param_change)().drain(..) {
-            self.sender.send(ParentMessage::AppMessage(m)).unwrap();
-        }
+        self.send_parent_messages(
+            (self.on_param_change)()
+                .into_iter()
+                .map(ParentMessage::AppMessage),
+        );
     }
     fn param_values_changed(&self) {
-        for m in (self.on_param_change)().drain(..) {
-            self.sender.send(ParentMessage::AppMessage(m)).unwrap();
-        }
+        self.send_parent_messages(
+            (self.on_param_change)()
+                .into_iter()
+                .map(ParentMessage::AppMessage),
+        );
     }
 }
 
 struct LemnaEditorHandle {
     _window: baseview::Window,
+    waker: Arc<RwLock<Option<baseview::WindowWaker>>>,
+}
+
+impl Drop for LemnaEditorHandle {
+    fn drop(&mut self) {
+        *self.waker.write().unwrap() = None;
+    }
 }
 
 unsafe impl Send for LemnaEditorHandle {}
