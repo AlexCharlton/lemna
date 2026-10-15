@@ -21,19 +21,11 @@ use pipelines::{
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct Globals {
-    pub viewport: cgmath::Matrix4<f32>,
+    pub viewport: glam::Mat4,
 }
 
 unsafe impl bytemuck::Pod for Globals {}
 unsafe impl bytemuck::Zeroable for Globals {}
-
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-);
 
 pub const MAX_DEPTH: f32 = 10000.0;
 
@@ -911,17 +903,16 @@ impl WGPURenderer {
                 .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: None,
                     contents: bytemuck::cast_slice(&[Globals {
-                        viewport: OPENGL_TO_WGPU_MATRIX
-                // Viewport is (0,0) at top left and (width, height) at bottom right
-                // Depth goes from 0 (far) to MAX_DEPTH (near)
-                    * cgmath::ortho(
-                        0.0,
-                        physical_size.width as f32,
-                        physical_size.height as f32,
-                        0.0,
-                        0.0,
-                        -MAX_DEPTH,
-                    ),
+                        // Viewport is (0,0) at top left and (width, height) at bottom right.
+                        // Depth goes from 0 (far) to MAX_DEPTH (near).
+                        viewport: glam::camera::rh::proj::directx::orthographic(
+                            0.0,
+                            physical_size.width as f32,
+                            physical_size.height as f32,
+                            0.0,
+                            0.0,
+                            -MAX_DEPTH,
+                        ),
                     }]),
                     usage: wgpu::BufferUsages::COPY_SRC,
                 });

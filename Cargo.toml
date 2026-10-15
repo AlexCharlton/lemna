@@ -33,7 +33,7 @@ std = [
     "kurbo/std",
     "raw-window-handle",
 ]
-wgpu_renderer = ["dep:wgpu", "shaders", "lyon", "std"]
+wgpu_renderer = ["dep:wgpu", "dep:glam", "shaders", "lyon", "std"]
 cpu_renderer = ["embedded-graphics", "tiny-skia"]
 # For std environments where we don't want to use wgpu
 std_cpu = ["cpu_renderer", "std", "softbuffer"]
@@ -64,7 +64,6 @@ optional = true
 lemna-macros = { workspace = true }
 ahash = { version = "0.8", default-features = false }
 bytemuck = { version = "1.4", features = ["derive"] }
-cgmath = "0.17.0"
 critical-section = { version = "1" }
 csscolorparser = { version = "0.8", default-features = false, features = [
     "named-colors",
@@ -72,10 +71,11 @@ csscolorparser = { version = "0.8", default-features = false, features = [
 embassy-futures = "0.1"
 embassy-sync = "0.7"
 embedded-graphics = { version = "0.8", optional = true }
-hashbrown = "0.16"
-indexmap = { version = "2.2", default-features = false }
 fontdue = { version = "0.9" }
 futures = "0.3.4"
+glam = { version = "0.34", optional = true }
+hashbrown = "0.16"
+indexmap = { version = "2.2", default-features = false }
 log = { version = "0.4", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 
