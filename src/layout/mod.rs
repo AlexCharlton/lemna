@@ -731,22 +731,21 @@ impl super::node::Node {
                     f64::from(child.layout_result.size.cross(dir)) + m_cross_start + m_cross_end;
 
                 if row_info.len() > 1 {
-                    if cross_align == Alignment::Center {
-                        // Block-center only; items stay at the cross-start of their line.
-                        *child
-                            .layout_result
-                            .position
-                            .cross_mut(dir, Alignment::Start) += Dimension::Px(cross_offset_block);
-                    } else if cross_align == Alignment::End {
-                        // Pack lines to the end, and end-align each item within its line.
-                        let outer_cross_start =
-                            row_cross_start + row_info[current_row].cross - child_outer_cross;
-                        *child
-                            .layout_result
-                            .position
-                            .cross_mut(dir, Alignment::Start) =
-                            Dimension::Px(outer_cross_start + m_cross_start);
-                    }
+                    // Align each item within its line (using the line's max cross size),
+                    // with lines as a group already shifted via `row_cross_start`.
+                    let line_cross = row_info[current_row].cross;
+                    let outer_cross_start = match cross_align {
+                        Alignment::Center => {
+                            row_cross_start + (line_cross - child_outer_cross) / 2.0
+                        }
+                        Alignment::End => row_cross_start + line_cross - child_outer_cross,
+                        _ => row_cross_start,
+                    };
+                    *child
+                        .layout_result
+                        .position
+                        .cross_mut(dir, Alignment::Start) =
+                        Dimension::Px(outer_cross_start + m_cross_start);
                 } else {
                     // Single flex line: align each item on the cross axis.
                     let outer_cross_start = match cross_align {
@@ -3147,7 +3146,7 @@ mod tests {
     fn test_center_wrapping_alignment() {
         let mut nodes = node!(
             Div::new(),
-            lay!(size: [415], // This is just small enough to force a wrap
+            lay!(size: [415], // This is small enough to force a wrap after the second child
                  direction: Row,
                  padding: [5], wrap: true,
                  axis_alignment: Center, cross_alignment: Center)
@@ -3167,11 +3166,65 @@ mod tests {
         nodes.calculate_layout(&Caches::default(), 1.0);
         assert_eq!(nodes.layout_result.size, size!(415.0));
         assert_eq!(nodes.children[0].layout_result.position.left, px!(56.5));
-        assert_eq!(nodes.children[0].layout_result.position.top, px!(56.5));
+        // Centered within the first line against the taller 200px sibling
+        assert_eq!(nodes.children[0].layout_result.position.top, px!(106.5));
         assert_eq!(nodes.children[1].layout_result.position.left, px!(158.5));
         assert_eq!(nodes.children[1].layout_result.position.top, px!(56.5));
         assert_eq!(nodes.children[2].layout_result.position.left, px!(157.5));
         assert_eq!(nodes.children[2].layout_result.position.top, px!(258.5));
+    }
+
+    #[test]
+    fn test_center_wrapping_cross_alignment() {
+        let mut nodes = node!(
+            Div::new(),
+            [
+                size: [415], // This is small enough to force a wrap after the second child
+                direction: Row,
+            ]
+        )
+        .push(
+            // Container node does not set its height, so it will be determined by the children
+            node!(Div::new(), [
+                    size_pct: [100, Auto],
+                    wrap: true,
+                    cross_alignment: Center,
+                    padding: [5],
+                    debug: "container"])
+            .push(node!(
+                Div::new(),
+                lay!(size: size!(100.0), margin: bounds!(1.0))
+            ))
+            .push(node!(
+                Div::new(),
+                lay!(size: size!(200.0), margin: bounds!(1.0))
+            ))
+            .push(node!(
+                Div::new(),
+                lay!(size: size!(200.0), margin: bounds!(1.0))
+            ))
+            .push(node!(
+                Div::new(),
+                lay!(size: size!(100.0), margin: bounds!(1.0))
+            )),
+        );
+        nodes.calculate_layout(&Caches::default(), 1.0);
+        assert_eq!(nodes.layout_result.size, size!(415.0));
+        let container = &nodes.children[0];
+        assert_eq!(container.children[0].layout_result.position.left, px!(6.0));
+        assert_eq!(container.children[0].layout_result.position.top, px!(56.0));
+        assert_eq!(
+            container.children[1].layout_result.position.left,
+            px!(108.0)
+        );
+        assert_eq!(container.children[1].layout_result.position.top, px!(6.0));
+        assert_eq!(container.children[2].layout_result.position.left, px!(6.0));
+        assert_eq!(container.children[2].layout_result.position.top, px!(208.0));
+        assert_eq!(
+            container.children[3].layout_result.position.left,
+            px!(208.0)
+        );
+        assert_eq!(container.children[3].layout_result.position.top, px!(258.0));
     }
 
     #[test]
