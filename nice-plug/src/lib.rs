@@ -192,7 +192,7 @@ where
 
         let waker = window.waker();
         *self.waker.write().unwrap() = Some(waker.clone());
-        let _ = waker.request_poll();
+        waker.request_poll();
 
         Ok(SpawnedEditor {
             handle: LemnaEditorHandle {
