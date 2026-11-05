@@ -103,12 +103,12 @@ version = "0.4"
 # path = "../external/baseview"
 
 [workspace.dependencies.nice-plug]
-version = "0.2"
+version = "0.4"
 # git = "https://codeberg.org/RustAudio/nice-plug.git"
 # path = "../external/nice-plug/crates/nice-plug"
 
 [workspace.dependencies.nice-plug-core]
-version = "0.2"
+version = "0.4"
 # git = "https://codeberg.org/RustAudio/nice-plug.git"
 # path = "../external/nice-plug/crates/nice-plug-core"
 

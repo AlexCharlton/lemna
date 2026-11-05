@@ -1,43 +1,7 @@
 use std::any::Any;
 use std::cell::{Cell, RefCell};
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::Duration;
-
-#[cfg(windows)]
-fn sync_child_to_parent_client(window: &impl raw_window_handle::HasWindowHandle) {
-    use raw_window_handle::RawWindowHandle;
-    use winapi::shared::windef::RECT;
-    use winapi::um::winuser::{GetClientRect, GetParent, HWND_TOP, SWP_SHOWWINDOW, SetWindowPos};
-
-    let Ok(handle) = window.window_handle() else {
-        return;
-    };
-    let RawWindowHandle::Win32(handle) = handle.as_raw() else {
-        return;
-    };
-    let hwnd = handle.hwnd.get() as winapi::shared::windef::HWND;
-    unsafe {
-        let parent = GetParent(hwnd);
-        if parent.is_null() {
-            return;
-        }
-        let mut rect = RECT {
-            left: 0,
-            top: 0,
-            right: 0,
-            bottom: 0,
-        };
-        if GetClientRect(parent, &mut rect) == 0 {
-            return;
-        }
-        let width = rect.right - rect.left;
-        let height = rect.bottom - rect.top;
-        if width <= 0 || height <= 0 {
-            return;
-        }
-        SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_SHOWWINDOW);
-    }
-}
 
 use arboard::{self, Clipboard};
 use baseview::MouseCursor;
@@ -57,7 +21,13 @@ const POINTS_PER_SCROLL_LINE: f32 = 32.0;
 
 #[derive(Debug)]
 pub enum ParentMessage {
+    /// Relayout using the window's current tracked size.
     Resize,
+    /// Update this window's tracked logical size/scale and relayout.
+    SetSize {
+        logical_size: (u32, u32),
+        scale_factor: f32,
+    },
     AppMessage(Message),
 }
 
@@ -66,6 +36,8 @@ struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
     window: baseview::WindowContext,
     parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
     drop_target_valid: Arc<RwLock<bool>>,
+    /// Per-window size; must not be process-global (multiple editors/instances).
+    size: Arc<RwLock<WindowSize>>,
     // For parented windows, we need to force the focus to the window when the user clicks on it
     needs_forced_focus: bool,
     focused: Cell<bool>,
@@ -77,33 +49,9 @@ struct WindowSize {
     scale_factor: f32,
 }
 
-impl Default for WindowSize {
-    fn default() -> Self {
-        WindowSize {
-            logical_size: (0, 0),
-            scale_factor: 1.0,
-        }
-    }
-}
-
-fn window_size() -> &'static RwLock<WindowSize> {
-    static WINDOW_SIZE: OnceLock<RwLock<WindowSize>> = OnceLock::new();
-    WINDOW_SIZE.get_or_init(|| RwLock::new(WindowSize::default()))
-}
-
-fn set_window_size(size: (u32, u32), scale_factor: f32) {
-    *window_size().write().unwrap() = WindowSize {
-        logical_size: size,
-        scale_factor,
-    };
-}
-
-fn get_window_size() -> WindowSize {
-    *window_size().read().unwrap()
-}
-
 fn window_settings<P: HasWindowHandle>(
     parent: Option<&P>,
+    wait_for_parent: bool,
     options: &WindowOptions,
 ) -> baseview::WindowSettings {
     let mut settings = baseview::WindowSettings::new()
@@ -112,11 +60,13 @@ fn window_settings<P: HasWindowHandle>(
             options.width as f64,
             options.height as f64,
         ))
-        .with_resizable(options.resizable);
+        .with_resizable(options.resizable)
+        .with_wait_for_parent(wait_for_parent)
+        .with_fallback_scale_factor(options.fallback_scale_factor);
     if let Some(parent) = parent {
         settings = settings.with_parent(Some(parent));
     }
-    settings.with_fallback_scale_factor(options.fallback_scale_factor)
+    settings
 }
 
 pub struct Window {
@@ -124,16 +74,99 @@ pub struct Window {
     display_handle: RawDisplayHandle,
     drop_target_valid: Arc<RwLock<bool>>,
     waker: baseview::WindowWaker,
+    size: Arc<RwLock<WindowSize>>,
 }
 
 unsafe impl Send for Window {}
 unsafe impl Sync for Window {}
 
 impl Window {
+    /// Create a window without showing it. Used by plugin hosts that call `show` themselves.
+    pub fn create<P, A, B>(
+        parent: Option<&P>,
+        wait_for_parent: bool,
+        host: Option<baseview::host::Host>,
+        mut options: WindowOptions,
+        build: B,
+        parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
+    ) -> Result<baseview::Window, baseview::Error>
+    where
+        P: HasWindowHandle,
+        A: 'static + Component + Default + Send + Sync,
+        B: Fn(&mut UI<A>) + 'static + Send,
+    {
+        let drop_target_valid = Arc::new(RwLock::new(true));
+        let drop_target_valid2 = drop_target_valid.clone();
+        let needs_forced_focus = parent.is_some() || wait_for_parent;
+        let settings = window_settings(parent, wait_for_parent, &options);
+        tracing::debug!(
+            target: "lemna_baseview",
+            title = %options.title,
+            logical = ?(options.width, options.height),
+            has_parent = parent.is_some(),
+            wait_for_parent,
+            fallback_scale = ?options.fallback_scale_factor,
+            "Window::create"
+        );
+        baseview::Window::create_with_host(
+            settings,
+            move |window| {
+                // Drives Input::Timer / Tick
+                let _tick_timer = window.create_timer(Duration::from_millis(16))?;
+                let window_size = window.size();
+                // Prefer the window's own scale, but if the host supplied a fallback and
+                // the window still reports 1.0 (common with wait_for_parent before DPI
+                // settles), keep the fallback for rendering/layout.
+                let scale_factor = match options.fallback_scale_factor {
+                    Some(fallback) if window_size.scale_factor <= 1.0 + f64::EPSILON => {
+                        fallback as f32
+                    }
+                    _ => window_size.scale_factor as f32,
+                };
+                tracing::debug!(
+                    target: "lemna_baseview",
+                    reported_scale = window_size.scale_factor,
+                    used_scale = scale_factor,
+                    fallback_scale = ?options.fallback_scale_factor,
+                    window_physical = ?(window_size.physical.width, window_size.physical.height),
+                    "Window handler init"
+                );
+                let size = Arc::new(RwLock::new(WindowSize {
+                    logical_size: (options.width, options.height),
+                    scale_factor,
+                }));
+                let mut ui: UI<A> = UI::new(Self {
+                    handle: window.window_handle().expect("window handle").as_raw(),
+                    display_handle: window.display_handle().expect("display handle").as_raw(),
+                    drop_target_valid,
+                    waker: window.waker(),
+                    size: size.clone(),
+                });
+                for (name, data) in options.fonts.drain(..) {
+                    if let Err(_e) = ui.add_font(name, data) {
+                        log_error!("Failed to add font: {}", _e);
+                    }
+                }
+                build(&mut ui);
+
+                Ok(BaseViewUI {
+                    ui: RefCell::new(ui),
+                    window,
+                    parent_channel,
+                    drop_target_valid: drop_target_valid2,
+                    size,
+                    needs_forced_focus,
+                    focused: Cell::new(false),
+                })
+            },
+            host,
+        )
+    }
+
     /// Open as a child of another window. `options.resizable` will not do anything.
     pub fn open_parented<P, A, B>(
         parent: &P,
-        mut options: WindowOptions,
+        options: WindowOptions,
         build: B,
         parent_channel: Option<crossbeam_channel::Receiver<ParentMessage>>,
     ) -> baseview::Window
@@ -142,74 +175,19 @@ impl Window {
         A: 'static + Component + Default + Send + Sync,
         B: Fn(&mut UI<A>) + 'static + Send,
     {
-        let drop_target_valid = Arc::new(RwLock::new(true));
-        let drop_target_valid2 = drop_target_valid.clone();
-        let settings = window_settings(Some(parent), &options);
-        let window = baseview::Window::create(settings, move |window| {
-            // Drives Input::Timer / Tick
-            let _tick_timer = window.create_timer(Duration::from_millis(16))?;
-            let scale_factor = window.scale_factor() as f32;
-            set_window_size((options.width, options.height), scale_factor);
-            let mut ui: UI<A> = UI::new(Self {
-                handle: window.window_handle().expect("window handle").as_raw(),
-                display_handle: window.display_handle().expect("display handle").as_raw(),
-                drop_target_valid,
-                waker: window.waker(),
-            });
-            for (name, data) in options.fonts.drain(..) {
-                if let Err(_e) = ui.add_font(name, data) {
-                    log_error!("Failed to add font: {}", _e);
-                }
-            }
-            build(&mut ui);
-
-            Ok(BaseViewUI {
-                ui: RefCell::new(ui),
-                window,
-                parent_channel,
-                drop_target_valid: drop_target_valid2,
-                needs_forced_focus: true,
-                focused: Cell::new(false),
-            })
-        })
-        .expect("failed to create window");
+        let window =
+            Self::create::<P, A, B>(Some(parent), false, None, options, build, parent_channel)
+                .expect("failed to create window");
         window.show().expect("failed to show window");
         window
     }
 
-    pub fn open_blocking<A>(mut options: WindowOptions)
+    pub fn open_blocking<A>(options: WindowOptions)
     where
         A: 'static + Component + Default + Send + Sync,
     {
-        let drop_target_valid = Arc::new(RwLock::new(true));
-        let drop_target_valid2 = drop_target_valid.clone();
-        let settings = window_settings::<Window>(None, &options);
-        let window = baseview::Window::create(settings, move |window| {
-            let _tick_timer = window.create_timer(Duration::from_millis(16))?;
-            let scale_factor = window.scale_factor() as f32;
-            set_window_size((options.width, options.height), scale_factor);
-            let mut ui: UI<A> = UI::new(Self {
-                handle: window.window_handle().expect("window handle").as_raw(),
-                display_handle: window.display_handle().expect("display handle").as_raw(),
-                drop_target_valid,
-                waker: window.waker(),
-            });
-            for (name, data) in options.fonts.drain(..) {
-                if let Err(_e) = ui.add_font(name, data) {
-                    log_error!("Failed to add font: {}", _e);
-                }
-            }
-
-            Ok(BaseViewUI {
-                ui: RefCell::new(ui),
-                window,
-                parent_channel: None,
-                drop_target_valid: drop_target_valid2,
-                needs_forced_focus: false,
-                focused: Cell::new(false),
-            })
-        })
-        .expect("failed to create window");
+        let window = Self::create::<Self, A, _>(None, false, None, options, |_| {}, None)
+            .expect("failed to create window");
         window.run_until_closed().expect("failed to run window");
     }
 }
@@ -243,8 +221,7 @@ fn set_current_window(window: baseview::WindowContext) {
     CURRENT_WINDOW.with(|r| *r.borrow_mut() = Some(window));
 }
 
-fn physical_to_logical(x: f64, y: f64) -> (f32, f32) {
-    let scale = get_window_size().scale_factor;
+fn physical_to_logical(x: f64, y: f64, scale: f32) -> (f32, f32) {
     ((x as f32) / scale, (y as f32) / scale)
 }
 
@@ -259,14 +236,23 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                         self.ui.borrow_mut().update(m);
                         needs_draw = true;
                     }
+                    ParentMessage::SetSize {
+                        logical_size,
+                        scale_factor,
+                    } => {
+                        *self.size.write().unwrap() = WindowSize {
+                            logical_size,
+                            scale_factor,
+                        };
+                        self.ui.borrow_mut().handle_input(&Input::Resize);
+                        needs_draw = true;
+                    }
                     ParentMessage::Resize => {
-                        let size = get_window_size();
-                        let _ = self.window.resize(LogicalSize::new(
-                            size.logical_size.0 as f64,
-                            size.logical_size.1 as f64,
-                        ));
-                        #[cfg(windows)]
-                        sync_child_to_parent_client(&self.window);
+                        // Relayout only. Forcing a resize / sync_child_to_parent here
+                        // races with host DPI (Ableton was clamping us to a stale
+                        // getSize from a different editor instance).
+                        self.ui.borrow_mut().handle_input(&Input::Resize);
+                        needs_draw = true;
                     }
                 }
             }
@@ -292,13 +278,13 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
     }
 
     fn resized(&self, new_size: baseview::WindowSize) -> Result<(), baseview::HandlerError> {
-        set_window_size(
-            (
+        *self.size.write().unwrap() = WindowSize {
+            logical_size: (
                 new_size.logical.width as u32,
                 new_size.logical.height as u32,
             ),
-            new_size.scale_factor as f32,
-        );
+            scale_factor: new_size.scale_factor as f32,
+        };
         // Input::Resize marks dirty and calls Window::redraw.
         self.ui.borrow_mut().handle_input(&Input::Resize);
         Ok(())
@@ -306,6 +292,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
 
     fn on_event(&self, event: baseview::Event) -> baseview::EventStatus {
         set_current_window(self.window.clone());
+        let scale = self.size.read().unwrap().scale_factor;
         let mut drag_event = false;
         let mut handled = true;
         match event {
@@ -327,7 +314,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 baseview::MouseEvent::DragEntered { position, data, .. } => {
                     drag_event = true;
                     *self.drop_target_valid.write().unwrap() = true;
-                    let (x, y) = physical_to_logical(position.x, position.y);
+                    let (x, y) = physical_to_logical(position.x, position.y, scale);
                     let mut ui = self.ui.borrow_mut();
                     handled &= ui.handle_input(&Input::Motion(Motion::Mouse { x, y }));
                     for data in drop_data_to_lemna(data) {
@@ -336,7 +323,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 }
                 baseview::MouseEvent::DragMoved { position, .. } => {
                     drag_event = true;
-                    let (x, y) = physical_to_logical(position.x, position.y);
+                    let (x, y) = physical_to_logical(position.x, position.y, scale);
                     let mut ui = self.ui.borrow_mut();
                     handled &= ui.handle_input(&Input::Motion(Motion::Mouse { x, y }));
                     handled &= ui.handle_input(&Input::Drag(Drag::Dragging));
@@ -347,7 +334,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                 }
                 baseview::MouseEvent::DragDropped { position, data, .. } => {
                     drag_event = true;
-                    let (x, y) = physical_to_logical(position.x, position.y);
+                    let (x, y) = physical_to_logical(position.x, position.y, scale);
                     let mut ui = self.ui.borrow_mut();
                     handled &= ui.handle_input(&Input::Motion(Motion::Mouse { x, y }));
                     if let Some(data) = drop_data_to_lemna(data).into_iter().next() {
@@ -361,7 +348,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                     if self.needs_forced_focus && !self.focused.get() {
                         let _ = self.window.focus();
                     }
-                    let (x, y) = physical_to_logical(position.x, position.y);
+                    let (x, y) = physical_to_logical(position.x, position.y, scale);
                     handled &= self
                         .ui
                         .borrow_mut()
@@ -568,7 +555,7 @@ fn translate_mouse_button(button: &baseview::MouseButton) -> Option<Button> {
 
 impl lemna::window::Window for Window {
     fn logical_size(&self) -> PixelSize {
-        let size = get_window_size();
+        let size = self.size.read().unwrap();
         PixelSize {
             width: size.logical_size.0,
             height: size.logical_size.1,
@@ -576,7 +563,7 @@ impl lemna::window::Window for Window {
     }
 
     fn physical_size(&self) -> PixelSize {
-        let size = get_window_size();
+        let size = self.size.read().unwrap();
         PixelSize {
             width: ((size.logical_size.0 as f32) * size.scale_factor) as u32,
             height: ((size.logical_size.1 as f32) * size.scale_factor) as u32,
@@ -584,7 +571,7 @@ impl lemna::window::Window for Window {
     }
 
     fn scale_factor(&self) -> f32 {
-        get_window_size().scale_factor
+        self.size.read().unwrap().scale_factor
     }
 
     fn redraw(&self) {

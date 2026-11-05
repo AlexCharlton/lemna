@@ -70,6 +70,7 @@ impl Plugin for ParamsPlugin {
 
     type SysExMessage = ();
     type BackgroundTask = ();
+    type Editor = lemna_nice_plug::LemnaEditor<App>;
 
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
@@ -84,7 +85,7 @@ impl Plugin for ParamsPlugin {
         ProcessStatus::Normal
     }
 
-    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
+    fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Self::Editor> {
         let app_params = self.params.clone();
         lemna_nice_plug::create_lemna_editor::<App, _, _>(
             lemna_nice_plug::WindowOptions::new("Hello Lemna Params", (400, 300)),
