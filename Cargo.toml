@@ -98,8 +98,9 @@ lyon = "1.0"
 ttf-noto-sans = "0.1"
 
 [workspace.dependencies.baseview]
-version = "0.4"
-# git = "https://github.com/AlexCharlton/baseview.git"
+# version = "0.4"
+git = "https://github.com/AlexCharlton/baseview.git"
+branch = "fork"
 # path = "../external/baseview"
 
 [workspace.dependencies.nice-plug]
