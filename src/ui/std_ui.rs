@@ -262,11 +262,13 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     let mut caches = caches.write().unwrap();
 
                     #[cfg(feature = "wgpu_renderer")]
-                    renderer.write().unwrap().as_mut().unwrap().render(
+                    let presented = renderer.write().unwrap().as_mut().unwrap().render(
                         &node.read().unwrap(),
                         &mut caches,
                         size,
                     );
+                    #[cfg(not(feature = "wgpu_renderer"))]
+                    let presented = true;
 
                     #[cfg(feature = "std_cpu")]
                     draw_target.resize(size);
@@ -280,7 +282,10 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     #[cfg(feature = "std_cpu")]
                     draw_target.present();
 
-                    *frame_dirty.write().unwrap() = false;
+                    // Keep dirty on failed present (e.g. Metal Occluded) so we retry.
+                    if presented {
+                        *frame_dirty.write().unwrap() = false;
+                    }
                     inst_end();
                 }
             }
