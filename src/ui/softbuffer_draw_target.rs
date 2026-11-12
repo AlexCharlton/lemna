@@ -31,14 +31,14 @@ impl HasDisplayHandle for SoftBufferHandles {
     }
 }
 
-pub(crate) struct SoftBufferDrawTarget {
+pub struct SoftBufferDrawTarget {
     size: PixelSize,
     _context: softbuffer::Context<SoftBufferHandles>,
     surface: softbuffer::Surface<SoftBufferHandles, SoftBufferHandles>,
 }
 
 impl SoftBufferDrawTarget {
-    pub(crate) fn new<W: HasDisplayHandle + HasWindowHandle + ?Sized>(
+    pub fn new<W: HasDisplayHandle + HasWindowHandle + ?Sized>(
         window: &W,
         size: PixelSize,
     ) -> Self {
@@ -52,6 +52,7 @@ impl SoftBufferDrawTarget {
                 .expect("Failed to get display handle")
                 .as_raw(),
         };
+        // softbuffer's AppKit backend requires main-thread creation (NSView access).
         let context = softbuffer::Context::new(handles).unwrap();
         let surface = softbuffer::Surface::new(&context, handles).unwrap();
         let mut target = Self {
@@ -67,7 +68,7 @@ impl SoftBufferDrawTarget {
         target
     }
 
-    pub(crate) fn resize(&mut self, size: PixelSize) {
+    pub fn resize(&mut self, size: PixelSize) {
         if self.size != size && size.width > 0 && size.height > 0 {
             self.size = size;
             if let Err(_e) = self.surface.resize(
@@ -80,12 +81,13 @@ impl SoftBufferDrawTarget {
         }
     }
 
-    // TODO: Use present_with_damage
-    pub(crate) fn present(&mut self) {
-        let buffer = self.surface.buffer_mut().unwrap();
-        if let Err(_e) = buffer.present() {
-            log_error!("Failed to present softbuffer surface: {}", _e);
-        }
+    /// Present the buffer that was just written. Must be called before the softbuffer
+    /// [`Buffer`](softbuffer::Buffer) is dropped — AppKit allocates a fresh buffer each
+    /// `buffer_mut()`, so a later `present()` on a new buffer would show a blank frame.
+    fn present_buffer(
+        buffer: softbuffer::Buffer<'_, SoftBufferHandles, SoftBufferHandles>,
+    ) -> Result<(), softbuffer::SoftBufferError> {
+        buffer.present()
     }
 }
 
@@ -110,7 +112,7 @@ impl embedded_graphics::draw_target::DrawTarget for SoftBufferDrawTarget {
                 buffer[index] = color.into_storage();
             }
         }
-        Ok(())
+        Self::present_buffer(buffer)
     }
 
     fn fill_contiguous<I>(
@@ -123,6 +125,15 @@ impl embedded_graphics::draw_target::DrawTarget for SoftBufferDrawTarget {
     {
         use embedded_graphics::prelude::{IntoStorage, Point, Size};
         use embedded_graphics::primitives::Rectangle;
+
+        // CPURenderer fills the full physical framebuffer in one shot — keep the
+        // softbuffer surface sized to match before mapping a buffer.
+        if area.top_left == Point::zero() && area.size.width > 0 && area.size.height > 0 {
+            self.resize(PixelSize {
+                width: area.size.width,
+                height: area.size.height,
+            });
+        }
 
         let mut buffer = self.surface.buffer_mut()?;
 
@@ -147,7 +158,7 @@ impl embedded_graphics::draw_target::DrawTarget for SoftBufferDrawTarget {
                 x += 1;
             }
         }
-        Ok(())
+        Self::present_buffer(buffer)
     }
 }
 
