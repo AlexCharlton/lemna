@@ -30,6 +30,10 @@ use crate::{Dirty, NodeId, base_types::*};
 /// which could otherwise happen if rendering takes a while. Even though the wgpu rendering pipeline
 /// itself is quite efficient, delays have been observed when fetching
 /// the next frame in the swapchain after resizing on certain platforms.
+///
+/// Used for `wgpu_renderer`, and for `std_cpu` on non-macOS platforms (softbuffer surface is
+/// created on the render thread). macOS `std_cpu` uses [`super::single_thread_ui`] instead.
+///
 /// Event handling happens on the same thread that the [`current_window`] is accessible from.
 pub struct UI<A: Component + Default + Send + Sync> {
     renderer: Arc<RwLock<Option<ActiveRenderer>>>,
@@ -247,6 +251,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         frame_dirty: Arc<RwLock<bool>>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
+            // Create softbuffer on this thread (valid on Win/Linux; macOS uses single_thread_ui).
             #[cfg(feature = "std_cpu")]
             let mut draw_target = SoftBufferDrawTarget::new(
                 &**current_window().as_ref().unwrap(),
@@ -262,25 +267,28 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     let mut caches = caches.write().unwrap();
 
                     #[cfg(feature = "wgpu_renderer")]
-                    renderer.write().unwrap().as_mut().unwrap().render(
+                    let presented = renderer.write().unwrap().as_mut().unwrap().render(
                         &node.read().unwrap(),
                         &mut caches,
                         size,
                     );
 
                     #[cfg(feature = "std_cpu")]
-                    draw_target.resize(size);
-                    #[cfg(feature = "std_cpu")]
-                    renderer.write().unwrap().as_mut().unwrap().render(
-                        &mut draw_target,
-                        &node.read().unwrap(),
-                        &mut caches,
-                        size,
-                    );
-                    #[cfg(feature = "std_cpu")]
-                    draw_target.present();
+                    let presented = {
+                        draw_target.resize(size);
+                        renderer.write().unwrap().as_mut().unwrap().render(
+                            &mut draw_target,
+                            &node.read().unwrap(),
+                            &mut caches,
+                            size,
+                        );
+                        true
+                    };
 
-                    *frame_dirty.write().unwrap() = false;
+                    // Keep dirty on failed present (e.g. Metal Occluded) so we retry.
+                    if presented {
+                        *frame_dirty.write().unwrap() = false;
+                    }
                     inst_end();
                 }
             }

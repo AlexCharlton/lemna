@@ -114,6 +114,7 @@ version = "0.4"
 # path = "../external/nice-plug/crates/nice-plug-core"
 
 [build-dependencies]
+cfg_aliases = "0.2"
 glob = "0.3"
 shaderc = { version = "0.10", optional = true, features = [
     "prefer-static-linking",

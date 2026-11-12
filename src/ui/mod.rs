@@ -17,15 +17,22 @@ use focus_helpers::FocusContext;
 #[cfg(feature = "std_cpu")]
 mod softbuffer_draw_target;
 
-#[cfg(feature = "std")]
-mod std_ui;
-#[cfg(feature = "std")]
-pub use std_ui::*;
+#[cfg(single_thread_ui)]
+mod single_thread_ui;
+#[cfg(all(single_thread_ui, not(feature = "std")))]
+pub use single_thread_ui::*;
+#[cfg(std_cpu_macos)]
+pub type UI<A> = single_thread_ui::UI<
+    A,
+    softbuffer_draw_target::SoftBufferDrawTarget,
+    embedded_graphics::pixelcolor::Rgb888,
+    softbuffer::SoftBufferError,
+>;
 
-#[cfg(not(feature = "std"))]
-mod no_std_ui;
-#[cfg(not(feature = "std"))]
-pub use no_std_ui::*;
+#[cfg(multi_thread_ui)]
+mod multi_thread_ui;
+#[cfg(multi_thread_ui)]
+pub use multi_thread_ui::*;
 
 pub(crate) trait LemnaUI {
     fn draw(&mut self);

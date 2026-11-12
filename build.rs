@@ -1,14 +1,32 @@
 use std::error::Error;
 
-#[cfg(not(feature = "shaders"))]
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("Skipping building shaders");
+    cfg_aliases::cfg_aliases! {
+        // Softbuffer AppKit needs a main-thread surface; no_std is always single-thread.
+        single_thread_ui: {
+            any(not(feature = "std"), all(feature = "std_cpu", target_os = "macos"))
+        },
+        // wgpu, and std_cpu on non-macOS (softbuffer surface created on the render thread).
+        multi_thread_ui: {
+            all(feature = "std", not(all(feature = "std_cpu", target_os = "macos")))
+        },
+        std_cpu_macos: { all(feature = "std_cpu", target_os = "macos") },
+    }
+
+    #[cfg(feature = "shaders")]
+    build_shaders()?;
+
+    #[cfg(not(feature = "shaders"))]
+    {
+        println!("cargo:rerun-if-changed=build.rs");
+        println!("Skipping building shaders");
+    }
+
     Ok(())
 }
 
 #[cfg(feature = "shaders")]
-fn main() -> Result<(), Box<dyn Error>> {
+fn build_shaders() -> Result<(), Box<dyn Error>> {
     use glob::glob;
     use std::env;
     use std::path::Path;

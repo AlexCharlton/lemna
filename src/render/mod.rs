@@ -342,13 +342,17 @@ pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync 
         _physical_size: PixelSize,
     ) {
     }
+    /// Returns `true` if the frame was presented (or otherwise consumed).
+    /// Returns `false` if the caller should keep the frame dirty and try again
+    /// (e.g. macOS Metal `Occluded` before the window is visible).
     #[cfg(not(feature = "cpu_renderer"))]
     fn render(
         &mut self,
         _node: &Node,
         _caches: &mut renderable::Caches,
         _physical_size: PixelSize,
-    ) {
+    ) -> bool {
+        true
     }
 }
 

@@ -9,7 +9,7 @@ use crate::base_types::{PixelSize, Rect};
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
 use crate::renderable::{Caches, Raster, Rectangle, Renderable, Shape, Text};
-use crate::window::Window;
+use crate::window::{current_window, Window};
 
 pub mod pipelines;
 pub use pipelines::shared::VBDesc;
@@ -242,36 +242,49 @@ impl crate::render::Renderer for WGPURenderer {
         }
     }
 
-    fn render(&mut self, node: &Node, caches: &mut Caches, physical_size: PixelSize) {
+    fn render(&mut self, node: &Node, caches: &mut Caches, physical_size: PixelSize) -> bool {
         inst("WGPURenderer::render#get_current_texture");
         let was_resized = self.do_resize(physical_size);
+        // Update the viewport UBO as soon as the surface size changes — even if
+        // get_current_texture fails (common Occluded on first macOS frames).
+        // Otherwise a later successful frame draws with a zero matrix into a
+        // white clear and the window looks blank.
+        if was_resized {
+            evt("WGPURenderer::was_resized");
+            self.update_ubo(physical_size);
+        }
         let output = match self.context.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(o)
             | wgpu::CurrentSurfaceTexture::Suboptimal(o) => o,
             wgpu::CurrentSurfaceTexture::Timeout => {
                 evt("CurrentSurfaceTexture::Timeout");
-                return;
+                request_redraw();
+                return false;
             }
             wgpu::CurrentSurfaceTexture::Occluded => {
+                // On macOS/Metal (wgpu 29+), the first frames often report Occluded
+                // before AppKit has set NSWindowOcclusionStateVisible. Keep the
+                // frame dirty and retry via redraw.
                 evt("CurrentSurfaceTexture::Occluded");
-                return;
+                request_redraw();
+                return false;
             }
             wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
                 evt("CurrentSurfaceTexture::Lost or Outdated");
                 self.do_resize(self.context.size());
-                return;
+                request_redraw();
+                return false;
             }
             wgpu::CurrentSurfaceTexture::Validation => {
                 panic!("Failed to get current texture: validation error");
             }
         };
         inst_end();
+        // Some backends need a configure+present cycle before the first real draw.
+        // UBO is already up to date above; present an empty frame and redraw.
         if was_resized {
-            evt("WGPURenderer::was_resized");
-            self.update_ubo(physical_size);
             self.context.queue.present(output);
-            self.render(node, caches, physical_size);
-            return;
+            return self.render(node, caches, physical_size);
         }
 
         let view = output
@@ -459,6 +472,13 @@ impl crate::render::Renderer for WGPURenderer {
         self.context.queue.submit(command_buffers);
         self.context.queue.present(output);
         inst_end();
+        true
+    }
+}
+
+fn request_redraw() {
+    if let Some(w) = current_window().as_ref() {
+        w.redraw();
     }
 }
 
