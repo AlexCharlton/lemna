@@ -730,17 +730,17 @@ impl Component for TextBoxText {
                 event.blur();
             }
             Key::X => {
-                if event.modifiers_held.ctrl {
+                if event.modifiers_held.command() {
                     changed = self.cut();
                 }
             }
             Key::C => {
-                if event.modifiers_held.ctrl {
+                if event.modifiers_held.command() {
                     self.copy();
                 }
             }
             Key::V => {
-                if event.modifiers_held.ctrl {
+                if event.modifiers_held.command() {
                     changed = self.paste();
                 }
             }
