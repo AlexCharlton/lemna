@@ -877,11 +877,11 @@ impl Component for TextAreaText {
                 changed = self.insert_text("\n");
             }
             Key::Escape => event.blur(),
-            Key::X if event.modifiers_held.ctrl => changed = self.cut(),
-            Key::C if event.modifiers_held.ctrl => {
+            Key::X if event.modifiers_held.command() => changed = self.cut(),
+            Key::C if event.modifiers_held.command() => {
                 self.copy();
             }
-            Key::V if event.modifiers_held.ctrl => changed = self.paste(),
+            Key::V if event.modifiers_held.command() => changed = self.paste(),
             _ => handled = false,
         }
         if changed {

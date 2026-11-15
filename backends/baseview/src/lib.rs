@@ -485,9 +485,12 @@ fn translate_key(key: Code) -> Button {
         Code::ShiftLeft => Key::LShift,
         Code::AltLeft => Key::LAlt,
         Code::ControlLeft => Key::LCtrl,
+        // Command on macOS; the Windows/Super key elsewhere.
+        Code::MetaLeft => Key::LMeta,
         Code::ShiftRight => Key::RShift,
         Code::AltRight => Key::RAlt,
         Code::ControlRight => Key::RCtrl,
+        Code::MetaRight => Key::RMeta,
 
         Code::End => Key::End,
         Code::Home => Key::Home,

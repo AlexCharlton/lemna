@@ -553,6 +553,15 @@ impl ModifiersHeld {
     pub fn none(&self) -> bool {
         !self.shift && !self.alt && !self.ctrl && !self.meta
     }
+
+    /// The platform command modifier: Command (Meta) on macOS, Control elsewhere.
+    pub fn command(&self) -> bool {
+        if cfg!(target_os = "macos") {
+            self.meta
+        } else {
+            self.ctrl
+        }
+    }
 }
 
 //-------------------------------------------------------
