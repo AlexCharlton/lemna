@@ -1,4 +1,5 @@
 use std::fmt;
+use std::sync::Arc;
 
 use futures::executor::block_on;
 use wgpu::{self, util::DeviceExt};
@@ -9,7 +10,7 @@ use crate::base_types::{PixelSize, Rect};
 use crate::instrumenting::*;
 use crate::node::{Node, ScrollFrame};
 use crate::renderable::{Caches, Raster, Rectangle, Renderable, Shape, Text};
-use crate::window::{current_window, Window};
+use crate::window::Window;
 
 pub mod pipelines;
 pub use pipelines::shared::VBDesc;
@@ -39,6 +40,7 @@ pub struct WGPURenderer {
     context: context::WGPUContext,
     uniform_bind_group: wgpu::BindGroup,
     globals_ubo: wgpu::Buffer,
+    window: Arc<dyn Window>,
 }
 
 impl fmt::Debug for WGPURenderer {
@@ -186,10 +188,10 @@ enum LayerTarget<'a> {
 }
 
 impl crate::render::Renderer for WGPURenderer {
-    fn new<W: Window>(window: &W) -> Self {
+    fn new(window: &Arc<dyn Window>) -> Self {
         let size = window.physical_size();
         let context = block_on(context::get_wgpu_context(
-            window,
+            window.as_ref(),
             // This ensures that the first render will always resize, which resolves issues on some backends
             size.width - 1,
             size.height - 1,
@@ -239,6 +241,7 @@ impl crate::render::Renderer for WGPURenderer {
             context,
             uniform_bind_group,
             globals_ubo,
+            window: Arc::clone(window),
         }
     }
 
@@ -258,7 +261,7 @@ impl crate::render::Renderer for WGPURenderer {
             | wgpu::CurrentSurfaceTexture::Suboptimal(o) => o,
             wgpu::CurrentSurfaceTexture::Timeout => {
                 evt("CurrentSurfaceTexture::Timeout");
-                request_redraw();
+                self.window.redraw();
                 return false;
             }
             wgpu::CurrentSurfaceTexture::Occluded => {
@@ -266,13 +269,13 @@ impl crate::render::Renderer for WGPURenderer {
                 // before AppKit has set NSWindowOcclusionStateVisible. Keep the
                 // frame dirty and retry via redraw.
                 evt("CurrentSurfaceTexture::Occluded");
-                request_redraw();
+                self.window.redraw();
                 return false;
             }
             wgpu::CurrentSurfaceTexture::Lost | wgpu::CurrentSurfaceTexture::Outdated => {
                 evt("CurrentSurfaceTexture::Lost or Outdated");
                 self.do_resize(self.context.size());
-                request_redraw();
+                self.window.redraw();
                 return false;
             }
             wgpu::CurrentSurfaceTexture::Validation => {
@@ -473,12 +476,6 @@ impl crate::render::Renderer for WGPURenderer {
         self.context.queue.present(output);
         inst_end();
         true
-    }
-}
-
-fn request_redraw() {
-    if let Some(w) = current_window().as_ref() {
-        w.redraw();
     }
 }
 

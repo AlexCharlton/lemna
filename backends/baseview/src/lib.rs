@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::cell::{Cell, RefCell};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 use arboard::{self, Clipboard};
@@ -38,6 +38,8 @@ struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
     drop_target_valid: Arc<RwLock<bool>>,
     /// Per-window size; must not be process-global (multiple editors/instances).
     size: Arc<RwLock<WindowSize>>,
+    /// Cursor changes requested by widgets, in order. Applied on this handler's `WindowContext`.
+    pending_cursor: Arc<Mutex<Vec<baseview::MouseCursor>>>,
     // For parented windows, we need to force the focus to the window when the user clicks on it
     needs_forced_focus: bool,
     focused: Cell<bool>,
@@ -75,6 +77,7 @@ pub struct Window {
     drop_target_valid: Arc<RwLock<bool>>,
     waker: baseview::WindowWaker,
     size: Arc<RwLock<WindowSize>>,
+    pending_cursor: Arc<Mutex<Vec<baseview::MouseCursor>>>,
 }
 
 unsafe impl Send for Window {}
@@ -135,12 +138,14 @@ impl Window {
                     logical_size: (options.width, options.height),
                     scale_factor,
                 }));
+                let pending_cursor = Arc::new(Mutex::new(Vec::new()));
                 let mut ui: UI<A> = UI::new(Self {
                     handle: window.window_handle().expect("window handle").as_raw(),
                     display_handle: window.display_handle().expect("display handle").as_raw(),
                     drop_target_valid,
                     waker: window.waker(),
                     size: size.clone(),
+                    pending_cursor: pending_cursor.clone(),
                 });
                 for (name, data) in options.fonts.drain(..) {
                     if let Err(_e) = ui.add_font(name, data) {
@@ -155,6 +160,7 @@ impl Window {
                     parent_channel,
                     drop_target_valid: drop_target_valid2,
                     size,
+                    pending_cursor,
                     needs_forced_focus,
                     focused: Cell::new(false),
                 })
@@ -204,25 +210,18 @@ impl HasDisplayHandle for Window {
     }
 }
 
-thread_local!(
-    static CURRENT_WINDOW: RefCell<Option<baseview::WindowContext>> = const { RefCell::new(None) };
-);
-
-/// Return the current [`WindowContext`], if called during event handling.
-pub fn current_window() -> Option<baseview::WindowContext> {
-    CURRENT_WINDOW.with(|r| r.borrow().clone())
-}
-
-fn clear_current_window() {
-    CURRENT_WINDOW.with(|r| *r.borrow_mut() = None);
-}
-
-fn set_current_window(window: baseview::WindowContext) {
-    CURRENT_WINDOW.with(|r| *r.borrow_mut() = Some(window));
-}
-
 fn physical_to_logical(x: f64, y: f64, scale: f32) -> (f32, f32) {
     ((x as f32) / scale, (y as f32) / scale)
+}
+
+impl<A: 'static + Component + Default + Send + Sync> BaseViewUI<A> {
+    /// Apply cursor requests in the order widgets made them.
+    fn apply_pending_cursor(&self) {
+        let cursors = std::mem::take(&mut *self.pending_cursor.lock().unwrap());
+        for cursor in cursors {
+            let _ = self.window.set_mouse_cursor(cursor);
+        }
+    }
 }
 
 use lemna::input::{Button, Drag, Input, Key, Motion, MouseButton};
@@ -275,6 +274,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
         self.ui.borrow_mut().handle_input(&Input::Timer);
         // Only schedules a frame if the tick dirtied the UI.
         self.ui.borrow_mut().draw();
+        self.apply_pending_cursor();
     }
 
     fn resized(&self, new_size: baseview::WindowSize) -> Result<(), baseview::HandlerError> {
@@ -291,7 +291,6 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
     }
 
     fn on_event(&self, event: baseview::Event) -> baseview::EventStatus {
-        set_current_window(self.window.clone());
         let scale = self.size.read().unwrap().scale_factor;
         let mut drag_event = false;
         let mut handled = true;
@@ -412,7 +411,7 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
         }
         // Draw thread calls Window::redraw → request_redraw when the UI is dirty.
         self.ui.borrow_mut().draw();
-        clear_current_window();
+        self.apply_pending_cursor();
         if drag_event && *self.drop_target_valid.read().unwrap() {
             baseview::EventStatus::AcceptDrop(baseview::DropEffect::Copy)
         } else if !handled {
@@ -599,11 +598,7 @@ impl lemna::window::Window for Window {
         }
     }
 
-    fn start_drag(&self, _data: Data) {
-        // if let Some(win) = current_window() {
-        // win.start_drag(lemna_data_to_drop_data(data));
-        // }
-    }
+    fn start_drag(&self, _data: Data) {}
 
     fn set_drop_target_valid(&self, valid: bool) {
         *self.drop_target_valid.write().unwrap() = valid
@@ -626,15 +621,11 @@ impl lemna::window::Window for Window {
             "SizeWE" => MouseCursor::EwResize,
             _ => MouseCursor::Default,
         };
-        if let Some(win) = current_window() {
-            let _ = win.set_mouse_cursor(ct);
-        }
+        self.pending_cursor.lock().unwrap().push(ct);
     }
 
     fn unset_cursor(&self) {
-        if let Some(win) = current_window() {
-            let _ = win.set_mouse_cursor(MouseCursor::Default);
-        }
+        self.pending_cursor.lock().unwrap().push(MouseCursor::Default);
     }
 }
 

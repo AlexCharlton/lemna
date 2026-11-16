@@ -17,7 +17,6 @@ use crate::node::Node;
 use crate::render::{ActiveRenderer, Renderer};
 use crate::renderable::Caches;
 use crate::window::Window;
-use crate::window::{clear_current_window, current_window, set_current_window};
 use crate::{Dirty, NodeId, base_types::*};
 
 /// `UI` is the main struct that holds the [`Window`], `Renderer` and [`Node`]s of an app.
@@ -34,8 +33,10 @@ use crate::{Dirty, NodeId, base_types::*};
 /// Used for `wgpu_renderer`, and for `std_cpu` on non-macOS platforms (softbuffer surface is
 /// created on the render thread). macOS `std_cpu` uses [`super::single_thread_ui`] instead.
 ///
-/// Event handling happens on the same thread that the [`current_window`] is accessible from.
+/// This UI keeps its own window handle. Widget-facing window functions see that window while
+/// this UI is handling an event or drawing.
 pub struct UI<A: Component + Default + Send + Sync> {
+    pub(super) window: Arc<dyn Window>,
     renderer: Arc<RwLock<Option<ActiveRenderer>>>,
     caches: Arc<RwLock<Caches>>,
     _render_thread: JoinHandle<()>,
@@ -82,24 +83,19 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
     }
 
     fn resize(&mut self) {
-        if current_window().is_none() {
-            return;
-        }
-        let new_size = current_window().as_ref().unwrap().physical_size();
+        let new_size = self.window.physical_size();
         if new_size.width != 0 && new_size.height != 0 {
-            let scale_factor = current_window().as_ref().unwrap().scale_factor();
+            let scale_factor = self.window.scale_factor();
             *self.physical_size.write().unwrap() = new_size;
-            *self.logical_size.write().unwrap() = current_window().as_ref().unwrap().logical_size();
+            *self.logical_size.write().unwrap() = self.window.logical_size();
             *self.scale_factor.write().unwrap() = scale_factor;
             self.event_cache.scale_factor = scale_factor;
             *self.node_dirty.write().unwrap() = Dirty::Full;
-            current_window().as_ref().unwrap().redraw(); // Always redraw after resizing
+            self.window.redraw(); // Always redraw after resizing
         }
     }
 
     fn exit(&mut self) {
-        clear_current_window();
-
         let renderer = self.renderer.write().unwrap().take().unwrap();
         drop(renderer);
     }
@@ -165,6 +161,7 @@ impl<A: 'static + Component + Default + Send + Sync> super::LemnaUI for UI<A> {
 impl<A: 'static + Component + Default + Send + Sync> UI<A> {
     /// Create a new `UI`, given a [`Window`].
     pub fn new<W: Window + 'static>(window: W) -> Self {
+        let window: Arc<dyn Window> = Arc::new(window);
         let scale_factor = Arc::new(RwLock::new(window.scale_factor()));
         // dbg!(scale_factor);
         let physical_size = Arc::new(RwLock::new(window.physical_size()));
@@ -181,7 +178,6 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
 
         let renderer = Arc::new(RwLock::new(Some(ActiveRenderer::new(&window))));
         let event_cache = EventCache::new(window.scale_factor());
-        set_current_window(Box::new(window));
 
         // Root node
         let node = Arc::new(RwLock::new(Node::new(
@@ -204,6 +200,7 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
             node.clone(),
             physical_size.clone(),
             frame_dirty.clone(),
+            window.clone(),
         );
 
         // Create a channel to speak to the drawer. Every time we send to this channel we want to trigger a draw;
@@ -218,9 +215,11 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
             node_dirty.clone(),
             references.clone(),
             focus_state.clone(),
+            window.clone(),
         );
 
         let n = Self {
+            window,
             renderer,
             caches,
             render_channel,
@@ -249,14 +248,13 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         node: Arc<RwLock<Node>>,
         physical_size: Arc<RwLock<PixelSize>>,
         frame_dirty: Arc<RwLock<bool>>,
+        window: Arc<dyn Window>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             // Create softbuffer on this thread (valid on Win/Linux; macOS uses single_thread_ui).
             #[cfg(feature = "std_cpu")]
-            let mut draw_target = SoftBufferDrawTarget::new(
-                &**current_window().as_ref().unwrap(),
-                *physical_size.read().unwrap(),
-            );
+            let mut draw_target =
+                SoftBufferDrawTarget::new(window.as_ref(), *physical_size.read().unwrap());
 
             for _ in receiver.iter() {
                 if *frame_dirty.read().unwrap() {
@@ -305,9 +303,11 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
         node_dirty: Arc<RwLock<Dirty>>,
         references: Arc<RwLock<HashMap<String, u64>>>,
         focus_state: Arc<RwLock<FocusState>>,
+        window: Arc<dyn Window>,
     ) -> JoinHandle<()> {
         thread::spawn(move || {
             for _ in receiver.iter() {
+                let _scope = crate::window::enter(&window);
                 if *node_dirty.read().unwrap() == Dirty::Full {
                     // Set the node to clean right away so that concurrent events can reset it to dirty
                     *node_dirty.write().unwrap() = Dirty::No;
@@ -375,8 +375,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
 
                         *old = new;
 
-                        if do_render && let Some(w) = current_window().as_ref() {
-                            w.redraw();
+                        if do_render {
+                            window.redraw();
                         }
                         *frame_dirty.write().unwrap() = true;
                     }
@@ -398,8 +398,8 @@ impl<A: 'static + Component + Default + Send + Sync> UI<A> {
                     let do_render = node.render(&mut caches, scale_factor);
                     inst_end();
 
-                    if do_render && let Some(w) = current_window().as_ref() {
-                        w.redraw();
+                    if do_render {
+                        window.redraw();
                     }
                     *frame_dirty.write().unwrap() = true;
                     inst_end();
