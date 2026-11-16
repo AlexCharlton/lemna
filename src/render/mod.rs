@@ -328,7 +328,7 @@ mod rgb_color {
 pub use rgb_color::*;
 
 pub(crate) trait Renderer: core::fmt::Debug + core::marker::Sized + Send + Sync {
-    fn new<W: Window>(window: &W) -> Self;
+    fn new(window: &alloc::sync::Arc<dyn Window>) -> Self;
     #[cfg(feature = "cpu_renderer")]
     fn render<
         D: embedded_graphics::draw_target::DrawTarget<Color = C, Error = E>,

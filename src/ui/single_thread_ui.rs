@@ -1,6 +1,6 @@
 extern crate alloc;
 
-use alloc::{boxed::Box, string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, sync::Arc, vec::Vec};
 use core::marker::PhantomData;
 
 use embedded_graphics::draw_target::DrawTarget;
@@ -15,7 +15,6 @@ use crate::node::Node;
 use crate::render::{ActiveRenderer, Renderer, RgbColor};
 use crate::renderable::Caches;
 use crate::window::Window;
-use crate::window::{clear_current_window, current_window, set_current_window};
 use crate::{Dirty, NodeId};
 
 pub struct UI<
@@ -24,6 +23,7 @@ pub struct UI<
     C: RgbColor,
     E: core::fmt::Debug,
 > {
+    pub(super) window: Arc<dyn Window>,
     node: Node,
     phantom_app: PhantomData<A>,
     draw_target: D,
@@ -94,6 +94,7 @@ impl<
     }
 
     fn draw(&mut self) {
+        let _scope = crate::window::enter(&self.window);
         let scale_factor = self.event_cache.scale_factor;
         let logical_size = PixelSize {
             width: (self.physical_size.width as f32 / scale_factor) as u32,
@@ -146,16 +147,16 @@ impl<
             let do_render = new.render(&mut self.caches, scale_factor);
             self.node = new;
             self.frame_dirty = do_render;
-            if do_render && let Some(w) = current_window().as_ref() {
-                w.redraw();
+            if do_render {
+                self.window.redraw();
             }
         } else if self.node_dirty == Dirty::RenderOnly {
             self.node_dirty = Dirty::No;
             self.node.reposition(scale_factor);
             let do_render = self.node.render(&mut self.caches, scale_factor);
             self.frame_dirty = do_render;
-            if do_render && let Some(w) = current_window().as_ref() {
-                w.redraw();
+            if do_render {
+                self.window.redraw();
             }
         }
     }
@@ -181,23 +182,16 @@ impl<
     }
 
     fn resize(&mut self) {
-        if current_window().is_none() {
-            return;
-        }
-        let window = current_window();
-        let window = window.as_ref().unwrap();
-        let new_size = window.physical_size();
+        let new_size = self.window.physical_size();
         if new_size.width != 0 && new_size.height != 0 {
             self.physical_size = new_size;
-            self.event_cache.scale_factor = window.scale_factor();
+            self.event_cache.scale_factor = self.window.scale_factor();
             self.node_dirty = Dirty::Full;
-            window.redraw();
+            self.window.redraw();
         }
     }
 
-    fn exit(&mut self) {
-        clear_current_window();
-    }
+    fn exit(&mut self) {}
 }
 
 impl<
@@ -208,14 +202,15 @@ impl<
 > UI<A, D, C, E>
 {
     pub fn with_draw_target<W: Window + 'static>(window: W, draw_target: D) -> Self {
+        let window: Arc<dyn Window> = Arc::new(window);
         let physical_size = window.physical_size();
         let scale_factor = window.scale_factor();
         let mut component = A::default();
         component.init();
         let renderer = ActiveRenderer::new(&window);
 
-        set_current_window(Box::new(window));
         Self {
+            window,
             node: Node::new(Box::new(component), 0, Layout::default()),
             phantom_app: PhantomData,
             draw_target,
@@ -249,8 +244,7 @@ impl<A: Component + Default + Send + Sync + 'static>
     /// Create a softbuffer-backed UI. Must be called on the main thread (AppKit).
     pub fn new<W: Window + 'static>(window: W) -> Self {
         let size = window.physical_size();
-        let draw_target =
-            super::softbuffer_draw_target::SoftBufferDrawTarget::new(&window, size);
+        let draw_target = super::softbuffer_draw_target::SoftBufferDrawTarget::new(&window, size);
         Self::with_draw_target(window, draw_target)
     }
 }

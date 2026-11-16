@@ -36,7 +36,7 @@ pub(crate) struct CPURenderer {
 }
 
 impl Renderer for CPURenderer {
-    fn new<W: Window>(window: &W) -> Self {
+    fn new(window: &alloc::sync::Arc<dyn Window>) -> Self {
         let size = window.physical_size();
         let pixmap = Pixmap::new(size.width, size.height).unwrap();
         Self { size, pixmap }

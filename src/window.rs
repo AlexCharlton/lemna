@@ -3,7 +3,7 @@ use crate::base_types::{Data, PixelSize};
 #[cfg(feature = "std")]
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 
-/// The trait that backends must implement. An instance is returned by [`current_window`] so that an app may interact with the OS's windowing system.
+/// The trait that backends must implement so an app may interact with the OS's windowing system.
 #[cfg(feature = "std")]
 pub trait Window: HasWindowHandle + HasDisplayHandle + Send + Sync {
     /// Logical size of the window. Probably only useful internally.
@@ -110,78 +110,138 @@ pub trait Window: Send + Sync {
 // MARK: Accessors
 
 extern crate alloc;
-use alloc::boxed::Box;
+use alloc::sync::Arc;
+use alloc::vec::Vec;
+use core::marker::PhantomData;
 
+#[cfg(feature = "std")]
+use std::cell::RefCell;
+
+#[cfg(not(feature = "std"))]
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+#[cfg(not(feature = "std"))]
 use embassy_sync::once_lock::OnceLock;
-
+#[cfg(not(feature = "std"))]
 type RwLock<T> = embassy_sync::rwlock::RwLock<CriticalSectionRawMutex, T>;
 
-fn _current_window() -> &'static RwLock<Option<Box<dyn Window>>> {
-    static CURRENT_WINDOW: OnceLock<RwLock<Option<Box<dyn Window>>>> = OnceLock::new();
-    CURRENT_WINDOW.get_or_init(|| RwLock::new(None))
+/// Pops the window pushed by [`enter`] when dropped. Not `Send`: it must be dropped on the thread that created it.
+#[must_use = "the window is popped when this guard is dropped"]
+pub(crate) struct WindowScope {
+    _thread: PhantomData<*const ()>,
 }
 
-#[doc(hidden)]
-/// Return a reference to the current [`Window`].
-/// Only for use in windowing backends and internal use.
-pub fn current_window<'a>()
--> embassy_sync::rwlock::RwLockReadGuard<'a, CriticalSectionRawMutex, Option<Box<dyn Window>>> {
-    embassy_futures::block_on(_current_window().read())
+/// Make `window` the active window for free functions such as [`set_cursor`] on this thread, until the guard drops.
+pub(crate) fn enter(window: &Arc<dyn Window>) -> WindowScope {
+    push_window(Arc::clone(window));
+    WindowScope {
+        _thread: PhantomData,
+    }
 }
 
-pub(crate) fn clear_current_window() {
-    *embassy_futures::block_on(_current_window().write()) = None;
+impl Drop for WindowScope {
+    fn drop(&mut self) {
+        pop_window();
+    }
 }
 
-pub(crate) fn set_current_window(window: Box<dyn Window>) {
-    *embassy_futures::block_on(_current_window().write()) = Some(window);
+#[cfg(feature = "std")]
+thread_local! {
+    static WINDOW_STACK: RefCell<Vec<Arc<dyn Window>>> = RefCell::new(Vec::new());
+}
+
+#[cfg(feature = "std")]
+fn push_window(window: Arc<dyn Window>) {
+    WINDOW_STACK.with(|stack| stack.borrow_mut().push(window));
+}
+
+#[cfg(feature = "std")]
+fn pop_window() {
+    WINDOW_STACK.with(|stack| {
+        stack.borrow_mut().pop();
+    });
+}
+
+#[cfg(feature = "std")]
+fn with_current_window<R>(f: impl FnOnce(Option<&dyn Window>) -> R) -> R {
+    WINDOW_STACK.with(|stack| {
+        let stack = stack.borrow();
+        f(stack.last().map(|window| window.as_ref()))
+    })
+}
+
+#[cfg(not(feature = "std"))]
+fn window_stack() -> &'static RwLock<Vec<Arc<dyn Window>>> {
+    static STACK: OnceLock<RwLock<Vec<Arc<dyn Window>>>> = OnceLock::new();
+    STACK.get_or_init(|| RwLock::new(Vec::new()))
+}
+
+#[cfg(not(feature = "std"))]
+fn push_window(window: Arc<dyn Window>) {
+    embassy_futures::block_on(window_stack().write()).push(window);
+}
+
+#[cfg(not(feature = "std"))]
+fn pop_window() {
+    embassy_futures::block_on(window_stack().write()).pop();
+}
+
+#[cfg(not(feature = "std"))]
+fn with_current_window<R>(f: impl FnOnce(Option<&dyn Window>) -> R) -> R {
+    let stack = embassy_futures::block_on(window_stack().read());
+    f(stack.last().map(|window| window.as_ref()))
 }
 
 pub fn logical_size() -> Option<PixelSize> {
-    current_window().as_ref().map(|w| w.logical_size())
+    with_current_window(|window| window.map(|window| window.logical_size()))
 }
 
 pub fn physical_size() -> Option<PixelSize> {
-    current_window().as_ref().map(|w| w.physical_size())
+    with_current_window(|window| window.map(|window| window.physical_size()))
 }
 
 pub fn scale_factor() -> Option<f32> {
-    current_window().as_ref().map(|w| w.scale_factor())
+    with_current_window(|window| window.map(|window| window.scale_factor()))
 }
 
 pub fn set_cursor(cursor_type: &str) {
-    if let Some(w) = current_window().as_ref() {
-        w.set_cursor(cursor_type)
-    }
+    with_current_window(|window| {
+        if let Some(window) = window {
+            window.set_cursor(cursor_type);
+        }
+    });
 }
 
 pub fn unset_cursor() {
-    if let Some(w) = current_window().as_ref() {
-        w.unset_cursor()
-    }
+    with_current_window(|window| {
+        if let Some(window) = window {
+            window.unset_cursor();
+        }
+    });
 }
 
 pub fn put_on_clipboard(data: &Data) {
-    if let Some(w) = current_window().as_ref() {
-        w.put_on_clipboard(data)
-    }
+    with_current_window(|window| {
+        if let Some(window) = window {
+            window.put_on_clipboard(data);
+        }
+    });
 }
 
 pub fn get_from_clipboard() -> Option<Data> {
-    current_window()
-        .as_ref()
-        .and_then(|w| w.get_from_clipboard())
+    with_current_window(|window| window.and_then(|window| window.get_from_clipboard()))
 }
 
 pub fn start_drag(data: Data) {
-    if let Some(w) = current_window().as_ref() {
-        w.start_drag(data)
-    }
+    with_current_window(|window| match window {
+        Some(window) => window.start_drag(data),
+        None => drop(data),
+    });
 }
 
 pub fn set_drop_target_valid(valid: bool) {
-    if let Some(w) = current_window().as_ref() {
-        w.set_drop_target_valid(valid)
-    }
+    with_current_window(|window| {
+        if let Some(window) = window {
+            window.set_drop_target_valid(valid);
+        }
+    });
 }

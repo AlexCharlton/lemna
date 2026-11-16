@@ -90,7 +90,7 @@ impl<A: 'static + Component + Default + Send + Sync> ApplicationHandler for App<
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::RedrawRequested => ui.render(),
             WindowEvent::CursorMoved { position, .. } => {
-                let scale_factor = lemna::window::scale_factor().unwrap_or(1.0);
+                let scale_factor = ui.scale_factor();
                 ui.handle_input(&Input::Motion(Motion::Mouse {
                     x: position.x as f32 / scale_factor,
                     y: position.y as f32 / scale_factor,

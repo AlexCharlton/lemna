@@ -605,6 +605,7 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
 
     /// Update the application with a message.
     pub fn update(&mut self, msg: crate::Message) {
+        let _scope = crate::window::enter(&self.window);
         LemnaUI::update(self, msg)
     }
 
@@ -617,11 +618,17 @@ impl<A: Component + Default + Send + Sync + 'static> UI<A> {
         LemnaUI::state_mut(self, f)
     }
 
+    /// Scale factor of this UI's window.
+    pub fn scale_factor(&self) -> f32 {
+        self.window.scale_factor()
+    }
+
     /// Handle input events.
     ///
     /// Returns `true` if the input was handled, or `false` if a component marked it as ignored
     /// via [`Event::ignored`].
     pub fn handle_input(&mut self, input: &Input) -> bool {
+        let _scope = crate::window::enter(&self.window);
         LemnaUI::handle_input(self, input)
     }
 }
@@ -651,6 +658,7 @@ impl<
 
     /// Update the application with a message.
     pub fn update(&mut self, msg: crate::Message) {
+        let _scope = crate::window::enter(&self.window);
         LemnaUI::update(self, msg)
     }
 
@@ -663,11 +671,17 @@ impl<
         LemnaUI::state_mut(self, f)
     }
 
+    /// Scale factor of this UI's window.
+    pub fn scale_factor(&self) -> f32 {
+        self.window.scale_factor()
+    }
+
     /// Handle input events.
     ///
     /// Returns `true` if the input was handled, or `false` if a component marked it as ignored
     /// via [`Event::ignored`].
     pub fn handle_input(&mut self, input: &Input) -> bool {
+        let _scope = crate::window::enter(&self.window);
         LemnaUI::handle_input(self, input)
     }
 }
