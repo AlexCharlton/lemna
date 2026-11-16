@@ -614,18 +614,25 @@ impl lemna::window::Window for Window {
             "HandGrabbing" => MouseCursor::HandGrabbing,
             "NoEntry" => MouseCursor::NotAllowed,
             "Cross" => MouseCursor::Crosshair,
-            "Size" | "Move" => MouseCursor::Move,
+            "Size" | "Move" => MouseCursor::Move, // Does nothing on macOS
             "SizeNWSE" => MouseCursor::NwseResize,
             "SizeNS" => MouseCursor::NsResize,
             "SizeNESW" => MouseCursor::NeswResize,
             "SizeWE" => MouseCursor::EwResize,
+            "SizeN" => MouseCursor::NResize, // Same as SizeNS on Windows
+            "SizeE" => MouseCursor::EResize, // Same as SizeWE on Windows
+            "SizeS" => MouseCursor::SResize, // Same as SizeNS on Windows
+            "SizeW" => MouseCursor::WResize, // Same as SizeWE on Windows
             _ => MouseCursor::Default,
         };
         self.pending_cursor.lock().unwrap().push(ct);
     }
 
     fn unset_cursor(&self) {
-        self.pending_cursor.lock().unwrap().push(MouseCursor::Default);
+        self.pending_cursor
+            .lock()
+            .unwrap()
+            .push(MouseCursor::Default);
     }
 }
 
