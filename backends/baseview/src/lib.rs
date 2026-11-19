@@ -47,8 +47,38 @@ struct BaseViewUI<A: 'static + Component + Default + Send + Sync> {
 
 #[derive(Debug, Clone, Copy)]
 struct WindowSize {
+    /// Authoritative framebuffer / swapchain size from the platform when available.
+    physical_size: (u32, u32),
     logical_size: (u32, u32),
     scale_factor: f32,
+}
+
+impl WindowSize {
+    /// Prefer the platform's physical size so the surface matches the client area.
+    /// Re-deriving physical from truncated logical pixels undersizes by 1px for odd
+    /// dimensions at integer scale factors (e.g. 801 @ 2x → logical 400 → physical 800).
+    fn from_physical(physical: (u32, u32), scale_factor: f32) -> Self {
+        let scale = scale_factor.max(f32::EPSILON);
+        Self {
+            physical_size: physical,
+            logical_size: (
+                (physical.0 as f32 / scale).round() as u32,
+                (physical.1 as f32 / scale).round() as u32,
+            ),
+            scale_factor,
+        }
+    }
+
+    fn from_logical(logical: (u32, u32), scale_factor: f32) -> Self {
+        Self {
+            physical_size: (
+                (logical.0 as f32 * scale_factor).round() as u32,
+                (logical.1 as f32 * scale_factor).round() as u32,
+            ),
+            logical_size: logical,
+            scale_factor,
+        }
+    }
 }
 
 fn window_settings<P: HasWindowHandle>(
@@ -134,10 +164,21 @@ impl Window {
                     window_physical = ?(window_size.physical.width, window_size.physical.height),
                     "Window handler init"
                 );
-                let size = Arc::new(RwLock::new(WindowSize {
-                    logical_size: (options.width, options.height),
-                    scale_factor,
-                }));
+                // If we're still on a placeholder 1.0 scale and using a host fallback,
+                // size from design logical pixels. Otherwise trust the platform physical
+                // size (recomputing from truncated logical causes 1px black edges).
+                let size = Arc::new(RwLock::new(
+                    if options.fallback_scale_factor.is_some()
+                        && window_size.scale_factor <= 1.0 + f64::EPSILON
+                    {
+                        WindowSize::from_logical((options.width, options.height), scale_factor)
+                    } else {
+                        WindowSize::from_physical(
+                            (window_size.physical.width, window_size.physical.height),
+                            scale_factor,
+                        )
+                    },
+                ));
                 let pending_cursor = Arc::new(Mutex::new(Vec::new()));
                 let mut ui: UI<A> = UI::new(Self {
                     handle: window.window_handle().expect("window handle").as_raw(),
@@ -239,10 +280,8 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
                         logical_size,
                         scale_factor,
                     } => {
-                        *self.size.write().unwrap() = WindowSize {
-                            logical_size,
-                            scale_factor,
-                        };
+                        *self.size.write().unwrap() =
+                            WindowSize::from_logical(logical_size, scale_factor);
                         self.ui.borrow_mut().handle_input(&Input::Resize);
                         needs_draw = true;
                     }
@@ -278,13 +317,11 @@ impl<A: 'static + Component + Default + Send + Sync> baseview::WindowHandler for
     }
 
     fn resized(&self, new_size: baseview::WindowSize) -> Result<(), baseview::HandlerError> {
-        *self.size.write().unwrap() = WindowSize {
-            logical_size: (
-                new_size.logical.width as u32,
-                new_size.logical.height as u32,
-            ),
-            scale_factor: new_size.scale_factor as f32,
-        };
+        // Use platform physical size directly — do not recompute from logical.
+        *self.size.write().unwrap() = WindowSize::from_physical(
+            (new_size.physical.width, new_size.physical.height),
+            new_size.scale_factor as f32,
+        );
         // Input::Resize marks dirty and calls Window::redraw.
         self.ui.borrow_mut().handle_input(&Input::Resize);
         Ok(())
@@ -567,8 +604,8 @@ impl lemna::window::Window for Window {
     fn physical_size(&self) -> PixelSize {
         let size = self.size.read().unwrap();
         PixelSize {
-            width: ((size.logical_size.0 as f32) * size.scale_factor) as u32,
-            height: ((size.logical_size.1 as f32) * size.scale_factor) as u32,
+            width: size.physical_size.0,
+            height: size.physical_size.1,
         }
     }
 
